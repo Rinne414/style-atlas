@@ -163,7 +163,14 @@ def _print_groups(atlas: Atlas, result, folders: list[str], tags: dict) -> None:
             continue
         cid = next(int(result.labels[i]) for i, f in enumerate(folders) if f == folder)
         top = ", ".join(r["tag"] for r in tags.get(cid, [])[:5]) if cid >= 0 else ""
-        log(f"  {folder:28s} {n:5d}  {top}")
+        few = "  (few images)" if n < FEW_FOR_LORA else ""
+        log(f"  {folder:28s} {n:5d}{few}  {top}")
+    small = [f for f, n in Counter(folders).items() if not f.startswith("_") and n < FEW_FOR_LORA]
+    if small:
+        log(
+            f"note: {len(small)} group(s) have fewer than {FEW_FOR_LORA} images; common advice is "
+            "8-15+ per style LoRA, so consider merging them (web app) or a coarser --granularity"
+        )
 
 
 def cmd_audit(a: argparse.Namespace) -> int:
@@ -423,6 +430,7 @@ def _cluster_args(p: argparse.ArgumentParser) -> None:
 
 
 Adder = Callable[..., argparse.ArgumentParser]
+FEW_FOR_LORA = 8  # style-LoRA guides suggest starting at 8-15 images (docs/LORA_GUIDE.md)
 
 
 def _lora_args(p: argparse.ArgumentParser) -> None:
