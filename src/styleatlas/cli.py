@@ -547,6 +547,12 @@ def _add_measure_commands(add: Adder) -> None:
         _common(t)
 
 
+def cmd_doctor(a: argparse.Namespace) -> int:
+    from styleatlas.doctor import run
+
+    return run()
+
+
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(prog="style-atlas", description=__doc__)
     ap.add_argument("--version", action="version", version=f"style-atlas {__version__}")
@@ -559,6 +565,12 @@ def build_parser() -> argparse.ArgumentParser:
             _common(p)
         return p
 
+    add(
+        "doctor",
+        cmd_doctor,
+        "check Python, torch, GPU, model download and disk space",
+        common=False,
+    )
     _add_folder_commands(add)
     _add_inspect_commands(add)
     _add_measure_commands(add)

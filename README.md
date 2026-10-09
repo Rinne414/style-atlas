@@ -25,6 +25,8 @@ style-atlas 會用 CSD 風格嵌入模型，把每張圖轉成一個「畫風向
 2. 下載本專案後，雙擊 `scripts\setup.bat`。它會在專案資料夾裡建立 `.venv`，偵測到 NVIDIA 顯卡就裝 CUDA 版的 torch，沒有就裝 CPU 版，再安裝本工具。
 3. 把圖片資料夾**拖到 `scripts\StyleAtlas.bat` 上**，瀏覽器會打開網頁介面。
 
+不確定環境有沒有裝好時，可以執行 `style-atlas doctor`（或 `.venv\Scripts\style-atlas doctor`），它會檢查 Python、torch、有沒有抓到顯卡、模型是否已下載、磁碟空間。
+
 **第一次分析前**，程式會從 Hugging Face 下載 CSD 模型。下載量 2.4 GB，之後另存成 1.2 GB 的精簡檔，存在 `%USERPROFILE%\.cache\style-atlas`，只會下載一次。同一個資料夾也存放向量與縮圖快取（每張圖約幾 KB），刪掉不影響原始檔案，之後會重新產生。下載時畫面可能停很久，這是正常的。
 
 速度參考：只用 CPU 時，8 執行緒約每秒 4 張，1,000 張約 4 分鐘（實測）。有 NVIDIA 顯卡通常會快很多，但這點沒有實測過。每張圖的向量都會快取，第二次開同一個資料夾就不用重算向量。
@@ -238,6 +240,7 @@ original.
 style-atlas cluster DIR [--granularity fine|medium|coarse | --threshold T | --k N]
                         [--layout plain|kohya --name X --repeats auto|N]
                         [--dedupe] [--drop-outliers N] [--export copy|link] [-o OUT]
+style-atlas doctor                 # check Python, torch, GPU, model download, disk space
 style-atlas serve DIR [--port 8770] [--no-browser] [--time none|name|mtime]
 style-atlas map DIR [-o map.html] [--projection auto|umap|tsne|pca] [--time ...]
 style-atlas search QUERY... --in DIR [--top 20] [--combine] [--json]
