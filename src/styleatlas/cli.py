@@ -13,7 +13,7 @@ import numpy as np
 
 from styleatlas import __version__
 from styleatlas.atlas import Atlas, EncodeOptions, build_atlas, embed_paths
-from styleatlas.cluster import GRANULARITY, METHODS, cluster_styles, outlier_scores
+from styleatlas.cluster import GRANULARITY, METHODS, PERIODS, cluster_styles, outlier_scores
 from styleatlas.encoder import CROP_MODES, RESOLUTIONS
 from styleatlas.images import TIME_SOURCES, find_images, labels_from_folders
 from styleatlas.metrics import StyleScale, group_difference, split_half_noise, unit
@@ -73,9 +73,13 @@ def _reference(a: argparse.Namespace, neutral=None) -> Atlas | None:
 
 
 def _cluster(a: argparse.Namespace, atlas: Atlas):
-    threshold = a.threshold if a.threshold is not None else GRANULARITY.get(a.granularity)
+    method, k, threshold = a.method, a.k, a.threshold
+    if a.granularity == "period" and threshold is None:
+        method, k = "kmeans", a.k or PERIODS
+    elif threshold is None:
+        threshold = GRANULARITY.get(a.granularity)  # None for auto
     result = cluster_styles(
-        atlas.style, method=a.method, threshold=threshold, n_clusters=a.k, min_size=a.min_size
+        atlas.style, method=method, threshold=threshold, n_clusters=k, min_size=a.min_size
     )
     cut = result.params.get("threshold")
     how = f", cut {cut} ({'auto' if result.params.get('auto') else 'set'})" if cut else ""
@@ -435,13 +439,14 @@ def _cluster_args(p: argparse.ArgumentParser) -> None:
     g.add_argument(
         "--granularity",
         default="auto",
-        choices=["auto", *GRANULARITY],
-        help="auto picks the cut from the data; period splits one artist by time",
+        choices=["auto", "period", *GRANULARITY],
+        help="auto picks the cut from the data; period splits one artist into --k periods "
+        f"(default {PERIODS}, k-means, every image assigned)",
     )
     g.add_argument(
         "--threshold", type=float, help="hub-corrected distance cut (overrides granularity)"
     )
-    g.add_argument("--k", type=int, help="force this many styles")
+    g.add_argument("--k", type=int, help="force this many styles (with period: periods)")
     g.add_argument("--method", default="agglomerative", choices=METHODS)
     g.add_argument("--min-size", type=int, default=3, help="smaller groups become 'unassigned'")
     g.add_argument("--projection", default="auto", choices=PROJECTIONS)

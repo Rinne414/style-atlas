@@ -473,3 +473,10 @@ def test_open_output_opens_only_the_output_folder(tmp_path, monkeypatch):
     monkeypatch.setattr("styleatlas.serve.subprocess.Popen", lambda args: opened.append(args[-1]))
     folder = app.open_output({"folder": "C:/Windows"})["folder"]  # any body is ignored
     assert [str(f) for f in opened] == [folder] and folder == str(app.out_dir)
+
+
+def test_regroup_into_periods(tmp_path):
+    app, _ = _app(tmp_path)
+    app.regroup({"method": "kmeans", "k": 4})
+    assert app.clustering.n_clusters == 4 and app.clustering.n_unassigned == 0
+    assert app.settings == {"method": "kmeans", "threshold": None, "k": 4}

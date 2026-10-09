@@ -240,15 +240,20 @@ function setupLive() {
   $("thr").value = (s.threshold ?? DATA.live.cut ?? DATA.live.granularity.medium).toFixed(2);
   $("pickBtn").addEventListener("click", () => $("pickFile").click());
   $("pickFile").addEventListener("change", (e) => searchFiles(e.target.files));
+  $("periods").value = s.method === "kmeans" ? (s.k || DATA.live.periods) : DATA.live.periods;
   $("gran").addEventListener("change", (e) => {
     if (e.target.value in DATA.live.granularity) $("thr").value = DATA.live.granularity[e.target.value].toFixed(2);
+    showPeriods(e.target.value === "period");
   });
   $("thr").addEventListener("input", () => { $("gran").value = "custom"; });
   $("regroup").addEventListener("click", async () => {
     setStatus(t("regrouping"));
     try {
-      const threshold = $("gran").value === "auto" ? null : parseFloat($("thr").value);
-      await post("api/regroup", JSON.stringify({ threshold }), "application/json");
+      const g = $("gran").value;
+      const body = g === "period"
+        ? { method: "kmeans", k: parseInt($("periods").value, 10) || DATA.live.periods }
+        : { threshold: g === "auto" ? null : parseFloat($("thr").value) };
+      await post("api/regroup", JSON.stringify(body), "application/json");
       location.reload();
     } catch (e) { setStatus(String(e.message || e)); }
   });
@@ -291,13 +296,22 @@ function liveText() {
   $("expTrigWrap").querySelector("span").textContent = t("triggerCaptions");
   $("neutralWrap").querySelector("span").textContent = t("neutral");
   const cur = $("gran").value;
-  $("gran").replaceChildren(...["auto", ...Object.keys(DATA.live.granularity), "custom"].map((k) => {
+  $("gran").replaceChildren(...["auto", "period", ...Object.keys(DATA.live.granularity), "custom"].map((k) => {
     const o = document.createElement("option"); o.value = k; o.textContent = t(k); return o;
   }));
   const thr = parseFloat($("thr").value);
   const match = Object.entries(DATA.live.granularity).find(([, v]) => Math.abs(v - thr) < 1e-6);
-  const auto = DATA.live.settings.threshold == null && !DATA.live.settings.k;
-  $("gran").value = cur && cur !== "custom" ? cur : (auto ? "auto" : (match ? match[0] : "custom"));
+  const s = DATA.live.settings;
+  const auto = s.threshold == null && !s.k;
+  const initial = s.method === "kmeans" ? "period" : (auto ? "auto" : (match ? match[0] : "custom"));
+  $("gran").value = cur && cur !== "custom" ? cur : initial;
+  $("periods").title = t("periods");
+  showPeriods($("gran").value === "period");
+}
+
+// "period" asks for a number of periods instead of a distance cut.
+function showPeriods(on) {
+  $("thr").hidden = on; $("periods").hidden = !on;
 }
 
 // start-up

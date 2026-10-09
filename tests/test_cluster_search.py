@@ -231,3 +231,10 @@ def test_identical_images_cannot_be_split():
     x = np.tile(make_blobs([1])[0], (5, 1))
     with pytest.raises(ValueError, match="too alike"):
         split_group(x, cluster_styles(x, min_size=1), 0)
+
+
+def test_periods_put_every_image_into_one_of_k_groups():
+    x, _ = make_blobs([20, 15, 3])
+    result = cluster_styles(x, method="kmeans", n_clusters=3)
+    assert result.n_clusters == 3 and result.n_unassigned == 0
+    assert cluster_styles(x, method="kmeans").n_clusters == 3  # the default number of periods

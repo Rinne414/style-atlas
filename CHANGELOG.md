@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **Periods are now k-means** (`--granularity period`, the web app's "時期"): one artist's work
+  is split into 3 groups (`--k` or the web box sets the number), and every image is assigned.
+  On 13 artists it followed posting time as well as the old 0.35 cut, beyond chance for 11
+  (the cut: 9), where the cut left 36-77% of the images unassigned for 4 artists. The old cut
+  is `--threshold 0.35`.
+
 - An unreadable caption no longer blanks the web page, and an image deleted while the app runs
   gives "not found" instead of a dropped connection.
 - **Open folder** button after an export or a saved map (opens only the output folder).

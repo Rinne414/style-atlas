@@ -29,6 +29,7 @@ from styleatlas.atlas import LOAD_ERRORS, Atlas, EncodeOptions, get_encoder
 from styleatlas.cluster import (
     GRANULARITY,
     METHODS,
+    PERIODS,
     UNASSIGNED,
     cluster_styles,
     edit_groups,
@@ -167,6 +168,7 @@ class StyleAtlasApp:
             payload["live"] = {
                 "settings": dict(self.settings),
                 "granularity": GRANULARITY,
+                "periods": PERIODS,
                 "cut": self.clustering.params.get("threshold"),  # the auto cut, when auto
                 "taste": self.taste.state(),
                 "excluded": sorted(self.excluded),

@@ -87,6 +87,31 @@ singletons, and hub correction removes most of that failure.
 
 HDBSCAN left 49% of points as noise.
 
+### Splitting one artist into periods: k-means (2026-10-10)
+
+The period corpus above (8 artists with 30-60 works) plus 5 artists with 112-300 works, all
+deduplicated: 13 artists. Score: adjusted mutual information (AMI, corrected for chance, so
+different group counts compare fairly) between the groups and posting-time quartiles;
+unassigned images count as single-image groups; permutation p < 0.05.
+
+| Method | Mean AMI | Beyond chance | Largest group |
+|---|---|---|---|
+| medium (0.47) / auto | 0.077 / 0.075 | 6 / 6 of 13 | 75% / 74% |
+| Cut at 0.35 (the old `period`) | 0.117 | 9 | 36% |
+| Average linkage forced to 3 / 4 groups | 0.107 / 0.115 | 9 / 9 | 78% / 66% |
+| Ward, 3 / 4 groups | 0.109 / 0.129 | 9 / 9 | 50% / 42% |
+| **k-means, 3 groups** | **0.123** | **11** | 46% |
+| k-means, 4 groups | 0.128 | 10 | 39% |
+
+- k-means with 3 groups vs the 0.35 cut, per artist: AMI +0.006 (95% CI -0.029 to +0.041),
+  better for 7 of 13. Time alignment is a tie.
+- The difference is what happens to the rest: the 0.35 cut left 36%, 50%, 60% and 77% of the
+  images unassigned for 4 of the 13 artists; k-means assigns every image.
+- With about 50 works the k-means split depends on the seed (agreement between seeds ARI
+  0.33-0.98, mean 0.66). The tool fixes the seed, so results repeat, but the boundaries are soft.
+- `--granularity period` and the web app's "時期" now mean k-means into 3 groups (`--k` sets
+  the number). The old cut is still available as `--threshold 0.35`.
+
 ### Choosing the cut automatically (2026-10-10)
 
 The medium cut (0.47) was tuned on mixtures of 2-5 artists. On larger mixtures the best cut is

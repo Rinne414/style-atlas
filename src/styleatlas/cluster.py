@@ -17,18 +17,20 @@ import numpy as np
 from scipy.cluster.hierarchy import fcluster, linkage
 from scipy.sparse import csr_matrix
 from scipy.spatial.distance import squareform
-from sklearn.cluster import HDBSCAN, MiniBatchKMeans
+from sklearn.cluster import HDBSCAN, KMeans, MiniBatchKMeans
 from sklearn.decomposition import PCA
 from sklearn.metrics import silhouette_score
 
 from styleatlas.duplicates import keep_one_per_group, near_duplicate_groups
 from styleatlas.metrics import DEFAULT_K, centroid, hub_distance, neighbor_density, unit
 
-# medium / fine / coarse were tuned on blind mixtures of different artists. `period` is for
-# splitting ONE artist's work: on 13 prolific artists its groups matched posting-time quartiles
-# beyond chance for 9 (medium: 4), docs/BENCHMARKS.md.
-GRANULARITY = {"period": 0.35, "fine": 0.40, "medium": 0.47, "coarse": 0.55}
-METHODS = ("agglomerative", "hdbscan")
+# medium / fine / coarse were tuned on blind mixtures of different artists. Splitting ONE
+# artist's work into periods uses k-means instead (method "kmeans", PERIODS groups): on 13
+# artists it followed posting time as well as a 0.35 cut, beyond chance for 11 (the cut: 9),
+# and it assigns every image, where the cut left 36-77% unassigned for 4 artists.
+GRANULARITY = {"fine": 0.40, "medium": 0.47, "coarse": 0.55}
+PERIODS = 3
+METHODS = ("agglomerative", "hdbscan", "kmeans")
 AUTO_CUTS = np.round(np.arange(0.20, 0.605, 0.01), 2)  # cuts auto_threshold tries
 AUTO_OFFSET = 0.04
 AUTO_SAMPLE = 3000  # images the silhouette is computed on
@@ -80,6 +82,10 @@ def cluster_styles(
     if n < 2:
         return _finish(x, np.zeros(n, dtype=int), method, {}, min_size=1)
     params: dict = {"hub_k": hub_k, "min_size": min_size}
+    if method == "kmeans":  # periods of one artist: a set number of groups, every image in one
+        k = min(n_clusters or PERIODS, n)
+        raw = KMeans(n_clusters=k, n_init=10, random_state=KMEANS_SEED).fit_predict(x)
+        return _finish(x, raw, method, params | {"n_clusters": k, "min_size": 1}, min_size=1)
     if method == "agglomerative":
         part, tree, dist = _average_tree(x, hub_k)
         if n > MAX_DENSE:
