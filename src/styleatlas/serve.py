@@ -19,7 +19,14 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from styleatlas.atlas import LOAD_ERRORS, Atlas, EncodeOptions, get_encoder
-from styleatlas.cluster import GRANULARITY, METHODS, UNASSIGNED, cluster_styles, edit_groups
+from styleatlas.cluster import (
+    GRANULARITY,
+    METHODS,
+    UNASSIGNED,
+    cluster_styles,
+    edit_groups,
+    split_group,
+)
 from styleatlas.dataset import plan_folders
 from styleatlas.export import export_folders, output_dir, write_table
 from styleatlas.images import load_rgb, thumbnail_bytes
@@ -153,6 +160,13 @@ class StyleAtlasApp:
             )
             return {"clusters": self.clustering.n_clusters}
 
+    def split(self, body: dict) -> dict:
+        """Hand edit: cut one group in two."""
+        with self._lock:
+            group = self._group(body.get("group"), allow_unassigned=False)
+            self.clustering = split_group(self.atlas.style, self.clustering, group)
+            return {"clusters": self.clustering.n_clusters}
+
     def _index(self, body: dict) -> int:
         i = body.get("i")
         if type(i) is not int or not 0 <= i < len(self.atlas):
@@ -278,6 +292,8 @@ def make_handler(app: StyleAtlasApp, allowed_hosts: set[str]) -> type[BaseHTTPRe
                     self._json(200, app.regroup(payload))
                 elif route == "api/move":
                     self._json(200, app.move(payload))
+                elif route == "api/split":
+                    self._json(200, app.split(payload))
                 elif route == "api/merge":
                     self._json(200, app.merge(payload))
                 elif route == "api/exclude":

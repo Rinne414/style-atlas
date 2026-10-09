@@ -164,7 +164,7 @@ const T = {
     custom: "custom", regrouping: "regrouping…", period: "period (one artist)", dups: "Duplicates",
     dupHelp: "Groups of near-identical pictures (same image, crops, frames of one scene). Keep one per group for LoRA training.",
     noDups: "No near-duplicates found.",
-    moveTo: "Move to group…", mergeInto: "Merge this group into…", edited: "edited by hand (Regroup discards edits)",
+    moveTo: "Move to group…", mergeInto: "Merge this group into…", splitGroup: "Split in two", edited: "edited by hand (Regroup discards edits)",
     exclude: "Exclude from export (X)", included: "Excluded - undo (X)",
     excludedList: "Excluded by you ({n}) - exported to _excluded",
     layoutStyle: "Layout: style similarity", layoutMeasures: "Layout: measures",
@@ -185,7 +185,7 @@ const T = {
     custom: "自訂", regrouping: "重新分群中…", period: "時期（單一畫師）", dups: "重複",
     dupHelp: "幾乎相同的圖（同一張、裁切、同場景連續畫面）。訓 LoRA 時每組留一張即可。",
     noDups: "沒有找到近重複的圖。",
-    moveTo: "移到其他群…", mergeInto: "把這群合併到…", edited: "已手動調整（重新分群會清除）",
+    moveTo: "移到其他群…", mergeInto: "把這群合併到…", splitGroup: "拆成兩群", edited: "已手動調整（重新分群會清除）",
     exclude: "匯出時排除 (X)", included: "已排除，取消 (X)",
     excludedList: "你排除的圖（{n}）：匯出時放到 _excluded",
     layoutStyle: "版面：畫風相似", layoutMeasures: "版面：量化軸",
@@ -515,6 +515,11 @@ function buildClusters() {
           if (DATA.live && c.id >= 0) {
             const bar = document.createElement("div"); bar.style.cssText = "grid-column:1/-1;margin-bottom:4px";
             bar.append(groupSelect(t("mergeInto"), c.id, false, (into) => editPost("api/merge", { from: c.id, into })));
+            if (c.size >= 2) {
+              const sp = document.createElement("button"); sp.textContent = t("splitGroup"); sp.style.marginLeft = "6px";
+              sp.addEventListener("click", (e) => { e.stopPropagation(); editPost("api/split", { group: c.id }); });
+              bar.append(sp);
+            }
             grid.append(bar);
           }
           c.members.slice(0, 120).forEach((j) => grid.append(thumb(j)));

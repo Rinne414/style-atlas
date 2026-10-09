@@ -131,6 +131,17 @@ def edit_groups(x: np.ndarray, clustering: Clustering, moves: dict[int, int]) ->
     return _finish(x, labels, clustering.method, params, min_size=1)
 
 
+def split_group(x: np.ndarray, clustering: Clustering, group: int) -> Clustering:
+    """Hand edit: cut one group in two (2-way clustering of its members only)."""
+    members = np.array(clustering.clusters[group].members)
+    if len(members) < 2:
+        raise ValueError("a group needs at least 2 images to be split")
+    halves = cluster_styles(x[members], n_clusters=2, min_size=1).labels
+    new_id = clustering.n_clusters  # renumbered by size afterwards
+    moves = {int(m): new_id for m, h in zip(members, halves, strict=True) if h == 1}
+    return edit_groups(x, clustering, moves)
+
+
 def expand_clustering(sub: Clustering, kept: np.ndarray, n: int) -> Clustering:
     """A clustering of the rows `kept` of an n-image set, re-indexed to the full set; the rows
     left out are UNASSIGNED."""

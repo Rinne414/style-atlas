@@ -148,3 +148,12 @@ def test_hand_edits_merge_and_move(server):
     for body in ({"from": 0, "into": 0}, {"from": 5, "into": 0}, {"from": "0", "into": 1}):
         assert request(port, "POST", "/api/merge", json.dumps(body), hdr)[0] == 400
     assert request(port, "POST", "/api/move", json.dumps({"i": 0, "to": 9}), hdr)[0] == 400
+
+
+def test_split_cuts_a_group_in_two(server):
+    port, _ = server
+    hdr = {"X-Style-Atlas": "1", "Content-Type": "application/json"}
+    request(port, "POST", "/api/regroup", json.dumps({"k": 1}), hdr)
+    status, data = request(port, "POST", "/api/split", json.dumps({"group": 0}), hdr)
+    assert status == 200 and json.loads(data)["clusters"] == 2
+    assert request(port, "POST", "/api/split", json.dumps({"group": 7}), hdr)[0] == 400
