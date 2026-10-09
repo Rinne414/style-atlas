@@ -146,10 +146,10 @@ style-atlas taste score "D:\new_batch" --model "D:\lora\artistX_style_atlas\tast
 
 要老實說的限制：
 
-- **同一位畫師的時期拆分有用，但沒那麼準。** 抽了 6 位作品多的畫師，每位約 50 張、平均分佈在整段作品史上，結果如下：
-  - 7 位中有 6 位的畫風距離會隨發表時間差變大（顯著），表示模型看得到畫風隨時間變化。
-  - 用 `period` 門檻分群時，6 位中有 4 位的分群和發表時間的對應高過隨機。
-  - 畫風是漸變的，所以分群結果請當作**初步整理**，一定要在地圖上看過再用。
+- **同一位畫師的時期拆分有用，但沒那麼準。** 測了 13 位作品多的畫師，每位約 50 張、平均分佈在整段作品史上：
+  - 13 位中有 12 位，畫風距離會隨發表時間差而變大，而且顯著。
+  - 用 `period` 門檻分群時，13 位中有 9 位的分群和發表時間顯著對應；預設的 medium 只有 4 位。
+  - 有些畫師會被切得很碎，請在網頁上看時間分佈並合併。分群結果請當作**初步整理**。
 - **先排除重複圖再分群**，也就是加 `--dedupe`。否則同一張圖的多個版本會自成一群。近重複的門檻刻意設得保守（0.95）：在 0.92～0.95 之間，常常是同一角色換了姿勢的不同圖，對 LoRA 來說那是有效的訓練圖。
 - `compare` 的 z 值門檻（z ≥ 2.3 為「明顯不同」、z < 1.5 為「同一畫風」）來自一位使用者在固定內容的 NovelAI 算圖上的人眼校準，不是通用標準。換了資料，最好先用 `calibrate` 重新校準。
 
@@ -297,12 +297,12 @@ works by 297 artists (512 px thumbnails, near-duplicates removed). Same-artist r
 Blind clustering of 2-5 mixed artists scores ARI about 0.5.
 
 Splitting one artist's periods: use `--granularity period` (cut 0.35), with `--time name` to
-see each group's time span. On 6 prolific Danbooru artists (about 50 works each, spread over
-their history):
+see each group's time span. On 13 prolific Danbooru artists (about 50 works each, spread
+over their history):
 
-- Style distance grew with posting-time distance for 6 of 7 artists (Mantel test, p < 0.01).
-- `period` groups matched time quartiles beyond chance for 4 of 6.
-- The default `medium` cut usually left one artist in a single group.
+- Style distance grew with posting-time distance for 12 of 13 (Mantel test).
+- `period` groups matched time quartiles beyond chance for 9 of 13. `medium` did so for 4.
+- Some artists fragment into many small groups at 0.35; merge them in the web app.
 
 Style drift is gradual, so treat groups as a first pass and review them in the map.
 

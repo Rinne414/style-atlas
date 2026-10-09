@@ -103,48 +103,43 @@ stays at centre 224, because embedding there costs half as much or less. For the
 search-by-image results, use `--crop tiles` or `--resolution 336`. Vectors from different
 variants are cached separately and cannot be mixed.
 
-## One artist over time (2026-10-09)
+## One artist over time (2026-10-10, 13 artists)
 
 This is the LoRA case where one artist's style changes between periods.
 
-- **Data**: 8 prolific Danbooru artists, general-rated only, with posts sampled evenly across
-  each artist's posting history (10 pages, 60 works each). Near-duplicates were removed. Six
-  artists kept 46-60 works; dairi was mostly sprite variants (11 left), so it was skipped.
+- **Data**: 18 prolific Danbooru artists, general-rated only, with posts sampled evenly across
+  each artist's posting history (10 pages, up to 60 works each). Near-duplicates were removed,
+  and the 13 artists who kept 30 or more works were tested.
 - **Labels**: none exist for "periods". Posting order (post id) stands in for time.
+- **Mantel test**: Spearman correlation between hub-corrected style distance and time-rank
+  difference, with a permutation p-value.
+- **Groups against time**: the NMI between the style groups and posting-time quartiles. A star
+  marks p < 0.05 against shuffled times. Each cell gives the number of groups, then the NMI.
 
-**Mantel test.** It asks whether works far apart in time differ more in style. It uses the
-Spearman correlation between hub-corrected style distance and time-rank difference, with a
-2,000-permutation p-value:
-
-| Artist | n | Mantel r | p |
-|---|---|---|---|
-| ebifurya | 50 | +0.24 | 0.002 |
-| hammer_(sunset_beach) | 52 | +0.25 | 0.002 |
-| haruyama_kazunori | 60 | +0.14 | 0.002 |
-| matsunaga_kouyou | 46 | +0.14 | 0.002 |
-| naga_u | 60 | +0.11 | 0.002 |
-| yaegashi_nan | 49 | +0.12 | 0.004 |
-| mizuki_hitoshi | 19 | +0.15 | 0.036 |
-
-CSD sees each artist's style drift over time.
-
-**Groups against time.** The score is the NMI between the style groups and posting-time
-quartiles. A star marks p < 0.05 against shuffled times. Each cell gives the number of groups,
-then the NMI.
-
-| Artist | cut 0.47 (medium) | 0.40 | **0.35 (`period`)** | 0.30 | k=3 |
+| Artist | n | Mantel r | cut 0.35 (`period`) | cut 0.40 (`fine`) | cut 0.47 (`medium`) |
 |---|---|---|---|---|---|
-| ebifurya | 2g 0.14* | 2g 0.14* | 4g 0.28* | 11g 0.35* | 0.26* |
-| hammer | 1g | 1g | 6g 0.34* | 14g 0.48* | 0.27* |
-| haruyama_kazunori | 8g 0.18 | 20g 0.31 | 33g 0.37 | 49g 0.47 | 0.06 |
-| matsunaga_kouyou | 1g | 1g | 3g 0.07 | 9g 0.27* | 0.07 |
-| naga_u | 1g | 4g 0.12 | 9g 0.27* | 19g 0.34* | 0.08 |
-| yaegashi_nan | 1g | 5g 0.18* | 12g 0.36* | 22g 0.43* | 0.13* |
+| bow_(bhp) | 48 | -0.03 | 30g 0.40 | 20g 0.31 | 8g 0.19 |
+| ebifurya | 51 | +0.24* | 4g 0.27* | 2g 0.14* | 2g 0.14* |
+| hammer_(sunset_beach) | 53 | +0.28* | 6g 0.35* | 1g 0.00 | 1g 0.00 |
+| haruyama_kazunori | 60 | +0.14* | 33g 0.37 | 20g 0.31 | 8g 0.18 |
+| itomugi-kun | 54 | +0.27* | 15g 0.50* | 9g 0.44* | 2g 0.26* |
+| kanon_(kurogane_knights) | 59 | +0.17* | 2g 0.03 | 1g 0.00 | 1g 0.00 |
+| matsunaga_kouyou | 46 | +0.14* | 3g 0.07 | 1g 0.00 | 1g 0.00 |
+| naga_u | 60 | +0.11* | 9g 0.27* | 4g 0.12 | 2g 0.03 |
+| ojipon | 59 | +0.10* | 22g 0.38* | 11g 0.26* | 5g 0.14 |
+| onikobe_rin | 60 | +0.20* | 46g 0.49* | 26g 0.44* | 9g 0.26* |
+| pageratta | 30 | +0.43* | 11g 0.46* | 7g 0.42* | 3g 0.34* |
+| rebecca_(keinelove) | 60 | +0.26* | 5g 0.26* | 2g 0.04 | 1g 0.00 |
+| yaegashi_nan | 49 | +0.12* | 12g 0.36* | 5g 0.18* | 2g 0.04 |
+| **significant** | | **12 / 13** | **9 / 13** | 6 / 13 | 4 / 13 |
 
-At the default cut most artists stay in one group, because the drift is gradual. At 0.35, groups
-follow time for 4 of 6 artists with a manageable number of groups. 0.30 fragments the set.
-haruyama_kazunori varies a lot, but not in step with time. This test is the basis for the
-`period` granularity.
+- **Drift is real.** Works far apart in time differ more in CSD style for 12 of 13 artists.
+- **The default `medium` cut is too coarse here.** It usually leaves one artist in one group,
+  because the drift is gradual. Groups at 0.35 follow posting time for 9 of 13 artists. This is
+  the basis for the `period` granularity.
+- **0.35 fragments some artists.** Some artists split into many small groups: onikobe_rin went
+  to 46 groups from 60 works. Look at the time strips in the web app and merge groups by hand,
+  or raise the cut.
 
 ## Same subjects in many styles: `--neutralize` (2026-10-09)
 
