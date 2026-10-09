@@ -12,7 +12,7 @@ const T = {
     members: "Members", cluster: "style", outlierHelp: "Images least like the rest of the set (candidates to drop from a LoRA dataset).",
     loading: "building map…", open: "open file", searchImg: "Search by image…",
     drop: "Drop an image to find its closest styles", regroup: "Regroup", export: "Export folders",
-    searching: "embedding the query…", exported: "copied {n} images to {f}", query: "Your image",
+    searching: "embedding the query…", exported: "Copied {n} images to {f}.", query: "Your image",
     custom: "custom", regrouping: "regrouping…", period: "period (one artist)", dups: "Duplicates",
     dupHelp: "Groups of near-identical pictures (same image, crops, frames of one scene). Keep one per group for LoRA training.",
     noDups: "No near-duplicates found.",
@@ -26,7 +26,8 @@ const T = {
     pathTitle: "Style path (from the start image to this one)",
     neutral: "Ignore the character axis", neutralBusy: "recomputing…",
     oneGroup: "Everything landed in one group: try the fine or period granularity, then Regroup.",
-    undo: "Undo", plainFolders: "plain folders", conceptName: "concept name", triggerCaptions: "trigger in captions",
+    undo: "Undo", plainFolders: "plain folders",
+    smallGroups: "{n} group(s) with fewer than 3 images went to unassigned.", conceptName: "concept name", triggerCaptions: "trigger in captions",
     nameGroup: "name (Enter)", restored: "Groups, hand edits and names restored from your last session (Regroup to start over).",
     rateNext: "Rate the most useful next image", ratingHint: "Rating mode: press L or D, the next image follows (Esc stops)",
     allRated: "Every image is rated.",
@@ -41,7 +42,7 @@ const T = {
     cluster: "畫風群", outlierHelp: "和整組最不像的圖（訓 LoRA 前可考慮剔除）。",
     loading: "建立地圖中…", open: "開啟檔案", searchImg: "以圖搜尋…",
     drop: "放開圖片，找最接近的畫風", regroup: "重新分群", export: "匯出資料夾",
-    searching: "計算查詢圖中…", exported: "已複製 {n} 張到 {f}", query: "你的圖",
+    searching: "計算查詢圖中…", exported: "已複製 {n} 張到 {f}。", query: "你的圖",
     custom: "自訂", regrouping: "重新分群中…", period: "時期（單一畫師）", dups: "重複",
     dupHelp: "幾乎相同的圖（同一張、裁切、同場景連續畫面）。訓 LoRA 時每組留一張即可。",
     noDups: "沒有找到近重複的圖。",
@@ -55,7 +56,8 @@ const T = {
     pathTitle: "畫風漸變（從起點到這張）",
     neutral: "忽略角色軸", neutralBusy: "重新計算中…",
     oneGroup: "所有圖都在同一群：試試把顆粒度改成「細」或「時期」，再按重新分群。",
-    undo: "復原", plainFolders: "一般資料夾", conceptName: "概念名稱", triggerCaptions: "標註加觸發詞",
+    undo: "復原", plainFolders: "一般資料夾",
+    smallGroups: "有 {n} 個群不足 3 張，已放進未分群。", conceptName: "概念名稱", triggerCaptions: "標註加觸發詞",
     nameGroup: "取名（Enter）", restored: "已還原上次的分群、手動調整與名稱（按重新分群可重來）。",
     rateNext: "評下一張最有用的圖", ratingHint: "評分模式：按 L 或 D，自動跳下一張（Esc 結束）",
     allRated: "全部都評過了。",
@@ -671,7 +673,8 @@ function setupLive() {
       const body = { mode: "copy", layout: $("expLayout").value, name: $("expName").value.trim(),
         trigger: $("expTrig").checked };
       const r = await post("api/export", JSON.stringify(body), "application/json");
-      setStatus(t("exported").replace("{n}", r.placed).replace("{f}", r.folder));
+      const small = r.small_groups ? " " + t("smallGroups").replace("{n}", r.small_groups) : "";
+      setStatus(t("exported").replace("{n}", r.placed).replace("{f}", r.folder) + small);
     } catch (e) { setStatus(String(e.message || e)); }
   });
   let depth = 0;

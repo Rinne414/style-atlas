@@ -140,15 +140,21 @@ def test_trigger_captions_are_written_in_the_export_only(tmp_path):
     folders = plan_folders(atlas.paths, result, "kohya", "artistX", "auto")
     src_caption = tmp_path / "src" / "img0.txt"
     before = src_caption.read_text()
-    done = export_folders(atlas, folders, tmp_path / "out", mode="link", trigger_captions=True)
+    done = export_folders(
+        atlas, folders, tmp_path / "out", mode="link", trigger_captions=True, layout="kohya"
+    )
     assert src_caption.read_text() == before  # never edited through a hard link
     i0 = next(i for i, p in enumerate(atlas.paths) if p.name == "img0.png")
     exported = done.folder / folders[i0] / "img0.txt"
-    assert exported.read_text().startswith(trigger_of(folders[i0]) + ", a caption")
+    trigger0 = trigger_of(folders[i0], "kohya")
+    assert trigger0.startswith("artistX_") and exported.read_text().startswith(
+        trigger0 + ", a caption"
+    )
     i1 = next(i for i, p in enumerate(atlas.paths) if p.name == "img1.png")
-    assert (done.folder / folders[i1] / "img1.txt").read_text() == trigger_of(folders[i1])
-    assert trigger_of("11_artist X_style02") == "artist X_style02"
+    assert (done.folder / folders[i1] / "img1.txt").read_text() == trigger_of(folders[i1], "kohya")
+    assert trigger_of("11_artist X_style02", "kohya") == "artist X_style02"
     assert trigger_of("_duplicates") is None and trigger_of("style_01") == "style_01"
+    assert trigger_of("2024_summer") == "2024_summer"  # a plain folder is its own trigger
 
 
 def test_trigger_captions_keep_non_utf8_and_do_not_double_prefix(tmp_path):

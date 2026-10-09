@@ -257,7 +257,18 @@ def test_undo_reverts_edits_one_step_at_a_time(server):
     assert post("/api/undo", {"rev": r["revision"]})[0] == 400  # nothing left
 
 
-def test_undo_restores_names_and_forgets_history_after_a_space_change(tmp_path):
+def _app(tmp_path, sizes=(8, 7)):
+    x, _ = make_blobs(list(sizes))
+    paths = []
+    for i in range(len(x)):
+        p = tmp_path / f"img{i}.png"
+        Image.new("RGB", (16, 16), (i, 0, 0)).save(p)
+        paths.append(p)
+    atlas = Atlas(tmp_path, paths, x, x, "sig")
+    return StyleAtlasApp(atlas, EncodeOptions(device="cpu"), "pca"), atlas
+
+
+def test_undo_restores_names_and_the_space_after_a_switch(tmp_path):
     x, _ = make_blobs([8, 7])
     paths = []
     for i in range(len(x)):
@@ -270,6 +281,73 @@ def test_undo_restores_names_and_forgets_history_after_a_space_change(tmp_path):
     app.rename({"group": 0, "name": "second", "rev": app.revision})
     app.undo({"rev": app.revision})
     assert app.names_by_group() == {0: "first"}
+    app.merge({"from": 1, "into": 0, "rev": app.revision})
     app.set_neutralize({"k": 1})
-    with pytest.raises(ValueError, match="nothing to undo"):
-        app.undo({"rev": app.revision})
+    app.undo({"rev": app.revision})  # back to the old space, hand edit and name included
+    assert app.neutralize == 0 and app.clustering.n_clusters == 1
+    assert app.names_by_group() == {0: "first"}
+
+
+def test_names_follow_their_images_through_edits(tmp_path):
+    app, _ = _app(tmp_path, (8, 7, 6))
+    app.regroup({"threshold": 0.5})
+    assert app.clustering.n_clusters == 3
+    sizes = {c.id: c.size for c in app.clustering.clusters}
+    app.rename({"group": 0, "name": "big", "rev": app.revision})
+    app.rename({"group": 2, "name": "small", "rev": app.revision})
+    app.merge({"from": 0, "into": 2, "rev": app.revision})  # the target's name wins
+    assert list(app.names_by_group().values()) == ["small"]
+    assert app.clustering.clusters[0].size == sizes[0] + sizes[2]
+    app.undo({"rev": app.revision})
+    app.split({"group": 0, "rev": app.revision})  # the larger half keeps the name
+    named = next(g for g, n in app.names_by_group().items() if n == "big")
+    assert app.clustering.clusters[named].size >= 4
+
+
+def test_failed_or_unchanged_renames_add_no_undo_step(tmp_path):
+    app, _ = _app(tmp_path)
+    app.regroup({"threshold": 0.5})
+    steps = len(app._history)
+    with pytest.raises(ValueError):
+        app.rename({"group": 0, "name": " ... ", "rev": app.revision})
+    app.rename({"group": 0, "name": "a", "rev": app.revision})
+    app.rename({"group": 0, "name": "a", "rev": app.revision})
+    assert len(app._history) == steps + 1
+    with pytest.raises(ValueError, match="already called"):
+        app.rename({"group": 1, "name": "A", "rev": app.revision})
+    with pytest.raises(ValueError, match="reload"):
+        app.undo({"rev": app.revision + 1})
+    for i in range(40):
+        app.rename({"group": 0, "name": f"n{i}", "rev": app.revision})
+    assert len(app._history) == 30
+
+
+def test_a_damaged_groups_file_is_set_aside(tmp_path):
+    app, atlas = _app(tmp_path)
+    app.regroup({"threshold": 0.5})
+    path = app._groups_path
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["labels"][next(iter(data["labels"]))] = "x"
+    path.write_text(json.dumps(data), encoding="utf-8")
+    again = StyleAtlasApp(atlas, EncodeOptions(device="cpu"), "pca")
+    assert not again.restored
+    assert len(list(path.parent.glob("groups.json.*.bad"))) == 1
+
+
+def test_the_saved_space_and_names_come_back(tmp_path):
+    app, atlas = _app(tmp_path)
+    app.regroup({"threshold": 0.5})
+    app.rename({"group": 1, "name": "second", "rev": app.revision})
+    app.set_neutralize({"k": 1})
+    again = StyleAtlasApp(atlas, EncodeOptions(device="cpu"), "pca")
+    assert again.restored and again.neutralize == 1
+    assert again.names_by_group() == app.names_by_group()
+    assert (again.clustering.labels == app.clustering.labels).all()
+
+
+def test_web_export_reports_groups_too_small_to_keep(tmp_path):
+    app, _ = _app(tmp_path)
+    app.regroup({"threshold": 0.5})
+    for i in app.clustering.clusters[1].members[2:]:  # leave 2 images in the smaller group
+        app.move({"i": i, "to": -1, "rev": app.revision})
+    assert app.export({"mode": "copy"})["small_groups"] == 1

@@ -118,7 +118,12 @@ def cmd_cluster(a: argparse.Namespace) -> int:
     _print_groups(atlas, result, folders, tags)
     if a.export:
         done = export_folders(
-            atlas, folders, out / "folders", mode=a.export, trigger_captions=a.trigger_captions
+            atlas,
+            folders,
+            out / "folders",
+            mode=a.export,
+            trigger_captions=a.trigger_captions,
+            layout=a.layout,
         )
         log(f"{a.export}: {done.placed} images into {done.folder}")
         for p, why in done.failed:

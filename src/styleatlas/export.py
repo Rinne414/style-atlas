@@ -122,13 +122,14 @@ def _place(src: Path, dst: Path, mode: str) -> None:
     shutil.copy2(src, dst)
 
 
-def trigger_of(folder: str) -> str | None:
-    """Trigger word for a group folder: "11_artistX_style01" -> "artistX_style01";
-    None for set-aside folders (_duplicates, ...)."""
+def trigger_of(folder: str, layout: str = "plain") -> str | None:
+    """Trigger word for a group folder: the folder name, without the repeat count in the kohya
+    layout ("11_artistX_style01" -> "artistX_style01"); None for set-aside folders."""
     if folder.startswith("_") or folder == "unassigned":
         return None
-    head, _, rest = folder.partition("_")
-    return rest if head.isdigit() and rest else folder
+    if layout == "kohya":
+        return folder.partition("_")[2] or folder
+    return folder
 
 
 def _write_caption(side: Path | None, dst: Path, trigger: str) -> None:
@@ -176,6 +177,7 @@ def export_folders(
     out_dir: Path,
     mode: str = "copy",
     trigger_captions: bool = False,
+    layout: str = "plain",
 ) -> ExportResult:
     """Copy or hard-link each image (and its sidecars) into its planned folder (see
     dataset.plan_folders) inside a fresh output folder. With trigger_captions, every exported
@@ -191,7 +193,7 @@ def export_folders(
         stem = _unique_stem(src.stem, used.setdefault(folder, set()))
         try:
             folder.mkdir(parents=True, exist_ok=True)
-            trigger = trigger_of(folders[i]) if trigger_captions else None
+            trigger = trigger_of(folders[i], layout) if trigger_captions else None
             _place_sidecars(src, folder, stem, mode, trigger)
             _place(src, folder / f"{stem}{src.suffix}", mode)
         except OSError as e:  # long path, permissions, full disk: report and keep going

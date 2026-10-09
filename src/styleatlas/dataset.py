@@ -148,15 +148,48 @@ def parse_repeats(repeats: str | int) -> int | None:
     return n
 
 
-INVALID_NAME_CHARS = set('<>:"/\\|?*') | {chr(c) for c in range(32)}
+# folder-name characters Windows refuses, plus "," (it would split a caption's trigger word)
+INVALID_NAME_CHARS = set('<>:"/\\|?*,') | {chr(c) for c in range(32)}
+RESERVED_NAMES = {"CON", "PRN", "AUX", "NUL"} | {
+    f"{d}{i}" for d in ("COM", "LPT") for i in range(1, 10)
+}
+MAX_NAME = 60
 
 
 def clean_group_name(name: str) -> str:
     """A group name usable as a folder name and trigger word on every OS (CJK is fine)."""
-    out = "".join("_" if ch in INVALID_NAME_CHARS else ch for ch in str(name)).strip(" ._")
+    out = "".join("_" if ch in INVALID_NAME_CHARS else ch for ch in str(name))
+    out = out.strip(" ._")[:MAX_NAME].strip(" ._")  # Windows drops trailing dots and spaces
     if not out:
         raise ValueError("group name is empty after removing characters folders cannot use")
-    return out[:60]
+    stem, dot, rest = out.partition(".")
+    if stem.rstrip().upper() in RESERVED_NAMES:  # CON, nul.txt, COM1 ...: Windows refuses them
+        out = f"{stem}_{dot}{rest}"
+    return out
+
+
+def is_unassigned(folder: str) -> bool:
+    return folder in ("unassigned", SET_ASIDE["unassigned"])
+
+
+def _group_labels(
+    n_groups: int, layout: str, width: int, group_names: dict[int, str] | None
+) -> dict[int, str]:
+    """Folder label per group: its name, else style_01 (plain) / style01 (kohya). Labels are made
+    unique ignoring case (Windows folders are case-insensitive); names are placed first."""
+    names = group_names or {}
+    taken = {"unassigned"}
+    out: dict[int, str] = {}
+    order = sorted(range(n_groups), key=lambda c: (c not in names, c))
+    for cid in order:
+        sep = "_" if layout == "plain" else ""
+        base = names.get(cid) or f"style{sep}{cid + 1:0{width}d}"
+        label, n = base, 2
+        while label.casefold() in taken:
+            label, n = f"{base}_{n}", n + 1
+        taken.add(label.casefold())
+        out[cid] = label
+    return out
 
 
 def auto_repeats(size: int, target: int = AUTO_REPEATS_TARGET) -> int:
@@ -188,21 +221,18 @@ def plan_folders(
         aside.update({i: SET_ASIDE["duplicate"] for i in group if i != keep and i not in aside})
     sizes = Counter(int(c) for i, c in enumerate(clustering.labels) if i not in aside)
     width = max(2, len(str(clustering.n_clusters)))
+    labels = _group_labels(clustering.n_clusters, layout, width, group_names)
     folders = []
     for i, cid in enumerate(int(c) for c in clustering.labels):
         if i in aside:
             folders.append(aside[i])
         elif cid == UNASSIGNED or sizes[cid] < min_size:
             folders.append(SET_ASIDE["unassigned"] if layout == "kohya" else "unassigned")
+        elif layout == "plain":
+            folders.append(labels[cid])
         else:
-            label = (group_names or {}).get(cid) or f"style{cid + 1:0{width}d}"
-            if layout == "plain":
-                folders.append(
-                    label if cid in (group_names or {}) else f"style_{cid + 1:0{width}d}"
-                )
-            else:
-                n = auto_repeats(sizes[cid]) if fixed is None else fixed
-                folders.append(f"{n}_{name}_{label}")
+            n = auto_repeats(sizes[cid]) if fixed is None else fixed
+            folders.append(f"{n}_{name}_{labels[cid]}")
     return folders
 
 

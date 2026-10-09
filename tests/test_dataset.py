@@ -159,3 +159,23 @@ def test_group_names_in_folder_plans(tmp_path):
     assert clean_group_name('a<b>:c"d/e') == "a_b__c_d_e"
     with pytest.raises(ValueError):
         clean_group_name(" ..// ")
+
+
+def test_group_names_are_safe_on_windows_and_unique():
+    from styleatlas.dataset import clean_group_name
+
+    assert clean_group_name("CON") == "CON_" and clean_group_name("nul.txt") == "nul_.txt"
+    assert clean_group_name("com1") == "com1_" and clean_group_name("console") == "console"
+    assert clean_group_name("a" * 59 + ".b").endswith("a")  # no trailing dot after the cut
+    assert clean_group_name("early, sketch") == "early_ sketch"
+
+
+def test_duplicate_names_get_distinct_folders(tmp_path):
+    x, _ = make_blobs([4, 4, 4])
+    paths = [_img(tmp_path / f"i{i}.png") for i in range(12)]
+    result = cluster_styles(x, min_size=2)
+    names = {0: "Early", 1: "early", 2: "unassigned"}
+    plain = set(plan_folders(paths, result, "plain", group_names=names))
+    assert plain == {"Early", "early_2", "unassigned_2"}
+    kohya = set(plan_folders(paths, result, "kohya", "a", "3", group_names={0: "style02"}))
+    assert kohya == {"3_a_style02", "3_a_style02_2", "3_a_style03"}

@@ -10,9 +10,20 @@
   than 3 images after set-asides go to `_unassigned/`.
 - **Saved groups**: groups, hand edits and names are written to `groups.json` and restored when
   the folder is opened again.
-- **Undo**: a button and Ctrl+Z step back through the last 30 hand edits, regroups and
-  renames. Switching the character axis clears the history, since older groups belong to the
-  other vector space.
+- **Undo**: a button and Ctrl+Z step back through the last 30 hand edits, regroups, renames and
+  character-axis switches (undoing a switch restores the old space with its groups).
+- Fixes from the fifth review:
+  - Group names follow their images through moves, merges, splits, regroups and axis switches;
+    before, a name was tied to the group's most central image and could vanish after an edit.
+  - Switching the character axis no longer erases hand edits without a way back.
+  - A failed or unchanged rename no longer adds an undo step; two groups cannot share a name.
+  - Names are safe as Windows folders (CON, NUL, COM1 ... get a suffix; no trailing dot after
+    the 60-character cut) and commas are replaced, so a trigger stays one tag.
+  - Folder labels are unique ignoring case; a plain-layout folder such as `2024_summer` keeps its
+    whole name as the trigger.
+  - Web export reports how many groups were too small and went to unassigned.
+  - A damaged `groups.json` is kept as `.bad` instead of stopping the server; the last axis
+    switch is restored with the groups.
 - **One-group hint**: suggests a finer granularity when everything lands in one group.
 - **Style Gate**: the default threshold is now 0.5. The nodes were verified with the real CSD
   model on CPU.

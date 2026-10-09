@@ -11,7 +11,6 @@ from __future__ import annotations
 import io
 import json
 import mimetypes
-import os
 import threading
 import webbrowser
 from collections.abc import Callable
@@ -30,8 +29,9 @@ from styleatlas.cluster import (
     edit_groups,
     split_group,
 )
-from styleatlas.dataset import LAYOUTS, clean_group_name, plan_folders
+from styleatlas.dataset import LAYOUTS, clean_group_name, is_unassigned, plan_folders
 from styleatlas.export import export_folders, output_dir, write_table
+from styleatlas.groupfile import GROUPS_FILE, SavedGroups, carry_names, load_groups, save_groups
 from styleatlas.images import cached_thumbnail, load_rgb
 from styleatlas.metrics import Neutralizer
 from styleatlas.persist import RelPathMap
@@ -75,10 +75,15 @@ class StyleAtlasApp:
         self._thumbs: dict[int, bytes] = {}
         self._lock = threading.Lock()
         self.taste: TasteSession | None = None
-        self.group_names: dict[int, str] = {}  # medoid image index -> name
-        self._history: list[tuple] = []  # earlier (clustering, settings, names) for undo
+        self.group_names: dict[int, str] = {}  # group id -> name, carried across regroupings
+        self._history: list[tuple] = []  # earlier (clustering, settings, names, space) for undo
+        saved = load_groups(self._groups_path, atlas)
+        if saved and saved.neutralize is not None and 0 <= saved.neutralize <= MAX_NEUTRALIZE:
+            neutralize = saved.neutralize  # the switch as it was left in the page
         self._apply_space(neutralize)
-        self.restored = self._restore_groups()
+        self.restored = saved is not None
+        if saved:
+            self._restore(saved)
         self.taste = TasteSession(self.atlas, self.out_dir)
         self._excluded = RelPathMap(self.out_dir / "excluded.json", atlas)
         self.excluded: set[int] = {i for i, v in self._excluded.values.items() if v is True}
@@ -105,19 +110,25 @@ class StyleAtlasApp:
             self.taste._refit()
 
     def set_neutralize(self, body: dict) -> dict:
+        """Switch the vector space. Groups are rebuilt in it (names follow their images); Undo
+        returns to the old space with its groups and hand edits."""
         k = body.get("k")
         if type(k) is not int or not 0 <= k <= MAX_NEUTRALIZE:
             raise ValueError(f"k must be a whole number from 0 to {MAX_NEUTRALIZE}")
         with self._lock:
+            if k == self.neutralize:
+                return {"neutralize": k, "clusters": self.clustering.n_clusters}
+            self._remember()
+            old, names = self.clustering.labels, self.group_names
             self._apply_space(k)
-            self._history.clear()  # earlier groups belong to the other vector space
+            self.group_names = carry_names(old, self.clustering.labels, names)
             self.revision += 1
             self._save_groups()
             return {"neutralize": k, "clusters": self.clustering.n_clusters}
 
     @property
     def out_dir(self) -> Path:
-        return output_dir(self.atlas.root)
+        return output_dir(self.raw.root)
 
     def page(self) -> str:
         with self._lock:  # votes and exclusions may change in another request thread
@@ -171,10 +182,11 @@ class StyleAtlasApp:
         if not 0.05 <= threshold <= 1.5 or (k is not None and not 1 <= k <= len(self.atlas)):
             raise ValueError("threshold must be 0.05-1.5 and k between 1 and the image count")
         with self._lock:
-            self._remember()
-            self.clustering = cluster_styles(
+            clustering = cluster_styles(
                 self.atlas.style, method=method, threshold=threshold, n_clusters=k
             )
+            self._remember()
+            self._swap(clustering)
             self.settings = {"method": method, "threshold": threshold, "k": k}
             self.revision += 1
             self._save_groups()
@@ -205,22 +217,32 @@ class StyleAtlasApp:
             raise ValueError("the groups changed in another tab or edit; reload the page")
 
     def _remember(self) -> None:
-        self._history.append((self.clustering, dict(self.settings), dict(self.group_names)))
+        state = (self.clustering, dict(self.settings), dict(self.group_names), self.neutralize)
+        self._history.append(state)
         del self._history[:-UNDO_STEPS]
+
+    def _swap(self, clustering, prefer: int | None = None) -> None:
+        """Make `clustering` current; names move to the groups that hold most of their images."""
+        old = self.clustering.labels
+        self.group_names = carry_names(old, clustering.labels, self.group_names, prefer)
+        self.clustering = clustering
 
     def undo(self, body: dict) -> dict:
         with self._lock:
             self._check_revision(body)
             if not self._history:
                 raise ValueError("nothing to undo")
-            self.clustering, self.settings, self.group_names = self._history.pop()
+            clustering, settings, names, k = self._history.pop()
+            if k != self.neutralize:
+                self._apply_space(k)
+            self.clustering, self.settings, self.group_names = clustering, settings, names
             self.revision += 1
             self._save_groups()
             return {"clusters": self.clustering.n_clusters, "revision": self.revision}
 
-    def _edited(self, clustering) -> dict:
+    def _edited(self, clustering, prefer: int | None = None) -> dict:
         self._remember()
-        self.clustering = clustering
+        self._swap(clustering, prefer)
         self.settings = {**self.settings, "edited": True}
         self.revision += 1
         self._save_groups()
@@ -228,43 +250,28 @@ class StyleAtlasApp:
 
     @property
     def _groups_path(self) -> Path:
-        return self.out_dir / "groups.json"
+        return self.out_dir / GROUPS_FILE
 
     def _save_groups(self) -> None:
         """Groups, hand edits and names, by relative path, so a restart keeps the work."""
-        rel = self.atlas.rel
-        data = {
-            "settings": self.settings,
-            "neutralize": self.neutralize,
-            "labels": {rel(i): int(c) for i, c in enumerate(self.clustering.labels)},
-            "names": {rel(m): n for m, n in self.group_names.items()},
-        }
-        self.out_dir.mkdir(parents=True, exist_ok=True)
-        tmp = self._groups_path.with_name("groups.json.tmp")
-        tmp.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
-        os.replace(tmp, self._groups_path)
-
-    def _restore_groups(self) -> bool:
-        """Reload saved groups when they cover most of the current images (new images start
-        unassigned). Returns whether anything was restored."""
         try:
-            data = json.loads(self._groups_path.read_text(encoding="utf-8"))
-            labels, names = data["labels"], data.get("names", {})
-        except (OSError, ValueError, KeyError, TypeError):
-            return False
-        rels = [self.atlas.rel(i) for i in range(len(self.atlas))]
-        known = sum(1 for r in rels if r in labels)
-        if not isinstance(labels, dict) or known < 0.5 * len(rels):
-            return False
-        moves = {i: int(labels.get(r, UNASSIGNED)) for i, r in enumerate(rels)}
+            save_groups(
+                self._groups_path,
+                self.atlas,
+                self.clustering,
+                self.settings,
+                self.neutralize,
+                self.group_names,
+            )
+        except OSError as e:  # the edit itself worked; only the copy on disk is behind
+            self.progress(f"could not save {self._groups_path}: {e}")
+
+    def _restore(self, saved: SavedGroups) -> None:
+        """Saved groups (new images start unassigned), with their names."""
+        moves = dict(enumerate(saved.labels.tolist()))
         self.clustering = edit_groups(self.atlas.style, self.clustering, moves)
-        saved = data.get("settings") if isinstance(data.get("settings"), dict) else {}
-        self.settings = {**self.settings, **saved, "edited": True}
-        index = {r: i for i, r in enumerate(rels)}
-        self.group_names = {
-            index[r]: n for r, n in names.items() if r in index and isinstance(n, str)
-        }
-        return True
+        self.settings = {**self.settings, **saved.settings, "edited": True}
+        self.group_names = carry_names(saved.labels, self.clustering.labels, saved.names)
 
     def move(self, body: dict) -> dict:
         """Hand edit: put one image into another group (or unassigned)."""
@@ -284,29 +291,31 @@ class StyleAtlasApp:
                 raise ValueError("pick two different groups")
             members = self.clustering.clusters[source].members
             moves = {m: target for m in members}
-            return self._edited(edit_groups(self.atlas.style, self.clustering, moves))
+            return self._edited(edit_groups(self.atlas.style, self.clustering, moves), target)
 
     def rename(self, body: dict) -> dict:
-        """Name a group for export. Names follow the group's most central image, so they survive
-        renumbering; an empty name removes it."""
+        """Name a group for export (an empty name removes it). Names follow their images
+        through later edits and regroupings."""
         name = body.get("name", "")
         if not isinstance(name, str) or len(name) > 120:
             raise ValueError("name must be text (at most 120 characters)")
+        new = clean_group_name(name) if name.strip() else None
         with self._lock:
             self._check_revision(body)
             group = self._group(body.get("group"), allow_unassigned=False)
-            medoid = self.clustering.clusters[group].medoid
+            others = {n.casefold() for g, n in self.group_names.items() if g != group}
+            if new is not None and new.casefold() in others:
+                raise ValueError(f"another group is already called {new}")
+            if new == self.group_names.get(group):
+                return {"names": self.names_by_group()}
             self._remember()
-            if name.strip():
-                self.group_names[medoid] = clean_group_name(name)
-            else:
-                self.group_names.pop(medoid, None)
+            names = {g: n for g, n in self.group_names.items() if g != group}
+            self.group_names = names if new is None else {**names, group: new}
             self._save_groups()
             return {"names": self.names_by_group()}
 
     def names_by_group(self) -> dict[int, str]:
-        by_medoid = {c.medoid: c.id for c in self.clustering.clusters}
-        return {by_medoid[m]: n for m, n in self.group_names.items() if m in by_medoid}
+        return dict(self.group_names)
 
     def split(self, body: dict) -> dict:
         """Hand edit: cut one group in two."""
@@ -380,9 +389,23 @@ class StyleAtlasApp:
             )
             write_table(self.atlas, self.clustering, out, folders)
             result = export_folders(
-                self.atlas, folders, out / "folders", mode=mode, trigger_captions=trigger
+                self.atlas,
+                folders,
+                out / "folders",
+                mode=mode,
+                trigger_captions=trigger,
+                layout=layout,
             )
-        return {"placed": result.placed, "failed": len(result.failed), "folder": str(result.folder)}
+            labels = self.clustering.labels
+            small = {
+                int(labels[i]) for i, f in enumerate(folders) if labels[i] >= 0 and is_unassigned(f)
+            }
+        return {
+            "placed": result.placed,
+            "failed": len(result.failed),
+            "folder": str(result.folder),
+            "small_groups": len(small),  # left with < EXPORT_MIN_GROUP images: in unassigned
+        }
 
 
 JSON_ROUTES = {  # POST route -> StyleAtlasApp method taking the JSON body

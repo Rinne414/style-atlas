@@ -117,7 +117,8 @@ style-atlas taste score "D:\new_batch" --model "D:\lora\artistX_style_atlas\tast
     - 選取一張圖，用「移到其他群…」把它改放到別群；
     - 打開一個群，用「把這群合併到…」併進另一群，或按「拆成兩群」。
     - 打開一個群，在「取名」欄輸入名字並按 Enter，例如「早期」「線稿期」。匯出時資料夾與觸發詞會用這個名字，像是 `10_artistX_早期`。
-    - 修正和名稱會自動存到 `<資料夾>_style_atlas/groups.json`，下次打開同一個資料夾時會還原。
+    - 修正、名稱和「忽略角色軸」開關會自動存到 `<資料夾>_style_atlas/groups.json`，下次打開同一個資料夾時會還原（開關以網頁上最後的狀態為準）。
+    - 名稱跟著圖走：移動、合併、拆群或重新分群後，名稱會留在包含原本大部分圖的那一群；合併時以被併入的那群的名稱為準。
     - 按錯了可以按「復原」或 Ctrl+Z，最多可退回 30 步。「重新分群」會清除手動修正，但同樣可以復原。
   - 用「喜歡／不喜歡」（鍵盤 L / D）評圖。各評滿 5 張後，「口味」分頁會用你的評分訓練模型，替還沒評的圖排序，並顯示交叉驗證的 AUC。
   - 按「評下一張最有用的圖」可進入評分模式：只要一直按 L／D，系統會自動挑下一張和已評過的最不像的圖。用一位使用者的 140 筆真實投票模擬，這樣評 10 張就能達到隨機挑約 25 張的水準。
@@ -188,7 +189,9 @@ how a picture is drawn rather than what it shows. On top of those vectors it can
 - **Check a dataset** (`audit`, `duplicates`): sizes, aspect ratios, captions, near-duplicates.
 - **Fix groups by hand** in the web app: move an image to another group, merge two groups,
   split a group in two, or exclude images (X), which are then exported to `_excluded/`.
-  Groups, edits and names are saved and restored the next time the folder is opened.
+  Groups, edits, names and the character-axis switch are saved and restored the next time the
+  folder is opened. Names follow their images: after a move, merge, split or regroup a name
+  stays with the group that holds most of its images.
   Undo (or Ctrl+Z) steps back through the last 30 edits, regroups and renames.
 - **Quantify style and taste**: `compare` two sets, or train a personal like/dislike model in
   the web app or with `taste`.
