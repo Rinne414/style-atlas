@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.10.0 - 2026-10-10
 
 - `cluster --time name|mtime` shows where each group sits on the folder's timeline ("when 9%
   [3%-28%]" = median and middle half), so periods read as early / middle / late in the console.
