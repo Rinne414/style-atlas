@@ -87,6 +87,39 @@ singletons, and hub correction removes most of that failure.
 
 HDBSCAN left 49% of points as noise.
 
+### More than 8,000 images (2026-10-10)
+
+Average linkage needs an n x n distance matrix, which is too large above 8,000 images. Until
+now the tool then switched to HDBSCAN on PCA-64 vectors, which ignored the threshold (the web
+app's granularity did nothing) and left half of the images unassigned.
+
+The large-set path now runs k-means (random init) into 8,000 micro-groups and joins whole
+micro-groups by average linkage. Distances between micro-groups are exact: the mean
+hub-corrected distance between their images is `1 - S_a.S_b / (n_a n_b)` plus the mean density
+terms, where `S` is a group's vector sum. The tree is kept, so another threshold only cuts it
+again.
+
+Test: the 3,245-image Danbooru corpus (300 artists), with the micro-group count lowered to keep
+the ratio realistic. 500 parts is about 6 images per micro-group, like 8,000 parts for 50,000
+images. Unassigned images count as single-image groups in the ARI. Three k-means seeds.
+
+| Method, threshold 0.35 | ARI with artists | Unassigned |
+|---|---|---|
+| Full average linkage (reference, possible below 8,000) | 0.255 | 7% |
+| Micro-groups, 1,600 parts (2 images each) | 0.222 +- 0.006 | 6% |
+| Micro-groups, 500 parts (6.5 images each) | 0.180 +- 0.007 | 4% |
+| Random sample of 500 + join nearest group (tried) | 0.16 | 10-13% |
+| Old fallback: HDBSCAN on PCA-64 | 0.223 | **49%** |
+
+- Micro-groups beat clustering a sample and joining the rest at every size tried.
+- Weighting micro-groups by size in the linkage (own nearest-neighbour-chain code) changed ARI
+  by at most 0.01, so the plain linkage on the exact distances is used.
+- k-means++ init took 302 s on 50,000 vectors; random init takes 11 s and costs about 0.01 ARI.
+- Time on 50,000 vectors (8 CPU cores): 39 s for the first grouping, 0.5 s for each new
+  threshold.
+- At 0.47 on 300 artists every method scores near 0 (ARI 0.03-0.05): the medium cut chains
+  hundreds of artists into a few large groups. Use `fine` or `period` for big mixed galleries.
+
 ### Input variants (2026-10-09)
 
 This is a paired comparison on the same 2,941 deduplicated images. The bootstrap gives the

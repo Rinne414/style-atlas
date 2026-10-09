@@ -8,10 +8,14 @@ it leaves ambiguous images unassigned instead of forcing them into a group.
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass, field
 
 import numpy as np
-from sklearn.cluster import HDBSCAN, AgglomerativeClustering
+from scipy.cluster.hierarchy import fcluster, linkage
+from scipy.sparse import csr_matrix
+from scipy.spatial.distance import squareform
+from sklearn.cluster import HDBSCAN, AgglomerativeClustering, MiniBatchKMeans
 from sklearn.decomposition import PCA
 
 from styleatlas.metrics import DEFAULT_K, centroid, hub_distance, neighbor_density, unit
@@ -22,6 +26,8 @@ from styleatlas.metrics import DEFAULT_K, centroid, hub_distance, neighbor_densi
 GRANULARITY = {"period": 0.35, "fine": 0.40, "medium": 0.47, "coarse": 0.55}
 METHODS = ("agglomerative", "hdbscan")
 MAX_DENSE = 8000  # the n x n float64 distance matrix (+ sklearn's copy) above this is too large
+KMEANS_SEED = 0
+_TREE_CACHE: dict = {}  # last large set: (micro-group per image, linkage tree)
 UNASSIGNED = -1
 
 
@@ -65,26 +71,82 @@ def cluster_styles(
     if n < 2:
         return _finish(x, np.zeros(n, dtype=int), method, {}, min_size=1)
     params: dict = {"hub_k": hub_k, "min_size": min_size}
-    if n > MAX_DENSE and method != "hdbscan":
-        method = "hdbscan"
-        params["note"] = (
-            f"{n} images is above {MAX_DENSE}: used HDBSCAN on PCA-64 vectors; "
-            "threshold and k were ignored"
-        )
     if method == "agglomerative":
         thr = GRANULARITY["medium"] if threshold is None else threshold
-        dist = hub_distance(x, k=hub_k)
-        model = AgglomerativeClustering(
-            n_clusters=n_clusters,
-            metric="precomputed",
-            linkage="average",
-            distance_threshold=None if n_clusters else thr,
-        )
-        raw = model.fit_predict(dist)
+        if n > MAX_DENSE:
+            raw = _micro_agglomerative(x, thr, n_clusters, hub_k, MAX_DENSE)
+            params["note"] = (
+                f"{n} images is above {MAX_DENSE}: average linkage joined {MAX_DENSE} k-means "
+                "micro-groups instead of single images"
+            )
+        else:
+            raw = _agglomerative(hub_distance(x, k=hub_k), thr, n_clusters)
         params |= {"n_clusters": n_clusters} if n_clusters else {"threshold": thr}
     else:
         raw = _hdbscan(x, min_size, hub_k)
     return _finish(x, raw, method, params, min_size)
+
+
+def _agglomerative(dist: np.ndarray, thr: float, n_clusters: int | None) -> np.ndarray:
+    model = AgglomerativeClustering(
+        n_clusters=n_clusters,
+        metric="precomputed",
+        linkage="average",
+        distance_threshold=None if n_clusters else thr,
+    )
+    return model.fit_predict(dist)
+
+
+def _micro_agglomerative(
+    x: np.ndarray, thr: float, n_clusters: int | None, hub_k: int, parts: int
+) -> np.ndarray:
+    """Average linkage for sets too large for an n x n matrix: whole k-means micro-groups are
+    joined instead of single images (see _micro_tree), then the tree is cut like the dense one."""
+    part, tree = _micro_tree(x, hub_k, parts)
+    if len(tree) == 0:  # a single micro-group
+        return np.zeros(len(x), dtype=int)
+    if n_clusters:
+        flat = fcluster(tree, t=min(n_clusters, len(tree) + 1), criterion="maxclust")
+    else:
+        flat = fcluster(tree, t=thr, criterion="distance")
+    return flat[part] - 1
+
+
+def _micro_tree(x: np.ndarray, hub_k: int, parts: int) -> tuple[np.ndarray, np.ndarray]:
+    """k-means micro-groups and their average-linkage tree. The tree uses the exact mean
+    hub-corrected distance between the micro-groups' images (cosine and the density terms are
+    bilinear, so per-group sums give it). The last set's tree is kept, so a new threshold (the
+    web app's slider) only cuts it again."""
+    key = (hashlib.blake2b(x.tobytes(), digest_size=16).hexdigest(), hub_k, parts, KMEANS_SEED)
+    if key not in _TREE_CACHE:
+        km = MiniBatchKMeans(
+            n_clusters=parts, init="random", random_state=KMEANS_SEED, batch_size=4096, n_init=1
+        )
+        part = np.unique(km.fit_predict(x), return_inverse=True)[1]  # no empty micro-groups
+        r = neighbor_density(x, x, k=hub_k, same_set=True).astype(np.float64)
+        d = _group_distances(x, r, part)
+        tree = linkage(squareform(d, checks=False), method="average") if len(d) > 1 else []
+        _TREE_CACHE.clear()
+        _TREE_CACHE[key] = (part, np.asarray(tree))
+    return _TREE_CACHE[key]
+
+
+def _group_distances(x: np.ndarray, r: np.ndarray, part: np.ndarray) -> np.ndarray:
+    """Mean hub-corrected distance between the images of every two groups in `part`."""
+    m = int(part.max()) + 1
+    member = csr_matrix((np.ones(len(x)), (part, np.arange(len(x)))), shape=(m, len(x)))
+    sums = np.asarray(member @ x.astype(np.float64))
+    count = np.bincount(part, minlength=m).astype(np.float64)
+    mean_r = np.bincount(part, weights=r, minlength=m) / count
+    d = sums @ sums.T  # built in place below, as in hub_distance
+    d /= count[:, None]
+    d /= count[None, :]
+    np.subtract(1.0 - r.mean(), d, out=d)
+    d += mean_r[:, None] / 2.0
+    d += mean_r[None, :] / 2.0
+    np.maximum(d, 0.0, out=d)
+    np.fill_diagonal(d, 0.0)
+    return d
 
 
 def _hdbscan(x: np.ndarray, min_size: int, hub_k: int) -> np.ndarray:

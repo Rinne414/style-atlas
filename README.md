@@ -285,7 +285,9 @@ Common options:
   image's mean similarity to its 10 nearest neighbours.
 - **Clustering**: average-linkage agglomerative clustering on hub-corrected distances. The cut is
   0.40 (fine), 0.47 (medium) or 0.55 (coarse), tuned on blind artist mixtures. HDBSCAN is
-  optional.
+  optional. Above 8,000 images, k-means first makes 8,000 micro-groups and the linkage joins
+  those, using exact mean distances between them (50,000 images: 39 s, then 0.5 s per new
+  threshold).
 - **Near-duplicates**: min(style cosine, content cosine) >= 0.95, grouped with union-find. The
   threshold is deliberately conservative: between 0.92 and 0.95 the pairs were often different
   poses of one character.

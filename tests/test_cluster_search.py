@@ -153,3 +153,23 @@ def test_style_path_skips_excluded_and_survives_bad_rows():
     path = style_path(x, 0, 6, steps=6, skip={1})
     assert 1 not in path and 3 not in path and path[-1] == 6
     assert style_path(x, 0, 0) == [0]
+
+
+def test_large_sets_join_micro_groups_and_keep_the_threshold(monkeypatch):
+    from sklearn.metrics import adjusted_rand_score
+
+    import styleatlas.cluster as cluster
+
+    monkeypatch.setattr(cluster, "MAX_DENSE", 30)  # 120 images > 30: the micro-group path
+    x, labels = make_blobs([40, 30, 30, 20])
+    result = cluster_styles(x, threshold=0.5)
+    assert "micro-groups" in result.params["note"]
+    assert adjusted_rand_score(labels, result.labels) > 0.9
+    assert cluster_styles(x, n_clusters=2).n_clusters == 2
+    assert cluster_styles(x, threshold=1.4).n_clusters == 1  # a coarse cut still merges
+    runs = []
+    real = cluster.MiniBatchKMeans
+    monkeypatch.setattr(cluster, "MiniBatchKMeans", lambda **kw: runs.append(kw) or real(**kw))
+    cluster_styles(x, threshold=0.3)  # same set, new threshold: the cached tree is cut again
+    cluster_styles(x[:100], threshold=0.3)  # another set: k-means runs
+    assert len(runs) == 1

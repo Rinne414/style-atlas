@@ -24,6 +24,10 @@
   - Web export reports how many groups were too small and went to unassigned.
   - A damaged `groups.json` is kept as `.bad` instead of stopping the server; the last axis
     switch is restored with the groups.
+- **Large sets**: above 8,000 images, grouping no longer switches to HDBSCAN (which ignored
+  the threshold and left about half the images unassigned). k-means micro-groups are joined by
+  average linkage on exact mean distances, and a new threshold re-cuts the saved tree in under a
+  second. See BENCHMARKS.md.
 - **One-group hint**: suggests a finer granularity when everything lands in one group.
 - **Style Gate**: the default threshold is now 0.5. The nodes were verified with the real CSD
   model on CPU.
