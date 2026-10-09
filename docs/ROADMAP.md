@@ -26,8 +26,8 @@ All of these are in `docs/BENCHMARKS.md`.
 
 - **Mixed artists**: clustering of 2-5 mixed artists reaches ARI about 0.5. Groups are a first
   pass; review them in the map.
-- **Periods within one artist**: clustering at `--granularity period` follows posting time for
-  4 of 6 artists.
+- **Periods within one artist**: style drift is significant for 12 of 13 artists; `--granularity period`
+  groups follow posting time for 9 of 13.
 - **Subject pull**: CSD style vectors are pulled by character looks. `--neutralize 1` fixes this
   for collections where the same characters recur, but must not be used on mixed artists.
 - **Taste model**: it separates like from dislike (AUC about 0.77 on one person's votes). It does
