@@ -217,11 +217,14 @@ Style Gate 的預設門檻是 0.5。在 Danbooru 上，單張圖之間的距離�
 style-atlas turns every image into a *style vector* with CSD, an embedding trained to capture
 how a picture is drawn rather than what it shows. On top of those vectors it can:
 
-- **Prepare LoRA datasets**: split a folder by style or period, set aside duplicates and
-  outliers, and export kohya-style folders (`cluster --layout kohya --dedupe`).
-- **Find images in a similar style**: drop an image into the web app, or use `search`. A
+- **Prepare LoRA datasets**: split a folder by style, or one artist into periods
+  (`--granularity period`), set aside duplicates and outliers, and export kohya-style folders
+  (`cluster --layout kohya --dedupe`), with group names as folder and trigger names.
+- **Find images in a similar style**: drop one image, or several of one style, into the web app,
+  or use `search` (`--combine` learns from several examples, `--copy-to` gathers the matches). A
   "style path" lists the images that lead from one picked style to another.
-- **Explore a 3D style map** (`map`): one HTML file you can send to anyone.
+- **Explore a 3D style map** (`map`, or "Save shareable map" in the web app): one HTML file you
+  can send to anyone. Groups show their characteristic caption tags.
 - **Check a dataset** (`audit`, `duplicates`): sizes, aspect ratios, captions, near-duplicates.
 - **Fix groups by hand** in the web app: "Find more like this" lists the images outside a group
   that look most like it; move an image to another group, merge two groups,
