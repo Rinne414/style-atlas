@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.13.0 - 2026-10-10
+
+- **README screenshots**, made from generated abstract images, so no one's artwork appears.
+  `scripts/make_demo_images.py` makes the same 72 images (four styles) for trying the tool.
+- `StyleAtlas-console.bat` opens in the project folder and lists the demo-image command;
+  `setup.bat` says how large the torch download is.
+- Tests: the CLI commands run end to end with a stand-in encoder (package coverage 75% -> 88%),
+  and `pytest -m model` checks the real CSD model on the demo styles (four groups, ARI 1.0).
+- Docs: a development section, the console window noted for commands, the GitHub sign-in, the
+  Style Gate's distance scale measured (same artist 0.405, different 0.566), old labels in
+  BENCHMARKS marked as history.
+
 ## 0.12.0 - 2026-10-10
 
 - **Shortcut list**: "?" (key or button) shows the keyboard and mouse shortcuts.
