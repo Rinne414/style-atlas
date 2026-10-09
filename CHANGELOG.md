@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0 - 2026-10-10
 
 - **Ignore the character axis** in the web app: a live `--neutralize` switch. It rebuilds the
   layout, groups and taste model in the new space.
