@@ -482,3 +482,10 @@ def test_regroup_into_periods(tmp_path):
     assert app.settings == {"method": "kmeans", "threshold": None, "k": 2}
     app.regroup({"method": "kmeans", "k": 6})  # periods under 3 images are set aside
     assert all(c.size >= 3 for c in app.clustering.clusters)
+
+
+def test_prewarm_reads_the_captions(tmp_path):
+    app, atlas = _app(tmp_path)
+    atlas.paths[0].with_suffix(".txt").write_text("sketch", encoding="utf-8")
+    app._read_tags()
+    assert app._tag_sets[0] == {"sketch"} and app._tag_sets[1] == set()
