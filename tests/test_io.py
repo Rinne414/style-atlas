@@ -94,6 +94,7 @@ def test_write_table(tmp_path):
     with open(csv_path, encoding="utf-8-sig") as f:
         rows = list(csv.DictReader(f))
     assert len(rows) == len(atlas)
+    assert b"\r\r\n" not in csv_path.read_bytes()  # no blank lines in Excel
     summary = json.loads(json_path.read_text(encoding="utf-8"))
     assert sum(c["size"] for c in summary["clusters"]) + summary["unassigned"] == len(atlas)
 

@@ -30,6 +30,8 @@ cd style-atlas
 pip install -e .            # 想用 UMAP 版面就裝 pip install -e ".[umap]"
 ```
 
+Windows 使用者也可以直接把圖片資料夾**拖到 `scripts/StyleAtlas.bat` 上**，瀏覽器會自動打開網頁介面。
+
 第一次執行會從 Hugging Face 下載 CSD 權重（2.4 GB），並另存成 1.2 GB 的精簡檔，之後啟動會比較快。快取位置是 `~/.cache/style-atlas/`，可用環境變數 `STYLE_ATLAS_CACHE` 改位置。
 
 ### 快速開始
@@ -127,6 +129,8 @@ Python 3.10 or newer. For GPU use, install the CUDA build of torch first; see py
 git clone https://github.com/Rinne414/style-atlas && cd style-atlas
 pip install -e .          # or pip install -e ".[umap]" for UMAP layouts
 ```
+
+On Windows you can also drag an image folder onto `scripts/StyleAtlas.bat` to open the web app.
 
 On first use, the CSD weights (2.4 GB) are downloaded from Hugging Face. They are then cached as
 a slim 1.2 GB safetensors file in `~/.cache/style-atlas/`. Set `STYLE_ATLAS_CACHE` to move it.

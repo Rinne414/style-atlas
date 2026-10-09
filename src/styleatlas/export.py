@@ -46,8 +46,9 @@ def _safe_cell(value: object) -> object:
 
 
 def _write_atomic(path: Path, text: str, encoding: str = "utf-8") -> None:
+    """Bytes are written as given: no newline translation (csv already ends rows with CRLF)."""
     tmp = path.with_name(path.name + ".tmp")
-    tmp.write_text(text, encoding=encoding)
+    tmp.write_bytes(text.encode(encoding))
     os.replace(tmp, path)
 
 
