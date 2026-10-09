@@ -407,7 +407,7 @@ class StyleAtlasApp:
             self._check_revision(body)
             group = self._group(body.get("group"), allow_unassigned=False)
             if self.clustering.clusters[group].size > MAX_SPLIT:
-                raise ValueError("group too large to split here; regroup with a lower threshold")
+                raise ValueError("group too large to split here; regroup into smaller groups")
             return self._edited(split_group(self.atlas.style, self.clustering, group))
 
     def _index(self, body: dict) -> int:

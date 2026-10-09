@@ -112,6 +112,19 @@ unassigned images count as single-image groups; permutation p < 0.05.
 - `--granularity period` and the web app's "時期" now mean k-means into 3 groups (`--k` sets
   the number). The old cut is still available as `--threshold 0.35`.
 
+Caveats (from a Sonnet review):
+- **Scoring.** The "beyond chance" counts (11 vs 9) partly depend on scoring unassigned images
+  as single-image groups, which penalizes the cut. The safe reading is a tie on time alignment.
+  The practical difference is coverage.
+- **Coverage is not always good.** k-means also puts sketches and off-style images into a
+  period. Pair it with `--drop-outliers N` (or the 離群 tab and X in the web app) to set those
+  aside. Trimming could not be scored fairly with this metric.
+- **Three periods is a convention.** Choosing k by silhouette (2-6) did worse (mean AMI 0.086)
+  and picked k = 2 for 9 of 13 artists. Centering the vectors per artist changed nothing (0.120).
+- **Small groups.** A period can come out small (4 of 46 images for one artist). Periods under
+  `--min-size` (3) count as unassigned, and `cluster` warns about groups under 8.
+- **Below about 100 images** the boundaries move with the seed; `cluster` prints a note.
+
 ### Choosing the cut automatically (2026-10-10)
 
 The medium cut (0.47) was tuned on mixtures of 2-5 artists. On larger mixtures the best cut is

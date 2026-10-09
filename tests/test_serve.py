@@ -476,7 +476,9 @@ def test_open_output_opens_only_the_output_folder(tmp_path, monkeypatch):
 
 
 def test_regroup_into_periods(tmp_path):
-    app, _ = _app(tmp_path)
-    app.regroup({"method": "kmeans", "k": 4})
-    assert app.clustering.n_clusters == 4 and app.clustering.n_unassigned == 0
-    assert app.settings == {"method": "kmeans", "threshold": None, "k": 4}
+    app, _ = _app(tmp_path)  # 15 images in two styles
+    app.regroup({"method": "kmeans", "k": 2})
+    assert app.clustering.n_clusters == 2 and app.clustering.n_unassigned == 0
+    assert app.settings == {"method": "kmeans", "threshold": None, "k": 2}
+    app.regroup({"method": "kmeans", "k": 6})  # periods under 3 images are set aside
+    assert all(c.size >= 3 for c in app.clustering.clusters)

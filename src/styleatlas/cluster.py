@@ -26,8 +26,9 @@ from styleatlas.metrics import DEFAULT_K, centroid, hub_distance, neighbor_densi
 
 # medium / fine / coarse were tuned on blind mixtures of different artists. Splitting ONE
 # artist's work into periods uses k-means instead (method "kmeans", PERIODS groups): on 13
-# artists it followed posting time as well as a 0.35 cut, beyond chance for 11 (the cut: 9),
-# and it assigns every image, where the cut left 36-77% unassigned for 4 artists.
+# artists it followed posting time as well as a 0.35 cut and puts every image in a period
+# (groups under min_size aside), where the cut left 36-77% unassigned for 4 artists. Three is a
+# convention: choosing k by silhouette did worse.
 GRANULARITY = {"fine": 0.40, "medium": 0.47, "coarse": 0.55}
 PERIODS = 3
 METHODS = ("agglomerative", "hdbscan", "kmeans")
@@ -82,10 +83,10 @@ def cluster_styles(
     if n < 2:
         return _finish(x, np.zeros(n, dtype=int), method, {}, min_size=1)
     params: dict = {"hub_k": hub_k, "min_size": min_size}
-    if method == "kmeans":  # periods of one artist: a set number of groups, every image in one
+    if method == "kmeans":  # periods of one artist: a set number of groups covering everything
         k = min(n_clusters or PERIODS, n)
         raw = KMeans(n_clusters=k, n_init=10, random_state=KMEANS_SEED).fit_predict(x)
-        return _finish(x, raw, method, params | {"n_clusters": k, "min_size": 1}, min_size=1)
+        return _finish(x, raw, method, params | {"n_clusters": k}, min_size)
     if method == "agglomerative":
         part, tree, dist = _average_tree(x, hub_k)
         if n > MAX_DENSE:

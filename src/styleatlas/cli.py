@@ -19,6 +19,7 @@ from styleatlas.images import TIME_SOURCES, find_images, labels_from_folders
 from styleatlas.metrics import StyleScale, group_difference, split_half_noise, unit
 from styleatlas.project import PROJECTIONS
 
+SOFT_PERIODS = 100  # below this, k-means periods changed with the seed (agreement ARI 0.3-0.7)
 NEUTRALIZE_HELP = (
     "ignore the N strongest directions of variation (try 1) when the same characters appear in "
     "many styles; do not use it on a mix of different artists"
@@ -75,7 +76,14 @@ def _reference(a: argparse.Namespace, neutral=None) -> Atlas | None:
 def _cluster(a: argparse.Namespace, atlas: Atlas):
     method, k, threshold = a.method, a.k, a.threshold
     if a.granularity == "period" and threshold is None:
+        if method != "agglomerative":
+            raise ValueError("--granularity period uses k-means; leave out --method")
         method, k = "kmeans", a.k or PERIODS
+        if len(atlas) < SOFT_PERIODS:
+            log(
+                f"note: with fewer than {SOFT_PERIODS} images the period boundaries are soft; "
+                "check them in the web app (serve)"
+            )
     elif threshold is None:
         threshold = GRANULARITY.get(a.granularity)  # None for auto
     result = cluster_styles(

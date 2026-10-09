@@ -3,10 +3,11 @@
 ## Unreleased
 
 - **Periods are now k-means** (`--granularity period`, the web app's "時期"): one artist's work
-  is split into 3 groups (`--k` or the web box sets the number), and every image is assigned.
-  On 13 artists it followed posting time as well as the old 0.35 cut, beyond chance for 11
-  (the cut: 9), where the cut left 36-77% of the images unassigned for 4 artists. The old cut
-  is `--threshold 0.35`.
+  is split into 3 groups (`--k` or the web box sets the number) that cover nearly every image.
+  On 13 artists it followed posting time about as well as the old 0.35 cut, which left 36-77%
+  of the images unassigned for 4 artists. Periods under `--min-size` are set aside, conflicting
+  flags (`--method`) are refused, and below 100 images `cluster` notes that the boundaries are
+  soft (all from a Sonnet review). The old cut is `--threshold 0.35`.
 
 - An unreadable caption no longer blanks the web page, and an image deleted while the app runs
   gives "not found" instead of a dropped connection.
