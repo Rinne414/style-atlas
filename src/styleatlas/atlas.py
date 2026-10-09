@@ -36,16 +36,17 @@ class Atlas:
     content: np.ndarray
     signature: str
     failed: list[tuple[Path, str]] = field(default_factory=list)
+    _rels: list[str] | None = field(default=None, init=False, repr=False, compare=False)
 
     def __len__(self) -> int:
         return len(self.paths)
 
     def rel(self, i: int) -> str:
-        p = self.paths[i]
-        try:
-            return p.relative_to(self.root).as_posix()
-        except ValueError:
-            return p.as_posix()
+        """Path of image i relative to the root, as text (worked out once: the web page asks for
+        every image's on each load)."""
+        if self._rels is None:
+            self._rels = [_relative(p, self.root) for p in self.paths]
+        return self._rels[i]
 
     def neutralized(self, k: int) -> tuple[Atlas, Neutralizer]:
         """A copy whose style vectors ignore the k strongest directions of variation."""
@@ -61,6 +62,13 @@ class Atlas:
             self.content[idx],
             self.signature,
         )
+
+
+def _relative(path: Path, root: Path) -> str:
+    try:
+        return path.relative_to(root).as_posix()
+    except ValueError:
+        return path.as_posix()
 
 
 def _silent(_: str) -> None:
