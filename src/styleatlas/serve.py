@@ -19,7 +19,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from styleatlas.atlas import LOAD_ERRORS, Atlas, EncodeOptions, get_encoder
-from styleatlas.cluster import GRANULARITY, METHODS, cluster_styles
+from styleatlas.cluster import GRANULARITY, METHODS, UNASSIGNED, cluster_styles, edit_groups
 from styleatlas.dataset import plan_folders
 from styleatlas.export import export_folders, output_dir, write_table
 from styleatlas.images import load_rgb, thumbnail_bytes
@@ -122,6 +122,36 @@ class StyleAtlasApp:
             query = self.neutral.apply(get_encoder(self.opts).encode([image]).style)
         hits = search(query, self.atlas.style, top=top)[0]
         return [{"i": h.index, "cos": round(h.cosine, 4)} for h in hits]
+
+    def _group(self, value: object, allow_unassigned: bool) -> int:
+        if type(value) is not int:
+            raise ValueError("group must be a whole number")
+        if value == UNASSIGNED and allow_unassigned:
+            return value
+        if not 0 <= value < self.clustering.n_clusters:
+            raise ValueError("no such group")
+        return value
+
+    def move(self, body: dict) -> dict:
+        """Hand edit: put one image into another group (or unassigned)."""
+        i = self._index(body)
+        with self._lock:
+            target = self._group(body.get("to"), allow_unassigned=True)
+            self.clustering = edit_groups(self.atlas.style, self.clustering, {i: target})
+            return {"clusters": self.clustering.n_clusters}
+
+    def merge(self, body: dict) -> dict:
+        """Hand edit: merge one group into another."""
+        with self._lock:
+            source = self._group(body.get("from"), allow_unassigned=False)
+            target = self._group(body.get("into"), allow_unassigned=False)
+            if source == target:
+                raise ValueError("pick two different groups")
+            members = self.clustering.clusters[source].members
+            self.clustering = edit_groups(
+                self.atlas.style, self.clustering, {m: target for m in members}
+            )
+            return {"clusters": self.clustering.n_clusters}
 
     def _index(self, body: dict) -> int:
         i = body.get("i")
@@ -246,6 +276,10 @@ def make_handler(app: StyleAtlasApp, allowed_hosts: set[str]) -> type[BaseHTTPRe
                     self._json(200, {"hits": app.search_image(body)})
                 elif route == "api/regroup":
                     self._json(200, app.regroup(payload))
+                elif route == "api/move":
+                    self._json(200, app.move(payload))
+                elif route == "api/merge":
+                    self._json(200, app.merge(payload))
                 elif route == "api/exclude":
                     self._json(200, app.exclude(payload))
                 elif route == "api/taste":

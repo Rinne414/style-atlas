@@ -164,6 +164,7 @@ const T = {
     custom: "custom", regrouping: "regrouping…", period: "period (one artist)", dups: "Duplicates",
     dupHelp: "Groups of near-identical pictures (same image, crops, frames of one scene). Keep one per group for LoRA training.",
     noDups: "No near-duplicates found.",
+    moveTo: "Move to group…", mergeInto: "Merge this group into…", edited: "edited by hand (Regroup discards edits)",
     exclude: "Exclude from export (X)", included: "Excluded - undo (X)",
     excludedList: "Excluded by you ({n}) - exported to _excluded",
     layoutStyle: "Layout: style similarity", layoutMeasures: "Layout: measures",
@@ -184,6 +185,7 @@ const T = {
     custom: "自訂", regrouping: "重新分群中…", period: "時期（單一畫師）", dups: "重複",
     dupHelp: "幾乎相同的圖（同一張、裁切、同場景連續畫面）。訓 LoRA 時每組留一張即可。",
     noDups: "沒有找到近重複的圖。",
+    moveTo: "移到其他群…", mergeInto: "把這群合併到…", edited: "已手動調整（重新分群會清除）",
     exclude: "匯出時排除 (X)", included: "已排除，取消 (X)",
     excludedList: "你排除的圖（{n}）：匯出時放到 _excluded",
     layoutStyle: "版面：畫風相似", layoutMeasures: "版面：量化軸",
@@ -509,7 +511,14 @@ function buildClusters() {
       pane.querySelectorAll(".grid").forEach((g) => (g.style.display = "none"));
       if (on) {
         row.classList.add("on"); grid.style.display = "grid";
-        if (!grid.childElementCount) c.members.slice(0, 120).forEach((j) => grid.append(thumb(j)));
+        if (!grid.childElementCount) {
+          if (DATA.live && c.id >= 0) {
+            const bar = document.createElement("div"); bar.style.cssText = "grid-column:1/-1;margin-bottom:4px";
+            bar.append(groupSelect(t("mergeInto"), c.id, false, (into) => editPost("api/merge", { from: c.id, into })));
+            grid.append(bar);
+          }
+          c.members.slice(0, 120).forEach((j) => grid.append(thumb(j)));
+        }
         focusOn(c.members);
       }
     });
@@ -549,7 +558,8 @@ function applyText() {
   document.documentElement.lang = lang === "zh" ? "zh-Hant" : "en";
   $("title").querySelector("h1").textContent = DATA.title;
   $("title").querySelector(".sub").textContent =
-    `${N} ${t("images")} · ${DATA.clusters.length} ${t("clusters").toLowerCase()} · ${DATA.method} · ${DATA.projection}`;
+    `${N} ${t("images")} · ${DATA.clusters.length} ${t("clusters").toLowerCase()} · ${DATA.method} · ${DATA.projection}` +
+    (DATA.params && DATA.params.edited ? ` · ${t("edited")}` : "");
   $("find").placeholder = t("find");
   $("mode").textContent = mode === "thumbs" ? t("dots") : t("thumbs");
   $("spin").textContent = t("spin"); $("home").textContent = t("home");
@@ -616,6 +626,24 @@ async function toggleExclude(i) {
   } catch (e) { setStatus(String(e.message || e)); }
 }
 
+function groupSelect(title, current, withUnassigned, onPick) {
+  const sel = document.createElement("select");
+  sel.style.cssText = "background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:5px 8px;font:inherit;font-size:12px;max-width:170px";
+  const head = document.createElement("option"); head.value = ""; head.textContent = title; sel.append(head);
+  const ids = DATA.clusters.map((c) => c.id).concat(withUnassigned ? [-1] : []);
+  ids.filter((id) => id !== current).forEach((id) => {
+    const o = document.createElement("option"); o.value = String(id); o.textContent = clusterName(id); sel.append(o);
+  });
+  sel.addEventListener("click", (e) => e.stopPropagation());
+  sel.addEventListener("change", () => { if (sel.value !== "") onPick(parseInt(sel.value, 10)); });
+  return sel;
+}
+
+async function editPost(url, body) {
+  try { await post(url, JSON.stringify(body), "application/json"); location.reload(); }
+  catch (e) { setStatus(String(e.message || e)); }
+}
+
 function voteButtons(i) {
   const row = document.createElement("div"); row.className = "votes"; row.style.flexWrap = "wrap";
   const ex = document.createElement("button");
@@ -629,6 +657,7 @@ function voteButtons(i) {
     row.append(b);
   });
   row.append(ex);
+  row.append(groupSelect(t("moveTo"), PTS[i].c, true, (to) => editPost("api/move", { i, to })));
   return row;
 }
 

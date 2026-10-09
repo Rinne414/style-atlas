@@ -132,3 +132,19 @@ def test_bad_request_bodies_are_rejected_cleanly(server):
     ]:
         status, data = request(port, "POST", route, body, hdr)
         assert status == 400, (route, body, status)
+
+
+def test_hand_edits_merge_and_move(server):
+    port, _ = server
+    hdr = {"X-Style-Atlas": "1", "Content-Type": "application/json"}
+    status, data = request(port, "POST", "/api/regroup", json.dumps({"threshold": 0.5}), hdr)
+    assert json.loads(data)["clusters"] == 2
+    status, data = request(port, "POST", "/api/merge", json.dumps({"from": 1, "into": 0}), hdr)
+    assert status == 200 and json.loads(data)["clusters"] == 1
+    status, data = request(port, "POST", "/api/move", json.dumps({"i": 0, "to": -1}), hdr)
+    assert status == 200
+    status, html = request(port, "GET", "/")
+    assert b'"edited":true' in html
+    for body in ({"from": 0, "into": 0}, {"from": 5, "into": 0}, {"from": "0", "into": 1}):
+        assert request(port, "POST", "/api/merge", json.dumps(body), hdr)[0] == 400
+    assert request(port, "POST", "/api/move", json.dumps({"i": 0, "to": 9}), hdr)[0] == 400

@@ -106,6 +106,10 @@ style-atlas taste score "D:\new_batch" --model "D:\lora\artistX_style_atlas\tast
   - 拖一張圖進畫面就能以圖搜尋。
   - 調門檻後重新分群、一鍵匯出資料夾。
   - 按「匯出時排除」（鍵盤 X）手動剔除不要的圖，清單會存檔，匯出時放到 `_excluded\`。
+  - 手動修正分群，修正會反映在之後的匯出：
+    - 選取一張圖，用「移到其他群…」把它改放到別群；
+    - 打開一個群，用「把這群合併到…」併進另一群。
+    - 注意：按「重新分群」會清除這些手動修正。
   - 用「喜歡／不喜歡」（鍵盤 L / D）評圖。各評滿 8 張後，「口味」分頁會用你的評分訓練模型，替還沒評的圖排序，並顯示交叉驗證的 AUC。
 - `map` 產生的是單一 HTML 檔，three.js 和縮圖都已內嵌，離線也能開。**分享地圖等於分享這些縮圖。**
 - `serve` 只監聽本機 127.0.0.1，會檢查 Host 標頭，也只提供掃描過的檔案，不會把你的資料夾開放到網路上。
@@ -155,7 +159,8 @@ how a picture is drawn rather than what it shows. On top of those vectors it can
 - **Find images in a similar style**: drop an image into the web app, or use `search`.
 - **Explore a 3D style map** (`map`): one HTML file you can send to anyone.
 - **Check a dataset** (`audit`, `duplicates`): sizes, aspect ratios, captions, near-duplicates.
-- **Fix groups by hand** in the web app: exclude images (X), which are then exported to `_excluded/`.
+- **Fix groups by hand** in the web app: move an image to another group, merge two groups, or
+  exclude images (X), which are then exported to `_excluded/`.
 - **Quantify style and taste**: `compare` two sets, or train a personal like/dislike model in
   the web app or with `taste`.
 
