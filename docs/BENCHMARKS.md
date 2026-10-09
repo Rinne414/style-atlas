@@ -61,6 +61,22 @@ singletons, and hub correction removes most of that failure.
 
 HDBSCAN left 49% of points as noise.
 
+### Input variants (2026-10-09)
+
+This is a paired comparison on the same 2,941 deduplicated images. The bootstrap gives the
+95% CI of the per-image difference against the default (centre crop, 224 px).
+
+| Variant | Cost | Top-1 | Top-10 | Mixture ARI (medium) |
+|---|---|---|---|---|
+| centre 224 (default) | 1x | 46.2% | 70.4% | 0.51 / 0.50 / 0.47 |
+| `--crop tiles` (up to 3 crops along the long side) | 1.87x crops | +1.0 [+0.0, +2.0] | **+1.2 [+0.3, +2.0]** | 0.51 / 0.50 / 0.46 |
+| `--resolution 336` (interpolated position embeddings) | about 2.5x | +0.8 [-0.3, +1.8] | **+1.3 [+0.2, +2.2]** | 0.50 / 0.50 / 0.46 |
+
+Both variants give a small, real gain in retrieval and no change in clustering. The default
+stays at centre 224, because embedding there costs half as much or less. For the best
+search-by-image results, use `--crop tiles` or `--resolution 336`. Vectors from different
+variants are cached separately and cannot be mixed.
+
 ## Pixiv: followed AI-illustration accounts (2026-10-09)
 
 - **Data**: 467 all-ages works by 176 AI-illustration accounts (median 2 works each). The
