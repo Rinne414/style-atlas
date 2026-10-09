@@ -1,5 +1,31 @@
 # Changelog
 
+## Unreleased
+
+### New
+
+- **Measures layout**: the map can put taste, originality, time and atypicality on the X / Y / Z
+  axes. Originality is the distance to the closest image in `--reference DIR`.
+- **Hand edits in the web app**: move an image to another group, or merge two groups.
+- **Audit**: flags truncated JPEG / PNG files without decoding them.
+
+### Fixes from the third review
+
+- Reference vectors share the folder's `--neutralize` transform.
+- Tied measures share their rank.
+- Axis objects are disposed when the axes are redrawn.
+- Unreadable saved files are kept as timestamped `.bad` copies.
+- Large duplicate components no longer build a dense matrix.
+
+### Verified, not changed
+
+- `--neutralize` also works on characters it never saw (AUC 0.866 to 0.967).
+- The taste model reproduces the research result (CV AUC 0.769 vs 0.761).
+
+### Rejected
+
+Fixed nuisance directions learned from renders do not generalise to unseen characters.
+
 ## 0.3.0 - 2026-10-09
 
 ### Subject-heavy collections
