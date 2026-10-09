@@ -10,6 +10,7 @@ Hard links share the file with the original: editing a linked caption edits the 
 
 from __future__ import annotations
 
+import contextlib
 import csv
 import io
 import json
@@ -130,37 +131,43 @@ def trigger_of(folder: str) -> str | None:
     return rest if head.isdigit() and rest else folder
 
 
-def _write_caption(src_image: Path, dst: Path, trigger: str) -> None:
+def _write_caption(side: Path | None, dst: Path, trigger: str) -> None:
     """New caption in the export: trigger first, then the original text (never a link, so
     the source caption is never touched). Images without a caption get the trigger alone."""
-    side = next(
-        (
-            src_image.with_suffix(e)
-            for e in (".txt", ".caption")
-            if src_image.with_suffix(e).exists()
-        ),
-        None,
-    )
-    text = side.read_text(encoding="utf-8", errors="replace").strip() if side else ""
     if dst.exists():
         raise FileExistsError(f"{dst} already exists")
-    dst.write_text(f"{trigger}, {text}" if text else trigger, encoding="utf-8")
+    text = ""
+    if side is not None:
+        try:
+            text = side.read_text(encoding="utf-8-sig").strip()
+        except UnicodeDecodeError:  # not UTF-8 (e.g. Big5 / GBK): keep it byte-for-byte
+            shutil.copy2(side, dst)
+            return
+    if text == trigger or text.startswith(trigger + ","):
+        new = text  # already tagged (re-export)
+    else:
+        new = f"{trigger}, {text}" if text else trigger
+    dst.write_text(new, encoding="utf-8")
 
 
-def _place_sidecars(src: Path, folder: Path, stem: str, mode: str, trigger: str | None) -> None:
+def _place_sidecars(
+    src: Path, folder: Path, stem: str, mode: str, trigger: str | None
+) -> list[Path]:
+    """Place the sidecars of one image; returns the files written."""
+    written = []
+    captions = [e for e in (".txt", ".caption") if src.with_suffix(e).exists()]
     for ext in SIDECARS:
         side = src.with_suffix(ext)
-        if trigger and ext in (".txt", ".caption"):
-            continue  # written below with the trigger
-        if side.exists():
-            _place(side, folder / f"{stem}{ext}", mode)
+        if not side.exists() or (trigger and ext in captions):
+            continue
+        _place(side, folder / f"{stem}{ext}", mode)
+        written.append(folder / f"{stem}{ext}")
     if trigger:
-        ext = (
-            ".caption"
-            if src.with_suffix(".caption").exists() and not src.with_suffix(".txt").exists()
-            else ".txt"
-        )
-        _write_caption(src, folder / f"{stem}{ext}", trigger)
+        for ext in captions or [".txt"]:  # every caption file gets the trigger
+            side = src.with_suffix(ext) if ext in captions else None
+            _write_caption(side, folder / f"{stem}{ext}", trigger)
+            written.append(folder / f"{stem}{ext}")
+    return written
 
 
 def export_folders(
@@ -184,11 +191,14 @@ def export_folders(
         stem = _unique_stem(src.stem, used.setdefault(folder, set()))
         try:
             folder.mkdir(parents=True, exist_ok=True)
-            _place(src, folder / f"{stem}{src.suffix}", mode)
             trigger = trigger_of(folders[i]) if trigger_captions else None
             _place_sidecars(src, folder, stem, mode, trigger)
+            _place(src, folder / f"{stem}{src.suffix}", mode)
         except OSError as e:  # long path, permissions, full disk: report and keep going
             result.failed.append((src, str(e)))
+            for ext in (*SIDECARS, src.suffix):  # fresh folder + unique stem: only our files
+                with contextlib.suppress(OSError):
+                    (folder / f"{stem}{ext}").unlink(missing_ok=True)
             continue
         result.placed += 1
     return result

@@ -141,21 +141,30 @@ def test_hand_edits_merge_and_move(server):
     hdr = {"X-Style-Atlas": "1", "Content-Type": "application/json"}
     status, data = request(port, "POST", "/api/regroup", json.dumps({"threshold": 0.5}), hdr)
     assert json.loads(data)["clusters"] == 2
-    status, data = request(port, "POST", "/api/merge", json.dumps({"from": 1, "into": 0}), hdr)
+    rev = 1  # one regroup so far
+    stale = {"from": 1, "into": 0, "rev": 0}
+    assert request(port, "POST", "/api/merge", json.dumps(stale), hdr)[0] == 400
+    body = {"from": 1, "into": 0, "rev": rev}
+    status, data = request(port, "POST", "/api/merge", json.dumps(body), hdr)
     assert status == 200 and json.loads(data)["clusters"] == 1
-    status, data = request(port, "POST", "/api/move", json.dumps({"i": 0, "to": -1}), hdr)
+    rev = json.loads(data)["revision"]
+    body = {"i": 0, "to": -1, "rev": rev}
+    status, data = request(port, "POST", "/api/move", json.dumps(body), hdr)
     assert status == 200
+    rev = json.loads(data)["revision"]
     status, html = request(port, "GET", "/")
     assert b'"edited":true' in html
     for body in ({"from": 0, "into": 0}, {"from": 5, "into": 0}, {"from": "0", "into": 1}):
-        assert request(port, "POST", "/api/merge", json.dumps(body), hdr)[0] == 400
-    assert request(port, "POST", "/api/move", json.dumps({"i": 0, "to": 9}), hdr)[0] == 400
+        assert request(port, "POST", "/api/merge", json.dumps({**body, "rev": rev}), hdr)[0] == 400
+    bad = {"i": 0, "to": 9, "rev": rev}
+    assert request(port, "POST", "/api/move", json.dumps(bad), hdr)[0] == 400
 
 
 def test_split_cuts_a_group_in_two(server):
     port, _ = server
     hdr = {"X-Style-Atlas": "1", "Content-Type": "application/json"}
     request(port, "POST", "/api/regroup", json.dumps({"k": 1}), hdr)
-    status, data = request(port, "POST", "/api/split", json.dumps({"group": 0}), hdr)
+    status, data = request(port, "POST", "/api/split", json.dumps({"group": 0, "rev": 1}), hdr)
     assert status == 200 and json.loads(data)["clusters"] == 2
-    assert request(port, "POST", "/api/split", json.dumps({"group": 7}), hdr)[0] == 400
+    bad = {"group": 7, "rev": 2}
+    assert request(port, "POST", "/api/split", json.dumps(bad), hdr)[0] == 400

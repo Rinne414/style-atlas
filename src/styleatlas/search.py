@@ -48,19 +48,21 @@ def nearest_reference(
     return dist, which
 
 
-def style_path(x: np.ndarray, a: int, b: int, steps: int = 8) -> list[int]:
+def style_path(
+    x: np.ndarray, a: int, b: int, steps: int = 8, skip: set[int] | None = None
+) -> list[int]:
     """Images along the way from style a to style b: for evenly spaced points on the great
     circle between the two vectors, the closest image not used yet (a first, b last)."""
     if a == b:
         return [a]
     va, vb = x[a], x[b]
     angle = float(np.arccos(np.clip(va @ vb, -1.0, 1.0)))
-    path, used = [a], {a, b}
+    path, used = [a], {a, b} | (skip or set())
     for t in np.linspace(0.0, 1.0, steps + 2)[1:-1]:
-        if angle < 1e-6:
+        if angle < 1e-6 or angle > np.pi - 1e-3:  # same style, or no unique path between
             break
         point = (np.sin((1 - t) * angle) * va + np.sin(t * angle) * vb) / np.sin(angle)
-        sims = x @ point
+        sims = np.nan_to_num(x @ point, nan=-np.inf)
         sims[list(used)] = -np.inf
         best = int(np.argmax(sims))
         if not np.isfinite(sims[best]):

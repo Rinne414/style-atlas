@@ -486,6 +486,7 @@ async function toggleExclude(i) {
     const r = await post("api/exclude", JSON.stringify({ i, excluded: !EXCLUDED.has(i) }), "application/json");
     EXCLUDED = new Set(r.excluded);
     buildOutliers();
+    if (RATING && EXCLUDED.has(i)) { rateNext(); return; }
     const old = $("pane-selected").querySelector(".votes");
     if (selected === i && old) old.replaceWith(voteButtons(i));
   } catch (e) { setStatus(String(e.message || e)); }
@@ -505,7 +506,10 @@ function groupSelect(title, current, withUnassigned, onPick) {
 }
 
 async function editPost(url, body) {
-  try { await post(url, JSON.stringify(body), "application/json"); location.reload(); }
+  try {
+    await post(url, JSON.stringify({ ...body, rev: DATA.live.revision }), "application/json");
+    location.reload();
+  }
   catch (e) { setStatus(String(e.message || e)); }
 }
 
@@ -680,8 +684,9 @@ $("theme").addEventListener("click", () => {
 });
 addEventListener("keydown", (e) => {
   if (["INPUT", "SELECT", "TEXTAREA"].includes(e.target.tagName)) return;
+  if (e.repeat) return;  // holding a key must not vote on images never looked at
   if (e.ctrlKey || e.metaKey || e.altKey) return;
-  if (e.key === "Escape") { RATING = false; setStatus(""); $("home").click(); }
+  if (e.key === "Escape") { RATING = false; PATH_FROM = null; setStatus(""); $("home").click(); }
   if (DATA.live && selected !== null && (e.key === "l" || e.key === "L")) castVote(selected, true);
   if (DATA.live && selected !== null && (e.key === "d" || e.key === "D")) castVote(selected, false);
   if (DATA.live && selected !== null && (e.key === "x" || e.key === "X")) toggleExclude(selected);

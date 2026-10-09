@@ -39,6 +39,7 @@ from styleatlas.taste_session import TasteSession
 MAX_UPLOAD = 40 * 1024 * 1024
 POST_HEADER = "X-Style-Atlas"
 SEARCH_TOP = 48
+MAX_SPLIT = 4000  # splitting runs under the lock; larger groups would stall every request
 
 
 class StyleAtlasApp:
@@ -63,6 +64,7 @@ class StyleAtlasApp:
         self.layout = compute_layout(self.atlas, projection, progress, reference)
         self.settings: dict = {"method": "agglomerative", "threshold": GRANULARITY["medium"]}
         self.clustering = cluster_styles(self.atlas.style, threshold=self.settings["threshold"])
+        self.revision = 0  # bumped on every regroup / hand edit; edits must name the one they saw
         self.thumb_px = default_thumb_px(len(self.atlas))
         self._thumbs: dict[int, bytes] = {}
         self._lock = threading.Lock()
@@ -90,6 +92,7 @@ class StyleAtlasApp:
                 "granularity": GRANULARITY,
                 "taste": self.taste.state(),
                 "excluded": sorted(self.excluded),
+                "revision": self.revision,
             }
         return render_html(payload)
 
@@ -118,6 +121,7 @@ class StyleAtlasApp:
                 self.atlas.style, method=method, threshold=threshold, n_clusters=k
             )
             self.settings = {"method": method, "threshold": threshold, "k": k}
+            self.revision += 1
         return {"clusters": self.clustering.n_clusters, "unassigned": self.clustering.n_unassigned}
 
     def search_image(self, data: bytes, top: int = SEARCH_TOP) -> list[dict]:
@@ -139,33 +143,45 @@ class StyleAtlasApp:
             raise ValueError("no such group")
         return value
 
+    def _check_revision(self, body: dict) -> None:
+        """Group ids change after every edit; refuse an edit made on an outdated page."""
+        if body.get("rev") != self.revision:
+            raise ValueError("the groups changed in another tab or edit; reload the page")
+
+    def _edited(self, clustering) -> dict:
+        self.clustering = clustering
+        self.settings = {**self.settings, "edited": True}
+        self.revision += 1
+        return {"clusters": self.clustering.n_clusters, "revision": self.revision}
+
     def move(self, body: dict) -> dict:
         """Hand edit: put one image into another group (or unassigned)."""
         i = self._index(body)
         with self._lock:
+            self._check_revision(body)
             target = self._group(body.get("to"), allow_unassigned=True)
-            self.clustering = edit_groups(self.atlas.style, self.clustering, {i: target})
-            return {"clusters": self.clustering.n_clusters}
+            return self._edited(edit_groups(self.atlas.style, self.clustering, {i: target}))
 
     def merge(self, body: dict) -> dict:
         """Hand edit: merge one group into another."""
         with self._lock:
+            self._check_revision(body)
             source = self._group(body.get("from"), allow_unassigned=False)
             target = self._group(body.get("into"), allow_unassigned=False)
             if source == target:
                 raise ValueError("pick two different groups")
             members = self.clustering.clusters[source].members
-            self.clustering = edit_groups(
-                self.atlas.style, self.clustering, {m: target for m in members}
-            )
-            return {"clusters": self.clustering.n_clusters}
+            moves = {m: target for m in members}
+            return self._edited(edit_groups(self.atlas.style, self.clustering, moves))
 
     def split(self, body: dict) -> dict:
         """Hand edit: cut one group in two."""
         with self._lock:
+            self._check_revision(body)
             group = self._group(body.get("group"), allow_unassigned=False)
-            self.clustering = split_group(self.atlas.style, self.clustering, group)
-            return {"clusters": self.clustering.n_clusters}
+            if self.clustering.clusters[group].size > MAX_SPLIT:
+                raise ValueError("group too large to split here; regroup with a lower threshold")
+            return self._edited(split_group(self.atlas.style, self.clustering, group))
 
     def _index(self, body: dict) -> int:
         i = body.get("i")
@@ -193,7 +209,9 @@ class StyleAtlasApp:
         steps = body.get("steps", 8)
         if type(steps) is not int or not 1 <= steps <= 40:
             raise ValueError("steps must be a whole number from 1 to 40")
-        return {"path": style_path(self.atlas.style, a, b, steps)}
+        with self._lock:
+            skip = set(self.excluded)
+        return {"path": style_path(self.atlas.style, a, b, steps, skip=skip)}
 
     def next_to_rate(self, body: dict) -> dict:
         with self._lock:

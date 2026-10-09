@@ -142,3 +142,14 @@ def test_style_path_walks_from_a_to_b_without_repeats():
     assert path[0] == 0 and path[-1] == 6
     assert len(path) == len(set(path)) == 7
     assert style_path(x, 3, 3) == [3]
+
+
+def test_style_path_skips_excluded_and_survives_bad_rows():
+    from styleatlas.search import style_path
+
+    x, _ = make_blobs([6, 6])
+    x = x.copy()
+    x[3] = np.nan
+    path = style_path(x, 0, 6, steps=6, skip={1})
+    assert 1 not in path and 3 not in path and path[-1] == 6
+    assert style_path(x, 0, 0) == [0]

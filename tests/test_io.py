@@ -148,3 +148,14 @@ def test_trigger_captions_are_written_in_the_export_only(tmp_path):
     assert (done.folder / folders[i1] / "img1.txt").read_text() == trigger_of(folders[i1])
     assert trigger_of("11_artist X_style02") == "artist X_style02"
     assert trigger_of("_duplicates") is None and trigger_of("style_01") == "style_01"
+
+
+def test_trigger_captions_keep_non_utf8_and_do_not_double_prefix(tmp_path):
+    atlas = _atlas(tmp_path, [6, 5])
+    src = tmp_path / "src"
+    (src / "img2.txt").write_bytes("中文標註".encode("big5"))
+    (src / "img3.txt").write_text("trig, 1girl", encoding="utf-8")
+    folders = ["trig"] * len(atlas)  # one plain folder, trigger = folder name
+    done = export_folders(atlas, folders, tmp_path / "out", trigger_captions=True)
+    assert (done.folder / "trig" / "img2.txt").read_bytes() == "中文標註".encode("big5")
+    assert (done.folder / "trig" / "img3.txt").read_text(encoding="utf-8") == "trig, 1girl"
