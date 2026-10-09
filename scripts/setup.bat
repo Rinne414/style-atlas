@@ -37,6 +37,8 @@ if errorlevel 1 ( echo torch install failed. & pause & exit /b 1 )
 "%VPY%" -m pip install -e .
 if errorlevel 1 ( echo style-atlas install failed. & pause & exit /b 1 )
 echo.
+".venv\Scripts\style-atlas.exe" doctor
+echo.
 echo Done. Drag an image folder onto scripts\StyleAtlas.bat to open its style map.
 echo The first run downloads the CSD model ^(2.4 GB^) once.
 pause
