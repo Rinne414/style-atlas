@@ -1,10 +1,13 @@
 """Near-duplicate groups: the same picture, crops, recolours, or frames of one scene.
 
 Two images are near-duplicates when both their style and their content vectors agree:
-min(cos_style, cos_content) >= threshold. On 3,253 Danbooru works, pairs at 0.93-0.97 were
-consecutive frames of one scene and pairs at 0.90-0.93 were redraws of one pose; at 0.85-0.90
-the same figure appeared over a new background. The default 0.92 flags the first two kinds.
-Duplicates matter for LoRA training (they over-weight one picture) and inflate retrieval scores.
+min(cos_style, cos_content) >= threshold. Checked by eye on Danbooru works (2026-10-09):
+>= 0.95 were mostly recolours, expression variants, crops and frames of one picture (7 of 8
+sampled pairs at 0.95-0.965); 0.92-0.95 were often *different* pictures of one character in a
+new pose on the same plain background, which a LoRA dataset should keep. The default 0.95 is
+therefore conservative: it would rather miss a variant than drop a valid training image.
+Duplicates over-weight one picture in training and inflate retrieval scores; `bench` uses the
+stricter BENCH_THRESHOLD so that benchmark numbers are not inflated.
 """
 
 from __future__ import annotations
@@ -13,7 +16,8 @@ import numpy as np
 
 from styleatlas.metrics import CHUNK
 
-DEFAULT_THRESHOLD = 0.92
+DEFAULT_THRESHOLD = 0.95
+BENCH_THRESHOLD = 0.92
 NEIGHBORS = 10
 
 

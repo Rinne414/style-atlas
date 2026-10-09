@@ -422,7 +422,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--json", action="store_true")
     p = add("duplicates", cmd_duplicates, "near-duplicate groups (same picture, crops, frames)")
     p.add_argument("folder")
-    p.add_argument("--threshold", type=float, default=0.92, help="min(style, content) cosine")
+    p.add_argument(
+        "--threshold",
+        type=float,
+        default=0.95,
+        help="min(style, content) cosine; 0.92 also catches redraws of one pose",
+    )
     p.add_argument("--json", action="store_true")
     p = add("compare", cmd_compare, "do two folders differ in style? distance, z units, p-value")
     p.add_argument("a")

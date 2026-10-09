@@ -15,7 +15,7 @@ import numpy as np
 from sklearn.metrics import adjusted_rand_score, roc_auc_score
 
 from styleatlas.cluster import GRANULARITY, cluster_styles
-from styleatlas.duplicates import DEFAULT_THRESHOLD, keep_one_per_group, near_duplicate_groups
+from styleatlas.duplicates import BENCH_THRESHOLD, keep_one_per_group, near_duplicate_groups
 from styleatlas.metrics import neighbor_density
 
 MIX_SIZES = (2, 3, 5)
@@ -72,7 +72,7 @@ def run_bench(
     labels: list[str] | np.ndarray,
     trials: int = 30,
     content: np.ndarray | None = None,
-    dedupe: float | None = DEFAULT_THRESHOLD,
+    dedupe: float | None = BENCH_THRESHOLD,
 ) -> dict:
     """Scores against `labels`. Near-duplicates are first reduced to one image each (they make
     retrieval look better than it is); without content vectors the style vector stands in."""

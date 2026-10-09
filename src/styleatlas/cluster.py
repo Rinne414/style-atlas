@@ -16,7 +16,10 @@ from sklearn.decomposition import PCA
 
 from styleatlas.metrics import DEFAULT_K, centroid, hub_distance, neighbor_density, unit
 
-GRANULARITY = {"fine": 0.40, "medium": 0.47, "coarse": 0.55}
+# medium / fine / coarse were tuned on blind mixtures of different artists. `period` is for
+# splitting ONE artist's work: on 6 prolific artists its groups matched posting-time quartiles
+# beyond chance for 4 (docs/BENCHMARKS.md), while medium usually left the artist in one group.
+GRANULARITY = {"period": 0.35, "fine": 0.40, "medium": 0.47, "coarse": 0.55}
 METHODS = ("agglomerative", "hdbscan")
 MAX_DENSE = 8000  # the n x n float64 distance matrix (+ sklearn's copy) above this is too large
 UNASSIGNED = -1

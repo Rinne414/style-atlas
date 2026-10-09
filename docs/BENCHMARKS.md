@@ -77,6 +77,62 @@ stays at centre 224, because embedding there costs half as much or less. For the
 search-by-image results, use `--crop tiles` or `--resolution 336`. Vectors from different
 variants are cached separately and cannot be mixed.
 
+## One artist over time (2026-10-09)
+
+This is the LoRA case where one artist's style changes between periods.
+
+- **Data**: 8 prolific Danbooru artists, general-rated only, with posts sampled evenly across
+  each artist's posting history (10 pages, 60 works each). Near-duplicates were removed. Six
+  artists kept 46-60 works; dairi was mostly sprite variants (11 left), so it was skipped.
+- **Labels**: none exist for "periods". Posting order (post id) stands in for time.
+
+**Mantel test.** It asks whether works far apart in time differ more in style. It uses the
+Spearman correlation between hub-corrected style distance and time-rank difference, with a
+2,000-permutation p-value:
+
+| Artist | n | Mantel r | p |
+|---|---|---|---|
+| ebifurya | 50 | +0.24 | 0.002 |
+| hammer_(sunset_beach) | 52 | +0.25 | 0.002 |
+| haruyama_kazunori | 60 | +0.14 | 0.002 |
+| matsunaga_kouyou | 46 | +0.14 | 0.002 |
+| naga_u | 60 | +0.11 | 0.002 |
+| yaegashi_nan | 49 | +0.12 | 0.004 |
+| mizuki_hitoshi | 19 | +0.15 | 0.036 |
+
+CSD sees each artist's style drift over time.
+
+**Groups against time.** The score is the NMI between the style groups and posting-time
+quartiles. A star marks p < 0.05 against shuffled times. Each cell gives the number of groups,
+then the NMI.
+
+| Artist | cut 0.47 (medium) | 0.40 | **0.35 (`period`)** | 0.30 | k=3 |
+|---|---|---|---|---|---|
+| ebifurya | 2g 0.14* | 2g 0.14* | 4g 0.28* | 11g 0.35* | 0.26* |
+| hammer | 1g | 1g | 6g 0.34* | 14g 0.48* | 0.27* |
+| haruyama_kazunori | 8g 0.18 | 20g 0.31 | 33g 0.37 | 49g 0.47 | 0.06 |
+| matsunaga_kouyou | 1g | 1g | 3g 0.07 | 9g 0.27* | 0.07 |
+| naga_u | 1g | 4g 0.12 | 9g 0.27* | 19g 0.34* | 0.08 |
+| yaegashi_nan | 1g | 5g 0.18* | 12g 0.36* | 22g 0.43* | 0.13* |
+
+At the default cut most artists stay in one group, because the drift is gradual. At 0.35, groups
+follow time for 4 of 6 artists with a manageable number of groups. 0.30 fragments the set.
+haruyama_kazunori varies a lot, but not in step with time. This test is the basis for the
+`period` granularity.
+
+## Near-duplicate threshold (2026-10-09)
+
+Pairs were checked by eye at each score of min(style cos, content cos):
+
+| Score | What the pairs were |
+|---|---|
+| >= 0.97 | Recolours, crops, frames of one picture |
+| 0.95-0.965 | Mostly variants (7 of 8 sampled); 1 was a different picture of the same character |
+| 0.92-0.95 | Often different poses of one character on the same plain background |
+
+The product default is **0.95**, which is conservative so that it never drops valid training
+images. `bench` removes near-duplicates at 0.92 to keep benchmark numbers honest.
+
 ## Pixiv: followed AI-illustration accounts (2026-10-09)
 
 - **Data**: 467 all-ages works by 176 AI-illustration accounts (median 2 works each). The
