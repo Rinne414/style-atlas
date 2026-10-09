@@ -129,7 +129,7 @@ def cmd_cluster(a: argparse.Namespace) -> int:
     folders, tags = _plan(a, atlas, result, dups)
     csv_path, json_path = write_table(atlas, result, out, folders, tags)
     log(f"wrote {csv_path} and {json_path}")
-    _print_groups(atlas, result, folders, tags)
+    _print_groups(atlas, result, folders, tags, a.time)
     if a.export:
         _export(a, atlas, folders, out)
     if not a.no_map:
@@ -179,17 +179,48 @@ def _plan(
     return folders, tag_summary(atlas.paths, result)
 
 
-def _print_groups(atlas: Atlas, result, folders: list[str], tags: dict) -> None:
+def _timeline(atlas: Atlas, source: str) -> np.ndarray | None:
+    """Each image's position in the folder's timeline (0 oldest, 1 newest; NaN when unknown)."""
+    from styleatlas.images import file_time
+
+    times = np.array([file_time(p, source) or np.nan for p in atlas.paths], dtype=float)
+    known = ~np.isnan(times)
+    if source == "none" or known.sum() < 2:
+        return None
+    pos = np.full(len(times), np.nan)
+    order = np.argsort(times[known], kind="stable")
+    pos[np.flatnonzero(known)[order]] = np.arange(known.sum()) / (known.sum() - 1)
+    return pos
+
+
+def _when(pos: np.ndarray | None, members: list[int]) -> str:
+    if pos is None:
+        return ""
+    v = pos[members]
+    v = v[~np.isnan(v)]
+    if not len(v):
+        return ""
+    q1, med, q3 = np.percentile(v, [25, 50, 75])
+    return f"  when {med:4.0%} [{q1:.0%}-{q3:.0%}]"
+
+
+def _print_groups(
+    atlas: Atlas, result, folders: list[str], tags: dict, time_source: str = "none"
+) -> None:
     from collections import Counter
 
+    pos = _timeline(atlas, time_source)
+    if pos is not None:
+        log("when = position in the folder's timeline (0% oldest): median [middle half]")
     for folder, n in sorted(Counter(folders).items()):
+        members = [i for i, f in enumerate(folders) if f == folder]
         if folder.startswith("_"):
             log(f"  {folder:28s} {n:5d}")
             continue
-        cid = next(int(result.labels[i]) for i, f in enumerate(folders) if f == folder)
+        cid = int(result.labels[members[0]])
         top = ", ".join(r["tag"] for r in tags.get(cid, [])[:5]) if cid >= 0 else ""
         few = "  (few images)" if n < FEW_FOR_LORA else ""
-        log(f"  {folder:28s} {n:5d}{few}  {top}")
+        log(f"  {folder:28s} {n:5d}{few}{_when(pos, members)}  {top}")
     small = [f for f, n in Counter(folders).items() if not f.startswith("_") and n < FEW_FOR_LORA]
     if small:
         log(

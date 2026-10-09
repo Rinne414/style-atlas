@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- `cluster --time name|mtime` shows where each group sits on the folder's timeline ("when 9%
+  [3%-28%]" = median and middle half), so periods read as early / middle / late in the console.
+
 ## 0.9.0 - 2026-10-10
 
 - **Search whitening**: search ranks in a whitened space learned from 306 Danbooru artists

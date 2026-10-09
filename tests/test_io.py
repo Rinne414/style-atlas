@@ -183,3 +183,22 @@ def test_cached_thumbnails_are_reused_and_refreshed(tmp_path, monkeypatch):
     Image.new("RGB", (800, 800), (200, 10, 10)).save(big)
     os.utime(big, ns=(1, 1))  # a changed file must not reuse the old thumbnail
     assert Image.open(io.BytesIO(cached_thumbnail(big, 128))).size == (128, 128)
+
+
+def test_cluster_output_places_each_group_on_the_timeline(tmp_path):
+    from styleatlas.cli import _timeline, _when
+
+    atlas = _atlas(tmp_path, [3, 3])
+    for i, p in enumerate(atlas.paths):  # ids in the names give the order
+        p.rename(p.with_name(f"art__{100000 + i}.png"))
+    atlas = type(atlas)(
+        atlas.root,
+        [p.with_name(f"art__{100000 + i}.png") for i, p in enumerate(atlas.paths)],
+        atlas.style,
+        atlas.content,
+        atlas.signature,
+    )
+    pos = _timeline(atlas, "name")
+    assert pos[0] == 0.0 and pos[-1] == 1.0
+    assert _when(pos, [0, 1, 2]).strip().startswith("when  20%")
+    assert _timeline(atlas, "none") is None and _when(None, [0]) == ""
