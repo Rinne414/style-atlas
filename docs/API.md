@@ -20,7 +20,8 @@ atlas.paths        # list[Path], images that could be read
 atlas.style        # (n, 768) style vectors
 atlas.content      # (n, 768) content vectors (used for near-duplicates)
 
-groups = cluster_styles(atlas.style)            # threshold 0.47; or n_clusters=3, method="hdbscan"
+groups = cluster_styles(atlas.style)            # cut chosen from the data; threshold=0.47, n_clusters=3
+groups.params["threshold"]                       # the cut that was used
 for g in groups.clusters:
     print(g.id, g.size, atlas.rel(g.medoid))    # medoid = most central image of the group
 groups.labels                                    # cluster id per image, -1 = unassigned
@@ -31,6 +32,9 @@ odd = outlier_scores(atlas.style)                          # higher = less like 
 gallery = build_atlas(Path("D:/gallery"), opts)
 hits = search(atlas.style[:1], gallery.style, top=10)[0]   # hub-corrected ranking
 print([(gallery.rel(h.index), round(h.cosine, 3)) for h in hits])
+
+# several examples of one style: from 3 up, a model learned from them ranks the gallery
+more = search(atlas.style[:10], gallery.style, top=100, combine=True)[0]
 ```
 
 ## Embedding images you already have in memory
