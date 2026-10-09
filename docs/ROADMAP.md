@@ -40,17 +40,17 @@ All of these are in `docs/BENCHMARKS.md`.
 
 ## Ideas not done yet
 
-- **Web app**:
-  - toggle `--neutralize` and change the reference set at runtime;
-  - rename groups before export.
-  - Moving images, merging groups and splitting a group are done.
+- **Web app**: change the reference set (`--reference`) at runtime. Done since 0.4.0: moving,
+  merging, splitting and naming groups, the character-axis switch, undo, saved groups.
 - **Speed**:
   - fp16 on CUDA;
   - a background thread that loads images. GPU throughput has not been measured here.
-- **Large galleries (50k+)**: an approximate nearest-neighbour index (faiss / hnswlib) for
-  `search`, and a server-side tiled map instead of one HTML file.
-- **ComfyUI node**: a "style distance to reference" score for generation loops. The owner already
-  writes ComfyUI custom nodes.
+- **Large galleries (50k+)**: grouping above 8,000 images is done (k-means micro-groups, 0.5.0).
+  Still open: a server-side tiled map instead of one HTML file with every thumbnail. Search does
+  not need an approximate index yet: one query against 50,000 vectors is a single matrix product.
+- **ComfyUI nodes**: written and checked with the real CSD model on CPU (`comfyui/`), but not yet
+  run inside the owner's ComfyUI. Installing them into `I:\ComfyUI-aki-v1.6` needs the owner's
+  go-ahead.
 - **Better embedding**: CSD is the ceiling for every number above. Candidates are fine-tuning on
   style-labelled anime data, or newer style encoders when they appear. Any candidate must beat
   CSD on `style-atlas bench` and on the unseen-character test.
@@ -66,3 +66,5 @@ Each of these is in `docs/BENCHMARKS.md`:
 - `tiles` / 336 px as the default: real but small gains at 1.9-2.5x cost, so they stay options.
 - MegaStyle-Encoder (2026) as the embedding: about 4x worse than CSD on real anime artists, despite
   its benchmark.
+- clustering a random sample and joining the other images to the nearest group, for sets above
+  8,000 images: k-means micro-groups did better at every size tried.
