@@ -51,6 +51,8 @@
   #tip .cap { color: var(--muted); font-size: 11px; margin-top: 4px; word-break: break-all; }
   #loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted);
     background: var(--bg); z-index: 9; font-size: 14px; }
+  #loading.badge { inset: auto 12px 12px auto; padding: 4px 12px; border-radius: 999px;
+    background: var(--panel); border: 1px solid var(--line); font-size: 12px; pointer-events: none; z-index: 5; }
   aside { background: var(--panel); border-left: 1px solid var(--line); display: flex;
     flex-direction: column; min-height: 0; }
   .tabs { display: flex; border-bottom: 1px solid var(--line); }

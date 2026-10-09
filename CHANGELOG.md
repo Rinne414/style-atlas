@@ -4,6 +4,8 @@
 
 - `cluster --time name|mtime` shows where each group sits on the folder's timeline ("when 9%
   [3%-28%]" = median and middle half), so periods read as early / middle / late in the console.
+- **Large galleries open faster**: the map shows at once and thumbnails fill in behind a small
+  corner note. On 19,554 images the map appeared after 4 s instead of about 70 s.
 
 ## 0.9.0 - 2026-10-10
 

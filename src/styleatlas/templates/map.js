@@ -145,30 +145,45 @@ async function loadImage(src) {
   try { await img.decode(); return img; } catch { return null; }
 }
 
-async function buildPages() {
+// The pages are made at once with a coloured dot in every cell, so the map shows straight away;
+// fillPages() then draws the thumbnails in, page by page (a large gallery takes a while).
+function buildPages() {
   for (let start = 0; start < N; start += PER_PAGE) {
     const count = Math.min(PER_PAGE, N - start);
-    const rows = Math.ceil(count / PER_ROW);
     const cv = document.createElement("canvas");
     cv.width = PER_ROW * CELL; cv.height = PER_ROW * CELL;
     const g = cv.getContext("2d");
-    const imgs = await Promise.all(PTS.slice(start, start + count).map((p) => p.t ? loadImage(p.t) : null));
-    imgs.forEach((img, j) => {
-      const x0 = (j % PER_ROW) * CELL, y0 = Math.floor(j / PER_ROW) * CELL;
-      const col = colorOf(PTS[start + j].c);
-      if (img) {
-        const s = (CELL - 8) / Math.max(img.width, img.height);
-        const w = img.width * s, h = img.height * s;
-        const x = x0 + (CELL - w) / 2, y = y0 + (CELL - h) / 2;
-        g.fillStyle = col; g.fillRect(x - 4, y - 4, w + 8, h + 8);
-        g.drawImage(img, x, y, w, h);
-      } else {
-        g.fillStyle = col; g.beginPath(); g.arc(x0 + CELL/2, y0 + CELL/2, CELL/4, 0, 7); g.fill();
-      }
-    });
-    pages.push(makePage(start, count, cv));
-    $("loading").textContent = `${t("loading")} ${Math.min(start + count, N)} / ${N}`;
+    for (let j = 0; j < count; j++) drawDot(g, j, colorOf(PTS[start + j].c));
+    pages.push({ ...makePage(start, count, cv), cv });
   }
+}
+
+async function fillPages() {
+  let done = 0;
+  for (const pg of pages) {
+    const g = pg.cv.getContext("2d");
+    const imgs = await Promise.all(PTS.slice(pg.start, pg.start + pg.count).map((p) => p.t ? loadImage(p.t) : null));
+    imgs.forEach((img, j) => { if (img) drawThumb(g, j, img, colorOf(PTS[pg.start + j].c)); });
+    pg.mat.uniforms.uAtlas.value.needsUpdate = true;
+    done += pg.count;
+    $("loading").textContent = `${t("loading")} ${done} / ${N}`;
+  }
+  $("loading").style.display = "none";
+}
+
+function drawDot(g, j, col) {
+  const x0 = (j % PER_ROW) * CELL, y0 = Math.floor(j / PER_ROW) * CELL;
+  g.fillStyle = col; g.beginPath(); g.arc(x0 + CELL / 2, y0 + CELL / 2, CELL / 4, 0, 7); g.fill();
+}
+
+function drawThumb(g, j, img, col) {
+  const x0 = (j % PER_ROW) * CELL, y0 = Math.floor(j / PER_ROW) * CELL;
+  const s = (CELL - 8) / Math.max(img.width, img.height);
+  const w = img.width * s, h = img.height * s;
+  const x = x0 + (CELL - w) / 2, y = y0 + (CELL - h) / 2;
+  g.clearRect(x0, y0, CELL, CELL);
+  g.fillStyle = col; g.fillRect(x - 4, y - 4, w + 8, h + 8);
+  g.drawImage(img, x, y, w, h);
 }
 
 function makePage(start, count, cv) {

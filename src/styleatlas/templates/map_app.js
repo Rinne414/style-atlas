@@ -317,7 +317,8 @@ function showPeriods(on) {
 // start-up
 if (DATA.live) setupLive();
 applyText();
-await buildPages();
+buildPages();
 resize();
-$("loading").style.display = "none";
+$("loading").classList.add("badge");  // thumbnails keep loading behind a small corner note
 animate();
+fillPages();
