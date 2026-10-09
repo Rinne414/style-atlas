@@ -9,143 +9,196 @@ Measure, cluster, search and map illustration art styles, entirely on your machi
 
 ## 繁體中文
 
-style-atlas 把每張圖轉成一個「畫風向量」。轉換用的是 CSD 風格嵌入模型，它專門學「怎麼畫」，而不是「畫了什麼」。在這些向量上可以做四件事：
+style-atlas 會用 CSD 風格嵌入模型，把每張圖轉成一個「畫風向量」。這個模型學的是「怎麼畫」，不是「畫了什麼」。有了這些向量，可以做下面幾件事：
 
-| 你想做的事 | 指令 |
+| 你想做的事 | 怎麼做 |
 |---|---|
-| **訓 LoRA 前整理資料集**：同一位畫師不同時期的畫風不同，先分群再訓 | `style-atlas cluster 資料夾 --export copy` |
-| **找畫風相近的圖** | `style-atlas search 參考圖.png --in 圖庫資料夾` |
-| **3D 畫風地圖**：縮圖浮在 3D 空間，可轉動，點一下就看最接近的畫風 | `style-atlas map 資料夾` |
-| **網頁介面**：在瀏覽器裡拖圖搜尋、調門檻重新分群、一鍵匯出資料夾 | `style-atlas serve 資料夾` |
-| **找近重複圖**：同一張圖、裁切、同場景連續畫面（訓 LoRA 前每組留一張） | `style-atlas duplicates 資料夾` |
-| **量化畫風**：判斷兩組圖是否同一畫風、找出離群圖、訓練個人口味模型 | `compare`、`outliers`、`calibrate`、`taste` |
+| **訓 LoRA 前整理資料集**：分出不同畫風或時期，排除重複圖與離群圖，匯出成 kohya 資料夾 | `cluster --layout kohya --dedupe` |
+| **找畫風相近的圖** | 網頁介面拖圖進去，或用 `search` |
+| **3D 畫風地圖**：縮圖浮在 3D 空間，可轉動，點一下就看最接近的畫風 | `map`（單一 HTML 檔，可直接傳給朋友） |
+| **檢查資料集**：解析度、極端比例、缺標註、近重複 | `audit`、`duplicates` |
+| **量化畫風與口味**：兩組圖是否同一畫風、個人喜好模型 | `compare`、`taste`、網頁介面的「喜歡／不喜歡」 |
 
-### 安裝
+### Windows：三步開始
 
-需要 Python 3.10 以上。有 NVIDIA 顯卡的話，請先依 [pytorch.org](https://pytorch.org) 的說明裝好 CUDA 版的 torch。
+1. 安裝 [Python 3.10 以上](https://www.python.org/downloads/)，安裝時勾選「Add python.exe to PATH」。
+2. 下載本專案後，雙擊 `scripts\setup.bat`。它會在專案資料夾裡建立 `.venv`，偵測到 NVIDIA 顯卡就裝 CUDA 版的 torch，沒有就裝 CPU 版，再安裝本工具。
+3. 把圖片資料夾**拖到 `scripts\StyleAtlas.bat` 上**，瀏覽器會打開網頁介面。
+
+**第一次分析前**，程式會從 Hugging Face 下載 CSD 模型。下載量 2.4 GB，之後另存成 1.2 GB 的精簡檔，存在 `%USERPROFILE%\.cache\style-atlas`，只會下載一次。下載時畫面可能停很久，這是正常的。
+
+速度參考：只用 CPU 時，8 執行緒約每秒 4 張，1,000 張約 4 分鐘（實測）。有 NVIDIA 顯卡通常會快很多，但這點沒有實測過。每張圖的向量都會快取，第二次開同一個資料夾就不用重算向量。
+
+### 手動安裝
 
 ```bash
 git clone https://github.com/Rinne414/style-atlas
 cd style-atlas
-pip install -e .            # 想用 UMAP 版面就裝 pip install -e ".[umap]"
+pip install -e .            # 有 NVIDIA 顯卡時，請先依 pytorch.org 裝好 CUDA 版 torch
+pip install -e ".[umap]"    # 選用：地圖改用 UMAP 版面
 ```
 
-Windows 使用者也可以直接把圖片資料夾**拖到 `scripts/StyleAtlas.bat` 上**，瀏覽器會自動打開網頁介面。
-
-第一次執行會從 Hugging Face 下載 CSD 權重（2.4 GB），並另存成 1.2 GB 的精簡檔，之後啟動會比較快。快取位置是 `~/.cache/style-atlas/`，可用環境變數 `STYLE_ATLAS_CACHE` 改位置。
-
-### 快速開始
+### 訓 LoRA 前的建議流程
 
 ```bash
-# 1. 把一個 LoRA 資料集依畫風分群，另外複製到 style_01、style_02 …
-#    同名的 .txt / .caption 標註會一起複製；原始檔案不會被移動或刪除
-style-atlas cluster "D:/lora/artistX" --export copy
-#    輸出在旁邊的 D:/lora/artistX_style_atlas/（不會寫進資料集資料夾本身）：
-#    clusters.csv、clusters.json、map.html、folders/
+# 1. 檢查：太小的圖、極端長寬比、動圖、缺標註或標註是空的
+style-atlas audit "D:\lora\artistX" --min-side 768
 
-# 2. 分太細或太粗？換顆粒度，或直接指定群數
-style-atlas cluster "D:/lora/artistX" --granularity fine     # fine / medium（預設）/ coarse
-style-atlas cluster "D:/lora/artistX" --k 3
+# 2. 在網頁介面先看一遍：哪些是重複圖（「重複」分頁）、哪些離群（「離群」分頁），分群是否合理
+style-atlas serve "D:\lora\artistX" --time name
 
-# 3. 找和這幾張參考圖畫風最接近的 30 張
-style-atlas search ref1.png ref2.png --combine --in "D:/gallery" --top 30
-
-# 4. 只畫 3D 地圖（單一 HTML 檔，離線也能開，可以直接傳給朋友）
-style-atlas map "D:/gallery" -o gallery_map.html
-
-# 5. 網頁介面：自動開瀏覽器；把圖拖進畫面就能搜尋，調門檻後按「重新分群」，再按「匯出資料夾」
-style-atlas serve "D:/lora/artistX"
-
-# 加上 --time name（用檔名裡的 Pixiv / Danbooru 作品編號）或 --time mtime（檔案修改時間），
-# 每個畫風群旁會畫出時間分佈：一眼看出哪種畫風是早期、哪種是近期
-style-atlas serve "D:/lora/artistX" --time name
-
-# 6. 資料集裡哪些圖最「不合群」（訓練前可考慮剔除）
-style-atlas outliers "D:/lora/artistX" --top 20
-style-atlas duplicates "D:/lora/artistX"      # 近重複圖分組
-
-# 7. 兩組圖是不是同一種畫風？（距離、z 值、置換檢定 p 值）
-style-atlas compare "D:/old_works" "D:/new_works"
+# 3. 匯出成 kohya 資料夾。步驟依序是：
+#    先排除重複圖（每組留解析度最高、有標註的那張）
+#    再分群，並另外放出最不合群的 5 張
+#    最後依每群張數自動算 repeats
+style-atlas cluster "D:\lora\artistX" --layout kohya --name artistX --dedupe --drop-outliers 5 --export copy
 ```
 
-匯出時每次都會寫到新的資料夾（`folders`、`folders_2` …），不會和上一次的結果混在一起。`--export link` 用硬連結，不佔額外空間，但連結檔和原檔是**同一個檔案**：在匯出資料夾裡改標註，原本的標註也會跟著變。不確定的話就用 `copy`。
+匯出結果在資料集旁邊的 `D:\lora\artistX_style_atlas\folders\`，不會寫進原本的資料夾：
 
-所有向量都會快取，同一張圖（以內容雜湊判斷，改名或搬移都算同一張）只會計算一次。CPU 預設最多用 8 個執行緒並降低優先權，避免拖垮整台電腦。用 `--threads 0` 取消限制，`--device cpu` 可強制只用 CPU。
+```
+11_artistX_style01\   ← 一種畫風，標註 .txt 會一起複製
+20_artistX_style02\
+_duplicates\          ← 沒有數字前綴，kohya 會忽略
+_outliers\
+_unassigned\
+```
 
-### 3D 畫風地圖
+- 每群的 repeats 會讓「張數 × repeats」接近 100。也可以用 `--repeats 10` 固定。
+- `clusters.json` 會列出每群最常見的標註 tag，以及 tag 在這群裡比整體多出幾倍。例如某群特別多 `monochrome`、`sketch`，大概就是草稿那一群。
+- 原始檔案永遠不會被移動或刪除。每次匯出都寫到新的資料夾（`folders`、`folders_2` …），不會和上一次混在一起。
+- `--export link` 改用硬連結，不佔額外空間，但連結檔和原檔是**同一個檔案**，在匯出資料夾裡改標註，原本的也會一起改。不確定的話就用 `copy`。
 
-- 縮圖直接浮在 3D 空間中，外框顏色代表畫風群，可拖曳旋轉、滾輪縮放。
-- 點右側的畫風群，鏡頭會飛過去並顯示成員；點地圖上的圖，會列出最接近的 12 張。
-- 「離群」分頁列出和整組最不像的圖；「重複」分頁列出近重複圖組。
-- 支援中／英文介面與深／淺色主題，可用檔名篩選，`+` / `-` 調整縮圖大小。
-- 地圖是單一 HTML 檔，three.js 和縮圖都已內嵌，離線也能開。**分享地圖等於分享這些縮圖。**
+分得太細或太粗時，可以加 `--granularity fine` 或 `--granularity coarse`（預設 medium），或用 `--k 3` 直接指定群數。在網頁介面裡也能調門檻，再按「重新分群」。
+
+### 其他用法
+
+```bash
+style-atlas search ref1.png ref2.png --combine --in "D:\gallery" --top 30   # 以圖找圖
+style-atlas map "D:\gallery" -o gallery_map.html     # 單一 HTML 3D 地圖，離線可開
+style-atlas duplicates "D:\gallery"                  # 近重複圖分組
+style-atlas outliers "D:\lora\artistX" --top 20      # 最不合群的圖
+style-atlas compare "D:\old_works" "D:\new_works"    # 兩組圖是否同一畫風（距離、p 值）
+style-atlas taste score "D:\new_batch" --model "D:\lora\artistX_style_atlas\taste_model.npz"
+```
+
+`--time name` 會從檔名裡的 Pixiv／Danbooru 作品編號推出先後順序（編號會隨上傳時間遞增），`--time mtime` 則用檔案修改時間。開了之後，每個畫風群旁都會畫出時間分佈，可以看出哪種畫風是早期、哪種是近期。
+
+支援 png、jpg、webp、bmp、gif；avif 需要 Pillow 本身支援。動圖只看第一格。CPU 預設最多用 8 個執行緒並降低優先權，不會拖垮整台電腦；`--threads 0` 可取消限制。
+
+### 網頁介面與 3D 地圖
+
+- 縮圖浮在 3D 空間中，外框顏色代表畫風群。可以拖曳旋轉、滾輪縮放，`+` / `-` 調整縮圖大小。
+- 點右側的畫風群，鏡頭會飛過去並列出成員。點地圖上任一張圖，會列出最接近的 12 張。
+- 「離群」「重複」分頁分別列出最不合群的圖和近重複圖組。
+- 只有網頁介面才有的功能：
+  - 拖一張圖進畫面就能以圖搜尋。
+  - 調門檻後重新分群、一鍵匯出資料夾。
+  - 用「喜歡／不喜歡」（鍵盤 L / D）評圖。各評滿 8 張後，「口味」分頁會用你的評分訓練模型，替還沒評的圖排序，並顯示交叉驗證的 AUC。
+- `map` 產生的是單一 HTML 檔，three.js 和縮圖都已內嵌，離線也能開。**分享地圖等於分享這些縮圖。**
 - `serve` 只監聽本機 127.0.0.1，會檢查 Host 標頭，也只提供掃描過的檔案，不會把你的資料夾開放到網路上。
 
-### 準不準？
+### 準不準？限制在哪？
 
-詳細數據在 [docs/BENCHMARKS.md](docs/BENCHMARKS.md)。測試資料是 296 位畫師的 2,941 張 Danbooru 作品，已先移除 308 張近重複圖，因為重複圖會讓檢索分數虛高：
+詳細數據在 [docs/BENCHMARKS.md](docs/BENCHMARKS.md)。主要測試資料是 296 位畫師的 2,941 張 Danbooru 作品，都是 512 px 縮圖，平均每位約 10 張。測試前已先移除 308 張近重複圖，因為重複圖會讓分數虛高。
 
-- 同畫師檢索 top-1 為 46.2%（隨機約 0.3%），top-10 為 70.4%。
-- 去 hub 校正（CSLS）把同畫師配對的 AUC 從 0.78 提高到 0.83。在 Pixiv AI 插畫帳號上也一樣有效，從 0.75 提高到 0.80。
-- 把 2 到 5 位畫師的作品混在一起、不告訴模型有幾位，盲分的 ARI 約 0.5。
+- 同畫師檢索：top-1 是 46.2%，隨機約 0.3%；top-10 是 70.4%。
+- 去 hub 校正（CSLS）把同畫師配對的 AUC 從 0.78 提高到 0.83。在 Pixiv 的 AI 插畫帳號上也有同樣效果，從 0.75 提高到 0.80。
+- 把 2 到 5 位**不同畫師**的作品混在一起，不告訴模型有幾位，分群結果和畫師標籤的吻合度（ARI）約 0.5。
 
-真實作品的內容變化很大，所以分群結果適合當**初步整理**，最後仍要看圖確認。內容較一致的 LoRA 資料集通常會分得更乾淨。
+要老實說的限制：
+
+- **「同一位畫師不同時期」的拆分還沒有量化測試**，因為沒有可靠的標準答案。上面的數字測的是不同畫師混在一起的情況。拆時期通常更難，結果請當作**初步整理**，一定要在地圖上看過再用。
+- **先排除重複圖再分群**，也就是加 `--dedupe`。否則同一張圖的多個版本會自成一群。
+- `compare` 的 z 值門檻（z ≥ 2.3 為「明顯不同」、z < 1.5 為「同一畫風」）來自一位使用者在固定內容的 NovelAI 算圖上的人眼校準，不是通用標準。換了資料，最好先用 `calibrate` 重新校準。
 
 ### 從研究得到的幾個結論
 
 這個工具整理自一段長時間的畫風研究。以下是會影響使用方式的發現：
 
-1. **畫風向量要「去 hub」**。少數圖在高維空間裡和什麼都很近，原始 cosine 的最近鄰常被它們佔據。CSLS 校正後檢索與分群都明顯變好。arXiv 2605.09030 也得到相同結論。
-2. **單張圖之間的距離雜訊很大**。比較兩種畫風時，應該用多張圖的平均（`compare`），並用同一畫風內部的雜訊當尺度（`calibrate`）。在固定內容的算圖上，同一配方兩組種子之間的距離約 0.071；以此為單位，z ≥ 2.3 在人眼看來是「明顯不同」，z < 1.5 則是「同一畫風」。
-3. **公開的美學評分模型不等於個人口味**。7 個現成評分器預測使用者實際選擇的準確率都在 36–52%，和亂猜差不多。用自己的喜歡／不喜歡訓練的小模型，交叉驗證 AUC 為 0.76。所以本工具只提供**個人**口味模型（`taste`），不內建通用美學分數。
+1. **畫風向量要「去 hub」**。少數圖在高維空間裡和什麼都很近，用原始 cosine 找最近鄰時，結果常被這幾張佔滿。做了 CSLS 校正之後，檢索與分群都明顯變好。arXiv 2605.09030 也得到相同結論。
+2. **單張圖之間的距離雜訊很大**。比較兩種畫風時，應該用多張圖的平均來比（`compare`），並用同一畫風內部的雜訊當尺度（`calibrate`）。
+3. **公開的美學評分模型不等於個人口味**。在一位使用者的實際選擇上，7 個現成評分器的準確率都只有 36–52%，和亂猜差不多。用他自己的喜歡／不喜歡訓練的小模型，交叉驗證 AUC 是 0.76。所以本工具只提供**個人**口味模型，不內建通用美學分數。
 4. **口味模型只適合粗篩**。它分得出喜歡和不喜歡，但分不出「好」和「更好」，換了新的生成來源也可能失準。
+5. **CSD 的 content 向量幾乎和 style 向量一樣**，兩者的配對相似度相關係數是 0.95。把內容成分扣掉並不會讓分群變好，所以 content 向量只拿來判斷近重複。
 
 ### 授權與致謝
 
-- 風格嵌入使用 CSD（Somepalli et al., *Measuring Style Similarity in Diffusion Models*, 2024）。程式碼 [learn2phoenix/CSD](https://github.com/learn2phoenix/CSD) 採 MIT 授權，權重 [tomg-group-umd/CSD-ViT-L](https://huggingface.co/tomg-group-umd/CSD-ViT-L) 採 CC-BY-4.0，執行時才下載，本 repo 不重新散布。
-- 3D 地圖使用 [three.js](https://threejs.org)（MIT），從 jsDelivr 載入。
+- 風格嵌入使用 CSD（Somepalli et al., *Measuring Style Similarity in Diffusion Models*, 2024）。程式碼 [learn2phoenix/CSD](https://github.com/learn2phoenix/CSD) 採 MIT 授權，權重 [tomg-group-umd/CSD-ViT-L](https://huggingface.co/tomg-group-umd/CSD-ViT-L) 採 CC-BY-4.0，在執行時才下載，本 repo 不重新散布。
+- 3D 地圖使用 [three.js](https://threejs.org) r160（MIT），已內嵌在 `src/styleatlas/templates/vendor/`，授權檔在同一個資料夾。
 - 本專案目前為私有，授權尚未決定。
 
 ---
 
 ## English
 
-style-atlas turns every image into a *style vector*. It uses CSD, an embedding trained to capture
-how a picture is drawn rather than what it shows. You can then:
+style-atlas turns every image into a *style vector* with CSD, an embedding trained to capture
+how a picture is drawn rather than what it shows. On top of those vectors it can:
 
-| Task | Command |
-|---|---|
-| **Split a LoRA dataset by style or period** before training | `style-atlas cluster DIR --export copy` |
-| **Find images with a similar style** | `style-atlas search ref.png --in GALLERY` |
-| **Explore a 3D style map**: thumbnails floating in 3D; click one to see its closest styles | `style-atlas map DIR` |
-| **Use the web app**: drop an image to search, re-group with a slider, export folders | `style-atlas serve DIR` |
-| **Find near-duplicates**: same picture, crops, frames of one scene | `style-atlas duplicates DIR` |
-| **Quantify style**: same style or not, outliers, a personal taste model | `compare`, `outliers`, `calibrate`, `taste` |
+- **Prepare LoRA datasets**: split a folder by style or period, set aside duplicates and
+  outliers, and export kohya-style folders (`cluster --layout kohya --dedupe`).
+- **Find images in a similar style**: drop an image into the web app, or use `search`.
+- **Explore a 3D style map** (`map`): one HTML file you can send to anyone.
+- **Check a dataset** (`audit`, `duplicates`): sizes, aspect ratios, captions, near-duplicates.
+- **Quantify style and taste**: `compare` two sets, or train a personal like/dislike model in
+  the web app or with `taste`.
 
-### Install
+### Windows quick start
 
-Python 3.10 or newer. For GPU use, install the CUDA build of torch first; see pytorch.org.
+1. Install Python 3.10+ and tick "Add python.exe to PATH".
+2. Double-click `scripts\setup.bat`. It creates `.venv`, installs CUDA torch when an NVIDIA GPU is
+   present (otherwise CPU torch), then installs style-atlas.
+3. Drag an image folder onto `scripts\StyleAtlas.bat`. The browser opens the web app.
+
+The first analysis downloads the CSD model once from Hugging Face (2.4 GB). It is kept as a slim
+1.2 GB file in `~/.cache/style-atlas`; set `STYLE_ATLAS_CACHE` to move it.
+
+Speed:
+
+- 8 CPU threads embed about 4 images per second (measured).
+- An NVIDIA GPU is usually much faster (not benchmarked here).
+- Vectors are cached by file content, so reopening a folder does not re-embed anything.
+
+Manual install:
 
 ```bash
 git clone https://github.com/Rinne414/style-atlas && cd style-atlas
-pip install -e .          # or pip install -e ".[umap]" for UMAP layouts
+pip install -e .          # install the CUDA build of torch first for GPU use; ".[umap]" adds UMAP
 ```
 
-On Windows you can also drag an image folder onto `scripts/StyleAtlas.bat` to open the web app.
+### LoRA workflow
 
-On first use, the CSD weights (2.4 GB) are downloaded from Hugging Face. They are then cached as
-a slim 1.2 GB safetensors file in `~/.cache/style-atlas/`. Set `STYLE_ATLAS_CACHE` to move it.
+```bash
+style-atlas audit DIR --min-side 768        # small / extreme / animated images, missing captions
+style-atlas serve DIR --time name           # review duplicates, outliers and groups in the browser
+style-atlas cluster DIR --layout kohya --name artistX --dedupe --drop-outliers 5 --export copy
+```
+
+The output goes to `DIR_style_atlas/folders/`, next to the dataset and never inside it:
+
+- `<repeats>_artistX_styleNN/` folders, with captions copied alongside. Repeats are chosen so
+  that images x repeats is about 100; use `--repeats N` to fix them.
+- `_duplicates/`, `_outliers/` and `_unassigned/`. Kohya skips these because they lack a number
+  prefix.
+- `clusters.json`, which lists each group's characteristic caption tags.
+
+Source files are never moved or deleted. Each export goes to a fresh folder.
+
+With `--export link` the files are hard links, so editing an exported caption also edits the
+original.
 
 ### Commands
 
 ```bash
 style-atlas cluster DIR [--granularity fine|medium|coarse | --threshold T | --k N]
-                        [--method agglomerative|hdbscan] [--export copy|link] [-o OUT]
-style-atlas map DIR [-o map.html] [--projection auto|umap|tsne|pca]
+                        [--layout plain|kohya --name X --repeats auto|N]
+                        [--dedupe] [--drop-outliers N] [--export copy|link] [-o OUT]
 style-atlas serve DIR [--port 8770] [--no-browser] [--time none|name|mtime]
+style-atlas map DIR [-o map.html] [--projection auto|umap|tsne|pca] [--time ...]
 style-atlas search QUERY... --in DIR [--top 20] [--combine] [--json]
-style-atlas outliers DIR [--top 30]
+style-atlas audit DIR [--min-side 512] [--max-ratio 2.5] [--json]
 style-atlas duplicates DIR [--threshold 0.92] [--json]
+style-atlas outliers DIR [--top 30]
 style-atlas compare DIR_A DIR_B [--noise-floor X]
 style-atlas calibrate DIR          # sub-folders = groups known to share one style
 style-atlas bench DIR              # sub-folders = labels (e.g. one artist each)
@@ -156,46 +209,45 @@ style-atlas taste score DIR [--model taste.npz]
 Common options:
 
 - `--device auto|cpu|cuda`
-- `--crop center|tiles`: `tiles` averages crops along the long side of tall images.
-- `--threads N`: CPU cap, default 8.
+- `--resolution 224|336`: 336 is about 1 point better at retrieval and 2.5x slower.
+- `--crop center|tiles`
+- `--threads N` (default 8)
 - `--cache-db PATH`
-
-Vectors are cached by file content, so each image is embedded only once.
-
-Each export goes to a fresh folder (`folders`, `folders_2`, ...), so runs never mix. With
-`--export link`, files are hard links: editing a caption in the export also edits the original.
-
-The map is one HTML file with three.js and the thumbnails inlined, so it works offline.
-`serve` listens on 127.0.0.1 only, checks the Host header, needs a custom header on every POST,
-and serves only files it scanned.
 
 ### How it works
 
-- **Embedding**: CSD ViT-L/14. It is loaded through `open_clip` with QuickGELU, and its output
-  matches the reference implementation (cosine 1.0000). It gives 768-d style and content vectors.
+- **Embedding**: CSD ViT-L/14, loaded through `open_clip` with QuickGELU. The output matches the
+  reference implementation (cosine 1.0000). It gives 768-d style and content vectors.
 - **Hub correction**: CSLS with k=10. `d = 1 - cos + (r_i + r_j)/2 - mean(r)`, where `r` is each
-  image's mean similarity to its 10 nearest neighbours. Thresholds therefore read like cosine
-  distances.
-- **Clustering**: average-linkage agglomerative clustering on hub-corrected distances. It cuts at
-  0.40, 0.47 or 0.55 (fine / medium / coarse), the defaults tuned on blind artist mixtures.
-  Groups smaller than `--min-size` become *unassigned*. HDBSCAN is also available; it leaves
-  ambiguous images unassigned.
-- **Map**: UMAP if installed, else t-SNE, in 3D. The layout is for viewing only; clusters are
-  computed in the full 768-d space.
-- **Taste**: PCA-20, then standardisation, then logistic regression. It is saved as plain `.npz`
-  arrays with no pickle.
-
+  image's mean similarity to its 10 nearest neighbours.
+- **Clustering**: average-linkage agglomerative clustering on hub-corrected distances. The cut is
+  0.40 (fine), 0.47 (medium) or 0.55 (coarse), tuned on blind artist mixtures. HDBSCAN is
+  optional.
 - **Near-duplicates**: min(style cosine, content cosine) >= 0.92, grouped with union-find.
+- **Map**: UMAP if installed, else t-SNE, in 3D. The layout is for viewing only; groups are
+  computed in the full space.
+- **Taste**: PCA-20, then standardisation, then logistic regression. It is saved as plain `.npz`
+  with no pickle.
 
-Accuracy and its limits are in [docs/BENCHMARKS.md](docs/BENCHMARKS.md). After removing
-near-duplicates, 2,941 Danbooru works by 296 artists give these same-artist scores:
+### Accuracy and limits
 
-- top-1: 46.2% (chance about 0.3%)
-- top-10: 70.4%
-- pair AUC: 0.831, against 0.780 without hub correction
+The full numbers are in [docs/BENCHMARKS.md](docs/BENCHMARKS.md). The corpus is 2,941 Danbooru
+works by 296 artists (512 px thumbnails, near-duplicates removed). Same-artist retrieval gives:
+
+- top-1 46.2% (chance 0.3%)
+- top-10 70.4%
+- pair AUC 0.831, against 0.780 without hub correction
+
+Blind clustering of 2-5 mixed artists scores ARI about 0.5.
+
+Splitting one artist's periods has **not** been measured: no reliable ground truth exists. Treat
+groups as a first pass and review them in the map.
+
+The `compare` z thresholds come from one person's calibration on fixed-content NovelAI renders.
+Re-run `calibrate` on your own data.
 
 ### Credits
 
 - CSD: Somepalli et al. 2024. Code under MIT, weights under CC-BY-4.0, downloaded at runtime.
-- three.js (MIT).
+- three.js r160 (MIT), vendored in `src/styleatlas/templates/vendor/`.
 - This repository is private; its license is undecided.
