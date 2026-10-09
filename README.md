@@ -65,6 +65,10 @@ _unassigned\
 ```
 
 - 每群的 repeats 會讓「張數 × repeats」接近 100。也可以用 `--repeats 10` 固定。
+- 想在同一個 LoRA 裡用不同觸發詞叫出不同畫風，可以加 `--trigger-captions`：
+  - 匯出的標註開頭會自動加上該群名稱，例如 `artistX_style01, `；
+  - 原始標註不會被改。
+  - 完整流程見 [docs/LORA_GUIDE.md](docs/LORA_GUIDE.md)。
 - `clusters.json` 會列出每群最常見的標註 tag，以及 tag 在這群裡比整體多出幾倍。例如某群特別多 `monochrome`、`sketch`，大概就是草稿那一群。
 - 原始檔案永遠不會被移動或刪除。每次匯出都寫到新的資料夾（`folders`、`folders_2` …），不會和上一次混在一起。
 - `--export link` 改用硬連結，不佔額外空間，但連結檔和原檔是**同一個檔案**，在匯出資料夾裡改標註，原本的也會一起改。不確定的話就用 `copy`。
@@ -203,6 +207,9 @@ The output goes to `DIR_style_atlas/folders/`, next to the dataset and never ins
 - `_duplicates/`, `_outliers/` and `_unassigned/`. Kohya skips these because they lack a number
   prefix.
 - `clusters.json`, which lists each group's characteristic caption tags.
+- With `--trigger-captions`, every exported caption starts with its group's trigger
+  (`artistX_style01, ...`). Images without a caption get one, and source captions are never
+  touched. The full workflow is in [docs/LORA_GUIDE.md](docs/LORA_GUIDE.md).
 
 Source files are never moved or deleted. Each export goes to a fresh folder.
 

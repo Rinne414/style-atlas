@@ -129,3 +129,22 @@ def test_file_time_sources(tmp_path):
     assert file_time(_img(tmp_path / "no_id.png"), "name") is None
     assert file_time(p, "mtime") > 0
     assert file_time(p, "none") is None
+
+
+def test_trigger_captions_are_written_in_the_export_only(tmp_path):
+    from styleatlas.export import trigger_of
+
+    atlas = _atlas(tmp_path, [6, 5])
+    result = cluster_styles(atlas.style)
+    folders = plan_folders(atlas.paths, result, "kohya", "artistX", "auto")
+    src_caption = tmp_path / "src" / "img0.txt"
+    before = src_caption.read_text()
+    done = export_folders(atlas, folders, tmp_path / "out", mode="link", trigger_captions=True)
+    assert src_caption.read_text() == before  # never edited through a hard link
+    i0 = next(i for i, p in enumerate(atlas.paths) if p.name == "img0.png")
+    exported = done.folder / folders[i0] / "img0.txt"
+    assert exported.read_text().startswith(trigger_of(folders[i0]) + ", a caption")
+    i1 = next(i for i, p in enumerate(atlas.paths) if p.name == "img1.png")
+    assert (done.folder / folders[i1] / "img1.txt").read_text() == trigger_of(folders[i1])
+    assert trigger_of("11_artist X_style02") == "artist X_style02"
+    assert trigger_of("_duplicates") is None and trigger_of("style_01") == "style_01"

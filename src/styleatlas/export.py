@@ -121,11 +121,58 @@ def _place(src: Path, dst: Path, mode: str) -> None:
     shutil.copy2(src, dst)
 
 
+def trigger_of(folder: str) -> str | None:
+    """Trigger word for a group folder: "11_artistX_style01" -> "artistX_style01";
+    None for set-aside folders (_duplicates, ...)."""
+    if folder.startswith("_") or folder == "unassigned":
+        return None
+    head, _, rest = folder.partition("_")
+    return rest if head.isdigit() and rest else folder
+
+
+def _write_caption(src_image: Path, dst: Path, trigger: str) -> None:
+    """New caption in the export: trigger first, then the original text (never a link, so
+    the source caption is never touched). Images without a caption get the trigger alone."""
+    side = next(
+        (
+            src_image.with_suffix(e)
+            for e in (".txt", ".caption")
+            if src_image.with_suffix(e).exists()
+        ),
+        None,
+    )
+    text = side.read_text(encoding="utf-8", errors="replace").strip() if side else ""
+    if dst.exists():
+        raise FileExistsError(f"{dst} already exists")
+    dst.write_text(f"{trigger}, {text}" if text else trigger, encoding="utf-8")
+
+
+def _place_sidecars(src: Path, folder: Path, stem: str, mode: str, trigger: str | None) -> None:
+    for ext in SIDECARS:
+        side = src.with_suffix(ext)
+        if trigger and ext in (".txt", ".caption"):
+            continue  # written below with the trigger
+        if side.exists():
+            _place(side, folder / f"{stem}{ext}", mode)
+    if trigger:
+        ext = (
+            ".caption"
+            if src.with_suffix(".caption").exists() and not src.with_suffix(".txt").exists()
+            else ".txt"
+        )
+        _write_caption(src, folder / f"{stem}{ext}", trigger)
+
+
 def export_folders(
-    atlas: Atlas, folders: list[str], out_dir: Path, mode: str = "copy"
+    atlas: Atlas,
+    folders: list[str],
+    out_dir: Path,
+    mode: str = "copy",
+    trigger_captions: bool = False,
 ) -> ExportResult:
     """Copy or hard-link each image (and its sidecars) into its planned folder (see
-    dataset.plan_folders) inside a fresh output folder."""
+    dataset.plan_folders) inside a fresh output folder. With trigger_captions, every exported
+    caption in a group folder starts with that group's trigger word."""
     if mode not in EXPORT_MODES:
         raise ValueError(f"mode must be one of {EXPORT_MODES}")
     if len(folders) != len(atlas):
@@ -138,10 +185,8 @@ def export_folders(
         try:
             folder.mkdir(parents=True, exist_ok=True)
             _place(src, folder / f"{stem}{src.suffix}", mode)
-            for ext in SIDECARS:
-                side = src.with_suffix(ext)
-                if side.exists():
-                    _place(side, folder / f"{stem}{ext}", mode)
+            trigger = trigger_of(folders[i]) if trigger_captions else None
+            _place_sidecars(src, folder, stem, mode, trigger)
         except OSError as e:  # long path, permissions, full disk: report and keep going
             result.failed.append((src, str(e)))
             continue

@@ -115,7 +115,9 @@ def cmd_cluster(a: argparse.Namespace) -> int:
     log(f"wrote {csv_path} and {json_path}")
     _print_groups(atlas, result, folders, tags)
     if a.export:
-        done = export_folders(atlas, folders, out / "folders", mode=a.export)
+        done = export_folders(
+            atlas, folders, out / "folders", mode=a.export, trigger_captions=a.trigger_captions
+        )
         log(f"{a.export}: {done.placed} images into {done.folder}")
         for p, why in done.failed:
             log(f"not exported {p}: {why}")
@@ -435,6 +437,11 @@ def _lora_args(p: argparse.ArgumentParser) -> None:
     g.add_argument("--name", help="concept name for kohya folders (default: the folder name)")
     g.add_argument(
         "--repeats", default="auto", help="kohya repeats per style folder, or auto (~100 per epoch)"
+    )
+    g.add_argument(
+        "--trigger-captions",
+        action="store_true",
+        help="start every exported caption with its group's trigger word (artistX_style01)",
     )
     g.add_argument(
         "--dedupe",
