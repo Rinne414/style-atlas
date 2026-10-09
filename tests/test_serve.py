@@ -462,3 +462,14 @@ def test_an_unexpected_error_still_gets_an_answer(server, monkeypatch):
     hdr = {"X-Style-Atlas": "1", "Content-Type": "application/json"}
     status, data = request(port, "POST", "/api/similar", json.dumps({"group": 0}), hdr)
     assert status == 500 and "RuntimeError" in json.loads(data)["error"]
+
+
+def test_open_output_opens_only_the_output_folder(tmp_path, monkeypatch):
+    import os
+
+    app, _ = _app(tmp_path)
+    opened = []
+    monkeypatch.setattr(os, "startfile", opened.append, raising=False)
+    monkeypatch.setattr("styleatlas.serve.subprocess.Popen", lambda args: opened.append(args[-1]))
+    folder = app.open_output({"folder": "C:/Windows"})["folder"]  # any body is ignored
+    assert [str(f) for f in opened] == [folder] and folder == str(app.out_dir)

@@ -4,6 +4,7 @@
 
 - An unreadable caption no longer blanks the web page, and an image deleted while the app runs
   gives "not found" instead of a dropped connection.
+- **Open folder** button after an export or a saved map (opens only the output folder).
 - Any other unexpected error in the web app now answers with a short message (and the full
   traceback in the console) instead of leaving the page waiting.
 

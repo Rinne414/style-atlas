@@ -4,6 +4,14 @@
 
 function setStatus(msg) { $("status").textContent = msg || ""; }
 
+// A button after a status message that names a file or folder in the output folder.
+function addOpenFolder() {
+  const b = document.createElement("button");
+  b.textContent = t("openFolder"); b.style.marginLeft = "8px";
+  b.addEventListener("click", () => post("api/open_output", "{}", "application/json").catch((e) => setStatus(String(e.message || e))));
+  $("status").append(b);
+}
+
 async function post(url, body, type) {
   const r = await fetch(url, { method: "POST", body,
     headers: { "X-Style-Atlas": "1", "Content-Type": type } });
@@ -251,6 +259,7 @@ function setupLive() {
       const r = await post("api/export", JSON.stringify(body), "application/json");
       const small = r.small_groups ? " " + t("smallGroups").replace("{n}", r.small_groups) : "";
       setStatus(t("exported").replace("{n}", r.placed).replace("{f}", r.folder) + small);
+      addOpenFolder();
     } catch (e) { setStatus(String(e.message || e)); }
   });
   $("saveMap").addEventListener("click", async () => {
@@ -258,6 +267,7 @@ function setupLive() {
     try {
       const r = await post("api/save_map", "{}", "application/json");
       setStatus(t("savedMap").replace("{f}", r.file));
+      addOpenFolder();
     } catch (e) { setStatus(String(e.message || e)); }
   });
   let depth = 0;

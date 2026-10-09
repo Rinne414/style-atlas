@@ -12,6 +12,9 @@ import base64
 import io
 import json
 import mimetypes
+import os
+import subprocess
+import sys
 import threading
 import traceback
 import webbrowser
@@ -195,6 +198,18 @@ class StyleAtlasApp:
         )
         payload["names"] = names
         return {"file": str(write_payload(payload, out))}
+
+    def open_output(self, body: dict) -> dict:
+        """Show the output folder (exports, saved map) in the file manager. Only this one fixed
+        folder can be opened."""
+        folder = self.out_dir
+        folder.mkdir(parents=True, exist_ok=True)
+        if hasattr(os, "startfile"):
+            os.startfile(folder)  # noqa: S606 - our own output folder, no user input
+        else:
+            opener = "open" if sys.platform == "darwin" else "xdg-open"
+            subprocess.Popen([opener, str(folder)])  # noqa: S603
+        return {"folder": str(folder)}
 
     def thumb(self, i: int) -> bytes:
         if i not in self._thumbs:
@@ -499,6 +514,7 @@ JSON_ROUTES = {  # POST route -> StyleAtlasApp method taking the JSON body
     "api/similar": "similar",
     "api/search_set": "search_set",
     "api/save_map": "save_map",
+    "api/open_output": "open_output",
     "api/export": "export",
 }
 REQUEST_ERRORS = (ValueError, OSError, KeyError, TypeError, OverflowError)
