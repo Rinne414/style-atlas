@@ -13,6 +13,7 @@ import io
 import json
 import mimetypes
 import threading
+import traceback
 import webbrowser
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
@@ -544,7 +545,13 @@ class StyleAtlasHandler(BaseHTTPRequestHandler):
             return
         parts = self.path.split("?")[0].strip("/").split("/")
         if parts == [""]:
-            self._send(200, self.app.page().encode("utf-8"), "text/html; charset=utf-8")
+            try:
+                page = self.app.page().encode("utf-8")
+            except Exception:  # noqa: BLE001 - show something instead of a blank tab
+                self.log_error("page failed:\n%s", traceback.format_exc())
+                self.send_error(HTTPStatus.INTERNAL_SERVER_ERROR, "see the console for details")
+                return
+            self._send(200, page, "text/html; charset=utf-8")
             return
         if parts == ["favicon.ico"]:
             self.send_response(HTTPStatus.NO_CONTENT)
@@ -598,6 +605,9 @@ class StyleAtlasHandler(BaseHTTPRequestHandler):
                 self.send_error(HTTPStatus.NOT_FOUND)
         except REQUEST_ERRORS as e:
             self._json(400, {"error": str(e)})
+        except Exception as e:  # noqa: BLE001 - the page must get an answer, not a dropped line
+            self.log_error("%s failed:\n%s", route, traceback.format_exc())
+            self._json(500, {"error": f"internal error ({type(e).__name__}); see the console"})
 
 
 def make_handler(app: StyleAtlasApp, allowed_hosts: set[str]) -> type[BaseHTTPRequestHandler]:

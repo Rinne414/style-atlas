@@ -448,3 +448,17 @@ def test_unreadable_captions_and_missing_images_do_not_break_the_page(server):
     assert status == 200 and b'"live"' in html
     (root / "img1.png").unlink()
     assert request(port, "GET", "/image/1")[0] == 404
+
+
+def test_an_unexpected_error_still_gets_an_answer(server, monkeypatch):
+    from styleatlas.serve import StyleAtlasApp
+
+    port, _ = server
+
+    def boom(self, body):
+        raise RuntimeError("model fell over")
+
+    monkeypatch.setattr(StyleAtlasApp, "similar", boom)
+    hdr = {"X-Style-Atlas": "1", "Content-Type": "application/json"}
+    status, data = request(port, "POST", "/api/similar", json.dumps({"group": 0}), hdr)
+    assert status == 500 and "RuntimeError" in json.loads(data)["error"]

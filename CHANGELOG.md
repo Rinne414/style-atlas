@@ -4,6 +4,8 @@
 
 - An unreadable caption no longer blanks the web page, and an image deleted while the app runs
   gives "not found" instead of a dropped connection.
+- Any other unexpected error in the web app now answers with a short message (and the full
+  traceback in the console) instead of leaving the page waiting.
 
 ## 0.7.0 - 2026-10-10
 
