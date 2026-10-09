@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.11.0 - 2026-10-10
 
 Security fixes from a Sonnet security review:
 - **HIGH: a crafted `groups.json` could make Export write outside its folder.** Group names read
