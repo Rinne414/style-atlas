@@ -92,3 +92,18 @@ def test_search_finds_same_style_and_honours_exclude(blobs):
 def test_combined_search_returns_one_list(blobs):
     x, _ = blobs
     assert len(search(x[:3], x, top=4, combine=True)) == 1
+
+
+def test_near_duplicates_are_grouped_and_reduced():
+    from styleatlas.duplicates import keep_one_per_group, near_duplicate_groups
+    from styleatlas.metrics import unit
+
+    x, _ = make_blobs([6, 6])
+    twin = unit(x[0] + 0.01 * x[1])  # almost the same picture as x[0]
+    style = np.vstack([x, twin])
+    groups = near_duplicate_groups(style, style, threshold=0.99)
+    assert groups == [[0, 12]]
+    assert len(keep_one_per_group(len(style), groups)) == 12
+    other, _ = make_blobs([13], seed=5)
+    other = unit(np.random.default_rng(1).normal(size=other.shape))  # unrelated content
+    assert near_duplicate_groups(style, other, threshold=0.99) == []  # content must agree too

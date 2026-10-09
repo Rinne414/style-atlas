@@ -14,6 +14,7 @@ import numpy as np
 
 from styleatlas.atlas import LOAD_ERRORS, Atlas
 from styleatlas.cluster import Clustering, outlier_scores
+from styleatlas.duplicates import near_duplicate_groups
 from styleatlas.images import thumbnail_data_url
 from styleatlas.metrics import centroid
 from styleatlas.project import project_3d
@@ -44,6 +45,7 @@ class Layout:
     projection: str
     neighbors: np.ndarray
     outliers: np.ndarray
+    duplicates: list[list[int]]
 
 
 def compute_layout(
@@ -51,7 +53,8 @@ def compute_layout(
 ) -> Layout:
     coords, used = project_3d(atlas.style, projection)
     progress(f"projected {len(atlas)} images with {used}")
-    return Layout(coords, used, knn(atlas.style, k=NEIGHBORS), outlier_scores(atlas.style))
+    dups = near_duplicate_groups(atlas.style, atlas.content)
+    return Layout(coords, used, knn(atlas.style, k=NEIGHBORS), outlier_scores(atlas.style), dups)
 
 
 def build_payload(
@@ -85,6 +88,7 @@ def build_payload(
             for c in clustering.clusters
         ],
         "points": points,
+        "duplicates": layout.duplicates,
     }
 
 

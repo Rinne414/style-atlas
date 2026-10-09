@@ -12,7 +12,7 @@ import numpy as np
 from styleatlas import __version__
 from styleatlas.atlas import Atlas, EncodeOptions, build_atlas, embed_paths
 from styleatlas.cluster import GRANULARITY, METHODS, cluster_styles, outlier_scores
-from styleatlas.encoder import CROP_MODES
+from styleatlas.encoder import CROP_MODES, RESOLUTIONS
 from styleatlas.images import find_images, labels_from_folders
 from styleatlas.metrics import StyleScale, group_difference, split_half_noise, unit
 from styleatlas.project import PROJECTIONS
@@ -30,6 +30,7 @@ def _opts(a: argparse.Namespace) -> EncodeOptions:
         device=a.device,
         crop=a.crop,
         batch_size=a.batch,
+        resolution=a.resolution,
         db_path=Path(a.cache_db) if a.cache_db else None,
     )
 
@@ -130,6 +131,21 @@ def cmd_outliers(a: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_duplicates(a: argparse.Namespace) -> int:
+    from styleatlas.duplicates import near_duplicate_groups
+
+    atlas = _atlas(a, a.folder)
+    groups = near_duplicate_groups(atlas.style, atlas.content, a.threshold)
+    if a.json:
+        print(json.dumps([[atlas.rel(i) for i in g] for g in groups], ensure_ascii=False, indent=1))
+        return 0
+    extra = sum(len(g) - 1 for g in groups)
+    log(f"{len(groups)} near-duplicate groups ({extra} images beyond the first of each group)")
+    for n, g in enumerate(groups, 1):
+        print(f"group {n}: " + "  |  ".join(atlas.rel(i) for i in g))
+    return 0
+
+
 def cmd_compare(a: argparse.Namespace) -> int:
     opts = _opts(a)
     groups = []
@@ -184,6 +200,7 @@ def cmd_bench(a: argparse.Namespace) -> int:
     if not a.npz and not a.folder:
         log("give a folder whose sub-folders are the labels, or --npz")
         return 1
+    content = None
     if a.npz:
         with np.load(a.npz) as z:
             keys = list(z.files)
@@ -192,9 +209,14 @@ def cmd_bench(a: argparse.Namespace) -> int:
         labels = [k.rsplit(a.sep, 1)[0] for k in keys]
     else:
         root = Path(a.folder)
-        kept, style, _, _ = embed_paths(find_images(root), _opts(a), log)
-        labels = labels_from_folders(kept, root)
-    print(json.dumps(run_bench(style, labels, trials=a.trials), indent=1))
+        kept, style, content, _ = embed_paths(find_images(root), _opts(a), log)
+        if a.labels == "prefix":
+            labels = [p.stem.rsplit(a.sep, 1)[0] for p in kept]
+        else:
+            labels = labels_from_folders(kept, root)
+    dedupe = None if a.keep_duplicates else a.dup_threshold
+    report = run_bench(style, labels, trials=a.trials, content=content, dedupe=dedupe)
+    print(json.dumps(report, indent=1))
     return 0
 
 
@@ -207,7 +229,7 @@ def cmd_taste(a: argparse.Namespace) -> int:
         dislike = embed_paths(find_images(Path(a.dislike)), opts, log)[1]
         from styleatlas.encoder import encoder_signature
 
-        model = train_taste(like, dislike, encoder_signature(opts.crop))
+        model = train_taste(like, dislike, encoder_signature(opts.crop, opts.resolution))
         saved = model.save(Path(a.model))
         log(
             f"saved {saved}: {model.n_like} liked / {model.n_dislike} disliked, "
@@ -237,6 +259,7 @@ def _common(p: argparse.ArgumentParser) -> None:
     g = p.add_argument_group("embedding")
     g.add_argument("--device", default="auto", help="auto, cpu or cuda (default auto)")
     g.add_argument("--crop", default="center", choices=CROP_MODES)
+    g.add_argument("--resolution", type=int, default=224, choices=RESOLUTIONS)
     g.add_argument("--batch", type=int, default=8)
     g.add_argument("--threads", type=int, default=8, help="CPU threads cap (0 = all)")
     g.add_argument(
@@ -301,6 +324,10 @@ def build_parser() -> argparse.ArgumentParser:
     p = add("outliers", cmd_outliers, "images least like the rest of a folder")
     p.add_argument("folder")
     p.add_argument("--top", type=int, default=30)
+    p = add("duplicates", cmd_duplicates, "near-duplicate groups (same picture, crops, frames)")
+    p.add_argument("folder")
+    p.add_argument("--threshold", type=float, default=0.92, help="min(style, content) cosine")
+    p.add_argument("--json", action="store_true")
     p = add("compare", cmd_compare, "do two folders differ in style? distance, z units, p-value")
     p.add_argument("a")
     p.add_argument("b")
@@ -313,7 +340,19 @@ def build_parser() -> argparse.ArgumentParser:
     p = add("bench", cmd_bench, "score retrieval and clustering against sub-folder labels")
     p.add_argument("folder", nargs="?")
     p.add_argument("--npz", help="precomputed vectors; label = key prefix before --sep")
+    p.add_argument(
+        "--labels",
+        choices=["folder", "prefix"],
+        default="folder",
+        help="label = first sub-folder, or file-name prefix before --sep",
+    )
     p.add_argument("--sep", default="__")
+    p.add_argument(
+        "--keep-duplicates",
+        action="store_true",
+        help="do not reduce near-duplicates to one image before scoring",
+    )
+    p.add_argument("--dup-threshold", type=float, default=0.92)
     p.add_argument("--trials", type=int, default=30)
     p = add("taste", cmd_taste, "train or apply a personal like/dislike model", common=False)
     tsub = p.add_subparsers(dest="taste_cmd", required=True)

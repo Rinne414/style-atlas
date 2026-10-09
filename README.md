@@ -17,6 +17,7 @@ style-atlas 把每張圖轉成一個「畫風向量」。轉換用的是 CSD 風
 | **找畫風相近的圖** | `style-atlas search 參考圖.png --in 圖庫資料夾` |
 | **3D 畫風地圖**：縮圖浮在 3D 空間，可轉動，點一下就看最接近的畫風 | `style-atlas map 資料夾` |
 | **網頁介面**：在瀏覽器裡拖圖搜尋、調門檻重新分群、一鍵匯出資料夾 | `style-atlas serve 資料夾` |
+| **找近重複圖**：同一張圖、裁切、同場景連續畫面（訓 LoRA 前每組留一張） | `style-atlas duplicates 資料夾` |
 | **量化畫風**：判斷兩組圖是否同一畫風、找出離群圖、訓練個人口味模型 | `compare`、`outliers`、`calibrate`、`taste` |
 
 ### 安裝
@@ -54,6 +55,7 @@ style-atlas serve "D:/lora/artistX"
 
 # 6. 資料集裡哪些圖最「不合群」（訓練前可考慮剔除）
 style-atlas outliers "D:/lora/artistX" --top 20
+style-atlas duplicates "D:/lora/artistX"      # 近重複圖分組
 
 # 7. 兩組圖是不是同一種畫風？（距離、z 值、置換檢定 p 值）
 style-atlas compare "D:/old_works" "D:/new_works"
@@ -67,17 +69,17 @@ style-atlas compare "D:/old_works" "D:/new_works"
 
 - 縮圖直接浮在 3D 空間中，外框顏色代表畫風群，可拖曳旋轉、滾輪縮放。
 - 點右側的畫風群，鏡頭會飛過去並顯示成員；點地圖上的圖，會列出最接近的 12 張。
-- 「離群」分頁列出和整組最不像的圖。
+- 「離群」分頁列出和整組最不像的圖；「重複」分頁列出近重複圖組。
 - 支援中／英文介面與深／淺色主題，可用檔名篩選，`+` / `-` 調整縮圖大小。
 - 地圖是單一 HTML 檔，three.js 和縮圖都已內嵌，離線也能開。**分享地圖等於分享這些縮圖。**
 - `serve` 只監聽本機 127.0.0.1，會檢查 Host 標頭，也只提供掃描過的檔案，不會把你的資料夾開放到網路上。
 
 ### 準不準？
 
-詳細數據在 [docs/BENCHMARKS.md](docs/BENCHMARKS.md)。測試資料是 300 位畫師的 3,239 張 Danbooru 作品：
+詳細數據在 [docs/BENCHMARKS.md](docs/BENCHMARKS.md)。測試資料是 296 位畫師的 2,941 張 Danbooru 作品，已先移除 308 張近重複圖，因為重複圖會讓檢索分數虛高：
 
-- 同畫師檢索 top-1 為 54.5%（隨機約 0.3%），top-10 為 74.4%。
-- 去 hub 校正（CSLS）把同畫師配對的 AUC 從 0.79 提高到 0.85。
+- 同畫師檢索 top-1 為 46.2%（隨機約 0.3%），top-10 為 70.4%。
+- 去 hub 校正（CSLS）把同畫師配對的 AUC 從 0.78 提高到 0.83。在 Pixiv AI 插畫帳號上也一樣有效，從 0.75 提高到 0.80。
 - 把 2 到 5 位畫師的作品混在一起、不告訴模型有幾位，盲分的 ARI 約 0.5。
 
 真實作品的內容變化很大，所以分群結果適合當**初步整理**，最後仍要看圖確認。內容較一致的 LoRA 資料集通常會分得更乾淨。
@@ -110,6 +112,7 @@ how a picture is drawn rather than what it shows. You can then:
 | **Find images with a similar style** | `style-atlas search ref.png --in GALLERY` |
 | **Explore a 3D style map**: thumbnails floating in 3D; click one to see its closest styles | `style-atlas map DIR` |
 | **Use the web app**: drop an image to search, re-group with a slider, export folders | `style-atlas serve DIR` |
+| **Find near-duplicates**: same picture, crops, frames of one scene | `style-atlas duplicates DIR` |
 | **Quantify style**: same style or not, outliers, a personal taste model | `compare`, `outliers`, `calibrate`, `taste` |
 
 ### Install
@@ -133,6 +136,7 @@ style-atlas map DIR [-o map.html] [--projection auto|umap|tsne|pca]
 style-atlas serve DIR [--port 8770] [--no-browser]
 style-atlas search QUERY... --in DIR [--top 20] [--combine] [--json]
 style-atlas outliers DIR [--top 30]
+style-atlas duplicates DIR [--threshold 0.92] [--json]
 style-atlas compare DIR_A DIR_B [--noise-floor X]
 style-atlas calibrate DIR          # sub-folders = groups known to share one style
 style-atlas bench DIR              # sub-folders = labels (e.g. one artist each)
@@ -172,7 +176,14 @@ and serves only files it scanned.
 - **Taste**: PCA-20, then standardisation, then logistic regression. It is saved as plain `.npz`
   arrays with no pickle.
 
-Accuracy and its limits: see [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
+- **Near-duplicates**: min(style cosine, content cosine) >= 0.92, grouped with union-find.
+
+Accuracy and its limits are in [docs/BENCHMARKS.md](docs/BENCHMARKS.md). After removing
+near-duplicates, 2,941 Danbooru works by 296 artists give these same-artist scores:
+
+- top-1: 46.2% (chance about 0.3%)
+- top-10: 70.4%
+- pair AUC: 0.831, against 0.780 without hub correction
 
 ### Credits
 

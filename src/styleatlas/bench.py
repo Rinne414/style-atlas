@@ -15,6 +15,7 @@ import numpy as np
 from sklearn.metrics import adjusted_rand_score, roc_auc_score
 
 from styleatlas.cluster import GRANULARITY, cluster_styles
+from styleatlas.duplicates import DEFAULT_THRESHOLD, keep_one_per_group, near_duplicate_groups
 from styleatlas.metrics import neighbor_density
 
 MIX_SIZES = (2, 3, 5)
@@ -66,13 +67,28 @@ def mixtures(
     return out
 
 
-def run_bench(x: np.ndarray, labels: list[str] | np.ndarray, trials: int = 30) -> dict:
+def run_bench(
+    x: np.ndarray,
+    labels: list[str] | np.ndarray,
+    trials: int = 30,
+    content: np.ndarray | None = None,
+    dedupe: float | None = DEFAULT_THRESHOLD,
+) -> dict:
+    """Scores against `labels`. Near-duplicates are first reduced to one image each (they make
+    retrieval look better than it is); without content vectors the style vector stands in."""
     labels = np.asarray(labels)
+    dropped = 0
+    if dedupe:
+        groups = near_duplicate_groups(x, x if content is None else content, dedupe)
+        kept = keep_one_per_group(len(x), groups)
+        dropped = len(x) - len(kept)
+        x, labels = x[kept], labels[kept]
     keep = np.isin(labels, [lbl for lbl, c in Counter(labels.tolist()).items() if c >= 2])
     x, labels = x[keep], labels[keep]
     raw = x @ x.T
     hub = hub_similarity(x)
     report = {
+        "near_duplicates_removed": dropped,
         "images": int(len(x)),
         "labels": int(len(set(labels.tolist()))),
         "raw": {**retrieval(raw, labels), "pair_auc": pair_auc(raw, labels)},

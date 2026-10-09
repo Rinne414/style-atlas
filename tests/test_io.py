@@ -104,3 +104,15 @@ def test_render_html_cannot_be_broken_by_file_names():
     data = html.split('id="atlas-data" type="application/json">')[1].split("</script>")[0]
     assert "<" not in data and "alert(1)" in data
     assert html.count("</script>") == html.count("<script")
+
+
+def test_resize_pos_embed_keeps_224_and_grows_to_336():
+    import torch
+
+    from styleatlas.encoder import resize_pos_embed
+
+    pos = torch.randn(1 + 16 * 16, 8)
+    assert resize_pos_embed(pos, 224) is pos
+    big = resize_pos_embed(pos, 336)
+    assert big.shape == (1 + 24 * 24, 8)
+    assert torch.equal(big[0], pos[0])  # class token untouched

@@ -24,6 +24,8 @@ from torchvision import transforms as T
 CSD_REPO = "tomg-group-umd/CSD-ViT-L"
 CSD_REVISION = "5bc26a6fb0487f3f00a2a7313135103a005b1b67"
 INPUT_PX = 224
+RESOLUTIONS = (224, 336)  # 336 interpolates the position embeddings (arXiv 2605.09030)
+PATCH = 14
 CLIP_MEAN = (0.48145466, 0.4578275, 0.40821073)
 CLIP_STD = (0.26862954, 0.26130258, 0.27577711)
 CROP_MODES = ("center", "tiles")
@@ -83,8 +85,8 @@ def load_weights() -> dict[str, torch.Tensor]:
     return weights
 
 
-def square_crops(im: Image.Image, mode: str) -> list[Image.Image]:
-    """Resize the short side to INPUT_PX; take the centre square or tiles along the long side."""
+def square_crops(im: Image.Image, mode: str, px: int = INPUT_PX) -> list[Image.Image]:
+    """Resize the short side to `px`; take the centre square or tiles along the long side."""
     w, h = im.size
     if max(w, h) > MAX_ASPECT * min(w, h):
         long_keep = int(MAX_ASPECT * min(w, h))
@@ -93,23 +95,36 @@ def square_crops(im: Image.Image, mode: str) -> list[Image.Image]:
         else:
             im = im.crop((0, (h - long_keep) // 2, w, (h - long_keep) // 2 + long_keep))
         w, h = im.size
-    scale = INPUT_PX / min(w, h)
-    rw, rh = max(INPUT_PX, round(w * scale)), max(INPUT_PX, round(h * scale))
+    scale = px / min(w, h)
+    rw, rh = max(px, round(w * scale)), max(px, round(h * scale))
     im = im.resize((rw, rh), Image.Resampling.BICUBIC)
     long_side = max(rw, rh)
-    n = 1 if mode == "center" else min(MAX_TILES, math.ceil(long_side / INPUT_PX - 0.15))
+    n = 1 if mode == "center" else min(MAX_TILES, math.ceil(long_side / px - 0.15))
     if n <= 1:
-        offsets = [(long_side - INPUT_PX) // 2]
+        offsets = [(long_side - px) // 2]
     else:
-        offsets = [round(i * (long_side - INPUT_PX) / (n - 1)) for i in range(n)]
+        offsets = [round(i * (long_side - px) / (n - 1)) for i in range(n)]
     if rw >= rh:
-        return [im.crop((o, 0, o + INPUT_PX, INPUT_PX)) for o in offsets]
-    return [im.crop((0, o, INPUT_PX, o + INPUT_PX)) for o in offsets]
+        return [im.crop((o, 0, o + px, px)) for o in offsets]
+    return [im.crop((0, o, px, o + px)) for o in offsets]
 
 
-def encoder_signature(crop: str) -> str:
+def encoder_signature(crop: str, px: int = INPUT_PX) -> str:
     """Identifies the vector space; cached vectors with another signature are recomputed."""
-    return f"csd-vit-l@{CSD_REVISION[:8]}/{crop}{INPUT_PX}"
+    return f"csd-vit-l@{CSD_REVISION[:8]}/{crop}{px}"
+
+
+def resize_pos_embed(pos: torch.Tensor, px: int) -> torch.Tensor:
+    """(1 + g*g, d) CLIP position embeddings -> grid for `px` inputs (bicubic, class token kept)."""
+    old = int(math.isqrt(pos.shape[0] - 1))
+    new = px // PATCH
+    if new == old:
+        return pos
+    grid = pos[1:].reshape(1, old, old, -1).permute(0, 3, 1, 2)
+    grid = torch.nn.functional.interpolate(
+        grid, size=(new, new), mode="bicubic", align_corners=False, antialias=True
+    )
+    return torch.cat([pos[:1], grid.permute(0, 2, 3, 1).reshape(new * new, -1)])
 
 
 @dataclass(frozen=True)
@@ -121,20 +136,34 @@ class Embeddings:
 class CSDEncoder:
     """Image -> (style, content) unit vectors."""
 
-    def __init__(self, device: str = "auto", crop: str = "center", batch_size: int = 8):
+    def __init__(
+        self,
+        device: str = "auto",
+        crop: str = "center",
+        batch_size: int = 8,
+        resolution: int = INPUT_PX,
+    ):
         if crop not in CROP_MODES:
             raise ValueError(f"crop must be one of {CROP_MODES}, got {crop!r}")
+        if resolution not in RESOLUTIONS:
+            raise ValueError(f"resolution must be one of {RESOLUTIONS}, got {resolution!r}")
         import open_clip
 
         self.device = resolve_device(device)
         self.crop = crop
+        self.px = resolution
         self.batch_size = max(1, batch_size)
         weights = load_weights()
-        visual = open_clip.create_model("ViT-L-14-quickgelu", pretrained=None).visual
+        visual = open_clip.create_model(
+            "ViT-L-14-quickgelu", pretrained=None, force_image_size=resolution
+        ).visual
         visual.proj = None
         backbone = {
             k.removeprefix("backbone."): v for k, v in weights.items() if k.startswith("backbone.")
         }
+        backbone["positional_embedding"] = resize_pos_embed(
+            backbone["positional_embedding"], resolution
+        )
         visual.load_state_dict(backbone, strict=True)
         self.visual = visual.float().to(self.device).eval()
         self.style_head = weights["last_layer_style"].to(self.device)
@@ -143,7 +172,7 @@ class CSDEncoder:
 
     @property
     def signature(self) -> str:
-        return encoder_signature(self.crop)
+        return encoder_signature(self.crop, self.px)
 
     @torch.inference_mode()
     def _run(self, batch: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
@@ -153,7 +182,7 @@ class CSDEncoder:
     def encode(self, images: list[Image.Image]) -> Embeddings:
         crops, owner = [], []
         for i, im in enumerate(images):
-            for c in square_crops(im, self.crop):
+            for c in square_crops(im, self.crop, self.px):
                 crops.append(self.to_tensor(c))
                 owner.append(i)
         style_rows, content_rows = [], []

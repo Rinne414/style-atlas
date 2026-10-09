@@ -117,10 +117,12 @@
       <button data-pane="clusters" class="on"></button>
       <button data-pane="selected"></button>
       <button data-pane="outliers"></button>
+      <button data-pane="dups"></button>
     </div>
     <div class="pane on" id="pane-clusters"></div>
     <div class="pane" id="pane-selected"></div>
     <div class="pane" id="pane-outliers"></div>
+    <div class="pane" id="pane-dups"></div>
     <footer></footer>
   </aside>
 </div>
@@ -145,7 +147,9 @@ const T = {
     loading: "building map…", open: "open file", searchImg: "Search by image…",
     drop: "Drop an image to find its closest styles", regroup: "Regroup", export: "Export folders",
     searching: "embedding the query…", exported: "copied {n} images to {f}", query: "Your image",
-    custom: "custom", regrouping: "regrouping…", fine: "fine", medium: "medium", coarse: "coarse", foot: "Style vectors: CSD ViT-L (Somepalli et al. 2024, CC-BY-4.0). Map layout is for viewing only; groups are computed in the full space." },
+    custom: "custom", regrouping: "regrouping…", dups: "Duplicates",
+    dupHelp: "Groups of near-identical pictures (same image, crops, frames of one scene). Keep one per group for LoRA training.",
+    noDups: "No near-duplicates found.", fine: "fine", medium: "medium", coarse: "coarse", foot: "Style vectors: CSD ViT-L (Somepalli et al. 2024, CC-BY-4.0). Map layout is for viewing only; groups are computed in the full space." },
   zh: { images: "張圖", clusters: "畫風群", selected: "選取", outliers: "離群",
     find: "以檔名篩選", thumbs: "縮圖", dots: "圓點", spin: "旋轉", home: "重置",
     unassigned: "未歸類", style: "畫風", size: "張", cohesion: "分散度",
@@ -154,7 +158,9 @@ const T = {
     loading: "建立地圖中…", open: "開啟檔案", searchImg: "以圖搜尋…",
     drop: "放開圖片，找最接近的畫風", regroup: "重新分群", export: "匯出資料夾",
     searching: "計算查詢圖中…", exported: "已複製 {n} 張到 {f}", query: "你的圖",
-    custom: "自訂", regrouping: "重新分群中…", fine: "細", medium: "中", coarse: "粗", foot: "風格向量：CSD ViT-L（Somepalli 等，2024，CC-BY-4.0）。地圖排版只供瀏覽，分群是在完整向量空間計算。" },
+    custom: "自訂", regrouping: "重新分群中…", dups: "重複",
+    dupHelp: "幾乎相同的圖（同一張、裁切、同場景連續畫面）。訓 LoRA 時每組留一張即可。",
+    noDups: "沒有找到近重複的圖。", fine: "細", medium: "中", coarse: "粗", foot: "風格向量：CSD ViT-L（Somepalli 等，2024，CC-BY-4.0）。地圖排版只供瀏覽，分群是在完整向量空間計算。" },
 };
 let lang = (navigator.language || "en").toLowerCase().startsWith("zh") ? "zh" : "en";
 const t = (k) => T[lang][k];
@@ -451,6 +457,20 @@ function buildOutliers() {
   pane.append(help, g);
 }
 
+function buildDups() {
+  const pane = $("pane-dups"); pane.replaceChildren();
+  const groups = DATA.duplicates || [];
+  const help = document.createElement("div"); help.className = "kv";
+  help.textContent = groups.length ? t("dupHelp") : t("noDups");
+  pane.append(help);
+  groups.forEach((g, n) => {
+    const h = document.createElement("h3"); h.textContent = `#${n + 1} · ${g.length}`;
+    const grid = document.createElement("div"); grid.className = "grid";
+    g.forEach((i) => grid.append(thumb(i)));
+    pane.append(h, grid);
+  });
+}
+
 function applyText() {
   document.documentElement.lang = lang === "zh" ? "zh-Hant" : "en";
   $("title").querySelector("h1").textContent = DATA.title;
@@ -462,12 +482,13 @@ function applyText() {
   $("lang").textContent = lang === "zh" ? "EN" : "中";
   const tabs = document.querySelectorAll(".tabs button");
   tabs[0].textContent = t("clusters"); tabs[1].textContent = t("selected"); tabs[2].textContent = t("outliers");
+  tabs[3].textContent = `${t("dups")}${(DATA.duplicates || []).length ? " " + DATA.duplicates.length : ""}`;
   document.querySelector("footer").textContent = t("foot");
   if (selected === null) {
     const e = document.createElement("div"); e.className = "empty"; e.textContent = t("pick");
     $("pane-selected").replaceChildren(e);
   }
-  buildClusters(); buildOutliers(); liveText();
+  buildClusters(); buildOutliers(); buildDups(); liveText();
 }
 
 function setStatus(msg) { $("status").textContent = msg || ""; }

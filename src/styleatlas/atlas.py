@@ -22,6 +22,7 @@ class EncodeOptions:
     device: str = "auto"
     crop: str = "center"
     batch_size: int = 8
+    resolution: int = 224
     save_every: int = 64
     db_path: Path | None = None
 
@@ -60,14 +61,14 @@ def _silent(_: str) -> None:
     return None
 
 
-_ENCODERS: dict[tuple[str, str, int], CSDEncoder] = {}
+_ENCODERS: dict[tuple[str, str, int, int], CSDEncoder] = {}
 
 
 def get_encoder(opts: EncodeOptions) -> CSDEncoder:
     """One loaded model per (device, crop, batch) for the life of the process."""
-    key = (opts.device, opts.crop, opts.batch_size)
+    key = (opts.device, opts.crop, opts.batch_size, opts.resolution)
     if key not in _ENCODERS:
-        _ENCODERS[key] = CSDEncoder(device=opts.device, crop=opts.crop, batch_size=opts.batch_size)
+        _ENCODERS[key] = CSDEncoder(opts.device, opts.crop, opts.batch_size, opts.resolution)
     return _ENCODERS[key]
 
 
@@ -75,7 +76,7 @@ def embed_paths(
     paths: list[Path], opts: EncodeOptions, progress: Progress = _silent
 ) -> tuple[list[Path], np.ndarray, np.ndarray, list[tuple[Path, str]]]:
     """Vectors for `paths` (cached ones reused). Returns kept paths, style, content, failures."""
-    signature = encoder_signature(opts.crop)
+    signature = encoder_signature(opts.crop, opts.resolution)
     db = opts.db_path or cache_dir() / "vectors.sqlite"
     failed: list[tuple[Path, str]] = []
     with VectorStore(db) as store:
@@ -147,4 +148,4 @@ def build_atlas(
         raise FileNotFoundError(f"no images found under {root}")
     kept, style, content, failed = embed_paths(paths, opts, progress)
     base = root if root.is_dir() else root.parent
-    return Atlas(base, kept, style, content, encoder_signature(opts.crop), failed)
+    return Atlas(base, kept, style, content, encoder_signature(opts.crop, opts.resolution), failed)
