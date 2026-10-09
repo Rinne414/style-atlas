@@ -4,8 +4,11 @@
 
 - **Automatic cut (new default)**: `--granularity auto` and the web app's "自動" pick the cut from
   the data (best silhouette + 0.04, at most 0.47). The fixed medium cut chained large mixed
-  galleries into a few big groups; auto beat it by 0.13-0.18 ARI on 50-306 artists and matched
-  it on 2-20 (BENCHMARKS.md). `--granularity medium` keeps the old behaviour.
+  galleries into a few big groups; auto beat it by 0.16-0.21 ARI on 50-306 artists (with 5-9%
+  unassigned instead of 1-2%) and matched it on 2-20 (BENCHMARKS.md). Very similar images count
+  once when the cut is chosen, so folders full of copies or variants do not shatter (found in a
+  Sonnet review). `--granularity medium` keeps the old behaviour.
+- Splitting a group of identical images now says so instead of doing nothing.
 - Clustering builds one average-linkage tree and cuts it (scipy), for both normal and large sets.
 - **Group tags in the map**: when images have caption `.txt` files, each group's row shows the
   tags that set it apart (e.g. "sketch, white background"), in the web app and in `map`.

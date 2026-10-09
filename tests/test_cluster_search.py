@@ -212,3 +212,22 @@ def test_without_a_threshold_the_cut_is_chosen_from_the_data():
     assert adjusted_rand_score(labels, auto.labels) > 0.8
     fixed = cluster_styles(x, threshold=0.47)
     assert fixed.params["auto"] is False and fixed.params["threshold"] == 0.47
+
+
+def test_stacks_of_copies_do_not_drag_the_automatic_cut_down():
+    from styleatlas.metrics import unit
+
+    x, _ = make_blobs([12, 12, 12], spread=0.9)
+    rng = np.random.default_rng(3)
+    copies = unit(np.repeat(x, 4, axis=0) + rng.normal(size=(len(x) * 4, x.shape[1])) * 0.01)
+    alone = cluster_styles(x).params["threshold"]
+    stacked = cluster_styles(np.vstack([x, copies])).params["threshold"]
+    assert stacked >= alone - 0.02  # without the guard the copies pulled it to 0.24
+
+
+def test_identical_images_cannot_be_split():
+    from styleatlas.cluster import split_group
+
+    x = np.tile(make_blobs([1])[0], (5, 1))
+    with pytest.raises(ValueError, match="too alike"):
+        split_group(x, cluster_styles(x, min_size=1), 0)

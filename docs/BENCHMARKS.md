@@ -93,33 +93,65 @@ The medium cut (0.47) was tuned on mixtures of 2-5 artists. On larger mixtures t
 lower, and 0.47 chains many artists into a few big groups. Users rarely know how many artists a
 gallery holds, so the default is now `auto`.
 
-**Rule.** Cut the average-linkage tree at 0.20, 0.21 ... 0.60; take the cut with the best
-silhouette (hub-corrected distances, on up to 3,000 sampled images); add 0.04, because the
-silhouette's best sits a little below the cut that best matches artists; never go above 0.47.
+**Rule.** Cut the average-linkage tree at 0.20, 0.21 ... 0.60. Take the cut with the best
+silhouette (hub-corrected distances, on up to 3,000 sampled images, with very similar images
+counted once). Add 0.04, because the silhouette's best sits a little below the cut that best
+matches artists. Never go above 0.47.
 
-Danbooru, deduplicated (3,000 images, 306 artists). Mixtures of m random artists; ARI with the
-artists, small groups (< 3) counted as single images.
+**First sweep.** Danbooru, deduplicated (3,000 images, 306 artists). Mixtures of m random
+artists; ARI with the artists, small groups (< 3) counted as single images.
 
 | Artists in the mix | 2 | 3 | 5 | 10 | 20 | 50 | 100 | 306 |
 |---|---|---|---|---|---|---|---|---|
 | Fixed medium (0.47) | 0.397 | 0.508 | 0.468 | 0.435 | 0.366 | 0.200 | 0.128 | 0.044 |
 | Best fixed cut in hindsight | 0.433 (0.44) | 0.517 (0.48) | 0.468 (0.47) | 0.501 (0.44) | 0.444 (0.42) | 0.384 (0.38) | 0.302 (0.38) | 0.220 (0.34) |
 | Silhouette alone | 0.525 | 0.415 | 0.339 | 0.288 | 0.373 | 0.332 | 0.261 | 0.174 |
-| **Auto** (silhouette + 0.04, at most 0.47) | 0.414 | 0.504 | 0.478 | 0.461 | 0.435 | 0.375 | 0.298 | 0.220 |
+| Silhouette + 0.04, at most 0.47 | 0.414 | 0.504 | 0.478 | 0.461 | 0.435 | 0.375 | 0.298 | 0.220 |
 
-- The largest jump between merge heights (a classic "elbow" rule) was useless (ARI near 0 from
-  10 artists up).
-- **Hold-out.** Choosing the offset on half of the artists picked +0.04 once and +0.06 once. On
-  the other half, auto was within -0.02 to +0.12 of medium for 2-20 artists (no consistent loss)
-  and +0.13 to +0.18 better for 50 and 100.
-- **Fresh draws through the shipped code** (`cluster_styles` with no threshold, another seed):
-  medium vs auto 0.286 / 0.422 (2 artists), 0.544 / 0.554 (5), 0.269 / 0.342 (20),
-  0.209 / 0.317 (50), 0.044 / 0.221 (306). 3,000 images take 1.8 s.
-- **One artist over time** (the 13 artists above): auto's groups followed posting time beyond
-  chance for 8 of 13, medium for 4, period for 9. `period` stays the advice for splitting one
-  artist by time.
-- Single draws can still go the other way: on the 3-artist demo below auto picks 0.43 and splits
-  one artist into 5 + 5 (ARI 0.73, medium 0.88).
+The largest jump between merge heights (a classic "elbow" rule) was useless (ARI near 0 from 10
+artists up). Choosing the offset on half of the artists picked +0.04 once and +0.06 once; on the
+other half the rule stayed within -0.02 to +0.12 of medium for 2-20 artists and was +0.13 to
++0.18 better for 50 and 100.
+
+**Stacks of copies (found in review).** Folders full of near-copies or same-prompt variants broke
+the first version: tight stacks look like perfect tiny groups to the silhouette, the cut fell to
+0.24-0.35 and artists shattered (3 artists with 30% of images stacked x4: ARI 0.28, medium 0.57).
+Counting very similar images once when choosing the cut fixes it. A guard at style cosine 0.92
+still failed on looser variants (cosine 0.85-0.94); at 0.80 auto matched medium on every stacked
+case tried.
+
+**Final check** with the shipped code (guard 0.80), on fresh random draws. Cells: ARI with small
+groups as single images / ARI over assigned images only / share unassigned.
+
+| Set | Medium (0.47) | Auto |
+|---|---|---|
+| 3 artists, copy stacks (4 variants, 30-100% of images, cosine 0.85-0.98) | 0.36-0.68 | -0.04 to +0.00 vs medium, cut 0.47 |
+| 10 artists, copy stacks | 0.39-0.51 | -0.01 to +0.00 vs medium, cut 0.47 |
+| Raw Danbooru (not deduplicated), 2 artists | 0.399 / 0.524 / 18% | 0.443 / 0.601 / 19% |
+| Raw, 5 artists | 0.488 / 0.514 / 4% | 0.498 / 0.528 / 5% |
+| Raw, 20 artists | 0.295 / 0.299 / 2% | 0.338 / 0.361 / 5% |
+| Raw, 50 artists | 0.186 / 0.187 / 1% | **0.358 / 0.383 / 6%** |
+| Deduplicated, 20 artists | 0.361 / 0.367 / 2% | 0.392 / 0.415 / 5% |
+| Deduplicated, 50 artists | 0.166 / 0.166 / 1% | **0.379 / 0.422 / 9%** |
+| Deduplicated, 306 artists | 0.044 / 0.044 / 0% | **0.208 / 0.222 / 6%** |
+
+- **The cost is more unassigned images** on large mixtures (5-9% against 1-2%): auto makes
+  more, smaller groups, and groups under 3 images count as unassigned.
+- **One artist over time** (the 13 artists above, raw folders): auto's groups followed posting
+  time beyond chance for 7 of 13, medium for 5, period for 9. Auto left at most 8% unassigned;
+  period left 50-95% unassigned for 4 artists. `period` stays the advice for splitting one
+  artist by time, then review the groups.
+- 3,000 images take about 2 s; 8,000 about 4 s.
+
+**Limits of this evidence** (from a Sonnet review):
+- All of it is one Danbooru corpus with about 10 works per artist, and the 306-artist row is a
+  single draw on the data the offset was tuned on.
+- Not tested:
+  - artists with hundreds of works each, or very uneven mixtures (95/5);
+  - another source, such as Pixiv or AI renders;
+  - how the chosen cut behaves just above 3,000 images (where sampling starts) and above 8,000
+    (where the tree joins micro-groups).
+- `--granularity medium` keeps the old behaviour.
 
 ### Searching with several example images (2026-10-10)
 

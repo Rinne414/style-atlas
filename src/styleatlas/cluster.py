@@ -21,6 +21,7 @@ from sklearn.cluster import HDBSCAN, MiniBatchKMeans
 from sklearn.decomposition import PCA
 from sklearn.metrics import silhouette_score
 
+from styleatlas.duplicates import keep_one_per_group, near_duplicate_groups
 from styleatlas.metrics import DEFAULT_K, centroid, hub_distance, neighbor_density, unit
 
 # medium / fine / coarse were tuned on blind mixtures of different artists. `period` is for
@@ -31,6 +32,7 @@ METHODS = ("agglomerative", "hdbscan")
 AUTO_CUTS = np.round(np.arange(0.20, 0.605, 0.01), 2)  # cuts auto_threshold tries
 AUTO_OFFSET = 0.04
 AUTO_SAMPLE = 3000  # images the silhouette is computed on
+AUTO_DUP = 0.80  # style cosine at which images count once when choosing the cut
 MAX_DENSE = 8000  # the n x n float64 distance matrix (+ sklearn's copy) above this is too large
 KMEANS_SEED = 0
 _TREE_CACHE: dict = {}  # last large set: (micro-group per image, linkage tree)
@@ -130,13 +132,14 @@ def auto_threshold(
 ) -> float:
     """The cut used when none is given: the cut with the best silhouette, plus AUTO_OFFSET (the
     silhouette's best sits a little below the cut that best matches artists), never above
-    medium. On Danbooru mixtures it matched the fixed medium cut for 2-20 artists and beat it by
-    0.13-0.18 ARI for 50-306 artists; on one artist's work it followed posting time for 8 of 13
-    artists (medium: 4). docs/BENCHMARKS.md."""
+    medium. On Danbooru mixtures it was within noise of the fixed medium cut for 2-20 artists and
+    0.16-0.21 ARI better for 50-306 (with 5-9% unassigned instead of 1-2%); with stacks of
+    copies it stayed at medium. docs/BENCHMARKS.md."""
     n = len(part)
     idx = np.arange(n)
     if n > AUTO_SAMPLE:
         idx = np.sort(np.random.default_rng(0).choice(n, AUTO_SAMPLE, replace=False))
+    idx = _one_per_stack(x, idx)
     if dist is None:
         d = hub_distance(x[idx], k=hub_k)
     else:
@@ -149,6 +152,15 @@ def auto_threshold(
             if s > score:
                 best, score = float(t), s
     return round(min(GRANULARITY["medium"], best + AUTO_OFFSET), 2)
+
+
+def _one_per_stack(x: np.ndarray, idx: np.ndarray) -> np.ndarray:
+    """`idx` with very similar images (style cosine >= AUTO_DUP) reduced to one. Stacks of
+    copies or same-prompt variants look like perfect tiny groups to the silhouette and would drag
+    the cut down until whole artists shatter (a guard at 0.92 still failed on variants at cosine
+    0.85-0.94; at 0.80 auto matched medium on them, docs/BENCHMARKS.md)."""
+    groups = near_duplicate_groups(x[idx], x[idx], AUTO_DUP)
+    return idx[keep_one_per_group(len(idx), groups)]
 
 
 def _micro_tree(x: np.ndarray, hub_k: int, parts: int) -> tuple[np.ndarray, np.ndarray]:
@@ -238,6 +250,8 @@ def split_group(x: np.ndarray, clustering: Clustering, group: int) -> Clustering
     if len(members) < 2:
         raise ValueError("a group needs at least 2 images to be split")
     halves = cluster_styles(x[members], n_clusters=2, min_size=1).labels
+    if len(set(halves.tolist())) < 2:
+        raise ValueError("these images are too alike to split")
     new_id = clustering.n_clusters  # renumbered by size afterwards
     moves = {int(m): new_id for m, h in zip(members, halves, strict=True) if h == 1}
     return edit_groups(x, clustering, moves)

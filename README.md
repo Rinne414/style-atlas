@@ -88,7 +88,7 @@ _excluded\            ← 在網頁介面按 X 排除的圖
 - 原始檔案永遠不會被移動或刪除。每次匯出都寫到新的資料夾（`folders`、`folders_2` …），不會和上一次混在一起。
 - `--export link` 改用硬連結，不佔額外空間，但連結檔和原檔是**同一個檔案**，在匯出資料夾裡改標註，原本的也會一起改。不確定的話就用 `copy`。
 
-**要把同一位畫師的作品分成不同時期**，請用 `--granularity period`（門檻 0.35），並加上 `--time name` 看時間分佈。預設是 `auto`：依圖片自動挑門檻（最多到 medium 的 0.47）。畫師越多、最佳門檻越低，固定的 medium 在幾十位畫師混在一起時會把很多人併成少數幾個大群，auto 在 50～300 位畫師時的 ARI 比 medium 高 0.13～0.18，少數畫師時兩者差不多。其他選擇：`fine`／`medium`／`coarse`，或用 `--k 3` 直接指定群數。網頁介面裡也能選「自動」或調門檻，再按「重新分群」。
+**要把同一位畫師的作品分成不同時期**，請用 `--granularity period`（門檻 0.35），並加上 `--time name` 看時間分佈。預設是 `auto`：依圖片自動挑門檻（最多到 medium 的 0.47）。畫師越多、最佳門檻越低，固定的 medium 在幾十位畫師混在一起時會把很多人併成少數幾個大群，auto 在 50～300 位畫師時的 ARI 比 medium 高 0.16～0.21（代價是未分群的圖從 1～2% 增加到 5～9%），少數畫師或資料夾裡有大量近似圖時兩者差不多。其他選擇：`fine`／`medium`／`coarse`，或用 `--k 3` 直接指定群數。網頁介面裡也能選「自動」或調門檻，再按「重新分群」。
 
 ### 其他用法
 
@@ -171,7 +171,7 @@ Style Gate 的預設門檻是 0.5。在 Danbooru 上，單張圖之間的距離�
 
 - **同一位畫師的時期拆分有用，但沒那麼準。** 測了 13 位作品多的畫師，每位約 50 張、平均分佈在整段作品史上：
   - 13 位中有 12 位，畫風距離會隨發表時間差而變大，而且顯著。
-  - 用 `period` 門檻分群時，13 位中有 9 位的分群和發表時間顯著對應；medium 只有 4 位，預設的 auto 有 8 位。
+  - 用 `period` 門檻分群時，13 位中有 9 位的分群和發表時間顯著對應；medium 只有 5 位，預設的 auto 有 7 位。
   - 有些畫師會被切得很碎，請在網頁上看時間分佈並合併。分群結果請當作**初步整理**。
 - **先排除重複圖再分群**，也就是加 `--dedupe`。否則同一張圖的多個版本會自成一群。近重複的門檻刻意設得保守（0.95）：在 0.92～0.95 之間，常常是同一角色換了姿勢的不同圖，對 LoRA 來說那是有效的訓練圖。
 - `compare` 的 z 值門檻（z ≥ 2.3 為「明顯不同」、z < 1.5 為「同一畫風」）來自一位使用者在固定內容的 NovelAI 算圖上的人眼校準，不是通用標準。換了資料，最好先用 `calibrate` 重新校準。
@@ -323,8 +323,9 @@ Common options:
   image's mean similarity to its 10 nearest neighbours.
 - **Clustering**: average-linkage agglomerative clustering on hub-corrected distances. By
   default (`auto`) the cut is the best-silhouette cut plus 0.04, at most 0.47: the best cut falls
-  as more artists are mixed, and auto beat the fixed 0.47 by 0.13-0.18 ARI on mixtures of 50-306
-  artists while matching it on 2-20. Fixed cuts: 0.35 (period), 0.40 (fine), 0.47 (medium),
+  as more artists are mixed, and auto beat the fixed 0.47 by 0.16-0.21 ARI on mixtures of 50-306
+  artists (leaving 5-9% unassigned instead of 1-2%) while matching it on 2-20 and on folders full
+  of near-copies. Fixed cuts: 0.35 (period), 0.40 (fine), 0.47 (medium),
   0.55 (coarse). HDBSCAN is optional. Above 8,000 images, k-means first makes 8,000 micro-groups and the linkage joins
   those, using exact mean distances between them (50,000 images: 39 s, then 0.5 s per new
   threshold).
@@ -352,8 +353,8 @@ see each group's time span. On 13 prolific Danbooru artists (about 50 works each
 over their history):
 
 - Style distance grew with posting-time distance for 12 of 13 (Mantel test).
-- `period` groups matched time quartiles beyond chance for 9 of 13, the default `auto` for 8,
-  `medium` for 4.
+- `period` groups matched time quartiles beyond chance for 9 of 13, the default `auto` for 7,
+  `medium` for 5.
 - Some artists fragment into many small groups at 0.35; merge them in the web app.
 
 Style drift is gradual, so treat groups as a first pass and review them in the map.
