@@ -439,3 +439,12 @@ def test_the_map_can_be_saved_as_one_shareable_file(tmp_path):
     html = Path(app.save_map({})["file"]).read_text(encoding="utf-8")
     assert "data:image/" in html and '"names":{"0":"early"}' in html
     assert "thumb/" not in html  # nothing points back at the local server
+
+
+def test_unreadable_captions_and_missing_images_do_not_break_the_page(server):
+    port, root = server
+    (root / "img0.txt").mkdir()  # a folder where the caption should be
+    status, html = request(port, "GET", "/")
+    assert status == 200 and b'"live"' in html
+    (root / "img1.png").unlink()
+    assert request(port, "GET", "/image/1")[0] == 404

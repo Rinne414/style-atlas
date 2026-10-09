@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- An unreadable caption no longer blanks the web page, and an image deleted while the app runs
+  gives "not found" instead of a dropped connection.
+
 ## 0.7.0 - 2026-10-10
 
 - **Automatic cut (new default)**: `--granularity auto` and the web app's "自動" pick the cut from

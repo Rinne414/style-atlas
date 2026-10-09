@@ -177,7 +177,7 @@ class StyleAtlasApp:
     def _group_tags(self) -> dict[int, list[str]]:
         """Each group's characteristic caption tags (captions are read once per session)."""
         if self._tag_sets is None:
-            self._tag_sets = [set(read_tags(p)) for p in self.atlas.paths]
+            self._tag_sets = [_tags_or_none(p) for p in self.atlas.paths]
         summary = tag_summary(self.atlas.paths, self.clustering, tags=self._tag_sets)
         return distinctive_tags(summary)
 
@@ -474,6 +474,15 @@ class StyleAtlasApp:
         }
 
 
+def _tags_or_none(path: Path) -> set[str]:
+    """Caption tags, or none when the caption cannot be read (a broken caption must not take
+    the whole page down)."""
+    try:
+        return set(read_tags(path))
+    except OSError:
+        return set()
+
+
 JSON_ROUTES = {  # POST route -> StyleAtlasApp method taking the JSON body
     "api/regroup": "regroup",
     "api/move": "move",
@@ -547,7 +556,12 @@ class StyleAtlasHandler(BaseHTTPRequestHandler):
         elif parts[0] == "image" and i is not None:
             path = self.app.atlas.paths[i]
             ctype = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
-            self._send(200, path.read_bytes(), ctype)
+            try:
+                data = path.read_bytes()
+            except OSError:  # moved or deleted since the folder was opened
+                self.send_error(HTTPStatus.NOT_FOUND)
+                return
+            self._send(200, data, ctype)
         else:
             self.send_error(HTTPStatus.NOT_FOUND)
 
