@@ -22,6 +22,7 @@ atlas.content      # (n, 768) content vectors (used for near-duplicates)
 
 groups = cluster_styles(atlas.style)            # cut chosen from the data; threshold=0.47, n_clusters=3
 groups.params["threshold"]                       # the cut that was used
+periods = cluster_styles(atlas.style, method="kmeans", n_clusters=3)  # one artist's periods
 for g in groups.clusters:
     print(g.id, g.size, atlas.rel(g.medoid))    # medoid = most central image of the group
 groups.labels                                    # cluster id per image, -1 = unassigned
@@ -30,7 +31,8 @@ dups = near_duplicate_groups(atlas.style, atlas.content)   # [[i, j, ...], ...]
 odd = outlier_scores(atlas.style)                          # higher = less like the rest
 
 gallery = build_atlas(Path("D:/gallery"), opts)
-hits = search(atlas.style[:1], gallery.style, top=10)[0]   # hub-corrected ranking
+hits = search(atlas.style[:1], gallery.style, top=10)[0]   # whitened + hub-corrected ranking
+plain = search(atlas.style[:1], gallery.style, whitened=False)[0]  # plain CSD space
 print([(gallery.rel(h.index), round(h.cosine, 3)) for h in hits])
 
 # several examples of one style: from 3 up, a model learned from them ranks the gallery
@@ -56,6 +58,12 @@ from styleatlas.report import write_map
 
 write_map(atlas, groups, Path("map.html"), time_source="name")
 ```
+
+## The search space
+
+`styleatlas.whiten.whiten(vectors)` maps CSD vectors into the space search ranks in (learned from
+306 Danbooru artists; see BENCHMARKS.md, "Search whitening"). Keep it for ranking: distances
+compared with thresholds (groups, duplicates, the Style Gate) are meant for plain CSD vectors.
 
 ## Comparing two sets of images
 
