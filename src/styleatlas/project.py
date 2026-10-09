@@ -8,6 +8,7 @@ from sklearn.manifold import TSNE
 
 PROJECTIONS = ("auto", "umap", "tsne", "pca")
 PRE_DIMS = 50
+TSNE_MAX = 15000  # 3D t-SNE took 28 s at 8k on 8 CPU threads; above this "auto" falls back to PCA
 
 
 def has_umap() -> bool:
@@ -26,7 +27,7 @@ def project_3d(x: np.ndarray, method: str = "auto", seed: int = 0) -> tuple[np.n
     if n < 5:
         method = "pca"
     elif method == "auto":
-        method = "umap" if has_umap() else "tsne"
+        method = "umap" if has_umap() else ("tsne" if n <= TSNE_MAX else "pca")
     if method == "pca":
         coords = _pca(x, 3)
     elif method == "umap":

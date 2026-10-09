@@ -134,10 +134,15 @@ def cmd_audit(a: argparse.Namespace) -> int:
     return 0
 
 
+LARGE_MAP = 8000  # thumbnails make the single-file map ~2 KB per image
+
+
 def cmd_map(a: argparse.Namespace) -> int:
     from styleatlas.report import write_map
 
     atlas = _atlas(a, a.folder)
+    if len(atlas) > LARGE_MAP:
+        log(f"{len(atlas)} images: the HTML file will be large; `style-atlas serve` loads faster")
     result = _cluster(a, atlas)
     out = Path(a.out or Path(a.folder) / "style_atlas_map.html")
     path = write_map(
