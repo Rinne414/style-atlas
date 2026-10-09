@@ -83,7 +83,10 @@ def write_table(
         "unassigned": clustering.n_unassigned,
         "clusters": [
             {
-                "folder": folders[c.medoid],
+                "folder": next(
+                    (folders[m] for m in c.members if not folders[m].startswith("_")),
+                    folders[c.medoid],
+                ),
                 "size": c.size,
                 "cohesion": round(c.cohesion, 4),
                 "representative": atlas.rel(c.medoid),

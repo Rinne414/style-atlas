@@ -398,8 +398,9 @@ canvas.addEventListener("pointermove", (e) => {
 canvas.addEventListener("pointerleave", () => { $("tip").style.display = "none"; });
 
 const TIMES = PTS.map((p) => p.ts).filter((v) => v !== null && v !== undefined);
-const TMIN = TIMES.length ? Math.min(...TIMES) : 0, TMAX = TIMES.length ? Math.max(...TIMES) : 0;
-const HAS_TIME = DATA.time_source && DATA.time_source !== "none" && TMAX > TMIN;
+const TMIN = TIMES.reduce((a, b) => Math.min(a, b), Infinity);
+const TMAX = TIMES.reduce((a, b) => Math.max(a, b), -Infinity);
+const HAS_TIME = DATA.time_source && DATA.time_source !== "none" && TIMES.length > 1 && TMAX > TMIN;
 
 function fmtTime(v) {
   if (DATA.time_source === "mtime") return new Date(v * 1000).toISOString().slice(0, 7);
@@ -725,7 +726,8 @@ $("theme").addEventListener("click", () => {
   setBackground();
 });
 addEventListener("keydown", (e) => {
-  if (e.target.tagName === "INPUT") return;
+  if (["INPUT", "SELECT", "TEXTAREA"].includes(e.target.tagName)) return;
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (e.key === "Escape") $("home").click();
   if (DATA.live && selected !== null && (e.key === "l" || e.key === "L")) castVote(selected, true);
   if (DATA.live && selected !== null && (e.key === "d" || e.key === "D")) castVote(selected, false);

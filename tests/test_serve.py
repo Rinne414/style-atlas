@@ -111,8 +111,24 @@ def test_excluded_images_persist_and_go_to_excluded_folder(server):
 
     assert (Path(folder) / "_excluded" / "img3.png").exists()
     out = root.parent / f"{root.name}_style_atlas"
-    assert json.loads((out / "excluded.json").read_text(encoding="utf-8")) == ["img3.png"]
+    assert json.loads((out / "excluded.json").read_text(encoding="utf-8")) == {"img3.png": True}
     status, data = request(
         port, "POST", "/api/exclude", json.dumps({"i": 3, "excluded": False}), hdr
     )
     assert json.loads(data)["excluded"] == []
+
+
+def test_bad_request_bodies_are_rejected_cleanly(server):
+    port, _ = server
+    hdr = {"X-Style-Atlas": "1", "Content-Type": "application/json"}
+    for route, body in [
+        ("/api/exclude", "[1, 2]"),
+        ("/api/exclude", '{"i": null}'),
+        ("/api/exclude", '{"i": 1, "excluded": "false"}'),
+        ("/api/taste", '{"i": 1.5, "like": true}'),
+        ("/api/regroup", '{"threshold": "0.4"}'),
+        ("/api/regroup", '{"k": 2.0}'),
+        ("/api/regroup", "not json"),
+    ]:
+        status, data = request(port, "POST", route, body, hdr)
+        assert status == 400, (route, body, status)

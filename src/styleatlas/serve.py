@@ -11,7 +11,6 @@ from __future__ import annotations
 import io
 import json
 import mimetypes
-import os
 import threading
 import webbrowser
 from collections.abc import Callable
@@ -24,6 +23,7 @@ from styleatlas.cluster import GRANULARITY, METHODS, cluster_styles
 from styleatlas.dataset import plan_folders
 from styleatlas.export import export_folders, output_dir, write_table
 from styleatlas.images import load_rgb, thumbnail_bytes
+from styleatlas.persist import RelPathMap
 from styleatlas.report import build_payload, compute_layout, default_thumb_px, render_html
 from styleatlas.search import search
 from styleatlas.taste_session import TasteSession
@@ -56,28 +56,30 @@ class StyleAtlasApp:
         self._thumbs: dict[int, bytes] = {}
         self._lock = threading.Lock()
         self.taste = TasteSession(atlas, self.out_dir)
-        self.excluded: set[int] = self._load_excluded()
+        self._excluded = RelPathMap(self.out_dir / "excluded.json", atlas)
+        self.excluded: set[int] = {i for i, v in self._excluded.values.items() if v is True}
 
     @property
     def out_dir(self) -> Path:
         return output_dir(self.atlas.root)
 
     def page(self) -> str:
-        payload = build_payload(
-            self.atlas,
-            self.clustering,
-            self.layout,
-            lambda i: f"thumb/{i}",
-            lambda i: f"image/{i}",
-            self.title,
-            self.time_source,
-        )
-        payload["live"] = {
-            "settings": self.settings,
-            "granularity": GRANULARITY,
-            "taste": self.taste.state(),
-            "excluded": sorted(self.excluded),
-        }
+        with self._lock:  # votes and exclusions may change in another request thread
+            payload = build_payload(
+                self.atlas,
+                self.clustering,
+                self.layout,
+                lambda i: f"thumb/{i}",
+                lambda i: f"image/{i}",
+                self.title,
+                self.time_source,
+            )
+            payload["live"] = {
+                "settings": dict(self.settings),
+                "granularity": GRANULARITY,
+                "taste": self.taste.state(),
+                "excluded": sorted(self.excluded),
+            }
         return render_html(payload)
 
     def thumb(self, i: int) -> bytes:
@@ -92,8 +94,12 @@ class StyleAtlasApp:
         method = body.get("method", "agglomerative")
         if method not in METHODS:
             raise ValueError(f"method must be one of {METHODS}")
-        threshold = float(body.get("threshold", GRANULARITY["medium"]))
-        k = int(body["k"]) if body.get("k") else None
+        threshold = body.get("threshold", GRANULARITY["medium"])
+        k = body.get("k")
+        if not isinstance(threshold, (int, float)) or isinstance(threshold, bool):
+            raise ValueError("threshold must be a number")
+        if k is not None and type(k) is not int:
+            raise ValueError("k must be a whole number")
         if not 0.05 <= threshold <= 1.5 or (k is not None and not 1 <= k <= len(self.atlas)):
             raise ValueError("threshold must be 0.05-1.5 and k between 1 and the image count")
         with self._lock:
@@ -113,45 +119,43 @@ class StyleAtlasApp:
         hits = search(query, self.atlas.style, top=top)[0]
         return [{"i": h.index, "cos": round(h.cosine, 4)} for h in hits]
 
-    @property
-    def _excluded_path(self) -> Path:
-        return self.out_dir / "excluded.json"
-
-    def _load_excluded(self) -> set[int]:
-        if not self._excluded_path.exists():
-            return set()
-        names = set(json.loads(self._excluded_path.read_text(encoding="utf-8")))
-        return {i for i in range(len(self.atlas)) if self.atlas.rel(i) in names}
+    def _index(self, body: dict) -> int:
+        i = body.get("i")
+        if type(i) is not int or not 0 <= i < len(self.atlas):
+            raise ValueError("i must be an image index")
+        return i
 
     def exclude(self, body: dict) -> dict:
-        i = int(body["i"])
-        if not 0 <= i < len(self.atlas):
-            raise ValueError("image index out of range")
+        i = self._index(body)
+        excluded = body.get("excluded", True)
+        if not isinstance(excluded, bool):
+            raise ValueError("excluded must be true or false")
         with self._lock:
-            if body.get("excluded", True):
+            if excluded:
                 self.excluded.add(i)
             else:
                 self.excluded.discard(i)
-            self.out_dir.mkdir(parents=True, exist_ok=True)
-            names = sorted(self.atlas.rel(j) for j in self.excluded)
-            tmp = self._excluded_path.with_name("excluded.json.tmp")
-            tmp.write_text(json.dumps(names, ensure_ascii=False, indent=1), encoding="utf-8")
-            os.replace(tmp, self._excluded_path)
-        return {"excluded": sorted(self.excluded)}
+            self._excluded.values = {j: True for j in self.excluded}
+            self._excluded.save()
+            return {"excluded": sorted(self.excluded)}
 
     def vote(self, body: dict) -> dict:
+        i = self._index(body)
         like = body.get("like")
         if like is not None and not isinstance(like, bool):
             raise ValueError("like must be true, false or null")
         with self._lock:
-            return self.taste.vote(int(body["i"]), like)
+            return self.taste.vote(i, like)
 
     def export(self, body: dict) -> dict:
         mode = body.get("mode", "copy")
         out = self.out_dir
         with self._lock:
             folders = plan_folders(
-                self.atlas.paths, self.clustering, excluded=sorted(self.excluded)
+                self.atlas.paths,
+                self.clustering,
+                duplicate_groups=self.layout.duplicates,
+                excluded=sorted(self.excluded),
             )
             write_table(self.atlas, self.clustering, out, folders)
             result = export_folders(self.atlas, folders, out / "folders", mode=mode)
@@ -219,26 +223,34 @@ def make_handler(app: StyleAtlasApp, allowed_hosts: set[str]) -> type[BaseHTTPRe
             if self.headers.get(POST_HEADER) != "1":
                 self.send_error(HTTPStatus.FORBIDDEN, f"missing {POST_HEADER} header")
                 return
-            length = int(self.headers.get("Content-Length") or 0)
+            try:
+                length = int(self.headers.get("Content-Length") or 0)
+            except ValueError:
+                length = -1
             if length <= 0 or length > MAX_UPLOAD:
                 self.send_error(HTTPStatus.REQUEST_ENTITY_TOO_LARGE)
                 return
             body = self.rfile.read(length)
             route = self.path.split("?")[0].strip("/")
             try:
+                payload: dict = {}
+                if route != "api/search":
+                    payload = json.loads(body)
+                    if not isinstance(payload, dict):
+                        raise ValueError("expected a JSON object")
                 if route == "api/search":
                     self._json(200, {"hits": app.search_image(body)})
                 elif route == "api/regroup":
-                    self._json(200, app.regroup(json.loads(body)))
+                    self._json(200, app.regroup(payload))
                 elif route == "api/exclude":
-                    self._json(200, app.exclude(json.loads(body)))
+                    self._json(200, app.exclude(payload))
                 elif route == "api/taste":
-                    self._json(200, app.vote(json.loads(body)))
+                    self._json(200, app.vote(payload))
                 elif route == "api/export":
-                    self._json(200, app.export(json.loads(body)))
+                    self._json(200, app.export(payload))
                 else:
                     self.send_error(HTTPStatus.NOT_FOUND)
-            except (ValueError, OSError, KeyError) as e:
+            except (ValueError, OSError, KeyError, TypeError, OverflowError) as e:
                 self._json(400, {"error": str(e)})
 
     return Handler

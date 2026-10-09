@@ -10,7 +10,7 @@ frames of one scene otherwise find each other and inflate retrieval scores.
 
 - **Data**: 3,253 general-rated Danbooru works by 306 artists (median 12 each), 512 px
   thumbnails. Posts with minor or multi-panel tags were excluded when the corpus was collected.
-- **Deduplication**: 308 near-duplicates were removed, leaving 2,941 images by 296 artists.
+- **Deduplication**: 294 near-duplicates were removed at 0.92, every pair inside a group at or above the threshold, leaving 2,956 images by 297 artists.
 - **Labels**: the artist. One artist's works vary in character, scene and period, so the label
   means "who drew it", not "one fixed style". That makes this a hard test.
 - **Encoder**: CSD ViT-L at 224 px with a centre crop. Its vectors match the reference CSD
@@ -19,10 +19,10 @@ frames of one scene otherwise find each other and inflate retrieval scores.
 
 | Score | Raw cosine | Hub-corrected (CSLS, k=10) |
 |---|---|---|
-| Top-1 nearest neighbour, same artist | 44.6% | **46.2%** |
-| Top-5 | 61.2% | **64.2%** |
-| Top-10 | 67.5% | **70.4%** |
-| Same-artist pair AUC | 0.780 | **0.831** |
+| Top-1 nearest neighbour, same artist | 44.9% | **46.5%** |
+| Top-5 | 61.3% | **64.5%** |
+| Top-10 | 67.7% | **70.5%** |
+| Same-artist pair AUC | 0.781 | **0.832** |
 
 Chance at top-1 is about 0.3%. Before deduplication the same run gave top-1 54.5% and AUC 0.845.
 That gap is how much the duplicates inflated the score.
@@ -36,9 +36,13 @@ adjusted Rand index (ARI) against the artist labels, averaged over 60 draws: 1 i
 
 | Granularity (threshold) | 2 artists | 3 artists | 5 artists |
 |---|---|---|---|
-| fine (0.40) | 0.42 | 0.34 | 0.39 |
-| **medium (0.47, default)** | **0.51** | **0.50** | **0.47** |
-| coarse (0.55) | 0.44 | 0.39 | 0.32 |
+| period (0.35, meant for one artist) | 0.26 | 0.21 | 0.27 |
+| fine (0.40) | 0.43 | 0.36 | 0.43 |
+| **medium (0.47, default)** | **0.55** | **0.49** | **0.51** |
+| coarse (0.55) | 0.46 | 0.41 | 0.35 |
+
+`period` over-splits a mixture of different artists. Use it only inside one artist's work (see
+"One artist over time").
 
 **Distance (development run, 90 draws, before deduplication):**
 

@@ -101,9 +101,9 @@ style-atlas taste score "D:\new_batch" --model "D:\lora\artistX_style_atlas\tast
 
 ### 準不準？限制在哪？
 
-詳細數據在 [docs/BENCHMARKS.md](docs/BENCHMARKS.md)。主要測試資料是 296 位畫師的 2,941 張 Danbooru 作品，都是 512 px 縮圖，平均每位約 10 張。測試前已先移除 308 張近重複圖，因為重複圖會讓分數虛高。
+詳細數據在 [docs/BENCHMARKS.md](docs/BENCHMARKS.md)。主要測試資料是 297 位畫師的 2,956 張 Danbooru 作品，都是 512 px 縮圖，平均每位約 10 張。測試前已先移除 294 張近重複圖，因為重複圖會讓分數虛高。
 
-- 同畫師檢索：top-1 是 46.2%，隨機約 0.3%；top-10 是 70.4%。
+- 同畫師檢索：top-1 是 46.5%，隨機約 0.3%；top-10 是 70.5%。
 - 去 hub 校正（CSLS）把同畫師配對的 AUC 從 0.78 提高到 0.83。在 Pixiv 的 AI 插畫帳號上也有同樣效果，從 0.75 提高到 0.80。
 - 把 2 到 5 位**不同畫師**的作品混在一起，不告訴模型有幾位，分群結果和畫師標籤的吻合度（ARI）約 0.5。
 
@@ -238,12 +238,12 @@ Common options:
 
 ### Accuracy and limits
 
-The full numbers are in [docs/BENCHMARKS.md](docs/BENCHMARKS.md). The corpus is 2,941 Danbooru
-works by 296 artists (512 px thumbnails, near-duplicates removed). Same-artist retrieval gives:
+The full numbers are in [docs/BENCHMARKS.md](docs/BENCHMARKS.md). The corpus is 2,956 Danbooru
+works by 297 artists (512 px thumbnails, near-duplicates removed). Same-artist retrieval gives:
 
-- top-1 46.2% (chance 0.3%)
-- top-10 70.4%
-- pair AUC 0.831, against 0.780 without hub correction
+- top-1 46.5% (chance 0.3%)
+- top-10 70.5%
+- pair AUC 0.832, against 0.781 without hub correction
 
 Blind clustering of 2-5 mixed artists scores ARI about 0.5.
 

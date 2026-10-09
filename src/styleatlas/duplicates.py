@@ -13,6 +13,7 @@ stricter BENCH_THRESHOLD so that benchmark numbers are not inflated.
 from __future__ import annotations
 
 import numpy as np
+from sklearn.cluster import AgglomerativeClustering
 
 from styleatlas.metrics import CHUNK
 
@@ -52,7 +53,37 @@ def near_duplicate_groups(
     groups: dict[int, list[int]] = {}
     for i in range(n):
         groups.setdefault(_root(parent, i), []).append(i)
-    return sorted((g for g in groups.values() if len(g) > 1), key=lambda g: (-len(g), g[0]))
+    tight = [
+        sub
+        for g in groups.values()
+        if len(g) > 1
+        for sub in _split_chain(g, style, content, threshold)
+        if len(sub) > 1
+    ]
+    return sorted(tight, key=lambda g: (-len(g), g[0]))
+
+
+def _split_chain(
+    group: list[int], style: np.ndarray, content: np.ndarray, threshold: float
+) -> list[list[int]]:
+    """Split a linked group so that EVERY pair inside a part is a near-duplicate (complete
+    linkage). Pair links alone chain small steps (frame 1 ~ frame 2 ~ ... ~ frame 9) into one
+    group whose ends are different pictures."""
+    if len(group) <= 2:
+        return [group]
+    idx = np.array(group)
+    sim = np.minimum(style[idx] @ style[idx].T, content[idx] @ content[idx].T)
+    if sim.min() >= threshold:
+        return [group]
+    dist = np.clip(1.0 - sim, 0.0, None).astype(np.float64)
+    np.fill_diagonal(dist, 0.0)
+    labels = AgglomerativeClustering(
+        n_clusters=None,
+        metric="precomputed",
+        linkage="complete",
+        distance_threshold=1.0 - threshold + 1e-9,
+    ).fit_predict(dist)
+    return [[int(i) for i in idx[labels == c]] for c in np.unique(labels)]
 
 
 def keep_one_per_group(n: int, groups: list[list[int]]) -> np.ndarray:

@@ -58,29 +58,35 @@ def image_info(path: Path) -> ImageInfo | None:
     """Size without decoding pixels; None when the file cannot be opened."""
     try:
         with Image.open(path) as im:
-            return ImageInfo(
-                im.width, im.height, getattr(im, "n_frames", 1), Path(path).stat().st_size
-            )
-    except (OSError, ValueError, SyntaxError):
+            frames = 2 if getattr(im, "is_animated", False) else 1
+            return ImageInfo(im.width, im.height, frames, Path(path).stat().st_size)
+    except (OSError, ValueError, SyntaxError, Image.DecompressionBombError):
         return None
 
 
-def best_in_group(paths: list[Path]) -> int:
-    """Index of the copy to keep: most pixels, then has a caption, then the larger file."""
+def best_in_group(paths: list[Path], blocked: set[int] | None = None) -> int:
+    """Index of the copy to keep: most pixels, then has a caption, then the larger file.
+    Copies in `blocked` (excluded or outliers) are chosen only when nothing else is left."""
+    blocked = blocked or set()
 
-    def rank(i: int) -> tuple[int, int, int]:
+    def rank(i: int) -> tuple[int, int, int, int]:
         info = image_info(paths[i])
         pixels = info.width * info.height if info else 0
-        return (pixels, int(caption_of(paths[i]) is not None), info.file_size if info else 0)
+        size = info.file_size if info else 0
+        return (int(i not in blocked), pixels, int(caption_of(paths[i]) is not None), size)
 
     return max(range(len(paths)), key=rank)
 
 
-def duplicate_keepers(paths: list[Path], groups: list[list[int]]) -> np.ndarray:
+def duplicate_keepers(
+    paths: list[Path], groups: list[list[int]], blocked: set[int] | None = None
+) -> np.ndarray:
     """Indices left after keeping only the best copy of every near-duplicate group."""
+    blocked = blocked or set()
     drop = set()
     for group in groups:
-        keep = group[best_in_group([paths[i] for i in group])]
+        local = {k for k, i in enumerate(group) if i in blocked}
+        keep = group[best_in_group([paths[i] for i in group], local)]
         drop.update(i for i in group if i != keep)
     return np.array([i for i in range(len(paths)) if i not in drop], dtype=int)
 
@@ -112,6 +118,19 @@ def tag_summary(
     return out
 
 
+def parse_repeats(repeats: str | int) -> int | None:
+    """None for "auto", else a whole number >= 1 (kohya skips folders like 0_name)."""
+    if repeats == "auto":
+        return None
+    try:
+        n = int(repeats)
+    except (TypeError, ValueError):
+        n = 0
+    if n < 1 or str(n) != str(repeats).strip():
+        raise ValueError(f"repeats must be 'auto' or a whole number >= 1, got {repeats!r}")
+    return n
+
+
 def auto_repeats(size: int, target: int = AUTO_REPEATS_TARGET) -> int:
     return max(1, round(target / max(1, size)))
 
@@ -131,11 +150,13 @@ def plan_folders(
     images after duplicates and outliers are set aside counts as unassigned."""
     if layout not in LAYOUTS:
         raise ValueError(f"layout must be one of {LAYOUTS}")
+    fixed = parse_repeats(repeats)
     aside: dict[int, str] = {i: SET_ASIDE["outlier"] for i in outliers or []}
     aside.update({i: SET_ASIDE["excluded"] for i in excluded or []})  # a person's call wins
     for group in duplicate_groups or []:
-        keep = group[best_in_group([paths[i] for i in group])]
-        aside.update({i: SET_ASIDE["duplicate"] for i in group if i != keep})
+        local = {k for k, i in enumerate(group) if i in aside}
+        keep = group[best_in_group([paths[i] for i in group], local)]
+        aside.update({i: SET_ASIDE["duplicate"] for i in group if i != keep and i not in aside})
     sizes = Counter(int(c) for i, c in enumerate(clustering.labels) if i not in aside)
     width = max(2, len(str(clustering.n_clusters)))
     folders = []
@@ -147,7 +168,7 @@ def plan_folders(
         elif layout == "plain":
             folders.append(f"style_{cid + 1:0{width}d}")
         else:
-            n = auto_repeats(sizes[cid]) if repeats == "auto" else int(repeats)
+            n = auto_repeats(sizes[cid]) if fixed is None else fixed
             folders.append(f"{n}_{name}_style{cid + 1:0{width}d}")
     return folders
 

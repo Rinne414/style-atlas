@@ -60,6 +60,9 @@ def cmd_embed(a: argparse.Namespace) -> int:
 
 
 def cmd_cluster(a: argparse.Namespace) -> int:
+    from styleatlas.dataset import parse_repeats
+
+    parse_repeats(a.repeats)
     from styleatlas.export import export_folders, output_dir, write_table
     from styleatlas.report import write_map
 
@@ -114,6 +117,9 @@ def _print_groups(atlas: Atlas, result, folders: list[str], tags: dict) -> None:
     from collections import Counter
 
     for folder, n in sorted(Counter(folders).items()):
+        if folder.startswith("_"):
+            log(f"  {folder:28s} {n:5d}")
+            continue
         cid = next(int(result.labels[i]) for i, f in enumerate(folders) if f == folder)
         top = ", ".join(r["tag"] for r in tags.get(cid, [])[:5]) if cid >= 0 else ""
         log(f"  {folder:28s} {n:5d}  {top}")

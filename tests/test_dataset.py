@@ -96,3 +96,41 @@ def test_expand_clustering_reindexes_to_the_full_set():
     assert full.labels[4] == UNASSIGNED and full.labels[9] == UNASSIGNED
     assert all(m in kept for c in full.clusters for m in c.members)
     assert all(c.medoid in c.members for c in full.clusters)
+
+
+def test_repeats_must_be_auto_or_a_positive_whole_number(tmp_path):
+    import pytest
+
+    from styleatlas.dataset import parse_repeats
+
+    assert parse_repeats("auto") is None and parse_repeats("10") == 10
+    for bad in ("0", "-3", "abc", "2.5"):
+        with pytest.raises(ValueError):
+            parse_repeats(bad)
+
+
+def test_keeper_avoids_excluded_copies(tmp_path):
+    big = _img(tmp_path / "big.png", (256, 256))
+    small = _img(tmp_path / "small.png", (64, 64))
+    assert best_in_group([big, small]) == 0
+    assert best_in_group([big, small], blocked={0}) == 1
+    x, _ = make_blobs([2, 3])
+    paths = [big, small] + [_img(tmp_path / f"o{i}.png") for i in range(3)]
+    result = cluster_styles(x, min_size=1)
+    folders = plan_folders(paths, result, duplicate_groups=[[0, 1]], excluded=[0])
+    assert folders[0] == "_excluded" and folders[1] != "_duplicates"  # the picture survives
+
+
+def test_duplicate_chains_do_not_swallow_distinct_images():
+    from styleatlas.duplicates import near_duplicate_groups
+    from styleatlas.metrics import unit
+
+    rng = np.random.default_rng(3)
+    a, b = unit(rng.normal(size=(2, 768)))
+    steps = [unit(a * (1 - t) + b * t) for t in np.linspace(0, 1, 12)]  # gradual morph a -> b
+    x = np.vstack(steps)
+    groups = near_duplicate_groups(x, x, threshold=0.95)
+    for g in groups:
+        sims = x[g] @ x[g].T
+        assert sims.min() >= 0.95 - 1e-6  # every pair in a group is a near-duplicate
+    assert not any({0, 11} <= set(g) for g in groups)  # the two ends are never "duplicates"
