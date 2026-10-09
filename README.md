@@ -320,6 +320,9 @@ Common options:
 
 - **Embedding**: CSD ViT-L/14, loaded through `open_clip` with QuickGELU. The output matches the
   reference implementation (cosine 1.0000). It gives 768-d style and content vectors.
+- **Search whitening**: search ranks after a fixed linear map learned from 306 Danbooru artists
+  that turns down within-artist variation (WCCN); on artists it never saw, top-1 rose 2-5 points
+  and set search AP 0.05-0.07. Grouping and every thresholded distance use plain CSD.
 - **Hub correction**: CSLS with k=10. `d = 1 - cos + (r_i + r_j)/2 - mean(r)`, where `r` is each
   image's mean similarity to its 10 nearest neighbours.
 - **Clustering**: average-linkage agglomerative clustering on hub-corrected distances. By

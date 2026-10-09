@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- **Search whitening**: search ranks in a whitened space learned from 306 Danbooru artists
+  (within-artist variation turned down). On artists never seen when it was learned: single-image
+  top-1 +2 to +5 points, learned set search +0.05 to +0.07 AP, and a small gain on AI renders.
+  Groups, duplicates, the Style Gate and taste keep plain CSD distances.
+
 ## 0.8.0 - 2026-10-10
 
 - The map subtitle says how groups were made in words ("auto cut 0.43", "3 periods").

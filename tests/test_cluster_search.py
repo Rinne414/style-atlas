@@ -238,3 +238,16 @@ def test_periods_put_every_image_into_one_of_k_groups():
     result = cluster_styles(x, method="kmeans", n_clusters=3)
     assert result.n_clusters == 3 and result.n_unassigned == 0
     assert cluster_styles(x, method="kmeans").n_clusters == 3  # the default number of periods
+
+
+def test_whitening_keeps_unit_vectors_and_search_can_skip_it(blobs):
+    from styleatlas.whiten import whiten
+
+    x, y = blobs
+    w = whiten(x)
+    assert w.shape == x.shape and np.allclose(np.linalg.norm(w, axis=1), 1.0, atol=1e-4)
+    plain = search(x[:1], x, top=5, exclude={0}, whitened=False)[0]
+    white = search(x[:1], x, top=5, exclude={0})[0]
+    assert all(y[h.index] == y[0] for h in plain + white)
+    plain_cos = {round(float(x[0] @ x[i]), 5) for i in range(len(x))}
+    assert {round(h.cosine, 5) for h in white} <= plain_cos  # shown cosine stays plain CSD

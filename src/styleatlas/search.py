@@ -7,6 +7,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from styleatlas.metrics import CHUNK, DEFAULT_K, centroid, hub_scores, neighbor_density
+from styleatlas.whiten import whiten
 
 # With several example images, a logistic model of examples vs the library ranks the rest of an
 # artist's work better than the examples' mean vector: +0.055 / +0.066 / +0.116 average precision
@@ -101,18 +102,24 @@ def search(
     hub_k: int = DEFAULT_K,
     combine: bool = False,
     exclude: set[int] | None = None,
+    whitened: bool = True,
 ) -> list[list[Hit]]:
     """Top matches in `base` per query, or for the queries' shared style when `combine`
-    (a learned model from MIN_LEARNED examples up, else their mean vector)."""
+    (a learned model from MIN_LEARNED examples up, else their mean vector). Ranking happens in
+    the whitened space (styleatlas.whiten) unless `whitened` is False; Hit.cosine is always the
+    plain CSD cosine."""
     if len(base) == 0:
         return [[] for _ in range(1 if combine else len(queries))]
     q = centroid(queries)[None, :] if combine else queries
     cos = q @ base.T
+    wq, wb = (whiten(queries), whiten(base)) if whitened else (queries, base)
     if combine and len(queries) >= MIN_LEARNED:
-        scores = learned_scores(queries, base, exclude or set())[None, :]
+        scores = learned_scores(wq, wb, exclude or set())[None, :]
     else:
-        density = neighbor_density(base, base, k=hub_k, same_set=True)
-        scores = hub_scores(q, base, k=hub_k, base_density=density)
+        density = neighbor_density(wb, wb, k=hub_k, same_set=True)
+        scores = hub_scores(
+            centroid(wq)[None, :] if combine else wq, wb, k=hub_k, base_density=density
+        )
     if exclude:
         scores[:, sorted(exclude)] = -np.inf
     results = []

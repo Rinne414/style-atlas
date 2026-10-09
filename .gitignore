@@ -14,3 +14,4 @@ style_atlas_out/
 *.npz
 *map.html
 !src/styleatlas/templates/map.html
+!src/styleatlas/data/whiten_csd.npz

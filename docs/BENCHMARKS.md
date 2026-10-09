@@ -214,6 +214,47 @@ over their history, deduplicated):
     still well above medium on that path (0.04).
 - `--granularity medium` keeps the old behaviour.
 
+### Search whitening (2026-10-10)
+
+CSD vectors vary within one artist's work along some directions more than others. Within-class
+covariance normalization (WCCN) learned from labelled artists turns those directions down: a
+fixed 768 x 768 linear map, then re-normalization. It is used for **search ranking only**.
+Everything compared with a fixed threshold (groups, duplicates, the Style Gate, taste) stays in
+plain CSD space, where those thresholds were set.
+
+**Held-out artists only.** Danbooru, deduplicated (3,000 images, 306 artists), 5 folds split by
+artist: learn on 4/5 of the artists, test retrieval (hub-corrected, as the tool ranks) on the
+others.
+
+| Map | Top-1 | Top-10 | Pair AUC |
+|---|---|---|---|
+| None (plain CSD) | 0.617 | 0.855 | 0.845 |
+| WCCN, shrinkage 0.1 / **0.3** / 1.0 | 0.650 / **0.649** / 0.649 | 0.891 / 0.893 / 0.891 | 0.860 / 0.873 / 0.884 |
+| LDA to 256 dims, shrinkage 1.0 | 0.658 | 0.890 | 0.888 |
+
+Top-1 gain of WCCN 0.3: +3.1 points (95% CI +1.7 to +4.5).
+
+**Transfer.**
+- *Artists with many works*, learned without them (16 artists, 1,658 images): top-1
+  0.859 -> 0.878 (+1.9, CI +0.5 to +3.3), AUC 0.755 -> 0.783.
+- *The owner's NovelAI renders* (285 recipes, each drawn with 2 characters; is the nearest other
+  render the same recipe?): WCCN 0.3 went 0.040 -> 0.054 (+1.4, CI +0.4 to +2.6), AUC 0.904 ->
+  0.915. LDA was slightly worse here (-0.7), so WCCN 0.3 was chosen. It was the only map that
+  helped on all three.
+- *Through the shipped `search()`*, with a map learned without the 13 test artists, hidden in a
+  4,465-image library:
+
+| | Plain CSD | Whitened |
+|---|---|---|
+| One example, top-1 / top-10 | 0.765 / 0.950 | **0.812** / 0.942 |
+| 5 examples (learned model), AP | 0.546 | **0.616** |
+| 10 examples, AP | 0.677 | **0.729** |
+
+The shipped map (`src/styleatlas/data/whiten_csd.npz`, 2.2 MB) is fit on all 306 artists by
+`scripts/fit_whitening.py`. It was learned with the default encoder settings (centre crop, 224
+px); with `--crop tiles` or 336 px it is untested. `search(..., whitened=False)` ranks in plain
+CSD space.
+
 ### Searching with several example images (2026-10-10)
 
 Task: given a few works by one artist, find the rest of that artist's works in a library.
