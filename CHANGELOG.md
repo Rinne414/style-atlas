@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.7.0 - 2026-10-10
 
 - **Automatic cut (new default)**: `--granularity auto` and the web app's "自動" pick the cut from
   the data (best silhouette + 0.04, at most 0.47). The fixed medium cut chained large mixed
