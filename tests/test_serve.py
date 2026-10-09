@@ -217,3 +217,21 @@ def test_groups_and_names_survive_a_restart(tmp_path):
     again = StyleAtlasApp(atlas, EncodeOptions(device="cpu"), "pca")
     assert again.restored and again.clustering.n_clusters == 1
     assert again.names_by_group() == {0: "all"} and again.settings["edited"] is True
+
+
+def test_web_export_can_write_a_kohya_layout_with_triggers(server):
+    from pathlib import Path
+
+    port, root = server
+    hdr = {"X-Style-Atlas": "1", "Content-Type": "application/json"}
+    request(port, "POST", "/api/regroup", json.dumps({"threshold": 0.5}), hdr)
+    body = {"mode": "copy", "layout": "kohya", "name": "artistX", "trigger": True}
+    status, data = request(port, "POST", "/api/export", json.dumps(body), hdr)
+    assert status == 200
+    folder = Path(json.loads(data)["folder"])
+    groups = sorted(p.name for p in folder.iterdir() if not p.name.startswith("_"))
+    assert groups and all(g.split("_", 1)[1].startswith("artistX_style") for g in groups)
+    caption = next((folder / groups[0]).glob("*.txt")).read_text(encoding="utf-8")
+    assert caption.startswith(groups[0].split("_", 1)[1])
+    bad = {"layout": "zip"}
+    assert request(port, "POST", "/api/export", json.dumps(bad), hdr)[0] == 400

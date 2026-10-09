@@ -26,6 +26,7 @@ const T = {
     pathTitle: "Style path (from the start image to this one)",
     neutral: "Ignore the character axis", neutralBusy: "recomputing…",
     oneGroup: "Everything landed in one group: try the fine or period granularity, then Regroup.",
+    plainFolders: "plain folders", conceptName: "concept name", triggerCaptions: "trigger in captions",
     nameGroup: "name (Enter)", restored: "Groups, hand edits and names restored from your last session (Regroup to start over).",
     rateNext: "Rate the most useful next image", ratingHint: "Rating mode: press L or D, the next image follows (Esc stops)",
     allRated: "Every image is rated.",
@@ -54,6 +55,7 @@ const T = {
     pathTitle: "畫風漸變（從起點到這張）",
     neutral: "忽略角色軸", neutralBusy: "重新計算中…",
     oneGroup: "所有圖都在同一群：試試把顆粒度改成「細」或「時期」，再按重新分群。",
+    plainFolders: "一般資料夾", conceptName: "概念名稱", triggerCaptions: "標註加觸發詞",
     nameGroup: "取名（Enter）", restored: "已還原上次的分群、手動調整與名稱（按重新分群可重來）。",
     rateNext: "評下一張最有用的圖", ratingHint: "評分模式：按 L 或 D，自動跳下一張（Esc 結束）",
     allRated: "全部都評過了。",
@@ -660,7 +662,9 @@ function setupLive() {
   });
   $("export").addEventListener("click", async () => {
     try {
-      const r = await post("api/export", JSON.stringify({ mode: "copy" }), "application/json");
+      const body = { mode: "copy", layout: $("expLayout").value, name: $("expName").value.trim(),
+        trigger: $("expTrig").checked };
+      const r = await post("api/export", JSON.stringify(body), "application/json");
       setStatus(t("exported").replace("{n}", r.placed).replace("{f}", r.folder));
     } catch (e) { setStatus(String(e.message || e)); }
   });
@@ -678,6 +682,9 @@ function liveText() {
   if (!DATA.live) return;
   $("pickBtn").textContent = t("searchImg"); $("regroup").textContent = t("regroup");
   $("export").textContent = t("export"); $("drop").textContent = t("drop");
+  $("expLayout").options[0].textContent = t("plainFolders");
+  $("expName").placeholder = t("conceptName");
+  $("expTrigWrap").querySelector("span").textContent = t("triggerCaptions");
   $("neutralWrap").querySelector("span").textContent = t("neutral");
   const cur = $("gran").value;
   $("gran").replaceChildren(...[...Object.keys(DATA.live.granularity), "custom"].map((k) => {

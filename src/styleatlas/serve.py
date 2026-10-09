@@ -30,7 +30,7 @@ from styleatlas.cluster import (
     edit_groups,
     split_group,
 )
-from styleatlas.dataset import clean_group_name, plan_folders
+from styleatlas.dataset import LAYOUTS, clean_group_name, plan_folders
 from styleatlas.export import export_folders, output_dir, write_table
 from styleatlas.images import cached_thumbnail, load_rgb
 from styleatlas.metrics import Neutralizer
@@ -43,6 +43,7 @@ MAX_UPLOAD = 40 * 1024 * 1024
 POST_HEADER = "X-Style-Atlas"
 SEARCH_TOP = 48
 MAX_NEUTRALIZE = 3
+EXPORT_MIN_GROUP = 3  # groups left smaller after set-asides go to _unassigned (as in the CLI)
 MAX_SPLIT = 4000  # splitting runs under the lock; larger groups would stall every request
 
 
@@ -339,17 +340,27 @@ class StyleAtlasApp:
 
     def export(self, body: dict) -> dict:
         mode = body.get("mode", "copy")
+        layout = body.get("layout", "plain")
+        trigger = body.get("trigger", False)
+        if layout not in LAYOUTS or not isinstance(trigger, bool):
+            raise ValueError(f"layout must be one of {LAYOUTS}; trigger must be true or false")
+        name = clean_group_name(body.get("name") or self.atlas.root.name or "style")
         out = self.out_dir
         with self._lock:
             folders = plan_folders(
                 self.atlas.paths,
                 self.clustering,
+                layout=layout,
+                name=name,
                 duplicate_groups=self.layout.duplicates,
                 excluded=sorted(self.excluded),
                 group_names=self.names_by_group(),
+                min_size=EXPORT_MIN_GROUP,
             )
             write_table(self.atlas, self.clustering, out, folders)
-            result = export_folders(self.atlas, folders, out / "folders", mode=mode)
+            result = export_folders(
+                self.atlas, folders, out / "folders", mode=mode, trigger_captions=trigger
+            )
         return {"placed": result.placed, "failed": len(result.failed), "folder": str(result.folder)}
 
 
