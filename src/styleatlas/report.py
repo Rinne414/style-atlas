@@ -129,10 +129,12 @@ def map_payload(
     progress: Callable[[str], None] = lambda _: None,
     time_source: str = "none",
     reference: Atlas | None = None,
+    layout: Layout | None = None,
 ) -> dict:
-    """Payload for a standalone file: thumbnails embedded, links relative to the HTML file."""
+    """Payload for a standalone file: thumbnails embedded, links relative to the HTML file.
+    Pass `layout` to reuse one already computed (the web app's)."""
     px = thumb_px or default_thumb_px(len(atlas))
-    layout = compute_layout(atlas, projection, progress, reference)
+    layout = layout or compute_layout(atlas, projection, progress, reference)
     out_dir = out_path.resolve().parent
 
     def thumb_of(i: int) -> str:
@@ -184,6 +186,10 @@ def write_map(
     payload = map_payload(
         atlas, clustering, out_path, projection, thumb_px, title, progress, time_source, reference
     )
+    return write_payload(payload, out_path)
+
+
+def write_payload(payload: dict, out_path: Path) -> Path:
     tmp = out_path.with_suffix(".tmp")
     tmp.write_text(render_html(payload), encoding="utf-8")
     os.replace(tmp, out_path)

@@ -44,7 +44,14 @@ from styleatlas.groupfile import GROUPS_FILE, SavedGroups, carry_names, load_gro
 from styleatlas.images import cached_thumbnail, load_rgb
 from styleatlas.metrics import Neutralizer
 from styleatlas.persist import RelPathMap
-from styleatlas.report import build_payload, compute_layout, default_thumb_px, render_html
+from styleatlas.report import (
+    build_payload,
+    compute_layout,
+    default_thumb_px,
+    map_payload,
+    render_html,
+    write_payload,
+)
 from styleatlas.search import search, style_path
 from styleatlas.taste_session import TasteSession
 
@@ -173,6 +180,20 @@ class StyleAtlasApp:
             self._tag_sets = [set(read_tags(p)) for p in self.atlas.paths]
         summary = tag_summary(self.atlas.paths, self.clustering, tags=self._tag_sets)
         return distinctive_tags(summary)
+
+    def save_map(self, body: dict) -> dict:
+        """Write the map as it is now (groups, hand edits, names) as one shareable HTML file with
+        the thumbnails inside, next to the exports."""
+        with self._lock:
+            atlas, clustering, layout = self.atlas, self.clustering, self.layout
+            names = {str(k): v for k, v in self.names_by_group().items()}
+        out = self.out_dir / "map.html"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        payload = map_payload(
+            atlas, clustering, out, title=self.title, time_source=self.time_source, layout=layout
+        )
+        payload["names"] = names
+        return {"file": str(write_payload(payload, out))}
 
     def thumb(self, i: int) -> bytes:
         if i not in self._thumbs:
@@ -467,6 +488,7 @@ JSON_ROUTES = {  # POST route -> StyleAtlasApp method taking the JSON body
     "api/undo": "undo",
     "api/similar": "similar",
     "api/search_set": "search_set",
+    "api/save_map": "save_map",
     "api/export": "export",
 }
 REQUEST_ERRORS = (ValueError, OSError, KeyError, TypeError, OverflowError)

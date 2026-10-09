@@ -12,7 +12,8 @@ const T = {
     members: "Members", cluster: "style", outlierHelp: "Images least like the rest of the set (candidates to drop from a LoRA dataset).",
     loading: "building map…", open: "open file", searchImg: "Search by image…",
     drop: "Drop one image, or several of one style, to find the closest styles", regroup: "Regroup", export: "Export folders",
-    searching: "embedding the query…", exported: "Copied {n} images to {f}.", query: "Your image", queries: "Your {n} images, searched as one style",
+    searching: "embedding the query…", exported: "Copied {n} images to {f}.", saveMap: "Save shareable map", savingMap: "writing the map…",
+    savedMap: "Saved {f}. The thumbnails are inside it: send this one file to share the map (and the thumbnails).", query: "Your image", queries: "Your {n} images, searched as one style",
     custom: "custom", regrouping: "regrouping…", period: "period (one artist)", dups: "Duplicates",
     dupHelp: "Groups of near-identical pictures (same image, crops, frames of one scene). Keep one per group for LoRA training.",
     noDups: "No near-duplicates found.",
@@ -43,7 +44,8 @@ const T = {
     cluster: "畫風群", outlierHelp: "和整組最不像的圖（訓 LoRA 前可考慮剔除）。",
     loading: "建立地圖中…", open: "開啟檔案", searchImg: "以圖搜尋…",
     drop: "放開一張圖，或同一種畫風的多張圖，找最接近的畫風", regroup: "重新分群", export: "匯出資料夾",
-    searching: "計算查詢圖中…", exported: "已複製 {n} 張到 {f}。", query: "你的圖", queries: "你的 {n} 張圖（當成同一種畫風搜尋）",
+    searching: "計算查詢圖中…", exported: "已複製 {n} 張到 {f}。", saveMap: "存成分享用地圖", savingMap: "寫入地圖中…",
+    savedMap: "已存成 {f}。縮圖已內嵌在檔案裡，把這一個檔案傳給別人就能看（也等於分享了這些縮圖）。", query: "你的圖", queries: "你的 {n} 張圖（當成同一種畫風搜尋）",
     custom: "自訂", regrouping: "重新分群中…", period: "時期（單一畫師）", dups: "重複",
     dupHelp: "幾乎相同的圖（同一張、裁切、同場景連續畫面）。訓 LoRA 時每組留一張即可。",
     noDups: "沒有找到近重複的圖。",
@@ -316,7 +318,7 @@ function timeStrip(members, color) {
 
 function clusterName(c) {
   if (c < 0) return t("unassigned");
-  const named = DATA.live && DATA.live.names && DATA.live.names[String(c)];
+  const named = ((DATA.live && DATA.live.names) || DATA.names || {})[String(c)];
   return named ? `${t("style")} ${c + 1} · ${named}` : `${t("style")} ${c + 1}`;
 }
 
@@ -723,6 +725,13 @@ function setupLive() {
       setStatus(t("exported").replace("{n}", r.placed).replace("{f}", r.folder) + small);
     } catch (e) { setStatus(String(e.message || e)); }
   });
+  $("saveMap").addEventListener("click", async () => {
+    setStatus(t("savingMap"));
+    try {
+      const r = await post("api/save_map", "{}", "application/json");
+      setStatus(t("savedMap").replace("{f}", r.file));
+    } catch (e) { setStatus(String(e.message || e)); }
+  });
   let depth = 0;
   addEventListener("dragenter", (e) => { e.preventDefault(); depth++; document.body.classList.add("dragging"); });
   addEventListener("dragleave", () => { if (--depth <= 0) { depth = 0; document.body.classList.remove("dragging"); } });
@@ -737,6 +746,7 @@ function liveText() {
   if (!DATA.live) return;
   $("pickBtn").textContent = t("searchImg"); $("regroup").textContent = t("regroup");
   $("export").textContent = t("export"); $("drop").textContent = t("drop");
+  $("saveMap").textContent = t("saveMap");
   $("undo").textContent = t("undo");
   $("expLayout").options[0].textContent = t("plainFolders");
   $("expName").placeholder = t("conceptName");

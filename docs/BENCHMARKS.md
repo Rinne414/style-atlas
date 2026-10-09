@@ -453,13 +453,13 @@ Not adopted. The per-collection `--neutralize` does generalise; see above.
 ## Demo: 3 artists, 10 works each
 
 ```
-style-atlas cluster demo3 --granularity medium --export copy
+style-atlas cluster demo3 --export copy
 -> 4 styles, 0 unassigned
    abubu  10 -> style_01
    dayama 10 -> style_02
    inoino  7 -> style_03, 3 -> style_04   (the 3 are copies of one picture)
 ```
 
-With the default `auto` the cut is 0.43 and dayama splits into 5 + 5 (5 styles, ARI 0.73 against
-0.88 for medium). Across 30 random 3-artist mixtures the two were equal (0.504 / 0.508); see
-"Choosing the cut automatically".
+The default `auto` picks the same cut (0.47) and the same 4 groups (ARI 0.88). Before the
+near-copy guard it picked 0.43 and split dayama 5 + 5 (ARI 0.73): the 3 copies of one inoino
+picture were enough to drag the cut down.

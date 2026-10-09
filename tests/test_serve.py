@@ -428,3 +428,14 @@ def test_the_page_lists_each_groups_characteristic_tags(tmp_path):
     app._tag_sets = None  # captions written after start-up
     html = app.page()
     assert '"tags":["color"]' in html and '"tags":["sketch"]' in html
+
+
+def test_the_map_can_be_saved_as_one_shareable_file(tmp_path):
+    from pathlib import Path
+
+    app, _ = _app(tmp_path)
+    app.regroup({"threshold": 0.5})
+    app.rename({"group": 0, "name": "early", "rev": app.revision})
+    html = Path(app.save_map({})["file"]).read_text(encoding="utf-8")
+    assert "data:image/" in html and '"names":{"0":"early"}' in html
+    assert "thumb/" not in html  # nothing points back at the local server

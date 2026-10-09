@@ -9,6 +9,8 @@
   once when the cut is chosen, so folders full of copies or variants do not shatter (found in a
   Sonnet review). `--granularity medium` keeps the old behaviour.
 - Splitting a group of identical images now says so instead of doing nothing.
+- **Save shareable map** (web app): writes the map as it is now, with hand edits and group names,
+  to one HTML file with the thumbnails inside, ready to send to friends.
 - Clustering builds one average-linkage tree and cuts it (scipy), for both normal and large sets.
 - **Group tags in the map**: when images have caption `.txt` files, each group's row shows the
   tags that set it apart (e.g. "sketch, white background"), in the web app and in `map`.
