@@ -5,6 +5,9 @@
 - **Shortcut list**: "?" (key or button) shows the keyboard and mouse shortcuts.
 - The map subtitle no longer runs under the top controls on laptop-size screens; loading dots are
   smaller.
+- The server keeps up to 64 waiting connections (was 5) and the page retries a failed thumbnail
+  once: one load saw thumbnails refused while the server was busy.
+- Code: the HTTP side of `serve` moved to `webserver.py`.
 
 ## 0.11.0 - 2026-10-10
 
