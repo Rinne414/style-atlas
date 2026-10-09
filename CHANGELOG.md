@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 - 2026-10-10
 
 ### New
 
@@ -14,6 +14,9 @@
 - **`--trigger-captions`**: each group's trigger word is written into the exported captions.
 - **Style path**: the images that lead from one chosen style to another.
 - **Cross-character benchmark** and `docs/LORA_GUIDE.md`.
+- **Small-group warning**: `cluster` flags groups too small for their own LoRA.
+- **Faster thumbnails**: JPEGs are decoded at reduced scale, thumbnails are cached on disk, and
+  `serve` makes them in the background.
 - **ComfyUI nodes**: Load Style References, Style Distance and Style Gate. The gate keeps
   original or matching generations.
 
