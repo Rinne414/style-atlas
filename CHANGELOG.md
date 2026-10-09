@@ -6,6 +6,8 @@
   layout, groups and taste model in the new space.
 - **Group names**: name a group in the web app, and the name is used for its export folder and
   trigger word.
+- **Saved groups**: groups, hand edits and names are written to `groups.json` and restored when
+  the folder is opened again.
 - **One-group hint**: suggests a finer granularity when everything lands in one group.
 - **Style Gate**: the default threshold is now 0.5. The nodes were verified with the real CSD
   model on CPU.

@@ -117,6 +117,7 @@ style-atlas taste score "D:\new_batch" --model "D:\lora\artistX_style_atlas\tast
     - 選取一張圖，用「移到其他群…」把它改放到別群；
     - 打開一個群，用「把這群合併到…」併進另一群，或按「拆成兩群」。
     - 打開一個群，在「取名」欄輸入名字並按 Enter，例如「早期」「線稿期」。匯出時資料夾與觸發詞會用這個名字，像是 `10_artistX_早期`。
+    - 修正和名稱會自動存到 `<資料夾>_style_atlas/groups.json`，下次打開同一個資料夾時會還原。
     - 注意：按「重新分群」會清除這些手動修正。
   - 用「喜歡／不喜歡」（鍵盤 L / D）評圖。各評滿 5 張後，「口味」分頁會用你的評分訓練模型，替還沒評的圖排序，並顯示交叉驗證的 AUC。
   - 按「評下一張最有用的圖」可進入評分模式：只要一直按 L／D，系統會自動挑下一張和已評過的最不像的圖。用一位使用者的 140 筆真實投票模擬，這樣評 10 張就能達到隨機挑約 25 張的水準。
@@ -187,6 +188,7 @@ how a picture is drawn rather than what it shows. On top of those vectors it can
 - **Check a dataset** (`audit`, `duplicates`): sizes, aspect ratios, captions, near-duplicates.
 - **Fix groups by hand** in the web app: move an image to another group, merge two groups,
   split a group in two, or exclude images (X), which are then exported to `_excluded/`.
+  Groups, edits and names are saved and restored the next time the folder is opened.
 - **Quantify style and taste**: `compare` two sets, or train a personal like/dislike model in
   the web app or with `taste`.
 

@@ -11,6 +11,7 @@ from __future__ import annotations
 import io
 import json
 import mimetypes
+import os
 import threading
 import webbrowser
 from collections.abc import Callable
@@ -74,6 +75,7 @@ class StyleAtlasApp:
         self.taste: TasteSession | None = None
         self.group_names: dict[int, str] = {}  # medoid image index -> name
         self._apply_space(neutralize)
+        self.restored = self._restore_groups()
         self.taste = TasteSession(self.atlas, self.out_dir)
         self._excluded = RelPathMap(self.out_dir / "excluded.json", atlas)
         self.excluded: set[int] = {i for i, v in self._excluded.values.items() if v is True}
@@ -106,6 +108,7 @@ class StyleAtlasApp:
         with self._lock:
             self._apply_space(k)
             self.revision += 1
+            self._save_groups()
             return {"neutralize": k, "clusters": self.clustering.n_clusters}
 
     @property
@@ -131,6 +134,7 @@ class StyleAtlasApp:
                 "revision": self.revision,
                 "neutralize": self.neutralize,
                 "names": {str(k): v for k, v in self.names_by_group().items()},
+                "restored": self.restored,
             }
         return render_html(payload)
 
@@ -167,6 +171,7 @@ class StyleAtlasApp:
             )
             self.settings = {"method": method, "threshold": threshold, "k": k}
             self.revision += 1
+            self._save_groups()
         return {"clusters": self.clustering.n_clusters, "unassigned": self.clustering.n_unassigned}
 
     def search_image(self, data: bytes, top: int = SEARCH_TOP) -> list[dict]:
@@ -197,7 +202,48 @@ class StyleAtlasApp:
         self.clustering = clustering
         self.settings = {**self.settings, "edited": True}
         self.revision += 1
+        self._save_groups()
         return {"clusters": self.clustering.n_clusters, "revision": self.revision}
+
+    @property
+    def _groups_path(self) -> Path:
+        return self.out_dir / "groups.json"
+
+    def _save_groups(self) -> None:
+        """Groups, hand edits and names, by relative path, so a restart keeps the work."""
+        rel = self.atlas.rel
+        data = {
+            "settings": self.settings,
+            "neutralize": self.neutralize,
+            "labels": {rel(i): int(c) for i, c in enumerate(self.clustering.labels)},
+            "names": {rel(m): n for m, n in self.group_names.items()},
+        }
+        self.out_dir.mkdir(parents=True, exist_ok=True)
+        tmp = self._groups_path.with_name("groups.json.tmp")
+        tmp.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+        os.replace(tmp, self._groups_path)
+
+    def _restore_groups(self) -> bool:
+        """Reload saved groups when they cover most of the current images (new images start
+        unassigned). Returns whether anything was restored."""
+        try:
+            data = json.loads(self._groups_path.read_text(encoding="utf-8"))
+            labels, names = data["labels"], data.get("names", {})
+        except (OSError, ValueError, KeyError, TypeError):
+            return False
+        rels = [self.atlas.rel(i) for i in range(len(self.atlas))]
+        known = sum(1 for r in rels if r in labels)
+        if not isinstance(labels, dict) or known < 0.5 * len(rels):
+            return False
+        moves = {i: int(labels.get(r, UNASSIGNED)) for i, r in enumerate(rels)}
+        self.clustering = edit_groups(self.atlas.style, self.clustering, moves)
+        saved = data.get("settings") if isinstance(data.get("settings"), dict) else {}
+        self.settings = {**self.settings, **saved, "edited": True}
+        index = {r: i for i, r in enumerate(rels)}
+        self.group_names = {
+            index[r]: n for r, n in names.items() if r in index and isinstance(n, str)
+        }
+        return True
 
     def move(self, body: dict) -> dict:
         """Hand edit: put one image into another group (or unassigned)."""
@@ -233,6 +279,7 @@ class StyleAtlasApp:
                 self.group_names[medoid] = clean_group_name(name)
             else:
                 self.group_names.pop(medoid, None)
+            self._save_groups()
             return {"names": self.names_by_group()}
 
     def names_by_group(self) -> dict[int, str]:

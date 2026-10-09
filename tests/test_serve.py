@@ -196,3 +196,24 @@ def test_group_names_follow_the_group_and_name_the_export(server):
     assert "早期_ sketch_line" in folders
     bad = {"group": 0, "name": 5, "rev": 1}
     assert request(port, "POST", "/api/rename", json.dumps(bad), hdr)[0] == 400
+
+
+def test_groups_and_names_survive_a_restart(tmp_path):
+    from styleatlas.atlas import Atlas, EncodeOptions
+    from styleatlas.serve import StyleAtlasApp
+
+    x, _ = make_blobs([8, 7])
+    paths = []
+    for i in range(len(x)):
+        p = tmp_path / f"img{i}.png"
+        Image.new("RGB", (16, 16), (i, 0, 0)).save(p)
+        paths.append(p)
+    atlas = Atlas(tmp_path, paths, x, x, "sig")
+    app = StyleAtlasApp(atlas, EncodeOptions(device="cpu"), "pca")
+    app.regroup({"threshold": 0.5})
+    app.merge({"from": 1, "into": 0, "rev": app.revision})
+    app.rename({"group": 0, "name": "all", "rev": app.revision})
+    assert app.clustering.n_clusters == 1
+    again = StyleAtlasApp(atlas, EncodeOptions(device="cpu"), "pca")
+    assert again.restored and again.clustering.n_clusters == 1
+    assert again.names_by_group() == {0: "all"} and again.settings["edited"] is True
