@@ -143,12 +143,30 @@ groups as single images / ARI over assigned images only / share unassigned.
   artist by time, then review the groups.
 - 3,000 images take about 3 s; 8,000 about 4 s (8 CPU cores).
 
+**Artists with many works** (5 Danbooru artists, 112-300 general-rated works each, sampled evenly
+over their history, deduplicated):
+
+- **One artist alone:** auto picked 0.45-0.47 for 4 of 5 artists, the same groups as medium. Both
+  put 79-100% of the images in one group, so neither splits periods; `period` did (5-21 groups,
+  NMI with posting time 0.12-0.16, all beyond chance). For the most varied artist
+  (onikobe_rin) auto picked 0.41 and made 46 groups (medium 14).
+- **Two artists, 300 + 300:** auto chose 0.47 for all 10 pairs, so it matched medium (ARI
+  0.001-0.971 depending on how alike the two artists are).
+- **One artist plus 15 works of another** (a scraped set with strays), 60 draws: mostly identical
+  to medium, but the varied artists drag the cut down. yaegashi_nan + 15 of ojipon gave ARI
+  0.03-0.06 against 0.37-0.50 for medium in all 3 draws. On average auto was 0.03 below medium
+  here.
+- Requiring the silhouette's best to beat its value at 0.47 by a margin before leaving medium did
+  not separate the cases: a margin of 0.05 fixed these pairs (+0.03) but cost 20-artist mixtures
+  0.07, and 0.08 gave up the gains at 50-306 artists. The rule was left as it is.
+- **Advice:** for one artist's folder, if auto returns many small groups, use `medium` (or
+  `period` to split by time).
+
 **Limits of this evidence** (from a Sonnet review):
 - All of it is one Danbooru corpus with about 10 works per artist, and the 306-artist row is a
   single draw on the data the offset was tuned on.
 - Not tested:
-  - artists with hundreds of works each, or very uneven mixtures (95/5);
-  - another source, such as Pixiv or AI renders;
+  - another source, such as Pixiv or AI renders (the local sets have 1-2 works per label);
   - real sets above 8,000 images.
 - Checked afterwards:
   - **Sampling** (silhouette on 3,000 of the 3,245 raw images): 8 sampling seeds chose 0.37
