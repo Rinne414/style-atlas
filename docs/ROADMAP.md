@@ -24,8 +24,9 @@
 
 All of these are in `docs/BENCHMARKS.md`.
 
-- **Mixed artists**: clustering of 2-5 mixed artists reaches ARI about 0.5. Groups are a first
-  pass; review them in the map.
+- **Mixed artists**: clustering of 2-5 mixed artists reaches ARI about 0.5; with hundreds of
+  artists it falls to about 0.2 even with the automatic cut. Groups are a first pass; review them
+  in the map.
 - **Periods within one artist**: style drift is significant for 12 of 13 artists; `--granularity period`
   groups follow posting time for 9 of 13.
 - **Subject pull**: CSD style vectors are pulled by character looks. `--neutralize 1` fixes this
