@@ -8,7 +8,8 @@ import pytest
 from PIL import Image
 
 from styleatlas.atlas import Atlas, EncodeOptions
-from styleatlas.serve import StyleAtlasApp, bind
+from styleatlas.serve import StyleAtlasApp
+from styleatlas.webserver import bind
 
 from .conftest import make_blobs
 

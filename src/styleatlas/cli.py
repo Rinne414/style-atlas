@@ -443,7 +443,8 @@ def cmd_taste(a: argparse.Namespace) -> int:
 
 
 def cmd_serve(a: argparse.Namespace) -> int:
-    from styleatlas.serve import StyleAtlasApp, serve
+    from styleatlas.serve import StyleAtlasApp
+    from styleatlas.webserver import serve
 
     k, a.neutralize = a.neutralize, 0  # the app keeps raw vectors and applies k itself
     app = StyleAtlasApp(

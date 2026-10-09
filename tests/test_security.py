@@ -77,7 +77,8 @@ def test_other_sites_cannot_fetch_thumbnails(tmp_path):
     import threading
 
     from styleatlas.atlas import EncodeOptions
-    from styleatlas.serve import StyleAtlasApp, bind
+    from styleatlas.serve import StyleAtlasApp
+    from styleatlas.webserver import bind
 
     app = StyleAtlasApp(_atlas(tmp_path), EncodeOptions(device="cpu"), "pca")
     srv = bind(app, port=0)
