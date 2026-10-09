@@ -17,8 +17,9 @@
    - Publish to PyPI.
 4. **Integration.** Should style-atlas become a module inside `sd-image-sorter`, which already has
    a gallery, tagging and similarity tools, or stay a separate tool?
-5. **README screenshots.** Real images make the README much clearer. Which images may be shown?
-   The owner's own renders? Public-domain art?
+5. **README screenshots.** For now the README shows the real interface on generated abstract
+   images (`scripts/make_demo_images.py`), so no artwork is involved. Real art would show the
+   tool better. Should the owner's own renders, or public-domain art, replace them?
 
 ## Known limits, measured
 
