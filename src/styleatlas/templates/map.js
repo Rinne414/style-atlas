@@ -24,6 +24,8 @@ const T = {
     m_time: "time", m_outlier: "atypical (outlier)",
     pathFrom: "Style path: start here", pathTo: "Style path: end here",
     pathTitle: "Style path (from the start image to this one)",
+    neutral: "Ignore the character axis", neutralBusy: "recomputing…",
+    oneGroup: "Everything landed in one group: try the fine or period granularity, then Regroup.",
     rateNext: "Rate the most useful next image", ratingHint: "Rating mode: press L or D, the next image follows (Esc stops)",
     allRated: "Every image is rated.",
     taste: "Taste", like: "Like (L)", dislike: "Dislike (D)", clearVote: "Clear",
@@ -49,6 +51,8 @@ const T = {
     m_time: "時間", m_outlier: "離群度",
     pathFrom: "畫風漸變：從這張開始", pathTo: "畫風漸變：到這張",
     pathTitle: "畫風漸變（從起點到這張）",
+    neutral: "忽略角色軸", neutralBusy: "重新計算中…",
+    oneGroup: "所有圖都在同一群：試試把顆粒度改成「細」或「時期」，再按重新分群。",
     rateNext: "評下一張最有用的圖", ratingHint: "評分模式：按 L 或 D，自動跳下一張（Esc 結束）",
     allRated: "全部都評過了。",
     taste: "口味", like: "喜歡 (L)", dislike: "不喜歡 (D)", clearVote: "清除",
@@ -438,6 +442,7 @@ function applyText() {
     $("pane-selected").replaceChildren(e);
   }
   buildClusters(); buildOutliers(); buildDups(); liveText(); if (DATA.live) buildTaste();
+  if (DATA.live && DATA.clusters.length <= 1 && N > 10) setStatus(t("oneGroup"));
   setupAxes(); if (layoutMode === "measures") drawAxes();
 }
 
@@ -614,6 +619,14 @@ function buildTaste() {
 }
 
 function setupLive() {
+  $("neutral").checked = (DATA.live.neutralize || 0) > 0;
+  $("neutral").addEventListener("change", async (e) => {
+    setStatus(t("neutralBusy"));
+    try {
+      await post("api/neutralize", JSON.stringify({ k: e.target.checked ? 1 : 0 }), "application/json");
+      location.reload();
+    } catch (err) { setStatus(String(err.message || err)); }
+  });
   TASTE = DATA.live.taste;
   EXCLUDED = new Set(DATA.live.excluded || []);
   $("live").style.display = "flex";
@@ -652,6 +665,7 @@ function liveText() {
   if (!DATA.live) return;
   $("pickBtn").textContent = t("searchImg"); $("regroup").textContent = t("regroup");
   $("export").textContent = t("export"); $("drop").textContent = t("drop");
+  $("neutralWrap").querySelector("span").textContent = t("neutral");
   const cur = $("gran").value;
   $("gran").replaceChildren(...[...Object.keys(DATA.live.granularity), "custom"].map((k) => {
     const o = document.createElement("option"); o.value = k; o.textContent = t(k); return o;

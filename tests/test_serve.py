@@ -168,3 +168,15 @@ def test_split_cuts_a_group_in_two(server):
     assert status == 200 and json.loads(data)["clusters"] == 2
     bad = {"group": 7, "rev": 2}
     assert request(port, "POST", "/api/split", json.dumps(bad), hdr)[0] == 400
+
+
+def test_neutralize_can_be_switched_live(server):
+    port, _ = server
+    hdr = {"X-Style-Atlas": "1", "Content-Type": "application/json"}
+    status, data = request(port, "POST", "/api/neutralize", json.dumps({"k": 1}), hdr)
+    assert status == 200 and json.loads(data)["neutralize"] == 1
+    status, html = request(port, "GET", "/")
+    assert b'"neutralize":1' in html
+    assert request(port, "POST", "/api/neutralize", json.dumps({"k": 9}), hdr)[0] == 400
+    status, data = request(port, "POST", "/api/neutralize", json.dumps({"k": 0}), hdr)
+    assert json.loads(data)["neutralize"] == 0

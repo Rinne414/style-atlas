@@ -377,19 +377,16 @@ def cmd_taste(a: argparse.Namespace) -> int:
 def cmd_serve(a: argparse.Namespace) -> int:
     from styleatlas.serve import StyleAtlasApp, serve
 
-    k, a.neutralize = a.neutralize, 0
-    atlas, neutral = _atlas(a, a.folder), None
-    if k:  # the dropped query images must get the same transform as the folder
-        atlas, neutral = atlas.neutralized(k)
+    k, a.neutralize = a.neutralize, 0  # the app keeps raw vectors and applies k itself
     app = StyleAtlasApp(
-        atlas,
+        _atlas(a, a.folder),
         _opts(a),
         a.projection,
         a.title,
         progress=log,
         time_source=a.time,
-        neutral=neutral,
-        reference=_reference(a, neutral),
+        neutralize=k,
+        reference=_reference(a),
     )
     serve(app, port=a.port, open_browser=not a.no_browser)
     return 0

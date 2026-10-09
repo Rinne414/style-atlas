@@ -15,6 +15,7 @@ import threading
 import webbrowser
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -40,6 +41,7 @@ from styleatlas.taste_session import TasteSession
 MAX_UPLOAD = 40 * 1024 * 1024
 POST_HEADER = "X-Style-Atlas"
 SEARCH_TOP = 48
+MAX_NEUTRALIZE = 3
 MAX_SPLIT = 4000  # splitting runs under the lock; larger groups would stall every request
 
 
@@ -54,24 +56,56 @@ class StyleAtlasApp:
         title: str | None = None,
         progress: Callable[[str], None] = lambda _: None,
         time_source: str = "none",
-        neutral: Neutralizer | None = None,
+        neutralize: int = 0,
         reference: Atlas | None = None,
     ):
         self.opts = opts
         self.title = title
         self.time_source = time_source
-        self.neutral = neutral or Neutralizer.fit(atlas.style, 0)
-        self.atlas = atlas
-        self.layout = compute_layout(self.atlas, projection, progress, reference)
+        self.raw = atlas  # vectors as embedded; `atlas` is the (optionally neutralized) view
+        self.raw_reference = reference
+        self.projection = projection
+        self.progress = progress
         self.settings: dict = {"method": "agglomerative", "threshold": GRANULARITY["medium"]}
-        self.clustering = cluster_styles(self.atlas.style, threshold=self.settings["threshold"])
         self.revision = 0  # bumped on every regroup / hand edit; edits must name the one they saw
-        self.thumb_px = default_thumb_px(len(self.atlas))
+        self.thumb_px = default_thumb_px(len(atlas))
         self._thumbs: dict[int, bytes] = {}
         self._lock = threading.Lock()
-        self.taste = TasteSession(atlas, self.out_dir)
+        self.taste: TasteSession | None = None
+        self._apply_space(neutralize)
+        self.taste = TasteSession(self.atlas, self.out_dir)
         self._excluded = RelPathMap(self.out_dir / "excluded.json", atlas)
         self.excluded: set[int] = {i for i, v in self._excluded.values.items() if v is True}
+
+    def _apply_space(self, k: int) -> None:
+        """(Re)build everything that depends on the vector space: --neutralize k."""
+        self.neutral = Neutralizer.fit(self.raw.style, k)
+        self.neutralize = k
+        self.atlas = replace(self.raw, style=self.neutral.apply(self.raw.style))
+        ref = self.raw_reference
+        if ref is not None:
+            ref = replace(ref, style=self.neutral.apply(ref.style))
+        self.layout = compute_layout(self.atlas, self.projection, self.progress, ref)
+        s = self.settings
+        self.clustering = cluster_styles(
+            self.atlas.style,
+            method=s.get("method", "agglomerative"),
+            threshold=s.get("threshold", GRANULARITY["medium"]),
+            n_clusters=s.get("k"),
+        )
+        self.settings = {key: v for key, v in s.items() if key != "edited"}
+        if self.taste is not None:
+            self.taste.atlas = self.atlas
+            self.taste._refit()
+
+    def set_neutralize(self, body: dict) -> dict:
+        k = body.get("k")
+        if type(k) is not int or not 0 <= k <= MAX_NEUTRALIZE:
+            raise ValueError(f"k must be a whole number from 0 to {MAX_NEUTRALIZE}")
+        with self._lock:
+            self._apply_space(k)
+            self.revision += 1
+            return {"neutralize": k, "clusters": self.clustering.n_clusters}
 
     @property
     def out_dir(self) -> Path:
@@ -94,6 +128,7 @@ class StyleAtlasApp:
                 "taste": self.taste.state(),
                 "excluded": sorted(self.excluded),
                 "revision": self.revision,
+                "neutralize": self.neutralize,
             }
         return render_html(payload)
 
@@ -257,6 +292,7 @@ JSON_ROUTES = {  # POST route -> StyleAtlasApp method taking the JSON body
     "api/taste": "vote",
     "api/next": "next_to_rate",
     "api/path": "path",
+    "api/neutralize": "set_neutralize",
     "api/export": "export",
 }
 REQUEST_ERRORS = (ValueError, OSError, KeyError, TypeError, OverflowError)

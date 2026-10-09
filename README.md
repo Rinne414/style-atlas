@@ -88,7 +88,7 @@ style-atlas compare "D:\old_works" "D:\new_works"    # 兩組圖是否同一畫�
 style-atlas taste score "D:\new_batch" --model "D:\lora\artistX_style_atlas\taste_model.npz"
 ```
 
-**同樣的角色出現在很多種畫風裡**時（例如用固定角色測試不同畫師組合），請加 `--neutralize 1`。CSD 的畫風向量仍會被角色外觀（髮色、服裝）強烈拉扯。在 96 種畫風 × 2 個角色的 NovelAI 算圖上：
+**同樣的角色出現在很多種畫風裡**時（例如用固定角色測試不同畫師組合），請加 `--neutralize 1`，或在網頁介面勾選「忽略角色軸」。CSD 的畫風向量仍會被角色外觀（髮色、服裝）強烈拉扯。在 96 種畫風 × 2 個角色的 NovelAI 算圖上：
 - 不加時，最接近的圖 89% 是「同角色、別的畫風」。
 - 加了之後，同畫風配對的 AUC 從 0.83 提高到 0.98。
 
