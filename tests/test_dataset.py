@@ -136,3 +136,11 @@ def test_duplicate_chains_do_not_swallow_distinct_images():
         sims = x[g] @ x[g].T
         assert sims.min() >= 0.95 - 1e-6  # every pair in a group is a near-duplicate
     assert not any({0, 11} <= set(g) for g in groups)  # the two ends are never "duplicates"
+
+
+def test_truncation_check_tolerates_trailers(tmp_path):
+    from styleatlas.dataset import image_info
+
+    good = _img(tmp_path / "trailer.png", (64, 64))
+    good.write_bytes(good.read_bytes() + b"\x00" * 500 + b"EXTRA-METADATA" * 20)
+    assert image_info(good).truncated is False

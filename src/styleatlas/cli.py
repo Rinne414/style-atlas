@@ -62,6 +62,8 @@ def _reference(a: argparse.Namespace, neutral=None) -> Atlas | None:
     if not getattr(a, "reference", None):
         return None
     ref = build_atlas(Path(a.reference), _opts(a), log, recursive=True)
+    for p, why in ref.failed:
+        log(f"reference skipped {p}: {why}")
     neutral = neutral or getattr(a, "neutralizer", None)  # same space as the folder
     if neutral is not None:
         ref = replace(ref, style=neutral.apply(ref.style))

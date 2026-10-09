@@ -20,6 +20,7 @@ from styleatlas.metrics import CHUNK
 DEFAULT_THRESHOLD = 0.95
 BENCH_THRESHOLD = 0.92
 NEIGHBORS = 10
+MAX_SPLIT = 3000
 
 
 def _root(parent: list[int], i: int) -> int:
@@ -71,6 +72,11 @@ def _split_chain(
     group whose ends are different pictures."""
     if len(group) <= 2:
         return [group]
+    if len(group) > MAX_SPLIT:  # keep memory bounded: tighten around the group centre instead
+        idx = np.array(group)
+        centre = np.argmax(style[idx] @ style[idx].mean(axis=0))
+        sim = np.minimum(style[idx] @ style[idx[centre]], content[idx] @ content[idx[centre]])
+        return [[int(i) for i in idx[sim >= threshold]]]
     idx = np.array(group)
     sim = np.minimum(style[idx] @ style[idx].T, content[idx] @ content[idx].T)
     if sim.min() >= threshold:

@@ -120,6 +120,17 @@ def _finish(x: np.ndarray, raw: np.ndarray, method: str, params: dict, min_size:
     return Clustering(labels, clusters, method, params)
 
 
+def edit_groups(x: np.ndarray, clustering: Clustering, moves: dict[int, int]) -> Clustering:
+    """Apply hand edits: {image index: target group id or UNASSIGNED}. Groups are then renumbered
+    by size again (0 = largest) and their medoid and spread recomputed. Merging group a into b
+    is moves = {i: b for i in a.members}."""
+    labels = clustering.labels.copy()
+    for i, target in moves.items():
+        labels[int(i)] = int(target)
+    params = {**clustering.params, "edited": True}
+    return _finish(x, labels, clustering.method, params, min_size=1)
+
+
 def expand_clustering(sub: Clustering, kept: np.ndarray, n: int) -> Clustering:
     """A clustering of the rows `kept` of an n-image set, re-indexed to the full set; the rows
     left out are UNASSIGNED."""

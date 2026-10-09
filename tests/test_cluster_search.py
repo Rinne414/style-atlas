@@ -117,3 +117,18 @@ def test_nearest_reference_distance_and_index():
     dist, which = nearest_reference(x, ref, chunk=3)
     assert (which == (y == 1).astype(int)).all()
     assert dist[0] < 1e-5 and (dist >= -1e-6).all()
+
+
+def test_edit_groups_merges_moves_and_renumbers():
+    from styleatlas.cluster import edit_groups
+
+    x, _ = make_blobs([8, 5, 3])
+    result = cluster_styles(x, min_size=1)
+    small = result.clusters[-1]
+    merged = edit_groups(x, result, {i: result.clusters[0].id for i in small.members})
+    assert merged.n_clusters == result.n_clusters - 1
+    assert merged.clusters[0].size == result.clusters[0].size + small.size
+    moved = edit_groups(x, merged, {0: UNASSIGNED})
+    assert moved.labels[0] == UNASSIGNED
+    assert all(c.medoid in c.members for c in moved.clusters)
+    assert moved.params["edited"] is True

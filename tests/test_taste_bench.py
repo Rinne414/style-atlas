@@ -93,7 +93,7 @@ def test_saved_choices_survive_missing_files_and_broken_json(tmp_path):
 
     store.write_text("{broken", encoding="utf-8")
     assert TasteSession(full, tmp_path / "out").state()["likes"] == 0  # starts, does not crash
-    assert (tmp_path / "out" / "taste_votes.json.bad").exists()
+    assert list((tmp_path / "out").glob("taste_votes.json.*.bad"))  # kept, not overwritten
     legacy = tmp_path / "excluded.json"
     legacy.write_text(json.dumps(["img2.png"]), encoding="utf-8")
     assert RelPathMap(legacy, full).values == {2: True}

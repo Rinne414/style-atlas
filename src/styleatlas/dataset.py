@@ -56,7 +56,7 @@ class ImageInfo:
 
 
 END_MARKERS = {"JPEG": b"\xff\xd9", "PNG": b"IEND"}
-TAIL_BYTES = 64
+TAIL_BYTES = 64 * 1024  # camera / phone trailers and zero padding can follow the end marker
 
 
 def _looks_truncated(path: Path, fmt: str | None) -> bool:

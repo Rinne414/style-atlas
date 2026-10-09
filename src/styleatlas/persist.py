@@ -7,8 +7,10 @@ cannot be parsed is renamed to `*.bad` instead of being overwritten.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
+import time
 from pathlib import Path
 
 from styleatlas.atlas import Atlas
@@ -28,11 +30,11 @@ class RelPathMap:
         try:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except (ValueError, OSError):
-            os.replace(self.path, self.path.with_name(self.path.name + ".bad"))
-            return
+            raw = None
         if isinstance(raw, list):  # older format: a plain list of excluded paths
             raw = {str(name): True for name in raw}
         if not isinstance(raw, dict):
+            self._set_aside()
             return
         index = {self.atlas.rel(i): i for i in range(len(self.atlas))}
         for rel, value in raw.items():
@@ -40,6 +42,13 @@ class RelPathMap:
                 self.values[index[rel]] = value
             else:
                 self.orphans[rel] = value
+
+    def _set_aside(self) -> None:
+        """Keep an unreadable file as <name>.<time>.bad so the next save cannot overwrite it."""
+        stamp = time.strftime("%Y%m%d-%H%M%S")
+        # locked or read-only: start empty, the original stays where it is
+        with contextlib.suppress(OSError):
+            os.replace(self.path, self.path.with_name(f"{self.path.name}.{stamp}.bad"))
 
     def save(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)

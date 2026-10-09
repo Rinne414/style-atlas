@@ -635,8 +635,10 @@ function voteButtons(i) {
 async function castVote(i, like) {
   try {
     TASTE = await post("api/taste", JSON.stringify({ i, like }), "application/json");
+    const before = ["axX", "axY", "axZ"].map((id) => $(id).value).join();
     buildTaste(); setupAxes();
-    if (layoutMode === "measures" && ["axX", "axY", "axZ"].some((id) => $(id).value === "taste")) applyLayout();
+    const after = ["axX", "axY", "axZ"].map((id) => $(id).value).join();
+    if (layoutMode === "measures" && (before !== after || after.includes("taste"))) applyLayout();
     const old = $("pane-selected").querySelector(".votes");
     if (selected === i && old) old.replaceWith(voteButtons(i));
   } catch (e) { setStatus(String(e.message || e)); }
@@ -775,8 +777,15 @@ function availableMeasures() {
 function rankNorm(vals) {
   const idx = [...vals.keys()].filter((i) => vals[i] !== null && vals[i] !== undefined);
   idx.sort((a, b) => vals[a] - vals[b]);
-  const out = new Float32Array(vals.length);
-  idx.forEach((i, r) => { out[i] = idx.length > 1 ? (r / (idx.length - 1)) * 2 - 1 : 0; });
+  const out = new Float32Array(vals.length).fill(-1.15);  // no value: parked before the axis start
+  const span = Math.max(1, idx.length - 1);
+  for (let s = 0; s < idx.length; ) {
+    let e = s;
+    while (e + 1 < idx.length && vals[idx[e + 1]] === vals[idx[s]]) e++;
+    const r = (s + e) / 2;  // ties share their average rank
+    for (let j = s; j <= e; j++) out[idx[j]] = idx.length > 1 ? (r / span) * 2 - 1 : 0;
+    s = e + 1;
+  }
   return out;
 }
 
@@ -813,17 +822,24 @@ function stepMorph() {
 }
 
 function label(text, at) {
-  const cv = document.createElement("canvas"); cv.width = 512; cv.height = 64;
+  const cv = document.createElement("canvas"); cv.width = 1024; cv.height = 64;
   const g = cv.getContext("2d"); g.font = "28px system-ui, sans-serif";
   g.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--accent");
   g.fillText(text, 8, 42);
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), depthTest: false }));
-  sp.position.copy(at); sp.scale.set(1.2, 0.15, 1);
+  sp.position.copy(at); sp.scale.set(2.4, 0.15, 1);
   return sp;
 }
 
+function disposeTree(obj) {
+  obj.traverse((o) => {
+    if (o.geometry) o.geometry.dispose();
+    if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); }
+  });
+}
+
 function drawAxes() {
-  if (axisLines) { scene.remove(axisLines); axisLines = null; }
+  if (axisLines) { scene.remove(axisLines); disposeTree(axisLines); axisLines = null; }
   if (layoutMode !== "measures") return;
   axisLines = new THREE.Group();
   const L = SPREAD * 1.05;
