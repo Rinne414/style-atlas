@@ -255,6 +255,10 @@ The shipped map (`src/styleatlas/data/whiten_csd.npz`, 2.2 MB) is fit on all 306
 px); with `--crop tiles` or 336 px it is untested. `search(..., whitened=False)` ranks in plain
 CSD space.
 
+Not used for periods: k-means periods on whitened vectors (map learned without the 13 artists)
+changed AMI with posting time by -0.005 (CI -0.04 to +0.04), better for only 4 of 13. Whitening
+turns down within-artist variation, which is where periods live.
+
 ### Searching with several example images (2026-10-10)
 
 Task: given a few works by one artist, find the rest of that artist's works in a library.
