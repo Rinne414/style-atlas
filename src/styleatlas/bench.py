@@ -1,6 +1,6 @@
 """Measure how well style vectors recover known labels (sub-folder = label, e.g. one artist each).
 
-Reports, for raw cosine and hub-corrected scores:
+Reports, for raw cosine, hub-corrected and whitened + hub-corrected (what search ranks by) scores:
   retrieval  share of images whose nearest neighbour(s) carry the same label
   pair_auc   same-label vs different-label pairs separated by similarity (0.5 = chance)
   mixtures   random mixtures of 2, 3 and 5 labels clustered blind; mean adjusted Rand index
@@ -17,6 +17,7 @@ from sklearn.metrics import adjusted_rand_score, roc_auc_score
 from styleatlas.cluster import GRANULARITY, cluster_styles
 from styleatlas.duplicates import BENCH_THRESHOLD, keep_one_per_group, near_duplicate_groups
 from styleatlas.metrics import neighbor_density
+from styleatlas.whiten import whiten
 
 MIX_SIZES = (2, 3, 5)
 MIN_PER_LABEL = 5
@@ -94,6 +95,8 @@ def run_bench(
         "raw": {**retrieval(raw, labels), "pair_auc": pair_auc(raw, labels)},
         "hub": {**retrieval(hub, labels), "pair_auc": pair_auc(hub, labels)},
     }
+    white = hub_similarity(whiten(x))
+    report["whitened"] = {**retrieval(white, labels), "pair_auc": pair_auc(white, labels)}
     report["mixtures_auto"] = mixtures(x, labels, trials=trials, threshold=None)
     for name, thr in GRANULARITY.items():
         report[f"mixtures_{name}"] = mixtures(x, labels, trials=trials, threshold=thr)

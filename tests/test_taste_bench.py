@@ -33,6 +33,7 @@ def test_bench_on_clean_labels_is_near_perfect():
     report = run_bench(x, [f"artist{v}" for v in y], trials=5)
     assert report["hub"]["top1"] > 0.95
     assert report["hub"]["pair_auc"] > 0.95
+    assert report["whitened"]["top1"] > 0.9  # the space search ranks in
     assert report["mixtures_medium"]["mix3_ari"] > 0.9
 
 
