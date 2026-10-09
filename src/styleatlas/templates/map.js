@@ -18,7 +18,7 @@ const T = {
     forcedN: "{n} groups (set)", autoCut: "auto cut {t}", cut: "cut {t}", dups: "Duplicates",
     dupHelp: "Groups of near-identical pictures (same image, crops, frames of one scene). Keep one per group for LoRA training.",
     noDups: "No near-duplicates found.",
-    moveTo: "Move to group…", mergeInto: "Merge this group into…", splitGroup: "Split in two", edited: "edited by hand (Regroup discards edits; Undo brings them back)",
+    moveTo: "Move to group…", mergeInto: "Merge this group into…", splitGroup: "Split in two", edited: "edited by hand",
     moreLike: "Find more like this", moreLikeTitle: "Outside {g}, most like it (click one to move it)",
     exclude: "Exclude from export (X)", included: "Excluded - undo (X)",
     excludedList: "Excluded by you ({n}) - exported to _excluded",
@@ -51,7 +51,7 @@ const T = {
     forcedN: "指定 {n} 群", autoCut: "自動門檻 {t}", cut: "門檻 {t}", dups: "重複",
     dupHelp: "幾乎相同的圖（同一張、裁切、同場景連續畫面）。訓 LoRA 時每組留一張即可。",
     noDups: "沒有找到近重複的圖。",
-    moveTo: "移到其他群…", mergeInto: "把這群合併到…", splitGroup: "拆成兩群", edited: "已手動調整（重新分群會清除，可按復原找回）",
+    moveTo: "移到其他群…", mergeInto: "把這群合併到…", splitGroup: "拆成兩群", edited: "已手動調整",
     moreLike: "找更多像這群的", moreLikeTitle: "不在「{g}」裡、但最像它的圖（點一張可移進來）",
     exclude: "匯出時排除 (X)", included: "已排除，取消 (X)",
     excludedList: "你排除的圖（{n}）：匯出時放到 _excluded",
@@ -173,7 +173,7 @@ async function fillPages() {
 
 function drawDot(g, j, col) {
   const x0 = (j % PER_ROW) * CELL, y0 = Math.floor(j / PER_ROW) * CELL;
-  g.fillStyle = col; g.beginPath(); g.arc(x0 + CELL / 2, y0 + CELL / 2, CELL / 4, 0, 7); g.fill();
+  g.fillStyle = col; g.beginPath(); g.arc(x0 + CELL / 2, y0 + CELL / 2, CELL / 10, 0, 7); g.fill();
 }
 
 function drawThumb(g, j, img, col) {
