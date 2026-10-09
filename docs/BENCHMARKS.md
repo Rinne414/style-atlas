@@ -259,6 +259,21 @@ Not used for periods: k-means periods on whitened vectors (map learned without t
 changed AMI with posting time by -0.005 (CI -0.04 to +0.04), better for only 4 of 13. Whitening
 turns down within-artist variation, which is where periods live.
 
+Not used for grouping (yet). Danbooru mixtures of held-out artists (5 folds): in the whitened
+space one fixed cut, 0.90, was best for every mixture size. It beat the best plain cut at each
+size by +0.06 to +0.10 ARI:
+
+| Artists | 2 | 5 | 20 | 50 |
+|---|---|---|---|---|
+| Plain, best fixed cut | 0.414 | 0.496 | 0.416 | 0.357 |
+| Whitened, cut 0.90 | 0.492 | 0.564 | 0.517 | 0.420 |
+
+But on the owner's Anima renders (16 recipes x 8 renders, one model) whitened distances are
+smaller: the largest merge was 0.66, so 0.90 put everything in one group. Silhouette-based cuts in
+the whitened space did worse than the fixed cut on Danbooru. A fixed cut needs calibration per
+kind of collection, so grouping stays in plain space with `auto`. (No setting recovered the Anima
+recipes in either space: the characters dominate, which is what `--neutralize` is for.)
+
 ### Searching with several example images (2026-10-10)
 
 Task: given a few works by one artist, find the rest of that artist's works in a library.

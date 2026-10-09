@@ -53,6 +53,9 @@ All of these are in `docs/BENCHMARKS.md`.
 - **ComfyUI nodes**: written and checked with the real CSD model on CPU (`comfyui/`), but not yet
   run inside the owner's ComfyUI. Installing them into `I:\ComfyUI-aki-v1.6` needs the owner's
   go-ahead.
+- **Grouping in the whitened space**: a fixed cut of 0.90 there beat plain-space grouping by
+  0.06-0.10 ARI on Danbooru mixtures but merged a set of AI renders into one group. It needs a
+  cut that adapts to the collection, or calibration per kind of collection (BENCHMARKS.md).
 - **Better embedding**: CSD is the ceiling for every number above. Candidates are fine-tuning on
   style-labelled anime data, or newer style encoders when they appear. Any candidate must beat
   CSD on `style-atlas bench` and on the unseen-character test.
