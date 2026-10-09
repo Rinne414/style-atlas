@@ -11,6 +11,7 @@ from __future__ import annotations
 import io
 import json
 import mimetypes
+import os
 import threading
 import webbrowser
 from collections.abc import Callable
@@ -55,6 +56,7 @@ class StyleAtlasApp:
         self._thumbs: dict[int, bytes] = {}
         self._lock = threading.Lock()
         self.taste = TasteSession(atlas, self.out_dir)
+        self.excluded: set[int] = self._load_excluded()
 
     @property
     def out_dir(self) -> Path:
@@ -74,6 +76,7 @@ class StyleAtlasApp:
             "settings": self.settings,
             "granularity": GRANULARITY,
             "taste": self.taste.state(),
+            "excluded": sorted(self.excluded),
         }
         return render_html(payload)
 
@@ -110,6 +113,32 @@ class StyleAtlasApp:
         hits = search(query, self.atlas.style, top=top)[0]
         return [{"i": h.index, "cos": round(h.cosine, 4)} for h in hits]
 
+    @property
+    def _excluded_path(self) -> Path:
+        return self.out_dir / "excluded.json"
+
+    def _load_excluded(self) -> set[int]:
+        if not self._excluded_path.exists():
+            return set()
+        names = set(json.loads(self._excluded_path.read_text(encoding="utf-8")))
+        return {i for i in range(len(self.atlas)) if self.atlas.rel(i) in names}
+
+    def exclude(self, body: dict) -> dict:
+        i = int(body["i"])
+        if not 0 <= i < len(self.atlas):
+            raise ValueError("image index out of range")
+        with self._lock:
+            if body.get("excluded", True):
+                self.excluded.add(i)
+            else:
+                self.excluded.discard(i)
+            self.out_dir.mkdir(parents=True, exist_ok=True)
+            names = sorted(self.atlas.rel(j) for j in self.excluded)
+            tmp = self._excluded_path.with_name("excluded.json.tmp")
+            tmp.write_text(json.dumps(names, ensure_ascii=False, indent=1), encoding="utf-8")
+            os.replace(tmp, self._excluded_path)
+        return {"excluded": sorted(self.excluded)}
+
     def vote(self, body: dict) -> dict:
         like = body.get("like")
         if like is not None and not isinstance(like, bool):
@@ -121,7 +150,9 @@ class StyleAtlasApp:
         mode = body.get("mode", "copy")
         out = self.out_dir
         with self._lock:
-            folders = plan_folders(self.atlas.paths, self.clustering)
+            folders = plan_folders(
+                self.atlas.paths, self.clustering, excluded=sorted(self.excluded)
+            )
             write_table(self.atlas, self.clustering, out, folders)
             result = export_folders(self.atlas, folders, out / "folders", mode=mode)
         return {"placed": result.placed, "failed": len(result.failed), "folder": str(result.folder)}
@@ -199,6 +230,8 @@ def make_handler(app: StyleAtlasApp, allowed_hosts: set[str]) -> type[BaseHTTPRe
                     self._json(200, {"hits": app.search_image(body)})
                 elif route == "api/regroup":
                     self._json(200, app.regroup(json.loads(body)))
+                elif route == "api/exclude":
+                    self._json(200, app.exclude(json.loads(body)))
                 elif route == "api/taste":
                     self._json(200, app.vote(json.loads(body)))
                 elif route == "api/export":

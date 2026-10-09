@@ -157,6 +157,8 @@ const T = {
     custom: "custom", regrouping: "regrouping…", dups: "Duplicates",
     dupHelp: "Groups of near-identical pictures (same image, crops, frames of one scene). Keep one per group for LoRA training.",
     noDups: "No near-duplicates found.",
+    exclude: "Exclude from export (X)", included: "Excluded - undo (X)",
+    excludedList: "Excluded by you ({n}) - exported to _excluded",
     taste: "Taste", like: "Like (L)", dislike: "Dislike (D)", clearVote: "Clear",
     tasteHelp: "Rate images with Like / Dislike (select one on the map, then press L or D). After {n} of each, a model learns your taste from the style vectors and ranks the unrated images.",
     tasteCount: "liked {a} · disliked {b}", tasteAuc: "cross-validated AUC {x} (0.5 = guessing). Treat it as a rough filter: it separates liked from disliked, not good from better.",
@@ -172,6 +174,8 @@ const T = {
     custom: "自訂", regrouping: "重新分群中…", dups: "重複",
     dupHelp: "幾乎相同的圖（同一張、裁切、同場景連續畫面）。訓 LoRA 時每組留一張即可。",
     noDups: "沒有找到近重複的圖。",
+    exclude: "匯出時排除 (X)", included: "已排除，取消 (X)",
+    excludedList: "你排除的圖（{n}）：匯出時放到 _excluded",
     taste: "口味", like: "喜歡 (L)", dislike: "不喜歡 (D)", clearVote: "清除",
     tasteHelp: "在地圖上選一張圖，按喜歡或不喜歡（鍵盤 L / D）。兩種各滿 {n} 張後，模型會用畫風向量學你的口味，替還沒評的圖排序。",
     tasteCount: "喜歡 {a} · 不喜歡 {b}", tasteAuc: "交叉驗證 AUC {x}（0.5 = 亂猜）。只適合粗篩：分得出喜歡和不喜歡，分不出好和更好。",
@@ -502,6 +506,12 @@ function buildOutliers() {
   const g = document.createElement("div"); g.className = "grid";
   [...PTS.keys()].sort((a, b) => PTS[b].o - PTS[a].o).slice(0, 60).forEach((i) => g.append(thumb(i)));
   pane.append(help, g);
+  if (DATA.live && EXCLUDED.size) {
+    const h = document.createElement("h3"); h.textContent = t("excludedList").replace("{n}", EXCLUDED.size);
+    const eg = document.createElement("div"); eg.className = "grid";
+    [...EXCLUDED].forEach((i) => eg.append(thumb(i)));
+    pane.append(h, eg);
+  }
 }
 
 function buildDups() {
@@ -576,14 +586,31 @@ let TASTE = null;
 
 function voteOf(i) { return TASTE && TASTE.votes[String(i)]; }
 
+let EXCLUDED = new Set();
+
+async function toggleExclude(i) {
+  try {
+    const r = await post("api/exclude", JSON.stringify({ i, excluded: !EXCLUDED.has(i) }), "application/json");
+    EXCLUDED = new Set(r.excluded);
+    buildOutliers();
+    const old = $("pane-selected").querySelector(".votes");
+    if (selected === i && old) old.replaceWith(voteButtons(i));
+  } catch (e) { setStatus(String(e.message || e)); }
+}
+
 function voteButtons(i) {
-  const row = document.createElement("div"); row.className = "votes";
+  const row = document.createElement("div"); row.className = "votes"; row.style.flexWrap = "wrap";
+  const ex = document.createElement("button");
+  ex.textContent = EXCLUDED.has(i) ? t("included") : t("exclude");
+  if (EXCLUDED.has(i)) ex.classList.add("on");
+  ex.addEventListener("click", () => toggleExclude(i));
   [["like", true], ["dislike", false], ["clearVote", null]].forEach(([k, v]) => {
     const b = document.createElement("button"); b.textContent = t(k);
     if (v !== null && voteOf(i) === v) b.classList.add("on");
     b.addEventListener("click", () => castVote(i, v));
     row.append(b);
   });
+  row.append(ex);
   return row;
 }
 
@@ -630,6 +657,7 @@ function buildTaste() {
 
 function setupLive() {
   TASTE = DATA.live.taste;
+  EXCLUDED = new Set(DATA.live.excluded || []);
   $("live").style.display = "flex";
   const s = DATA.live.settings;
   $("thr").value = (s.threshold ?? DATA.live.granularity.medium).toFixed(2);
@@ -701,6 +729,7 @@ addEventListener("keydown", (e) => {
   if (e.key === "Escape") $("home").click();
   if (DATA.live && selected !== null && (e.key === "l" || e.key === "L")) castVote(selected, true);
   if (DATA.live && selected !== null && (e.key === "d" || e.key === "D")) castVote(selected, false);
+  if (DATA.live && selected !== null && (e.key === "x" || e.key === "X")) toggleExclude(selected);
   if (e.key === "+" || e.key === "=") setSize(pointSize * 1.2);
   if (e.key === "-") setSize(pointSize / 1.2);
 });

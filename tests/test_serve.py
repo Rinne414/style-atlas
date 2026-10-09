@@ -98,3 +98,21 @@ def test_taste_votes_train_after_enough_examples_and_persist(server):
     saved = json.loads((out / "taste_votes.json").read_text(encoding="utf-8"))
     assert len(saved) == 15
     assert request(port, "POST", "/api/taste", json.dumps({"i": 0, "like": "yes"}), hdr)[0] == 400
+
+
+def test_excluded_images_persist_and_go_to_excluded_folder(server):
+    port, root = server
+    hdr = {"X-Style-Atlas": "1", "Content-Type": "application/json"}
+    status, data = request(port, "POST", "/api/exclude", json.dumps({"i": 3}), hdr)
+    assert status == 200 and json.loads(data)["excluded"] == [3]
+    status, data = request(port, "POST", "/api/export", json.dumps({"mode": "copy"}), hdr)
+    folder = json.loads(data)["folder"]
+    from pathlib import Path
+
+    assert (Path(folder) / "_excluded" / "img3.png").exists()
+    out = root.parent / f"{root.name}_style_atlas"
+    assert json.loads((out / "excluded.json").read_text(encoding="utf-8")) == ["img3.png"]
+    status, data = request(
+        port, "POST", "/api/exclude", json.dumps({"i": 3, "excluded": False}), hdr
+    )
+    assert json.loads(data)["excluded"] == []

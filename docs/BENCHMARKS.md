@@ -112,6 +112,22 @@ The approaches tried:
 
 Not adopted. The content vectors are still used, for near-duplicate detection.
 
+### Clustering variants (2026-10-09)
+
+The test is the blind-mixture ARI over 60 draws per size on the deduplicated corpus. The
+differences below about 0.02-0.03 are within noise.
+
+| Variant | 2 / 3 / 5 artists |
+|---|---|
+| **average linkage, CSLS k=10, cut 0.47 (default)** | 0.51 / 0.50 / 0.47 |
+| CSLS k=5 | 0.51 / 0.48 / 0.44 |
+| CSLS k=20 | 0.49 / 0.50 / 0.49 |
+| complete linkage, cut 0.60 / 0.70 | 0.37 / 0.26 / 0.20 and 0.12 / 0.08 / 0.06 |
+| default, then reassign each image to its nearest group centre | 0.52 / 0.51 / 0.48 |
+
+None of these beats the default by more than noise, so the limit is the embedding and not the
+grouping algorithm.
+
 ## Demo: 3 artists, 10 works each
 
 ```

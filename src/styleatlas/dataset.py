@@ -21,7 +21,12 @@ from styleatlas.cluster import UNASSIGNED, Clustering
 CAPTION_SUFFIXES = (".txt", ".caption")
 LAYOUTS = ("plain", "kohya")
 AUTO_REPEATS_TARGET = 100  # images x repeats per style folder per epoch, a common kohya default
-SET_ASIDE = {"duplicate": "_duplicates", "outlier": "_outliers", "unassigned": "_unassigned"}
+SET_ASIDE = {
+    "duplicate": "_duplicates",
+    "outlier": "_outliers",
+    "unassigned": "_unassigned",
+    "excluded": "_excluded",
+}
 
 
 def caption_of(image: Path) -> Path | None:
@@ -120,12 +125,14 @@ def plan_folders(
     duplicate_groups: list[list[int]] | None = None,
     outliers: list[int] | None = None,
     min_size: int = 1,
+    excluded: list[int] | None = None,
 ) -> list[str]:
     """Destination folder name for every image. A style group left with fewer than `min_size`
     images after duplicates and outliers are set aside counts as unassigned."""
     if layout not in LAYOUTS:
         raise ValueError(f"layout must be one of {LAYOUTS}")
     aside: dict[int, str] = {i: SET_ASIDE["outlier"] for i in outliers or []}
+    aside.update({i: SET_ASIDE["excluded"] for i in excluded or []})  # a person's call wins
     for group in duplicate_groups or []:
         keep = group[best_in_group([paths[i] for i in group])]
         aside.update({i: SET_ASIDE["duplicate"] for i in group if i != keep})
