@@ -287,6 +287,35 @@ differences below about 0.02-0.03 are within noise.
 None of these beats the default by more than noise, so the limit is the embedding and not the
 grouping algorithm.
 
+### MegaStyle-Encoder (Tencent, 2026) instead of CSD (2026-10-10)
+
+MegaStyle is a SigLIP so400m-384 model fine-tuned for style similarity on 1.4M synthetic
+text-to-image style pairs. HF `Gaojunyao/MegaStyle`, revision 8ac053fb.
+
+- **Reported**: on its own synthetic StyleRetrieval benchmark, mAP@1 87.3 against 45.6 for CSD.
+- **How it was run**: exactly as the reference `style_score.py` does it. SigLIP processor,
+  `pooler_output`, L2 norm. The checkpoint was loaded with `strict=True` after stripping the
+  `vision_model.` prefix that transformers 5.x does not use; with `strict=False` the weights load
+  nothing, and silently.
+
+| Test | CSD | MegaStyle | Concatenated |
+|---|---|---|---|
+| Danbooru same-artist top-1 (2,956 works, 297 artists) | **46.5%** | 11.5% | 34.6% |
+| Danbooru cross-character top-1 | **28.2%** | 6.7% | 20.5% |
+| Danbooru pair AUC | **0.832** | 0.679 | 0.785 |
+| Blind 2/3/5-artist mixtures, best cut | **0.51** | 0.23 | 0.42 |
+| NovelAI r93 recipe-pair AUC (2 characters) | **0.827** | 0.662 | 0.777 |
+| Unseen characters, recipe-pair AUC | **0.866** | 0.671 | 0.796 |
+| Period drift, Mantel r | **+0.185** | +0.055 | (n/a) |
+
+MegaStyle is pulled less by characters: the same-character nearest neighbour drops from 89% to
+70%. But it separates anime artists far worse, and combining it with CSD only dilutes CSD.
+
+Its synthetic "styles" are coarse medium or movement categories, not artist-level anime styles,
+so the published gain does not transfer here.
+
+Not adopted. It would also add a non-commercial code licence and a 0.65 image/s CPU cost.
+
 ### Fixed "nuisance" directions learned from renders (2026-10-09)
 
 The idea was nuisance attribute projection. Directions of "same recipe, different

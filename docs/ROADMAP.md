@@ -64,3 +64,5 @@ Each of these is in `docs/BENCHMARKS.md`:
 - fixed nuisance directions learned from the owner's renders, which did not generalise to unseen
   characters;
 - `tiles` / 336 px as the default: real but small gains at 1.9-2.5x cost, so they stay options.
+- MegaStyle-Encoder (2026) as the embedding: about 4x worse than CSD on real anime artists, despite
+  its benchmark.
