@@ -73,11 +73,13 @@ def _reference(a: argparse.Namespace, neutral=None) -> Atlas | None:
 
 
 def _cluster(a: argparse.Namespace, atlas: Atlas):
-    threshold = a.threshold if a.threshold is not None else GRANULARITY[a.granularity]
+    threshold = a.threshold if a.threshold is not None else GRANULARITY.get(a.granularity)
     result = cluster_styles(
         atlas.style, method=a.method, threshold=threshold, n_clusters=a.k, min_size=a.min_size
     )
-    log(f"{result.n_clusters} styles, {result.n_unassigned} unassigned ({result.method})")
+    cut = result.params.get("threshold")
+    how = f", cut {cut} ({'auto' if result.params.get('auto') else 'set'})" if cut else ""
+    log(f"{result.n_clusters} styles, {result.n_unassigned} unassigned ({result.method}{how})")
     if "note" in result.params:
         log("note: " + result.params["note"])
     return result
@@ -424,7 +426,12 @@ def _common(p: argparse.ArgumentParser) -> None:
 
 def _cluster_args(p: argparse.ArgumentParser) -> None:
     g = p.add_argument_group("clustering")
-    g.add_argument("--granularity", default="medium", choices=list(GRANULARITY))
+    g.add_argument(
+        "--granularity",
+        default="auto",
+        choices=["auto", *GRANULARITY],
+        help="auto picks the cut from the data; period splits one artist by time",
+    )
     g.add_argument(
         "--threshold", type=float, help="hub-corrected distance cut (overrides granularity)"
     )

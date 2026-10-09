@@ -1,9 +1,11 @@
 """Group images by style when the number of styles is unknown.
 
 Default: average-linkage agglomerative clustering on hub-corrected distances, cut at a distance
-threshold. On mixtures of 2-5 Danbooru artists (90 random draws) a threshold of 0.45-0.50 gave the
-best agreement with the artist labels (ARI ~0.5); see docs/BENCHMARKS.md. HDBSCAN is offered too:
-it leaves ambiguous images unassigned instead of forcing them into a group.
+threshold. On mixtures of 2-5 Danbooru artists a threshold of 0.45-0.50 gave the best agreement
+with the artist labels (ARI ~0.5), but the best cut falls as more artists are mixed (0.34 for
+300), so by default the cut is chosen from the data (auto_threshold); see docs/BENCHMARKS.md.
+HDBSCAN is offered too: it leaves ambiguous images unassigned instead of forcing them into a
+group.
 """
 
 from __future__ import annotations
@@ -15,8 +17,9 @@ import numpy as np
 from scipy.cluster.hierarchy import fcluster, linkage
 from scipy.sparse import csr_matrix
 from scipy.spatial.distance import squareform
-from sklearn.cluster import HDBSCAN, AgglomerativeClustering, MiniBatchKMeans
+from sklearn.cluster import HDBSCAN, MiniBatchKMeans
 from sklearn.decomposition import PCA
+from sklearn.metrics import silhouette_score
 
 from styleatlas.metrics import DEFAULT_K, centroid, hub_distance, neighbor_density, unit
 
@@ -25,6 +28,9 @@ from styleatlas.metrics import DEFAULT_K, centroid, hub_distance, neighbor_densi
 # beyond chance for 9 (medium: 4), docs/BENCHMARKS.md.
 GRANULARITY = {"period": 0.35, "fine": 0.40, "medium": 0.47, "coarse": 0.55}
 METHODS = ("agglomerative", "hdbscan")
+AUTO_CUTS = np.round(np.arange(0.20, 0.605, 0.01), 2)  # cuts auto_threshold tries
+AUTO_OFFSET = 0.04
+AUTO_SAMPLE = 3000  # images the silhouette is computed on
 MAX_DENSE = 8000  # the n x n float64 distance matrix (+ sklearn's copy) above this is too large
 KMEANS_SEED = 0
 _TREE_CACHE: dict = {}  # last large set: (micro-group per image, linkage tree)
@@ -64,7 +70,8 @@ def cluster_styles(
     min_size: int = 3,
     hub_k: int = DEFAULT_K,
 ) -> Clustering:
-    """Cluster unit style vectors `x`. `n_clusters` forces a count; otherwise `threshold` cuts."""
+    """Cluster unit style vectors `x`. `n_clusters` forces a count; otherwise `threshold` cuts,
+    and without a threshold the cut is chosen from the data (auto_threshold)."""
     if method not in METHODS:
         raise ValueError(f"method must be one of {METHODS}")
     n = len(x)
@@ -72,44 +79,76 @@ def cluster_styles(
         return _finish(x, np.zeros(n, dtype=int), method, {}, min_size=1)
     params: dict = {"hub_k": hub_k, "min_size": min_size}
     if method == "agglomerative":
-        thr = GRANULARITY["medium"] if threshold is None else threshold
+        part, tree, dist = _average_tree(x, hub_k)
         if n > MAX_DENSE:
-            raw = _micro_agglomerative(x, thr, n_clusters, hub_k, MAX_DENSE)
             params["note"] = (
                 f"{n} images is above {MAX_DENSE}: average linkage joined {MAX_DENSE} k-means "
                 "micro-groups instead of single images"
             )
+        if n_clusters:
+            raw = _cut(tree, part, n_clusters=n_clusters)
+            params["n_clusters"] = n_clusters
         else:
-            raw = _agglomerative(hub_distance(x, k=hub_k), thr, n_clusters)
-        params |= {"n_clusters": n_clusters} if n_clusters else {"threshold": thr}
+            thr = threshold if threshold is not None else auto_threshold(x, tree, part, dist, hub_k)
+            raw = _cut(tree, part, thr)
+            params |= {"threshold": thr, "auto": threshold is None}
     else:
         raw = _hdbscan(x, min_size, hub_k)
     return _finish(x, raw, method, params, min_size)
 
 
-def _agglomerative(dist: np.ndarray, thr: float, n_clusters: int | None) -> np.ndarray:
-    model = AgglomerativeClustering(
-        n_clusters=n_clusters,
-        metric="precomputed",
-        linkage="average",
-        distance_threshold=None if n_clusters else thr,
-    )
-    return model.fit_predict(dist)
+def _average_tree(x: np.ndarray, hub_k: int) -> tuple[np.ndarray, np.ndarray, np.ndarray | None]:
+    """Average-linkage tree on hub-corrected distances: (node of each image, tree, distance
+    matrix). Above MAX_DENSE images the nodes are k-means micro-groups and there is no matrix."""
+    if len(x) > MAX_DENSE:
+        part, tree = _micro_tree(x, hub_k, MAX_DENSE)
+        return part, tree, None
+    dist = hub_distance(x, k=hub_k)
+    tree = linkage(squareform(dist, checks=False), method="average")
+    return np.arange(len(x)), tree, dist
 
 
-def _micro_agglomerative(
-    x: np.ndarray, thr: float, n_clusters: int | None, hub_k: int, parts: int
+def _cut(
+    tree: np.ndarray, part: np.ndarray, thr: float = 0.0, n_clusters: int | None = None
 ) -> np.ndarray:
-    """Average linkage for sets too large for an n x n matrix: whole k-means micro-groups are
-    joined instead of single images (see _micro_tree), then the tree is cut like the dense one."""
-    part, tree = _micro_tree(x, hub_k, parts)
-    if len(tree) == 0:  # a single micro-group
-        return np.zeros(len(x), dtype=int)
+    """Group id per image from cutting `tree` at distance `thr` (or into `n_clusters`)."""
+    if len(tree) == 0:  # a single node
+        return np.zeros(len(part), dtype=int)
     if n_clusters:
         flat = fcluster(tree, t=min(n_clusters, len(tree) + 1), criterion="maxclust")
     else:
         flat = fcluster(tree, t=thr, criterion="distance")
     return flat[part] - 1
+
+
+def auto_threshold(
+    x: np.ndarray,
+    tree: np.ndarray,
+    part: np.ndarray,
+    dist: np.ndarray | None,
+    hub_k: int = DEFAULT_K,
+) -> float:
+    """The cut used when none is given: the cut with the best silhouette, plus AUTO_OFFSET (the
+    silhouette's best sits a little below the cut that best matches artists), never above
+    medium. On Danbooru mixtures it matched the fixed medium cut for 2-20 artists and beat it by
+    0.13-0.18 ARI for 50-306 artists; on one artist's work it followed posting time for 8 of 13
+    artists (medium: 4). docs/BENCHMARKS.md."""
+    n = len(part)
+    idx = np.arange(n)
+    if n > AUTO_SAMPLE:
+        idx = np.sort(np.random.default_rng(0).choice(n, AUTO_SAMPLE, replace=False))
+    if dist is None:
+        d = hub_distance(x[idx], k=hub_k)
+    else:
+        d = dist if len(idx) == n else dist[np.ix_(idx, idx)]
+    best, score = GRANULARITY["medium"], -np.inf
+    for t in AUTO_CUTS:
+        labels = _cut(tree, part, float(t))[idx]
+        if 1 < len(np.unique(labels)) < len(idx):
+            s = silhouette_score(d, labels, metric="precomputed")
+            if s > score:
+                best, score = float(t), s
+    return round(min(GRANULARITY["medium"], best + AUTO_OFFSET), 2)
 
 
 def _micro_tree(x: np.ndarray, hub_k: int, parts: int) -> tuple[np.ndarray, np.ndarray]:

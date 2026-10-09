@@ -71,7 +71,7 @@ class StyleAtlasApp:
         self.raw_reference = reference
         self.projection = projection
         self.progress = progress
-        self.settings: dict = {"method": "agglomerative", "threshold": GRANULARITY["medium"]}
+        self.settings: dict = {"method": "agglomerative", "threshold": None}  # None: auto
         self.revision = 0  # bumped on every regroup / hand edit; edits must name the one they saw
         self.thumb_px = default_thumb_px(len(atlas))
         self._thumbs: dict[int, bytes] = {}
@@ -103,7 +103,7 @@ class StyleAtlasApp:
         self.clustering = cluster_styles(
             self.atlas.style,
             method=s.get("method", "agglomerative"),
-            threshold=s.get("threshold", GRANULARITY["medium"]),
+            threshold=s.get("threshold"),
             n_clusters=s.get("k"),
         )
         self.settings = {key: v for key, v in s.items() if key != "edited"}
@@ -146,6 +146,7 @@ class StyleAtlasApp:
             payload["live"] = {
                 "settings": dict(self.settings),
                 "granularity": GRANULARITY,
+                "cut": self.clustering.params.get("threshold"),  # the auto cut, when auto
                 "taste": self.taste.state(),
                 "excluded": sorted(self.excluded),
                 "revision": self.revision,
@@ -175,14 +176,13 @@ class StyleAtlasApp:
         method = body.get("method", "agglomerative")
         if method not in METHODS:
             raise ValueError(f"method must be one of {METHODS}")
-        threshold = body.get("threshold", GRANULARITY["medium"])
+        threshold = body.get("threshold")  # None: chosen from the data
         k = body.get("k")
-        if not isinstance(threshold, (int, float)) or isinstance(threshold, bool):
-            raise ValueError("threshold must be a number")
-        if k is not None and type(k) is not int:
-            raise ValueError("k must be a whole number")
-        if not 0.05 <= threshold <= 1.5 or (k is not None and not 1 <= k <= len(self.atlas)):
-            raise ValueError("threshold must be 0.05-1.5 and k between 1 and the image count")
+        is_number = isinstance(threshold, (int, float)) and not isinstance(threshold, bool)
+        if threshold is not None and not (is_number and 0.05 <= threshold <= 1.5):
+            raise ValueError("threshold must be a number from 0.05 to 1.5, or null for auto")
+        if k is not None and (type(k) is not int or not 1 <= k <= len(self.atlas)):
+            raise ValueError("k must be a whole number between 1 and the image count")
         with self._lock:
             clustering = cluster_styles(
                 self.atlas.style, method=method, threshold=threshold, n_clusters=k

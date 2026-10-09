@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- **Automatic cut (new default)**: `--granularity auto` and the web app's "自動" pick the cut from
+  the data (best silhouette + 0.04, at most 0.47). The fixed medium cut chained large mixed
+  galleries into a few big groups; auto beat it by 0.13-0.18 ARI on 50-306 artists and matched
+  it on 2-20 (BENCHMARKS.md). `--granularity medium` keeps the old behaviour.
+- Clustering builds one average-linkage tree and cuts it (scipy), for both normal and large sets.
+
 ## 0.6.0 - 2026-10-10
 
 - **Search with several examples**: `search --combine` with 3 or more example images ranks the

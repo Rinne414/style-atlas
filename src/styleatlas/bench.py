@@ -94,6 +94,7 @@ def run_bench(
         "raw": {**retrieval(raw, labels), "pair_auc": pair_auc(raw, labels)},
         "hub": {**retrieval(hub, labels), "pair_auc": pair_auc(hub, labels)},
     }
+    report["mixtures_auto"] = mixtures(x, labels, trials=trials, threshold=None)
     for name, thr in GRANULARITY.items():
         report[f"mixtures_{name}"] = mixtures(x, labels, trials=trials, threshold=thr)
     return report

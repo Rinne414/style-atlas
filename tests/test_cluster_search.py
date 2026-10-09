@@ -201,3 +201,14 @@ def test_matches_are_copied_with_captions_once(tmp_path):
     _copy_matches(Atlas(tmp_path / "lib", paths, x, x, "sig"), [2, 0, 2], tmp_path / "out")
     got = sorted(f.name for f in (tmp_path / "out" / "matches").iterdir())
     assert got == ["m0.png", "m0.txt", "m2.png", "m2.txt"]
+
+
+def test_without_a_threshold_the_cut_is_chosen_from_the_data():
+    from sklearn.metrics import adjusted_rand_score
+
+    x, labels = make_blobs([6] * 30, spread=0.9)  # many small, looser styles
+    auto = cluster_styles(x)
+    assert auto.params["auto"] and auto.params["threshold"] <= 0.47
+    assert adjusted_rand_score(labels, auto.labels) > 0.8
+    fixed = cluster_styles(x, threshold=0.47)
+    assert fixed.params["auto"] is False and fixed.params["threshold"] == 0.47

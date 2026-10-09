@@ -408,3 +408,12 @@ def test_the_page_script_parses(tmp_path):
     copy.write_bytes(src.read_bytes())
     result = subprocess.run([node, "--check", str(copy)], capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
+
+
+def test_regroup_without_a_threshold_is_auto(tmp_path):
+    app, _ = _app(tmp_path)
+    app.regroup({"threshold": 0.5})
+    app.regroup({})
+    assert app.settings["threshold"] is None and app.clustering.params["auto"]
+    with pytest.raises(ValueError):
+        app.regroup({"threshold": "0.4"})

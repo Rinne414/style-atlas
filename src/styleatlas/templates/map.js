@@ -35,7 +35,7 @@ const T = {
     taste: "Taste", like: "Like (L)", dislike: "Dislike (D)", clearVote: "Clear",
     tasteHelp: "Rate images with Like / Dislike (select one on the map, then press L or D). After {n} of each, a model learns your taste from the style vectors and ranks the unrated images.",
     tasteCount: "liked {a} · disliked {b}", tasteAuc: "cross-validated AUC {x} (0.5 = guessing). Treat it as a rough filter: it separates liked from disliked, not good from better.",
-    tasteTop: "Most likely to like (unrated)", tasteBottom: "Least likely (unrated)", fine: "fine", medium: "medium", coarse: "coarse", foot: "Style vectors: CSD ViT-L (Somepalli et al. 2024, CC-BY-4.0). Map layout is for viewing only; groups are computed in the full space." },
+    tasteTop: "Most likely to like (unrated)", tasteBottom: "Least likely (unrated)", fine: "fine", medium: "medium", coarse: "coarse", auto: "auto (picked from the images)", foot: "Style vectors: CSD ViT-L (Somepalli et al. 2024, CC-BY-4.0). Map layout is for viewing only; groups are computed in the full space." },
   zh: { images: "張圖", clusters: "畫風群", selected: "選取", outliers: "離群",
     find: "以檔名篩選", thumbs: "縮圖", dots: "圓點", spin: "旋轉", home: "重置",
     unassigned: "未歸類", style: "畫風", size: "張", cohesion: "分散度",
@@ -66,7 +66,7 @@ const T = {
     taste: "口味", like: "喜歡 (L)", dislike: "不喜歡 (D)", clearVote: "清除",
     tasteHelp: "在地圖上選一張圖，按喜歡或不喜歡（鍵盤 L / D）。兩種各滿 {n} 張後，模型會用畫風向量學你的口味，替還沒評的圖排序。",
     tasteCount: "喜歡 {a} · 不喜歡 {b}", tasteAuc: "交叉驗證 AUC {x}（0.5 = 亂猜）。只適合粗篩：分得出喜歡和不喜歡，分不出好和更好。",
-    tasteTop: "最可能喜歡（未評分）", tasteBottom: "最不可能喜歡（未評分）", fine: "細", medium: "中", coarse: "粗", foot: "風格向量：CSD ViT-L（Somepalli 等，2024，CC-BY-4.0）。地圖排版只供瀏覽，分群是在完整向量空間計算。" },
+    tasteTop: "最可能喜歡（未評分）", tasteBottom: "最不可能喜歡（未評分）", fine: "細", medium: "中", coarse: "粗", auto: "自動（依圖片決定）", foot: "風格向量：CSD ViT-L（Somepalli 等，2024，CC-BY-4.0）。地圖排版只供瀏覽，分群是在完整向量空間計算。" },
 };
 let lang = (navigator.language || "en").toLowerCase().startsWith("zh") ? "zh" : "en";
 const t = (k) => T[lang][k];
@@ -695,7 +695,7 @@ function setupLive() {
   EXCLUDED = new Set(DATA.live.excluded || []);
   $("live").style.display = "flex";
   const s = DATA.live.settings;
-  $("thr").value = (s.threshold ?? DATA.live.granularity.medium).toFixed(2);
+  $("thr").value = (s.threshold ?? DATA.live.cut ?? DATA.live.granularity.medium).toFixed(2);
   $("pickBtn").addEventListener("click", () => $("pickFile").click());
   $("pickFile").addEventListener("change", (e) => searchFiles(e.target.files));
   $("gran").addEventListener("change", (e) => {
@@ -705,7 +705,8 @@ function setupLive() {
   $("regroup").addEventListener("click", async () => {
     setStatus(t("regrouping"));
     try {
-      await post("api/regroup", JSON.stringify({ threshold: parseFloat($("thr").value) }), "application/json");
+      const threshold = $("gran").value === "auto" ? null : parseFloat($("thr").value);
+      await post("api/regroup", JSON.stringify({ threshold }), "application/json");
       location.reload();
     } catch (e) { setStatus(String(e.message || e)); }
   });
@@ -738,12 +739,13 @@ function liveText() {
   $("expTrigWrap").querySelector("span").textContent = t("triggerCaptions");
   $("neutralWrap").querySelector("span").textContent = t("neutral");
   const cur = $("gran").value;
-  $("gran").replaceChildren(...[...Object.keys(DATA.live.granularity), "custom"].map((k) => {
+  $("gran").replaceChildren(...["auto", ...Object.keys(DATA.live.granularity), "custom"].map((k) => {
     const o = document.createElement("option"); o.value = k; o.textContent = t(k); return o;
   }));
   const thr = parseFloat($("thr").value);
   const match = Object.entries(DATA.live.granularity).find(([, v]) => Math.abs(v - thr) < 1e-6);
-  $("gran").value = cur && cur !== "custom" ? cur : (match ? match[0] : "custom");
+  const auto = DATA.live.settings.threshold == null && !DATA.live.settings.k;
+  $("gran").value = cur && cur !== "custom" ? cur : (auto ? "auto" : (match ? match[0] : "custom"));
 }
 
 $("find").addEventListener("input", (e) => { filter = e.target.value.trim(); recolor(); });

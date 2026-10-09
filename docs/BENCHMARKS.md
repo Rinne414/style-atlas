@@ -87,6 +87,40 @@ singletons, and hub correction removes most of that failure.
 
 HDBSCAN left 49% of points as noise.
 
+### Choosing the cut automatically (2026-10-10)
+
+The medium cut (0.47) was tuned on mixtures of 2-5 artists. On larger mixtures the best cut is
+lower, and 0.47 chains many artists into a few big groups. Users rarely know how many artists a
+gallery holds, so the default is now `auto`.
+
+**Rule.** Cut the average-linkage tree at 0.20, 0.21 ... 0.60; take the cut with the best
+silhouette (hub-corrected distances, on up to 3,000 sampled images); add 0.04, because the
+silhouette's best sits a little below the cut that best matches artists; never go above 0.47.
+
+Danbooru, deduplicated (3,000 images, 306 artists). Mixtures of m random artists; ARI with the
+artists, small groups (< 3) counted as single images.
+
+| Artists in the mix | 2 | 3 | 5 | 10 | 20 | 50 | 100 | 306 |
+|---|---|---|---|---|---|---|---|---|
+| Fixed medium (0.47) | 0.397 | 0.508 | 0.468 | 0.435 | 0.366 | 0.200 | 0.128 | 0.044 |
+| Best fixed cut in hindsight | 0.433 (0.44) | 0.517 (0.48) | 0.468 (0.47) | 0.501 (0.44) | 0.444 (0.42) | 0.384 (0.38) | 0.302 (0.38) | 0.220 (0.34) |
+| Silhouette alone | 0.525 | 0.415 | 0.339 | 0.288 | 0.373 | 0.332 | 0.261 | 0.174 |
+| **Auto** (silhouette + 0.04, at most 0.47) | 0.414 | 0.504 | 0.478 | 0.461 | 0.435 | 0.375 | 0.298 | 0.220 |
+
+- The largest jump between merge heights (a classic "elbow" rule) was useless (ARI near 0 from
+  10 artists up).
+- **Hold-out.** Choosing the offset on half of the artists picked +0.04 once and +0.06 once. On
+  the other half, auto was within -0.02 to +0.12 of medium for 2-20 artists (no consistent loss)
+  and +0.13 to +0.18 better for 50 and 100.
+- **Fresh draws through the shipped code** (`cluster_styles` with no threshold, another seed):
+  medium vs auto 0.286 / 0.422 (2 artists), 0.544 / 0.554 (5), 0.269 / 0.342 (20),
+  0.209 / 0.317 (50), 0.044 / 0.221 (306). 3,000 images take 1.8 s.
+- **One artist over time** (the 13 artists above): auto's groups followed posting time beyond
+  chance for 8 of 13, medium for 4, period for 9. `period` stays the advice for splitting one
+  artist by time.
+- Single draws can still go the other way: on the 3-artist demo below auto picks 0.43 and splits
+  one artist into 5 + 5 (ARI 0.73, medium 0.88).
+
 ### Searching with several example images (2026-10-10)
 
 Task: given a few works by one artist, find the rest of that artist's works in a library.
@@ -387,9 +421,13 @@ Not adopted. The per-collection `--neutralize` does generalise; see above.
 ## Demo: 3 artists, 10 works each
 
 ```
-style-atlas cluster demo3 --export copy
+style-atlas cluster demo3 --granularity medium --export copy
 -> 4 styles, 0 unassigned
    abubu  10 -> style_01
    dayama 10 -> style_02
    inoino  7 -> style_03, 3 -> style_04   (the 3 are copies of one picture)
 ```
+
+With the default `auto` the cut is 0.43 and dayama splits into 5 + 5 (5 styles, ARI 0.73 against
+0.88 for medium). Across 30 random 3-artist mixtures the two were equal (0.504 / 0.508); see
+"Choosing the cut automatically".
