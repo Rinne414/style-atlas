@@ -259,6 +259,10 @@ Not used for periods: k-means periods on whitened vectors (map learned without t
 changed AMI with posting time by -0.005 (CI -0.04 to +0.04), better for only 4 of 13. Whitening
 turns down within-artist variation, which is where periods live.
 
+Not used for taste: on the owner's 140 votes, the taste model's cross-validated AUC fell from
+0.785 to 0.735 on whitened vectors (5 x 5-fold, C 0.1 or 0.5). What a person likes is partly in
+the variation whitening turns down.
+
 Not used for grouping (yet). Danbooru mixtures of held-out artists (5 folds): in the whitened
 space one fixed cut, 0.90, was best for every mixture size. It beat the best plain cut at each
 size by +0.06 to +0.10 ARI:
