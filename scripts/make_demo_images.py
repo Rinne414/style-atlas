@@ -12,7 +12,6 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 
-OUT = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("demo_styles")
 N = 18
 SIZE = 512
 
@@ -83,10 +82,21 @@ STYLES = {
     "halftone": halftone,
 }
 
-for name, make in STYLES.items():
-    folder = OUT / name
-    folder.mkdir(parents=True, exist_ok=True)
-    for i in range(N):
-        rng = np.random.default_rng(list(STYLES).index(name) * 1000 + i)
-        make(rng).save(folder / f"{name}_{1000 + i}.png")
-print("made", N * len(STYLES), "images in", OUT)
+
+def make_all(out: Path, n: int = N) -> list[Path]:
+    """`n` images per style in out/<style>/; the same images on every run."""
+    made = []
+    for name, draw in STYLES.items():
+        folder = out / name
+        folder.mkdir(parents=True, exist_ok=True)
+        for i in range(n):
+            rng = np.random.default_rng(list(STYLES).index(name) * 1000 + i)
+            path = folder / f"{name}_{1000 + i}.png"
+            draw(rng).save(path)
+            made.append(path)
+    return made
+
+
+if __name__ == "__main__":
+    out = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("demo_styles")
+    print("made", len(make_all(out)), "images in", out)
