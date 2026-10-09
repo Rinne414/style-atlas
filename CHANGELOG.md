@@ -10,6 +10,9 @@
   than 3 images after set-asides go to `_unassigned/`.
 - **Saved groups**: groups, hand edits and names are written to `groups.json` and restored when
   the folder is opened again.
+- **Undo**: a button and Ctrl+Z step back through the last 30 hand edits, regroups and
+  renames. Switching the character axis clears the history, since older groups belong to the
+  other vector space.
 - **One-group hint**: suggests a finer granularity when everything lands in one group.
 - **Style Gate**: the default threshold is now 0.5. The nodes were verified with the real CSD
   model on CPU.

@@ -43,6 +43,7 @@ MAX_UPLOAD = 40 * 1024 * 1024
 POST_HEADER = "X-Style-Atlas"
 SEARCH_TOP = 48
 MAX_NEUTRALIZE = 3
+UNDO_STEPS = 30
 EXPORT_MIN_GROUP = 3  # groups left smaller after set-asides go to _unassigned (as in the CLI)
 MAX_SPLIT = 4000  # splitting runs under the lock; larger groups would stall every request
 
@@ -75,6 +76,7 @@ class StyleAtlasApp:
         self._lock = threading.Lock()
         self.taste: TasteSession | None = None
         self.group_names: dict[int, str] = {}  # medoid image index -> name
+        self._history: list[tuple] = []  # earlier (clustering, settings, names) for undo
         self._apply_space(neutralize)
         self.restored = self._restore_groups()
         self.taste = TasteSession(self.atlas, self.out_dir)
@@ -108,6 +110,7 @@ class StyleAtlasApp:
             raise ValueError(f"k must be a whole number from 0 to {MAX_NEUTRALIZE}")
         with self._lock:
             self._apply_space(k)
+            self._history.clear()  # earlier groups belong to the other vector space
             self.revision += 1
             self._save_groups()
             return {"neutralize": k, "clusters": self.clustering.n_clusters}
@@ -136,6 +139,7 @@ class StyleAtlasApp:
                 "neutralize": self.neutralize,
                 "names": {str(k): v for k, v in self.names_by_group().items()},
                 "restored": self.restored,
+                "can_undo": bool(self._history),
             }
         return render_html(payload)
 
@@ -167,6 +171,7 @@ class StyleAtlasApp:
         if not 0.05 <= threshold <= 1.5 or (k is not None and not 1 <= k <= len(self.atlas)):
             raise ValueError("threshold must be 0.05-1.5 and k between 1 and the image count")
         with self._lock:
+            self._remember()
             self.clustering = cluster_styles(
                 self.atlas.style, method=method, threshold=threshold, n_clusters=k
             )
@@ -199,7 +204,22 @@ class StyleAtlasApp:
         if body.get("rev") != self.revision:
             raise ValueError("the groups changed in another tab or edit; reload the page")
 
+    def _remember(self) -> None:
+        self._history.append((self.clustering, dict(self.settings), dict(self.group_names)))
+        del self._history[:-UNDO_STEPS]
+
+    def undo(self, body: dict) -> dict:
+        with self._lock:
+            self._check_revision(body)
+            if not self._history:
+                raise ValueError("nothing to undo")
+            self.clustering, self.settings, self.group_names = self._history.pop()
+            self.revision += 1
+            self._save_groups()
+            return {"clusters": self.clustering.n_clusters, "revision": self.revision}
+
     def _edited(self, clustering) -> dict:
+        self._remember()
         self.clustering = clustering
         self.settings = {**self.settings, "edited": True}
         self.revision += 1
@@ -276,6 +296,7 @@ class StyleAtlasApp:
             self._check_revision(body)
             group = self._group(body.get("group"), allow_unassigned=False)
             medoid = self.clustering.clusters[group].medoid
+            self._remember()
             if name.strip():
                 self.group_names[medoid] = clean_group_name(name)
             else:
@@ -375,6 +396,7 @@ JSON_ROUTES = {  # POST route -> StyleAtlasApp method taking the JSON body
     "api/path": "path",
     "api/neutralize": "set_neutralize",
     "api/rename": "rename",
+    "api/undo": "undo",
     "api/export": "export",
 }
 REQUEST_ERRORS = (ValueError, OSError, KeyError, TypeError, OverflowError)

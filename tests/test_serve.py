@@ -235,3 +235,41 @@ def test_web_export_can_write_a_kohya_layout_with_triggers(server):
     assert caption.startswith(groups[0].split("_", 1)[1])
     bad = {"layout": "zip"}
     assert request(port, "POST", "/api/export", json.dumps(bad), hdr)[0] == 400
+
+
+def test_undo_reverts_edits_one_step_at_a_time(server):
+    port, _ = server
+    hdr = {"X-Style-Atlas": "1", "Content-Type": "application/json"}
+
+    def post(route, body):
+        status, data = request(port, "POST", route, json.dumps(body), hdr)
+        return status, json.loads(data)
+
+    post("/api/regroup", {"threshold": 0.5})  # rev 1, two groups
+    status, r = post("/api/merge", {"from": 1, "into": 0, "rev": 1})
+    assert r["clusters"] == 1
+    status, r = post("/api/undo", {"rev": r["revision"]})
+    assert status == 200 and r["clusters"] == 2
+    status, r = post("/api/undo", {"rev": r["revision"]})  # back before the regroup
+    assert status == 200
+    status, html = request(port, "GET", "/")
+    assert b'"can_undo":false' in html
+    assert post("/api/undo", {"rev": r["revision"]})[0] == 400  # nothing left
+
+
+def test_undo_restores_names_and_forgets_history_after_a_space_change(tmp_path):
+    x, _ = make_blobs([8, 7])
+    paths = []
+    for i in range(len(x)):
+        p = tmp_path / f"img{i}.png"
+        Image.new("RGB", (16, 16), (i, 0, 0)).save(p)
+        paths.append(p)
+    app = StyleAtlasApp(Atlas(tmp_path, paths, x, x, "sig"), EncodeOptions(device="cpu"), "pca")
+    app.regroup({"threshold": 0.5})
+    app.rename({"group": 0, "name": "first", "rev": app.revision})
+    app.rename({"group": 0, "name": "second", "rev": app.revision})
+    app.undo({"rev": app.revision})
+    assert app.names_by_group() == {0: "first"}
+    app.set_neutralize({"k": 1})
+    with pytest.raises(ValueError, match="nothing to undo"):
+        app.undo({"rev": app.revision})

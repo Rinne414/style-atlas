@@ -26,7 +26,7 @@ const T = {
     pathTitle: "Style path (from the start image to this one)",
     neutral: "Ignore the character axis", neutralBusy: "recomputing…",
     oneGroup: "Everything landed in one group: try the fine or period granularity, then Regroup.",
-    plainFolders: "plain folders", conceptName: "concept name", triggerCaptions: "trigger in captions",
+    undo: "Undo", plainFolders: "plain folders", conceptName: "concept name", triggerCaptions: "trigger in captions",
     nameGroup: "name (Enter)", restored: "Groups, hand edits and names restored from your last session (Regroup to start over).",
     rateNext: "Rate the most useful next image", ratingHint: "Rating mode: press L or D, the next image follows (Esc stops)",
     allRated: "Every image is rated.",
@@ -55,7 +55,7 @@ const T = {
     pathTitle: "畫風漸變（從起點到這張）",
     neutral: "忽略角色軸", neutralBusy: "重新計算中…",
     oneGroup: "所有圖都在同一群：試試把顆粒度改成「細」或「時期」，再按重新分群。",
-    plainFolders: "一般資料夾", conceptName: "概念名稱", triggerCaptions: "標註加觸發詞",
+    undo: "復原", plainFolders: "一般資料夾", conceptName: "概念名稱", triggerCaptions: "標註加觸發詞",
     nameGroup: "取名（Enter）", restored: "已還原上次的分群、手動調整與名稱（按重新分群可重來）。",
     rateNext: "評下一張最有用的圖", ratingHint: "評分模式：按 L 或 D，自動跳下一張（Esc 結束）",
     allRated: "全部都評過了。",
@@ -633,7 +633,13 @@ function buildTaste() {
   if (nBottom > 0) pane.append(h2, tasteGrid(unrated.slice(unrated.length - nBottom).reverse()));
 }
 
+function setupUndo() {
+  $("undo").hidden = !DATA.live.can_undo;
+  $("undo").addEventListener("click", () => editPost("api/undo", {}));
+}
+
 function setupLive() {
+  setupUndo();
   $("neutral").checked = (DATA.live.neutralize || 0) > 0;
   $("neutral").addEventListener("change", async (e) => {
     setStatus(t("neutralBusy"));
@@ -682,6 +688,7 @@ function liveText() {
   if (!DATA.live) return;
   $("pickBtn").textContent = t("searchImg"); $("regroup").textContent = t("regroup");
   $("export").textContent = t("export"); $("drop").textContent = t("drop");
+  $("undo").textContent = t("undo");
   $("expLayout").options[0].textContent = t("plainFolders");
   $("expName").placeholder = t("conceptName");
   $("expTrigWrap").querySelector("span").textContent = t("triggerCaptions");
@@ -719,6 +726,9 @@ $("theme").addEventListener("click", () => {
 addEventListener("keydown", (e) => {
   if (["INPUT", "SELECT", "TEXTAREA"].includes(e.target.tagName)) return;
   if (e.repeat) return;  // holding a key must not vote on images never looked at
+  if (DATA.live && DATA.live.can_undo && (e.ctrlKey || e.metaKey) && !e.altKey && (e.key === "z" || e.key === "Z")) {
+    e.preventDefault(); editPost("api/undo", {}); return;
+  }
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (e.key === "Escape") { RATING = false; PATH_FROM = null; setStatus(""); $("home").click(); }
   if (DATA.live && selected !== null && (e.key === "l" || e.key === "L")) castVote(selected, true);
