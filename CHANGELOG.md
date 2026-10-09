@@ -6,6 +6,9 @@
   [3%-28%]" = median and middle half), so periods read as early / middle / late in the console.
 - **Large galleries open faster**: the map shows at once and thumbnails fill in behind a small
   corner note. On 19,554 images the map appeared after 4 s instead of about 70 s.
+- Faster start-up and page loads for big folders: relative paths are worked out once (page build
+  0.14 -> 0.04 s on 3,259 images), the same neighbour density is no longer computed four times,
+  and captions are read in the background at start-up.
 
 ## 0.9.0 - 2026-10-10
 
