@@ -119,6 +119,7 @@ style-atlas taste score "D:\new_batch" --model "D:\lora\artistX_style_atlas\tast
   - 手動修正分群，修正會反映在之後的匯出：
     - 選取一張圖，用「移到其他群…」把它改放到別群；
     - 打開一個群，用「把這群合併到…」併進另一群，或按「拆成兩群」。
+    - 打開一個群按「找更多像這群的」，會列出不在這群裡、但最像它的圖（用這群的圖訓練的小模型排序），方便把被分錯或沒分到的圖找回來。
     - 打開一個群，在「取名」欄輸入名字並按 Enter，例如「早期」「線稿期」。匯出時資料夾與觸發詞會用這個名字，像是 `10_artistX_早期`。
     - 修正、名稱和「忽略角色軸」開關會自動存到 `<資料夾>_style_atlas/groups.json`，下次打開同一個資料夾時會還原（開關以網頁上最後的狀態為準）。
     - 名稱跟著圖走：移動、合併、拆群或重新分群後，名稱會留在包含原本大部分圖的那一群；合併時以被併入的那群的名稱為準。
@@ -190,7 +191,8 @@ how a picture is drawn rather than what it shows. On top of those vectors it can
   "style path" lists the images that lead from one picked style to another.
 - **Explore a 3D style map** (`map`): one HTML file you can send to anyone.
 - **Check a dataset** (`audit`, `duplicates`): sizes, aspect ratios, captions, near-duplicates.
-- **Fix groups by hand** in the web app: move an image to another group, merge two groups,
+- **Fix groups by hand** in the web app: "Find more like this" lists the images outside a group
+  that look most like it; move an image to another group, merge two groups,
   split a group in two, or exclude images (X), which are then exported to `_excluded/`.
   Groups, edits, names and the character-axis switch are saved and restored the next time the
   folder is opened. Names follow their images: after a move, merge, split or regroup a name

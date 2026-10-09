@@ -202,6 +202,17 @@ class StyleAtlasApp:
         hits = search(query, self.atlas.style, top=top)[0]
         return [{"i": h.index, "cos": round(h.cosine, 4)} for h in hits]
 
+    def similar(self, body: dict) -> dict:
+        """Images outside a group that look most like it (a model learned from the group, as in
+        `search --combine`): strays that belong in it, or more of the same style."""
+        with self._lock:
+            group = self._group(body.get("group"), allow_unassigned=False)
+            members = list(self.clustering.clusters[group].members)
+            labels = self.clustering.labels.copy()
+            x = self.atlas.style
+        hits = search(x[members], x, top=SEARCH_TOP, combine=True, exclude=set(members))[0]
+        return {"hits": [{"i": h.index, "group": int(labels[h.index])} for h in hits]}
+
     def _group(self, value: object, allow_unassigned: bool) -> int:
         if type(value) is not int:
             raise ValueError("group must be a whole number")
@@ -420,6 +431,7 @@ JSON_ROUTES = {  # POST route -> StyleAtlasApp method taking the JSON body
     "api/neutralize": "set_neutralize",
     "api/rename": "rename",
     "api/undo": "undo",
+    "api/similar": "similar",
     "api/export": "export",
 }
 REQUEST_ERRORS = (ValueError, OSError, KeyError, TypeError, OverflowError)

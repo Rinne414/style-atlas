@@ -16,7 +16,8 @@ const T = {
     custom: "custom", regrouping: "regrouping…", period: "period (one artist)", dups: "Duplicates",
     dupHelp: "Groups of near-identical pictures (same image, crops, frames of one scene). Keep one per group for LoRA training.",
     noDups: "No near-duplicates found.",
-    moveTo: "Move to group…", mergeInto: "Merge this group into…", splitGroup: "Split in two", edited: "edited by hand (Regroup discards edits)",
+    moveTo: "Move to group…", mergeInto: "Merge this group into…", splitGroup: "Split in two", edited: "edited by hand (Regroup discards edits; Undo brings them back)",
+    moreLike: "Find more like this", moreLikeTitle: "Outside {g}, most like it (click one to move it)",
     exclude: "Exclude from export (X)", included: "Excluded - undo (X)",
     excludedList: "Excluded by you ({n}) - exported to _excluded",
     layoutStyle: "Layout: style similarity", layoutMeasures: "Layout: measures",
@@ -46,7 +47,8 @@ const T = {
     custom: "自訂", regrouping: "重新分群中…", period: "時期（單一畫師）", dups: "重複",
     dupHelp: "幾乎相同的圖（同一張、裁切、同場景連續畫面）。訓 LoRA 時每組留一張即可。",
     noDups: "沒有找到近重複的圖。",
-    moveTo: "移到其他群…", mergeInto: "把這群合併到…", splitGroup: "拆成兩群", edited: "已手動調整（重新分群會清除）",
+    moveTo: "移到其他群…", mergeInto: "把這群合併到…", splitGroup: "拆成兩群", edited: "已手動調整（重新分群會清除，可按復原找回）",
+    moreLike: "找更多像這群的", moreLikeTitle: "不在「{g}」裡、但最像它的圖（點一張可移進來）",
     exclude: "匯出時排除 (X)", included: "已排除，取消 (X)",
     excludedList: "你排除的圖（{n}）：匯出時放到 _excluded",
     layoutStyle: "版面：畫風相似", layoutMeasures: "版面：量化軸",
@@ -395,6 +397,9 @@ function buildClusters() {
             nameBox.addEventListener("click", (e) => e.stopPropagation());
             nameBox.addEventListener("keydown", (e) => { e.stopPropagation(); if (e.key === "Enter") editPost("api/rename", { group: c.id, name: nameBox.value }); });
             bar.append(nameBox);
+            const more = document.createElement("button"); more.textContent = t("moreLike"); more.style.marginLeft = "6px";
+            more.addEventListener("click", (e) => { e.stopPropagation(); showSimilar(c.id); });
+            bar.append(more);
             if (c.size >= 2) {
               const sp = document.createElement("button"); sp.textContent = t("splitGroup"); sp.style.marginLeft = "6px";
               sp.addEventListener("click", (e) => { e.stopPropagation(); editPost("api/split", { group: c.id }); });
@@ -495,6 +500,22 @@ function showSearch(file, hits) {
   hits.forEach((x) => { const im = thumb(x.i); im.title = `${PTS[x.i].n} · cos ${x.cos.toFixed(3)}`; g.append(im); });
   pane.append(h, q, h2, g);
   showPane("selected");
+}
+
+async function showSimilar(group) {
+  setStatus(t("searching"));
+  try {
+    const { hits } = await post("api/similar", JSON.stringify({ group }), "application/json");
+    setStatus("");
+    selected = null; searchHits = new Set(hits.map((h) => h.i)); recolor();
+    if (hits.length) focusOn(hits.slice(0, 8).map((h) => h.i));
+    const pane = $("pane-selected"); pane.replaceChildren();
+    const h = document.createElement("h3"); h.textContent = t("moreLikeTitle").replace("{g}", clusterName(group));
+    const g = document.createElement("div"); g.className = "grid";
+    hits.forEach((x) => { const im = thumb(x.i); im.title = `${PTS[x.i].n} · ${clusterName(x.group)}`; g.append(im); });
+    pane.append(h, g);
+    showPane("selected");
+  } catch (e) { setStatus(String(e.message || e)); }
 }
 
 let TASTE = null;

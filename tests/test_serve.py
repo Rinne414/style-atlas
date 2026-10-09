@@ -351,3 +351,17 @@ def test_web_export_reports_groups_too_small_to_keep(tmp_path):
     for i in app.clustering.clusters[1].members[2:]:  # leave 2 images in the smaller group
         app.move({"i": i, "to": -1, "rev": app.revision})
     assert app.export({"mode": "copy"})["small_groups"] == 1
+
+
+def test_more_like_a_group_finds_its_strays(tmp_path):
+    app, _ = _app(tmp_path, (8, 7, 6))
+    app.regroup({"threshold": 0.5})
+    target = app.clustering.clusters[0]
+    stray = target.members[0]
+    app.move({"i": stray, "to": -1, "rev": app.revision})
+    group = int(app.clustering.labels[target.members[1]])
+    hits = app.similar({"group": group})["hits"]
+    assert hits[0] == {"i": stray, "group": -1}
+    assert all(h["group"] != group for h in hits)
+    with pytest.raises(ValueError):
+        app.similar({"group": 99})
