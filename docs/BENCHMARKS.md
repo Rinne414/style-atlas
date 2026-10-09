@@ -27,6 +27,28 @@ frames of one scene otherwise find each other and inflate retrieval scores.
 Chance at top-1 is about 0.3%. Before deduplication the same run gave top-1 54.5% and AUC 0.845.
 That gap is how much the duplicates inflated the score.
 
+### Cross-character retrieval: style without help from character looks (2026-10-10)
+
+- **Data**: the same deduplicated corpus, restricted to the 2,532 works that have Danbooru
+  character tags (296 artists). Tags were fetched from the Danbooru API.
+- **Cross-character top-1**: the gallery for each query holds only works that share **no**
+  character with it. This measures style alone, because the subject cannot help.
+- **Character pull**: the nearest work is by a *different* artist but shows a *shared*
+  character.
+
+| | Same-artist top-1 | Cross-character top-1 | Character pull |
+|---|---|---|---|
+| CSD, hub-corrected | 45.5% | **28.2%** | 2.9% |
+| CSD, `--neutralize 1` | 45.6% | 28.1% | 3.4% |
+
+**Character drives part of the score.** About 40% of the plain same-artist score comes from
+artists drawing the same characters again. 28% is the honest pure-style figure.
+
+**On human artwork the pull is small.** Different artists draw one character very differently,
+so the nearest neighbour is rarely another artist's version of it. It is the other way round for
+AI renders, where the same characters are repeated in every style (89% pull on r93, see
+`--neutralize`). That is why `--neutralize` changes nothing here.
+
 ### Blind mixture clustering: the LoRA case
 
 Each trial draws 2, 3 or 5 random artists, each with at least 5 works, and mixes their works

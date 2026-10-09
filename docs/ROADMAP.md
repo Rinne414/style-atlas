@@ -33,6 +33,11 @@ All of these are in `docs/BENCHMARKS.md`.
 - **Taste model**: it separates like from dislike (AUC about 0.77 on one person's votes). It does
   not rank degrees of liking, and it may fail on a new generator.
 
+6. **External anime benchmark.** LSASRD (CVPRW 2022) has 20,937 images from 190 anime works, with
+   a cross-role protocol. It would be the strongest public test of "style, not character". Access
+   needs a signed release agreement e-mailed to the authors, so only the owner can request it:
+   https://github.com/nkjcqvcpi/ASR
+
 ## Ideas not done yet
 
 - **Web app**:
