@@ -6,7 +6,8 @@
 
 - **Measures layout**: the map can put taste, originality, time and atypicality on the X / Y / Z
   axes. Originality is the distance to the closest image in `--reference DIR`.
-- **Hand edits in the web app**: move an image to another group, or merge two groups.
+- **Hand edits in the web app**: move an image to another group, merge two groups, or split a
+  group in two.
 - **Audit**: flags truncated JPEG / PNG files without decoding them.
 
 ### Fixes from the third review

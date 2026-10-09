@@ -37,9 +37,8 @@ All of these are in `docs/BENCHMARKS.md`.
 
 - **Web app**:
   - toggle `--neutralize` and change the reference set at runtime;
-  - split one group into two;
   - rename groups before export.
-  - Moving images and merging groups are done.
+  - Moving images, merging groups and splitting a group are done.
 - **Speed**:
   - fp16 on CUDA;
   - a background thread that loads images. GPU throughput has not been measured here.
