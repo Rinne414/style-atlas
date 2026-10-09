@@ -285,6 +285,19 @@ the whitened space did worse than the fixed cut on Danbooru. A fixed cut needs c
 kind of collection, so grouping stays in plain space with `auto`. (No setting recovered the Anima
 recipes in either space: the characters dominate, which is what `--neutralize` is for.)
 
+### Query expansion for single-image search (tried, not used)
+
+Average query expansion: search, add the top 3 hits to the query, search again, all in the
+whitened space.
+- **Danbooru, artist-held-out:** more right answers in view. Precision@10 went 0.360 -> 0.406,
+  precision@5 0.481 -> 0.518 and mAP 0.351 -> 0.399, with top-1 unchanged. But queries that start
+  wrong drift further: "at least one right in the top 10" fell 0.893 -> 0.840.
+- **AI renders, where the nearest neighbours are often the same character:** it hurt.
+  - Anima a03: top-1 0.555 -> 0.438, precision@10 0.179 -> 0.147.
+  - NovelAI recipes: "any right in the top 10" 0.358 -> 0.268.
+
+It is not used.
+
 ### Searching with several example images (2026-10-10)
 
 Task: given a few works by one artist, find the rest of that artist's works in a library.
