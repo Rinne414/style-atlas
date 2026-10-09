@@ -100,7 +100,8 @@ class StyleGate:
                 "images": ("IMAGE",),
                 "references": ("STYLE_REFS",),
                 "mode": (list(GATE_MODES),),
-                "threshold": ("FLOAT", {"default": 0.35, "min": 0.0, "max": 1.5, "step": 0.01}),
+                # single images: same artist ~0.40 (median), different artists ~0.56 on Danbooru
+                "threshold": ("FLOAT", {"default": 0.5, "min": 0.0, "max": 1.5, "step": 0.01}),
             }
         }
 

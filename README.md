@@ -134,7 +134,9 @@ style-atlas taste score "D:\new_batch" --model "D:\lora\artistX_style_atlas\tast
 1. 把 `comfyui` 資料夾複製或連結到 `ComfyUI/custom_nodes/style-atlas`。
 2. 在 ComfyUI 自己的 Python 裡安裝本工具，例如 `python_embeded/python.exe -m pip install -e <repo 路徑>`。
 
-（節點邏輯有單元測試，但還沒在實際的 ComfyUI 裡跑過。）
+Style Gate 的預設門檻是 0.5。在 Danbooru 上，單張圖之間的距離，同畫師的中位數約 0.40，不同畫師約 0.56。
+
+（節點已在 Python 裡用真正的 CSD 模型跑過；還沒裝進實際的 ComfyUI 測試。）
 
 ### 準不準？限制在哪？
 
@@ -321,7 +323,9 @@ Install:
 1. Copy or link the folder into `ComfyUI/custom_nodes/style-atlas`.
 2. Install style-atlas into ComfyUI's own Python.
 
-The node logic is unit-tested, but the nodes have not been run inside ComfyUI yet.
+The Gate's default threshold is 0.5. For single images on Danbooru, the median distance is about
+0.40 between works by the same artist and 0.56 between different artists. The nodes have run with
+the real CSD model from Python, but not yet inside ComfyUI.
 
 ### Credits
 
