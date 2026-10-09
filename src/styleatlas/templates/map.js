@@ -14,7 +14,11 @@ const T = {
     drop: "Drop one image, or several of one style, to find the closest styles", regroup: "Regroup", export: "Export folders",
     searching: "embedding the query…", exported: "Copied {n} images to {f}.", saveMap: "Save shareable map", openFolder: "Open folder", savingMap: "writing the map…",
     savedMap: "Saved {f}. The thumbnails are inside it: send this one file to share the map (and the thumbnails).", query: "Your image", queries: "Your {n} images, searched as one style",
-    custom: "custom", regrouping: "regrouping…", period: "period (one artist)", periods: "number of periods", periodsN: "{n} periods",
+    custom: "custom", regrouping: "regrouping…", period: "period (one artist)", periods: "number of periods",
+    keys: "Shortcuts (?)", drag: "drag", wheel: "wheel", sizeKeys: "Alt+wheel, + -", keyRotate: "turn the map",
+    keyZoom: "zoom", keySize: "bigger / smaller pictures", keyHome: "back to the whole map",
+    keyVote: "like / dislike the selected image", keyExclude: "exclude it from exports",
+    keyUndo: "undo the last edit", periodsN: "{n} periods",
     forcedN: "{n} groups (set)", autoCut: "auto cut {t}", cut: "cut {t}", dups: "Duplicates",
     dupHelp: "Groups of near-identical pictures (same image, crops, frames of one scene). Keep one per group for LoRA training.",
     noDups: "No near-duplicates found.",
@@ -47,7 +51,11 @@ const T = {
     drop: "放開一張圖，或同一種畫風的多張圖，找最接近的畫風", regroup: "重新分群", export: "匯出資料夾",
     searching: "計算查詢圖中…", exported: "已複製 {n} 張到 {f}。", saveMap: "存成分享用地圖", openFolder: "打開資料夾", savingMap: "寫入地圖中…",
     savedMap: "已存成 {f}。縮圖已內嵌在檔案裡，把這一個檔案傳給別人就能看（也等於分享了這些縮圖）。", query: "你的圖", queries: "你的 {n} 張圖（當成同一種畫風搜尋）",
-    custom: "自訂", regrouping: "重新分群中…", period: "時期（單一畫師）", periods: "分成幾段", periodsN: "分成 {n} 個時期",
+    custom: "自訂", regrouping: "重新分群中…", period: "時期（單一畫師）", periods: "分成幾段",
+    keys: "快捷鍵（?）", drag: "拖曳", wheel: "滾輪", sizeKeys: "Alt+滾輪、+ -", keyRotate: "轉動地圖",
+    keyZoom: "縮放", keySize: "圖片放大／縮小", keyHome: "回到整張地圖",
+    keyVote: "喜歡／不喜歡選取的圖", keyExclude: "匯出時排除這張",
+    keyUndo: "復原上一個修改", periodsN: "分成 {n} 個時期",
     forcedN: "指定 {n} 群", autoCut: "自動門檻 {t}", cut: "門檻 {t}", dups: "重複",
     dupHelp: "幾乎相同的圖（同一張、裁切、同場景連續畫面）。訓 LoRA 時每組留一張即可。",
     noDups: "沒有找到近重複的圖。",
@@ -487,6 +495,8 @@ function applyText() {
   $("mode").textContent = mode === "thumbs" ? t("dots") : t("thumbs");
   $("spin").textContent = t("spin"); $("home").textContent = t("home");
   $("lang").textContent = lang === "zh" ? "EN" : "中";
+  $("helpBtn").title = t("keys");
+  if (!$("help").hidden) showHelp(true);
   const tabs = document.querySelectorAll(".tabs button");
   tabs[0].textContent = t("clusters"); tabs[1].textContent = t("selected"); tabs[2].textContent = t("outliers");
   tabs[3].textContent = `${t("dups")}${(DATA.duplicates || []).length ? " " + DATA.duplicates.length : ""}`;
@@ -518,6 +528,22 @@ $("home").addEventListener("click", () => {
   document.querySelectorAll(".cl").forEach((r) => r.classList.remove("on"));
 });
 $("lang").addEventListener("click", () => { lang = lang === "zh" ? "en" : "zh"; applyText(); });
+
+// The keyboard and mouse shortcuts, toggled by "?" (built with textContent, like the rest).
+function showHelp(on) {
+  const box = $("help");
+  box.hidden = !on;
+  if (!on) return;
+  const rows = [["drag", "keyRotate"], ["wheel", "keyZoom"], ["sizeKeys", "keySize"],
+    ["Esc", "keyHome"], ...(DATA.live ? [["L / D", "keyVote"], ["X", "keyExclude"], ["Ctrl + Z", "keyUndo"]] : [])];
+  box.replaceChildren(...rows.map(([key, what]) => {
+    const line = document.createElement("div");
+    const b = document.createElement("b"); b.textContent = ["drag", "wheel", "sizeKeys"].includes(key) ? t(key) : key;
+    line.append(b, document.createTextNode(t(what)));
+    return line;
+  }));
+}
+$("helpBtn").addEventListener("click", () => showHelp($("help").hidden));
 $("theme").addEventListener("click", () => {
   const root = document.documentElement;
   root.dataset.theme = root.dataset.theme === "light" ? "dark" : "light";
@@ -530,7 +556,8 @@ addEventListener("keydown", (e) => {
     e.preventDefault(); editPost("api/undo", {}); return;
   }
   if (e.ctrlKey || e.metaKey || e.altKey) return;
-  if (e.key === "Escape") { RATING = false; PATH_FROM = null; setStatus(""); $("home").click(); }
+  if (e.key === "?") showHelp($("help").hidden);
+  if (e.key === "Escape") { RATING = false; PATH_FROM = null; setStatus(""); showHelp(false); $("home").click(); }
   if (DATA.live && selected !== null && (e.key === "l" || e.key === "L")) castVote(selected, true);
   if (DATA.live && selected !== null && (e.key === "d" || e.key === "D")) castVote(selected, false);
   if (DATA.live && selected !== null && (e.key === "x" || e.key === "X")) toggleExclude(selected);

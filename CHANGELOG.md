@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- **Shortcut list**: "?" (key or button) shows the keyboard and mouse shortcuts.
+- The map subtitle no longer runs under the top controls on laptop-size screens; loading dots are
+  smaller.
+
 ## 0.11.0 - 2026-10-10
 
 Security fixes from a Sonnet security review:
