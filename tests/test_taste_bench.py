@@ -34,3 +34,19 @@ def test_bench_on_clean_labels_is_near_perfect():
     assert report["hub"]["top1"] > 0.95
     assert report["hub"]["pair_auc"] > 0.95
     assert report["mixtures_medium"]["mix3_ari"] > 0.9
+
+
+def test_taste_drops_duplicates_and_conflicts():
+    from styleatlas.taste import _dedupe
+
+    x, _ = make_blobs([4, 4])
+    like = np.vstack([x[:4], x[:1]])  # x[0] twice
+    dislike = np.vstack([x[4:], x[1:2]])  # x[1] is also liked
+    a, b = _dedupe(like, dislike)
+    assert len(a) == 3 and len(b) == 4
+
+
+def test_taste_save_adds_npz_suffix(tmp_path):
+    x, y = make_blobs([10, 10], spread=0.9)
+    saved = train_taste(x[y == 0], x[y == 1], "sig").save(tmp_path / "model")
+    assert saved.name == "model.npz" and saved.exists()

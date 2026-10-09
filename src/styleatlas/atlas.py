@@ -60,6 +60,17 @@ def _silent(_: str) -> None:
     return None
 
 
+_ENCODERS: dict[tuple[str, str, int], CSDEncoder] = {}
+
+
+def get_encoder(opts: EncodeOptions) -> CSDEncoder:
+    """One loaded model per (device, crop, batch) for the life of the process."""
+    key = (opts.device, opts.crop, opts.batch_size)
+    if key not in _ENCODERS:
+        _ENCODERS[key] = CSDEncoder(device=opts.device, crop=opts.crop, batch_size=opts.batch_size)
+    return _ENCODERS[key]
+
+
 def embed_paths(
     paths: list[Path], opts: EncodeOptions, progress: Progress = _silent
 ) -> tuple[list[Path], np.ndarray, np.ndarray, list[tuple[Path, str]]]:
@@ -72,13 +83,14 @@ def embed_paths(
         for p in paths:
             try:
                 keys[p] = store.key(p)
-            except OSError as e:
+            except (OSError, ValueError) as e:  # ValueError: undecodable path name
                 failed.append((p, f"unreadable: {e}"))
         store.commit()
         have = store.get(keys.values(), signature)
-        todo = [p for p, k in keys.items() if k not in have]
+        first_by_key = {k: p for p, k in reversed(keys.items())}  # identical files: embed once
+        todo = [p for k, p in first_by_key.items() if k not in have]
         if todo:
-            progress(f"{len(keys) - len(todo)} cached, {len(todo)} to embed ({signature})")
+            progress(f"{len(first_by_key) - len(todo)} cached, {len(todo)} to embed ({signature})")
             failed += _embed_missing(todo, keys, have, store, opts, progress)
         else:
             progress(f"all {len(keys)} images cached ({signature})")
@@ -96,11 +108,8 @@ def _embed_missing(
     opts: EncodeOptions,
     progress: Progress,
 ) -> list[tuple[Path, str]]:
-    from styleatlas.safety import limit_resources
-
-    limit_resources()
-    encoder = CSDEncoder(device=opts.device, crop=opts.crop, batch_size=opts.batch_size)
-    progress(f"model loaded on {encoder.device}")
+    encoder = get_encoder(opts)
+    progress(f"model ready on {encoder.device}")
     failed: list[tuple[Path, str]] = []
     pending: dict[str, tuple[np.ndarray, np.ndarray]] = {}
     done = 0
@@ -126,10 +135,14 @@ def _embed_missing(
 
 
 def build_atlas(
-    root: Path, opts: EncodeOptions, progress: Progress = _silent, recursive: bool = True
+    root: Path,
+    opts: EncodeOptions,
+    progress: Progress = _silent,
+    recursive: bool = True,
+    exclude: list[Path] | None = None,
 ) -> Atlas:
     root = Path(root)
-    paths = find_images(root, recursive=recursive)
+    paths = find_images(root, recursive=recursive, exclude=exclude)
     if not paths:
         raise FileNotFoundError(f"no images found under {root}")
     kept, style, content, failed = embed_paths(paths, opts, progress)

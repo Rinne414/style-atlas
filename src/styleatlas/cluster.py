@@ -18,7 +18,7 @@ from styleatlas.metrics import DEFAULT_K, centroid, hub_distance, neighbor_densi
 
 GRANULARITY = {"fine": 0.40, "medium": 0.47, "coarse": 0.55}
 METHODS = ("agglomerative", "hdbscan")
-MAX_DENSE = 15000  # n x n float64 distance matrix above this is too large for most desktops
+MAX_DENSE = 8000  # the n x n float64 distance matrix (+ sklearn's copy) above this is too large
 UNASSIGNED = -1
 
 
@@ -61,9 +61,13 @@ def cluster_styles(
     n = len(x)
     if n < 2:
         return _finish(x, np.zeros(n, dtype=int), method, {}, min_size=1)
-    if n > MAX_DENSE:
-        method = "hdbscan"
     params: dict = {"hub_k": hub_k, "min_size": min_size}
+    if n > MAX_DENSE and method != "hdbscan":
+        method = "hdbscan"
+        params["note"] = (
+            f"{n} images is above {MAX_DENSE}: used HDBSCAN on PCA-64 vectors; "
+            "threshold and k were ignored"
+        )
     if method == "agglomerative":
         thr = GRANULARITY["medium"] if threshold is None else threshold
         dist = hub_distance(x, k=hub_k)

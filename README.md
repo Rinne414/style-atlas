@@ -16,6 +16,7 @@ style-atlas 把每張圖轉成一個「畫風向量」。轉換用的是 CSD 風
 | **訓 LoRA 前整理資料集**：同一位畫師不同時期的畫風不同，先分群再訓 | `style-atlas cluster 資料夾 --export copy` |
 | **找畫風相近的圖** | `style-atlas search 參考圖.png --in 圖庫資料夾` |
 | **3D 畫風地圖**：縮圖浮在 3D 空間，可轉動，點一下就看最接近的畫風 | `style-atlas map 資料夾` |
+| **網頁介面**：在瀏覽器裡拖圖搜尋、調門檻重新分群、一鍵匯出資料夾 | `style-atlas serve 資料夾` |
 | **量化畫風**：判斷兩組圖是否同一畫風、找出離群圖、訓練個人口味模型 | `compare`、`outliers`、`calibrate`、`taste` |
 
 ### 安裝
@@ -45,15 +46,20 @@ style-atlas cluster "D:/lora/artistX" --k 3
 # 3. 找和這幾張參考圖畫風最接近的 30 張
 style-atlas search ref1.png ref2.png --combine --in "D:/gallery" --top 30
 
-# 4. 只畫 3D 地圖（單一 HTML 檔，可以直接傳給朋友）
+# 4. 只畫 3D 地圖（單一 HTML 檔，離線也能開，可以直接傳給朋友）
 style-atlas map "D:/gallery" -o gallery_map.html
 
-# 5. 資料集裡哪些圖最「不合群」（訓練前可考慮剔除）
+# 5. 網頁介面：自動開瀏覽器；把圖拖進畫面就能搜尋，調門檻後按「重新分群」，再按「匯出資料夾」
+style-atlas serve "D:/lora/artistX"
+
+# 6. 資料集裡哪些圖最「不合群」（訓練前可考慮剔除）
 style-atlas outliers "D:/lora/artistX" --top 20
 
-# 6. 兩組圖是不是同一種畫風？（距離、z 值、置換檢定 p 值）
+# 7. 兩組圖是不是同一種畫風？（距離、z 值、置換檢定 p 值）
 style-atlas compare "D:/old_works" "D:/new_works"
 ```
+
+匯出時每次都會寫到新的資料夾（`folders`、`folders_2` …），不會和上一次的結果混在一起。`--export link` 用硬連結，不佔額外空間，但連結檔和原檔是**同一個檔案**：在匯出資料夾裡改標註，原本的標註也會跟著變。不確定的話就用 `copy`。
 
 所有向量都會快取，同一張圖（以內容雜湊判斷，改名或搬移都算同一張）只會計算一次。CPU 預設最多用 8 個執行緒並降低優先權，避免拖垮整台電腦。用 `--threads 0` 取消限制，`--device cpu` 可強制只用 CPU。
 
@@ -63,7 +69,8 @@ style-atlas compare "D:/old_works" "D:/new_works"
 - 點右側的畫風群，鏡頭會飛過去並顯示成員；點地圖上的圖，會列出最接近的 12 張。
 - 「離群」分頁列出和整組最不像的圖。
 - 支援中／英文介面與深／淺色主題，可用檔名篩選，`+` / `-` 調整縮圖大小。
-- 地圖是單一 HTML 檔，縮圖已內嵌在檔案裡。**分享地圖等於分享這些縮圖。**
+- 地圖是單一 HTML 檔，three.js 和縮圖都已內嵌，離線也能開。**分享地圖等於分享這些縮圖。**
+- `serve` 只監聽本機 127.0.0.1，會檢查 Host 標頭，也只提供掃描過的檔案，不會把你的資料夾開放到網路上。
 
 ### 準不準？
 
@@ -102,6 +109,7 @@ how a picture is drawn rather than what it shows. You can then:
 | **Split a LoRA dataset by style or period** before training | `style-atlas cluster DIR --export copy` |
 | **Find images with a similar style** | `style-atlas search ref.png --in GALLERY` |
 | **Explore a 3D style map**: thumbnails floating in 3D; click one to see its closest styles | `style-atlas map DIR` |
+| **Use the web app**: drop an image to search, re-group with a slider, export folders | `style-atlas serve DIR` |
 | **Quantify style**: same style or not, outliers, a personal taste model | `compare`, `outliers`, `calibrate`, `taste` |
 
 ### Install
@@ -122,6 +130,7 @@ a slim 1.2 GB safetensors file in `~/.cache/style-atlas/`. Set `STYLE_ATLAS_CACH
 style-atlas cluster DIR [--granularity fine|medium|coarse | --threshold T | --k N]
                         [--method agglomerative|hdbscan] [--export copy|link] [-o OUT]
 style-atlas map DIR [-o map.html] [--projection auto|umap|tsne|pca]
+style-atlas serve DIR [--port 8770] [--no-browser]
 style-atlas search QUERY... --in DIR [--top 20] [--combine] [--json]
 style-atlas outliers DIR [--top 30]
 style-atlas compare DIR_A DIR_B [--noise-floor X]
@@ -139,6 +148,13 @@ Common options:
 - `--cache-db PATH`
 
 Vectors are cached by file content, so each image is embedded only once.
+
+Each export goes to a fresh folder (`folders`, `folders_2`, ...), so runs never mix. With
+`--export link`, files are hard links: editing a caption in the export also edits the original.
+
+The map is one HTML file with three.js and the thumbnails inlined, so it works offline.
+`serve` listens on 127.0.0.1 only, checks the Host header, needs a custom header on every POST,
+and serves only files it scanned.
 
 ### How it works
 

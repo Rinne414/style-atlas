@@ -6,30 +6,39 @@ import base64
 import io
 from collections.abc import Iterable
 from pathlib import Path
+from typing import BinaryIO
 
 from PIL import Image, ImageOps
 
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif", ".avif"}
-SKIP_DIRS = {".styleatlas", ".git", "__pycache__"}
+SKIP_DIRS = {".styleatlas", ".git", "__pycache__", "style_atlas_out"}
 
 
-def find_images(root: Path, recursive: bool = True) -> list[Path]:
-    """All image files under `root`, sorted, skipping tool folders. `root` may be a single file."""
+def find_images(
+    root: Path, recursive: bool = True, exclude: list[Path] | None = None
+) -> list[Path]:
+    """All image files under `root`, sorted. Skips tool folders (including earlier style-atlas
+    output) and anything under `exclude`. `root` may be a single file."""
     root = Path(root)
     if root.is_file():
         return [root] if root.suffix.lower() in IMAGE_SUFFIXES else []
+    skip = [Path(e).resolve() for e in exclude or []]
     pattern = root.rglob("*") if recursive else root.iterdir()
-    found = [
-        p
-        for p in pattern
-        if p.is_file()
-        and p.suffix.lower() in IMAGE_SUFFIXES
-        and not SKIP_DIRS.intersection(p.relative_to(root).parts[:-1])
-    ]
+    found = []
+    for p in pattern:
+        if not p.is_file() or p.suffix.lower() not in IMAGE_SUFFIXES:
+            continue
+        if SKIP_DIRS.intersection(p.relative_to(root).parts[:-1]):
+            continue
+        if skip and any(p.resolve().is_relative_to(e) for e in skip):
+            continue
+        found.append(p)
     return sorted(found)
 
 
-def load_rgb(path: Path, background: tuple[int, int, int] = (255, 255, 255)) -> Image.Image:
+def load_rgb(
+    path: Path | BinaryIO, background: tuple[int, int, int] = (255, 255, 255)
+) -> Image.Image:
     """Open as RGB: EXIF orientation applied, transparency flattened onto `background`."""
     with Image.open(path) as im:
         im = ImageOps.exif_transpose(im)
@@ -41,13 +50,19 @@ def load_rgb(path: Path, background: tuple[int, int, int] = (255, 255, 255)) -> 
         return im.convert("RGB")
 
 
-def thumbnail_data_url(path: Path, size: int = 96, quality: int = 70) -> str:
-    """Small WebP thumbnail as a data URL, for self-contained HTML reports."""
+def thumbnail_bytes(path: Path, size: int = 96, quality: int = 70) -> bytes:
+    """Small WebP thumbnail (longest side `size`)."""
     im = load_rgb(path)
     im.thumbnail((size, size), Image.Resampling.LANCZOS)
     buf = io.BytesIO()
     im.save(buf, format="WEBP", quality=quality)
-    return "data:image/webp;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
+    return buf.getvalue()
+
+
+def thumbnail_data_url(path: Path, size: int = 96, quality: int = 70) -> str:
+    """Small WebP thumbnail as a data URL, for self-contained HTML reports."""
+    data = thumbnail_bytes(path, size, quality)
+    return "data:image/webp;base64," + base64.b64encode(data).decode("ascii")
 
 
 def labels_from_folders(paths: Iterable[Path], root: Path) -> list[str]:

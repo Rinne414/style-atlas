@@ -6,7 +6,7 @@ from sklearn.metrics import adjusted_rand_score
 
 from styleatlas.cluster import UNASSIGNED, cluster_styles, outlier_scores
 from styleatlas.metrics import hub_scores
-from styleatlas.search import knn, neighbor_density_chunked, search
+from styleatlas.search import knn, search
 
 from .conftest import make_blobs
 
@@ -65,11 +65,21 @@ def test_knn_matches_brute_force(blobs):
     assert (got == want).all()
 
 
-def test_chunked_density_matches_dense(blobs):
-    from styleatlas.metrics import neighbor_density
+def test_chunked_density_matches_dense(blobs, monkeypatch):
+    from styleatlas import metrics
 
     x, _ = blobs
-    assert np.allclose(neighbor_density_chunked(x, chunk=6), neighbor_density(x, x, same_set=True))
+    sims = x @ x.T
+    np.fill_diagonal(sims, -np.inf)
+    dense = np.sort(sims, axis=1)[:, -10:].mean(axis=1)
+    monkeypatch.setattr(metrics, "CHUNK", 7)  # exercise the block boundaries
+    assert np.allclose(metrics.neighbor_density(x, x, k=10, same_set=True), dense, atol=1e-6)
+
+
+def test_one_image_gallery_still_returns_a_hit():
+    x, _ = make_blobs([1, 1])
+    hits = search(x[:1], x[1:], top=5)[0]
+    assert [h.index for h in hits] == [0]
 
 
 def test_search_finds_same_style_and_honours_exclude(blobs):

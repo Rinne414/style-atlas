@@ -28,6 +28,7 @@ CLIP_MEAN = (0.48145466, 0.4578275, 0.40821073)
 CLIP_STD = (0.26862954, 0.26130258, 0.27577711)
 CROP_MODES = ("center", "tiles")
 MAX_TILES = 3
+MAX_ASPECT = 4.0  # longer strips are centre-cropped first (keeps memory bounded)
 
 
 def cache_dir() -> Path:
@@ -85,6 +86,13 @@ def load_weights() -> dict[str, torch.Tensor]:
 def square_crops(im: Image.Image, mode: str) -> list[Image.Image]:
     """Resize the short side to INPUT_PX; take the centre square or tiles along the long side."""
     w, h = im.size
+    if max(w, h) > MAX_ASPECT * min(w, h):
+        long_keep = int(MAX_ASPECT * min(w, h))
+        if w > h:
+            im = im.crop(((w - long_keep) // 2, 0, (w - long_keep) // 2 + long_keep, h))
+        else:
+            im = im.crop((0, (h - long_keep) // 2, w, (h - long_keep) // 2 + long_keep))
+        w, h = im.size
     scale = INPUT_PX / min(w, h)
     rw, rh = max(INPUT_PX, round(w * scale)), max(INPUT_PX, round(h * scale))
     im = im.resize((rw, rh), Image.Resampling.BICUBIC)

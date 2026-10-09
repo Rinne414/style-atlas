@@ -18,6 +18,7 @@ from dataclasses import dataclass
 import numpy as np
 
 DEFAULT_K = 10
+CHUNK = 2048  # rows per block, so no n x n similarity matrix is ever held
 
 
 def unit(x: np.ndarray) -> np.ndarray:
@@ -29,13 +30,20 @@ def unit(x: np.ndarray) -> np.ndarray:
 def neighbor_density(
     queries: np.ndarray, base: np.ndarray, k: int = DEFAULT_K, same_set: bool = False
 ) -> np.ndarray:
-    """Mean cosine of each query to its k nearest rows of `base` (self excluded when same_set)."""
-    sims = queries @ base.T
-    if same_set:
-        np.fill_diagonal(sims, -np.inf)
-    k = max(1, min(k, base.shape[0] - (1 if same_set else 0)))
-    top = np.partition(sims, -k, axis=1)[:, -k:]
-    return top.mean(axis=1).astype(np.float32)
+    """Mean cosine of each query to its k nearest rows of `base` (row i of base excluded for
+    query i when same_set). Processed in blocks of CHUNK query rows."""
+    others = base.shape[0] - (1 if same_set else 0)
+    if others <= 0:
+        return np.zeros(len(queries), dtype=np.float32)
+    k = max(1, min(k, others))
+    out = np.empty(len(queries), dtype=np.float32)
+    for s in range(0, len(queries), CHUNK):
+        sims = queries[s : s + CHUNK] @ base.T
+        if same_set:
+            rows = np.arange(s, s + len(sims))
+            sims[rows - s, rows] = -np.inf
+        out[s : s + len(sims)] = np.partition(sims, -k, axis=1)[:, -k:].mean(axis=1)
+    return out
 
 
 def cosine_distance(x: np.ndarray) -> np.ndarray:
@@ -49,11 +57,14 @@ def hub_distance(x: np.ndarray, k: int = DEFAULT_K) -> np.ndarray:
     """Pairwise hub-corrected distance within one set (n x n, float64, zero diagonal)."""
     if len(x) < 3:
         return cosine_distance(x)
-    r = neighbor_density(x, x, k=k, same_set=True)
-    d = 1.0 - x @ x.T + (r[:, None] + r[None, :]) / 2.0 - r.mean()
-    d = np.maximum(d, 0.0)
+    r = neighbor_density(x, x, k=k, same_set=True).astype(np.float64)
+    d = (x @ x.T).astype(np.float64)  # built in place below to keep peak memory at ~12 bytes/pair
+    np.subtract(1.0 - r.mean(), d, out=d)
+    d += r[:, None] / 2.0
+    d += r[None, :] / 2.0
+    np.maximum(d, 0.0, out=d)
     np.fill_diagonal(d, 0.0)
-    return d.astype(np.float64)
+    return d
 
 
 def hub_scores(

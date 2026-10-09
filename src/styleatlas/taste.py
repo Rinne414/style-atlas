@@ -12,6 +12,7 @@ Models are saved as plain .npz arrays (no pickle), so a shared model file cannot
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -46,9 +47,14 @@ class TasteModel:
         z = (z - self.scale_mean) / self.scale_std
         return 1.0 / (1.0 + np.exp(-(z @ self.coef + self.intercept)))
 
-    def save(self, path: Path) -> None:
+    def save(self, path: Path) -> Path:
+        """Atomic write; the file always ends in .npz (numpy would append it anyway)."""
+        path = Path(path)
+        if path.suffix != ".npz":
+            path = path.with_name(path.name + ".npz")
+        tmp = path.with_name(path.stem + ".tmp.npz")
         np.savez(
-            path,
+            tmp,
             pca_mean=self.pca_mean,
             pca_components=self.pca_components,
             scale_mean=self.scale_mean,
@@ -59,6 +65,8 @@ class TasteModel:
             cv_auc=np.array(self.cv_auc),
             counts=np.array([self.n_like, self.n_dislike]),
         )
+        os.replace(tmp, path)
+        return path
 
     @classmethod
     def load(cls, path: Path) -> TasteModel:
@@ -96,9 +104,24 @@ def cross_val_auc(x: np.ndarray, y: np.ndarray, dims: int, c: float, folds: int 
     return float(roc_auc_score(y, pred))
 
 
+def _dedupe(like: np.ndarray, dislike: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Drop repeated images (they would leak across CV folds) and images in both sets."""
+
+    def unique_rows(x: np.ndarray) -> dict[bytes, np.ndarray]:
+        return {np.round(r, 5).tobytes(): r for r in x}
+
+    a, b = unique_rows(like), unique_rows(dislike)
+    both = a.keys() & b.keys()
+    dim = like.shape[1]
+    keep_a = np.array([r for k, r in a.items() if k not in both]).reshape(-1, dim)
+    keep_b = np.array([r for k, r in b.items() if k not in both]).reshape(-1, dim)
+    return keep_a, keep_b
+
+
 def train_taste(
     like: np.ndarray, dislike: np.ndarray, signature: str, c: float = 0.5
 ) -> TasteModel:
+    like, dislike = _dedupe(like, dislike)
     if len(like) < MIN_PER_CLASS or len(dislike) < MIN_PER_CLASS:
         raise ValueError(f"need at least {MIN_PER_CLASS} liked and {MIN_PER_CLASS} disliked images")
     x = np.vstack([like, dislike]).astype(np.float64)

@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from styleatlas.metrics import DEFAULT_K, centroid, hub_scores
+from styleatlas.metrics import CHUNK, DEFAULT_K, centroid, hub_scores, neighbor_density
 
 
 @dataclass(frozen=True)
@@ -16,13 +16,13 @@ class Hit:
     cosine: float
 
 
-def knn(x: np.ndarray, k: int = 8, hub_k: int = DEFAULT_K, chunk: int = 2048) -> np.ndarray:
+def knn(x: np.ndarray, k: int = 8, hub_k: int = DEFAULT_K, chunk: int = CHUNK) -> np.ndarray:
     """(n, k) indices of each row's nearest other rows by hub-corrected similarity (chunked)."""
     n = len(x)
     k = max(0, min(k, n - 1))
     if k == 0:
         return np.zeros((n, 0), dtype=int)
-    density = neighbor_density_chunked(x, hub_k, chunk)
+    density = neighbor_density(x, x, k=hub_k, same_set=True)
     out = np.zeros((n, k), dtype=int)
     for s in range(0, n, chunk):
         scores = hub_scores(x[s : s + chunk], x, k=hub_k, base_density=density)
@@ -31,19 +31,6 @@ def knn(x: np.ndarray, k: int = 8, hub_k: int = DEFAULT_K, chunk: int = 2048) ->
         part = np.argpartition(-scores, k, axis=1)[:, :k]
         order = np.take_along_axis(scores, part, axis=1).argsort(axis=1)[:, ::-1]
         out[s : s + chunk] = np.take_along_axis(part, order, axis=1)
-    return out
-
-
-def neighbor_density_chunked(x: np.ndarray, k: int = DEFAULT_K, chunk: int = 2048) -> np.ndarray:
-    """neighbor_density(x, x, same_set=True) without an n x n matrix."""
-    n = len(x)
-    k = max(1, min(k, n - 1))
-    out = np.zeros(n, dtype=np.float32)
-    for s in range(0, n, chunk):
-        sims = x[s : s + chunk] @ x.T
-        rows = np.arange(s, min(s + chunk, n))
-        sims[rows - s, rows] = -np.inf
-        out[s : s + chunk] = np.partition(sims, -k, axis=1)[:, -k:].mean(axis=1)
     return out
 
 
@@ -59,7 +46,8 @@ def search(
     if len(base) == 0:
         return [[] for _ in range(1 if combine else len(queries))]
     q = centroid(queries)[None, :] if combine else queries
-    scores = hub_scores(q, base, k=hub_k)
+    density = neighbor_density(base, base, k=hub_k, same_set=True)
+    scores = hub_scores(q, base, k=hub_k, base_density=density)
     cos = q @ base.T
     if exclude:
         scores[:, sorted(exclude)] = -np.inf

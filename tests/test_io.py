@@ -73,7 +73,7 @@ def test_export_copies_captions_and_avoids_name_collisions(tmp_path):
     atlas = _atlas(tmp_path, [6, 5])
     result = cluster_styles(atlas.style)
     placed = export_folders(atlas, result, tmp_path / "out")
-    assert placed == len(atlas)
+    assert placed.placed == len(atlas) and not placed.failed
     files = [p for p in (tmp_path / "out").rglob("*") if p.is_file()]
     names = sorted(p.name for p in files)
     assert "same.png" in names and "same_2.png" in names

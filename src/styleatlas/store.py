@@ -36,7 +36,8 @@ class VectorStore:
     def __init__(self, db_path: Path):
         db_path = Path(db_path)
         db_path.parent.mkdir(parents=True, exist_ok=True)
-        self.conn = sqlite3.connect(str(db_path))
+        self.conn = sqlite3.connect(str(db_path), timeout=60)
+        self.conn.execute("PRAGMA journal_mode=WAL")  # several runs may share one cache
         self.conn.executescript(SCHEMA)
 
     def close(self) -> None:

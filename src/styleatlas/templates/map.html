@@ -30,6 +30,20 @@
   button.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
   input[type=search] { background: var(--panel); color: var(--ink); border: 1px solid var(--line);
     padding: 6px 10px; border-radius: 999px; width: 180px; font: inherit; }
+  #live { position: absolute; left: 14px; bottom: 14px; right: 14px; display: none; gap: 8px;
+    align-items: center; flex-wrap: wrap; pointer-events: none; }
+  #live > * { pointer-events: auto; }
+  #live select, #live input[type=number] { background: var(--panel); color: var(--ink);
+    border: 1px solid var(--line); border-radius: 999px; padding: 6px 10px; font: inherit; font-size: 12px; }
+  #live input[type=number] { width: 76px; }
+  #status { color: var(--muted); font-size: 12px; background: var(--panel); border-radius: 999px;
+    padding: 5px 10px; border: 1px solid var(--line); }
+  #status:empty { display: none; }
+  #drop { position: absolute; inset: 0; display: none; place-items: center; z-index: 8;
+    background: color-mix(in srgb, var(--bg) 80%, transparent); border: 3px dashed var(--accent);
+    font-size: 18px; color: var(--ink); pointer-events: none; }
+  body.dragging #drop { display: grid; }
+  .query { width: 100%; border-radius: 10px; border: 2px solid var(--accent); display: block; }
   #tip { position: absolute; pointer-events: none; display: none; background: var(--panel);
     border: 1px solid var(--line); border-radius: 10px; padding: 6px; max-width: 240px; z-index: 5;
     box-shadow: 0 8px 30px rgba(0,0,0,.35); }
@@ -85,6 +99,16 @@
         <button id="lang">中</button>
       </div>
     </div>
+    <div id="live">
+      <button id="pickBtn"></button>
+      <input id="pickFile" type="file" accept="image/*" hidden>
+      <select id="gran"></select>
+      <input id="thr" type="number" min="0.05" max="1.5" step="0.01">
+      <button id="regroup"></button>
+      <button id="export"></button>
+      <span id="status"></span>
+    </div>
+    <div id="drop"></div>
     <div id="tip"><img alt=""><div class="cap"></div></div>
     <div id="loading">…</div>
   </div>
@@ -101,13 +125,11 @@
   </aside>
 </div>
 <script id="atlas-data" type="application/json">/*__STYLE_ATLAS_DATA__*/null</script>
-<script type="importmap">
-{ "imports": {
-  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-} }
-</script>
-<script type="module">
+<!-- three.js r160 (MIT, see LICENSE notice inside) is inlined so the map works offline -->
+<script type="text/plain" id="src-three">/*__THREE_JS__*/</script>
+<script type="text/plain" id="src-orbit">/*__ORBIT_JS__*/</script>
+
+<script type="text/plain" id="src-main">
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
@@ -120,13 +142,19 @@ const T = {
     unassigned: "Unassigned", style: "Style", size: "images", cohesion: "spread",
     pick: "Click an image in the map to see its closest styles.", nearest: "Closest styles",
     members: "Members", cluster: "style", outlierHelp: "Images least like the rest of the set (candidates to drop from a LoRA dataset).",
-    loading: "building map…", open: "open file", foot: "Style vectors: CSD ViT-L (Somepalli et al. 2024, CC-BY-4.0). Map layout is for viewing only; groups are computed in the full space." },
+    loading: "building map…", open: "open file", searchImg: "Search by image…",
+    drop: "Drop an image to find its closest styles", regroup: "Regroup", export: "Export folders",
+    searching: "embedding the query…", exported: "copied {n} images to {f}", query: "Your image",
+    custom: "custom", regrouping: "regrouping…", fine: "fine", medium: "medium", coarse: "coarse", foot: "Style vectors: CSD ViT-L (Somepalli et al. 2024, CC-BY-4.0). Map layout is for viewing only; groups are computed in the full space." },
   zh: { images: "張圖", clusters: "畫風群", selected: "選取", outliers: "離群",
     find: "以檔名篩選", thumbs: "縮圖", dots: "圓點", spin: "旋轉", home: "重置",
     unassigned: "未歸類", style: "畫風", size: "張", cohesion: "分散度",
     pick: "在地圖上點一張圖，看最接近的畫風。", nearest: "最接近的畫風", members: "成員",
     cluster: "畫風群", outlierHelp: "和整組最不像的圖（訓 LoRA 前可考慮剔除）。",
-    loading: "建立地圖中…", open: "開啟檔案", foot: "風格向量：CSD ViT-L（Somepalli 等，2024，CC-BY-4.0）。地圖排版只供瀏覽，分群是在完整向量空間計算。" },
+    loading: "建立地圖中…", open: "開啟檔案", searchImg: "以圖搜尋…",
+    drop: "放開圖片，找最接近的畫風", regroup: "重新分群", export: "匯出資料夾",
+    searching: "計算查詢圖中…", exported: "已複製 {n} 張到 {f}", query: "你的圖",
+    custom: "自訂", regrouping: "重新分群中…", fine: "細", medium: "中", coarse: "粗", foot: "風格向量：CSD ViT-L（Somepalli 等，2024，CC-BY-4.0）。地圖排版只供瀏覽，分群是在完整向量空間計算。" },
 };
 let lang = (navigator.language || "en").toLowerCase().startsWith("zh") ? "zh" : "en";
 const t = (k) => T[lang][k];
@@ -180,7 +208,7 @@ const FRAG = `
   uniform sampler2D uAtlas; uniform float uCell; uniform int uMode;
   varying float vAlpha; varying vec2 vCell; varying vec3 vColor;
   void main() {
-    vec2 pc = vec2(gl_PointCoord.x, 1.0 - gl_PointCoord.y);
+    vec2 pc = gl_PointCoord;  // canvas row 0 is the top and flipY is off, so no flip
     if (uMode == 1) {
       float d = length(gl_PointCoord - 0.5);
       if (d > 0.5) discard;
@@ -271,7 +299,7 @@ function resize() {
 addEventListener("resize", resize);
 
 /* ---------- interaction ---------- */
-let focusCluster = null, selected = null, filter = "";
+let focusCluster = null, selected = null, filter = "", searchHits = null;
 let flyTo = null;
 
 function recolor() {
@@ -281,6 +309,7 @@ function recolor() {
     if (focusCluster !== null) on = PTS[i].c === focusCluster;
     if (q) on = on && PTS[i].n.toLowerCase().includes(q);
     if (selected !== null) on = i === selected || PTS[selected].k.includes(i);
+    else if (searchHits) on = searchHits.has(i);
     alpha[i] = on ? 1 : 0.12;
   }
   pushAlpha();
@@ -294,8 +323,11 @@ function centerOf(indices) {
 
 function focusOn(indices) {
   const target = centerOf(indices);
+  let radius = 0;
+  indices.forEach((i) => { radius = Math.max(radius, target.distanceTo(new THREE.Vector3(pos[i*3], pos[i*3+1], pos[i*3+2]))); });
   const dir = camera.position.clone().sub(controls.target).normalize();
-  flyTo = { target, cam: target.clone().add(dir.multiplyScalar(1.6)), k: 0 };
+  const dist = Math.min(3.2, Math.max(0.9, radius * 2.4 + pointSize * 4));
+  flyTo = { target, cam: target.clone().add(dir.multiplyScalar(dist)), k: 0 };
   controls.autoRotate = false; $("spin").classList.remove("on");
 }
 
@@ -350,7 +382,7 @@ function thumb(i, onClick) {
 }
 
 function select(i) {
-  selected = i; recolor();
+  selected = i; searchHits = null; recolor();
   focusOn([i, ...PTS[i].k.slice(0, 4)]);
   const pane = $("pane-selected");
   pane.replaceChildren();
@@ -435,7 +467,87 @@ function applyText() {
     const e = document.createElement("div"); e.className = "empty"; e.textContent = t("pick");
     $("pane-selected").replaceChildren(e);
   }
-  buildClusters(); buildOutliers();
+  buildClusters(); buildOutliers(); liveText();
+}
+
+function setStatus(msg) { $("status").textContent = msg || ""; }
+
+async function post(url, body, type) {
+  const r = await fetch(url, { method: "POST", body,
+    headers: { "X-Style-Atlas": "1", "Content-Type": type } });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
+  return j;
+}
+
+async function searchFile(file) {
+  if (!file || !file.type.startsWith("image/")) return;
+  setStatus(t("searching"));
+  try {
+    const { hits } = await post("api/search", file, file.type);
+    setStatus("");
+    showSearch(file, hits);
+  } catch (e) { setStatus(String(e.message || e)); }
+}
+
+function showSearch(file, hits) {
+  selected = null; focusCluster = null; searchHits = new Set(hits.map((h) => h.i)); recolor();
+  if (hits.length) focusOn(hits.slice(0, 8).map((h) => h.i));
+  const pane = $("pane-selected"); pane.replaceChildren();
+  const h = document.createElement("h3"); h.textContent = t("query");
+  const q = document.createElement("img"); q.className = "query"; q.alt = file.name;
+  q.src = URL.createObjectURL(file);
+  const h2 = document.createElement("h3"); h2.textContent = t("nearest");
+  const g = document.createElement("div"); g.className = "grid";
+  hits.forEach((x) => { const im = thumb(x.i); im.title = `${PTS[x.i].n} · cos ${x.cos.toFixed(3)}`; g.append(im); });
+  pane.append(h, q, h2, g);
+  showPane("selected");
+}
+
+function setupLive() {
+  $("live").style.display = "flex";
+  const s = DATA.live.settings;
+  $("thr").value = (s.threshold ?? DATA.live.granularity.medium).toFixed(2);
+  $("pickBtn").addEventListener("click", () => $("pickFile").click());
+  $("pickFile").addEventListener("change", (e) => searchFile(e.target.files[0]));
+  $("gran").addEventListener("change", (e) => {
+    if (e.target.value in DATA.live.granularity) $("thr").value = DATA.live.granularity[e.target.value].toFixed(2);
+  });
+  $("thr").addEventListener("input", () => { $("gran").value = "custom"; });
+  $("regroup").addEventListener("click", async () => {
+    setStatus(t("regrouping"));
+    try {
+      await post("api/regroup", JSON.stringify({ threshold: parseFloat($("thr").value) }), "application/json");
+      location.reload();
+    } catch (e) { setStatus(String(e.message || e)); }
+  });
+  $("export").addEventListener("click", async () => {
+    try {
+      const r = await post("api/export", JSON.stringify({ mode: "copy" }), "application/json");
+      setStatus(t("exported").replace("{n}", r.placed).replace("{f}", r.folder));
+    } catch (e) { setStatus(String(e.message || e)); }
+  });
+  let depth = 0;
+  addEventListener("dragenter", (e) => { e.preventDefault(); depth++; document.body.classList.add("dragging"); });
+  addEventListener("dragleave", () => { if (--depth <= 0) { depth = 0; document.body.classList.remove("dragging"); } });
+  addEventListener("dragover", (e) => e.preventDefault());
+  addEventListener("drop", (e) => {
+    e.preventDefault(); depth = 0; document.body.classList.remove("dragging");
+    searchFile(e.dataTransfer.files[0]);
+  });
+}
+
+function liveText() {
+  if (!DATA.live) return;
+  $("pickBtn").textContent = t("searchImg"); $("regroup").textContent = t("regroup");
+  $("export").textContent = t("export"); $("drop").textContent = t("drop");
+  const cur = $("gran").value;
+  $("gran").replaceChildren(...[...Object.keys(DATA.live.granularity), "custom"].map((k) => {
+    const o = document.createElement("option"); o.value = k; o.textContent = t(k); return o;
+  }));
+  const thr = parseFloat($("thr").value);
+  const match = Object.entries(DATA.live.granularity).find(([, v]) => Math.abs(v - thr) < 1e-6);
+  $("gran").value = cur && cur !== "custom" ? cur : (match ? match[0] : "custom");
 }
 
 $("find").addEventListener("input", (e) => { filter = e.target.value.trim(); recolor(); });
@@ -449,7 +561,7 @@ $("spin").addEventListener("click", () => {
   controls.autoRotate = !controls.autoRotate; $("spin").classList.toggle("on", controls.autoRotate);
 });
 $("home").addEventListener("click", () => {
-  focusCluster = null; selected = null; filter = ""; $("find").value = ""; recolor();
+  focusCluster = null; selected = null; searchHits = null; filter = ""; $("find").value = ""; recolor();
   flyTo = { target: new THREE.Vector3(), cam: HOME.clone(), k: 0 };
   document.querySelectorAll(".cl").forEach((r) => r.classList.remove("on"));
 });
@@ -480,11 +592,27 @@ function animate() {
   renderer.render(scene, camera);
 }
 
+if (DATA.live) setupLive();
 applyText();
 await buildPages();
 resize();
 $("loading").style.display = "none";
 animate();
+</script>
+<script>
+(() => {
+  const blob = (code) => URL.createObjectURL(new Blob([code], { type: "text/javascript" }));
+  const src = (id) => document.getElementById(id).textContent;
+  const three = blob(src("src-three"));
+  const orbit = blob(src("src-orbit").replace(/from\s*["']three["']/g, `from "${three}"`));
+  const main = src("src-main")
+    .replace(/from\s*["']three["']/g, `from "${three}"`)
+    .replace(/from\s*["']three\/addons\/controls\/OrbitControls\.js["']/g, `from "${orbit}"`);
+  const s = document.createElement("script");
+  s.type = "module";
+  s.src = blob(main);
+  document.body.appendChild(s);
+})();
 </script>
 </body>
 </html>

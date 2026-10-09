@@ -14,7 +14,7 @@ from styleatlas.atlas import Atlas, EncodeOptions, build_atlas, embed_paths
 from styleatlas.cluster import GRANULARITY, METHODS, cluster_styles, outlier_scores
 from styleatlas.encoder import CROP_MODES
 from styleatlas.images import find_images, labels_from_folders
-from styleatlas.metrics import StyleScale, group_difference, split_half_noise
+from styleatlas.metrics import StyleScale, group_difference, split_half_noise, unit
 from styleatlas.project import PROJECTIONS
 
 
@@ -34,8 +34,8 @@ def _opts(a: argparse.Namespace) -> EncodeOptions:
     )
 
 
-def _atlas(a: argparse.Namespace, folder: str) -> Atlas:
-    atlas = build_atlas(Path(folder), _opts(a), log, recursive=not a.no_recursive)
+def _atlas(a: argparse.Namespace, folder: str, exclude: list[Path] | None = None) -> Atlas:
+    atlas = build_atlas(Path(folder), _opts(a), log, recursive=not a.no_recursive, exclude=exclude)
     for p, why in atlas.failed:
         log(f"skipped {p}: {why}")
     return atlas
@@ -46,10 +46,9 @@ def _cluster(a: argparse.Namespace, atlas: Atlas):
     result = cluster_styles(
         atlas.style, method=a.method, threshold=threshold, n_clusters=a.k, min_size=a.min_size
     )
-    log(
-        f"{result.n_clusters} styles, {result.n_unassigned} unassigned "
-        f"({result.method}, {result.params})"
-    )
+    log(f"{result.n_clusters} styles, {result.n_unassigned} unassigned ({result.method})")
+    if "note" in result.params:
+        log("note: " + result.params["note"])
     return result
 
 
@@ -63,14 +62,16 @@ def cmd_cluster(a: argparse.Namespace) -> int:
     from styleatlas.export import export_folders, write_table
     from styleatlas.report import write_map
 
-    atlas = _atlas(a, a.folder)
-    result = _cluster(a, atlas)
     out = Path(a.out or Path(a.folder) / "style_atlas_out")
+    atlas = _atlas(a, a.folder, exclude=[out])
+    result = _cluster(a, atlas)
     csv_path, json_path = write_table(atlas, result, out)
     log(f"wrote {csv_path} and {json_path}")
     if a.export:
-        placed = export_folders(atlas, result, out / "folders", mode=a.export)
-        log(f"{a.export}: {placed} images into {out / 'folders'}")
+        done = export_folders(atlas, result, out / "folders", mode=a.export)
+        log(f"{a.export}: {done.placed} images into {done.folder}")
+        for p, why in done.failed:
+            log(f"not exported {p}: {why}")
     if not a.no_map:
         path = write_map(atlas, result, out / "map.html", a.projection, a.thumb, progress=log)
         log(f"map: {path}")
@@ -98,7 +99,8 @@ def cmd_search(a: argparse.Namespace) -> int:
         log("no readable query images")
         return 1
     atlas = build_atlas(Path(a.within), opts, log, recursive=not a.no_recursive)
-    same = {i for i, p in enumerate(atlas.paths) if p.resolve() in {q.resolve() for q in qkept}}
+    query_files = {q.resolve() for q in qkept}
+    same = {i for i, p in enumerate(atlas.paths) if p.resolve() in query_files}
     results = search(qstyle, atlas.style, top=a.top, combine=a.combine, exclude=same)
     names = ["(all queries)"] if a.combine else [str(p) for p in qkept]
     rows = [
@@ -133,6 +135,9 @@ def cmd_compare(a: argparse.Namespace) -> int:
     groups = []
     for folder in (a.a, a.b):
         kept, style, _, _ = embed_paths(find_images(Path(folder)), opts, log)
+        if len(kept) < 2:
+            log(f"{folder}: need at least 2 readable images, found {len(kept)}")
+            return 1
         groups.append(style)
     dist, p = group_difference(groups[0], groups[1], rounds=a.rounds)
     scale = StyleScale(noise_floor=a.noise_floor) if a.noise_floor else StyleScale()
@@ -176,11 +181,14 @@ def cmd_calibrate(a: argparse.Namespace) -> int:
 def cmd_bench(a: argparse.Namespace) -> int:
     from styleatlas.bench import run_bench
 
+    if not a.npz and not a.folder:
+        log("give a folder whose sub-folders are the labels, or --npz")
+        return 1
     if a.npz:
         with np.load(a.npz) as z:
             keys = list(z.files)
             style = np.stack([z[k] for k in keys]).astype(np.float32)
-        style /= np.linalg.norm(style, axis=1, keepdims=True)
+        style = unit(style)
         labels = [k.rsplit(a.sep, 1)[0] for k in keys]
     else:
         root = Path(a.folder)
@@ -200,9 +208,9 @@ def cmd_taste(a: argparse.Namespace) -> int:
         from styleatlas.encoder import encoder_signature
 
         model = train_taste(like, dislike, encoder_signature(opts.crop))
-        model.save(Path(a.model))
+        saved = model.save(Path(a.model))
         log(
-            f"saved {a.model}: {model.n_like} liked / {model.n_dislike} disliked, "
+            f"saved {saved}: {model.n_like} liked / {model.n_dislike} disliked, "
             f"CV AUC {model.cv_auc:.3f}"
         )
         return 0
@@ -214,6 +222,14 @@ def cmd_taste(a: argparse.Namespace) -> int:
     scores = model.score(atlas.style)
     for i in np.argsort(-scores):
         print(f"{scores[i]:.3f}  {atlas.rel(int(i))}")
+    return 0
+
+
+def cmd_serve(a: argparse.Namespace) -> int:
+    from styleatlas.serve import StyleAtlasApp, serve
+
+    app = StyleAtlasApp(_atlas(a, a.folder), _opts(a), a.projection, a.title, progress=log)
+    serve(app, port=a.port, open_browser=not a.no_browser)
     return 0
 
 
@@ -247,10 +263,11 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--version", action="version", version=f"style-atlas {__version__}")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
-    def add(name: str, fn, help_: str) -> argparse.ArgumentParser:
+    def add(name: str, fn, help_: str, common: bool = True) -> argparse.ArgumentParser:
         p = sub.add_parser(name, help=help_, description=help_)
         p.set_defaults(fn=fn)
-        _common(p)
+        if common:
+            _common(p)
         return p
 
     add("embed", cmd_embed, "embed and cache a folder").add_argument("folder")
@@ -269,6 +286,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("-o", "--out")
     p.add_argument("--title")
     _cluster_args(p)
+    p = add("serve", cmd_serve, "open the interactive map in the browser with live search")
+    p.add_argument("folder")
+    p.add_argument("--port", type=int, default=8770)
+    p.add_argument("--title")
+    p.add_argument("--projection", default="auto", choices=PROJECTIONS)
+    p.add_argument("--no-browser", action="store_true")
     p = add("search", cmd_search, "find images in a folder whose style is closest to the query")
     p.add_argument("query", nargs="+", help="query image(s) or folder(s)")
     p.add_argument("--in", dest="within", required=True, help="folder to search")
@@ -292,21 +315,27 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--npz", help="precomputed vectors; label = key prefix before --sep")
     p.add_argument("--sep", default="__")
     p.add_argument("--trials", type=int, default=30)
-    p = add("taste", cmd_taste, "train or apply a personal like/dislike model")
+    p = add("taste", cmd_taste, "train or apply a personal like/dislike model", common=False)
     tsub = p.add_subparsers(dest="taste_cmd", required=True)
-    t1 = tsub.add_parser("train")
+    t1 = tsub.add_parser("train", help="learn from a liked and a disliked folder")
     t1.add_argument("--like", required=True)
     t1.add_argument("--dislike", required=True)
     t1.add_argument("--model", default="taste_model.npz")
-    t2 = tsub.add_parser("score")
+    t2 = tsub.add_parser("score", help="rank a folder with a trained model")
     t2.add_argument("folder")
     t2.add_argument("--model", default="taste_model.npz")
+    for t in (t1, t2):
+        _common(t)
     return ap
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    return args.fn(args)
+    try:
+        return args.fn(args)
+    except (FileNotFoundError, ValueError) as e:
+        log(f"error: {e}")
+        return 1
 
 
 if __name__ == "__main__":
