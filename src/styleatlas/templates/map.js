@@ -22,6 +22,8 @@ const T = {
     layoutStyle: "Layout: style similarity", layoutMeasures: "Layout: measures",
     m_map: "(map position)", m_taste: "taste p(like)", m_ref: "distance to reference (originality)",
     m_time: "time", m_outlier: "atypical (outlier)",
+    pathFrom: "Style path: start here", pathTo: "Style path: end here",
+    pathTitle: "Style path (from the start image to this one)",
     rateNext: "Rate the most useful next image", ratingHint: "Rating mode: press L or D, the next image follows (Esc stops)",
     allRated: "Every image is rated.",
     taste: "Taste", like: "Like (L)", dislike: "Dislike (D)", clearVote: "Clear",
@@ -45,6 +47,8 @@ const T = {
     layoutStyle: "版面：畫風相似", layoutMeasures: "版面：量化軸",
     m_map: "（地圖位置）", m_taste: "口味分數", m_ref: "離參考集距離（原創度）",
     m_time: "時間", m_outlier: "離群度",
+    pathFrom: "畫風漸變：從這張開始", pathTo: "畫風漸變：到這張",
+    pathTitle: "畫風漸變（從起點到這張）",
     rateNext: "評下一張最有用的圖", ratingHint: "評分模式：按 L 或 D，自動跳下一張（Esc 結束）",
     allRated: "全部都評過了。",
     taste: "口味", like: "喜歡 (L)", dislike: "不喜歡 (D)", clearVote: "清除",
@@ -505,6 +509,30 @@ async function editPost(url, body) {
   catch (e) { setStatus(String(e.message || e)); }
 }
 
+let PATH_FROM = null;
+
+async function showPath(a, b) {
+  try {
+    const r = await post("api/path", JSON.stringify({ a, b, steps: 10 }), "application/json");
+    searchHits = new Set(r.path); selected = null; recolor(); focusOn(r.path);
+    const pane = $("pane-selected"); pane.replaceChildren();
+    const h = document.createElement("h3"); h.textContent = t("pathTitle");
+    const g = document.createElement("div"); g.className = "grid";
+    r.path.forEach((i) => g.append(thumb(i)));
+    pane.append(h, g); showPane("selected");
+  } catch (e) { setStatus(String(e.message || e)); }
+}
+
+function pathButton(i) {
+  const b = document.createElement("button");
+  b.textContent = PATH_FROM === null || PATH_FROM === i ? t("pathFrom") : t("pathTo");
+  b.addEventListener("click", () => {
+    if (PATH_FROM === null || PATH_FROM === i) { PATH_FROM = i; b.textContent = t("pathTo"); return; }
+    const a = PATH_FROM; PATH_FROM = null; showPath(a, i);
+  });
+  return b;
+}
+
 function voteButtons(i) {
   const row = document.createElement("div"); row.className = "votes"; row.style.flexWrap = "wrap";
   const ex = document.createElement("button");
@@ -517,7 +545,7 @@ function voteButtons(i) {
     b.addEventListener("click", () => castVote(i, v));
     row.append(b);
   });
-  row.append(ex);
+  row.append(ex, pathButton(i));
   row.append(groupSelect(t("moveTo"), PTS[i].c, true, (to) => editPost("api/move", { i, to })));
   return row;
 }

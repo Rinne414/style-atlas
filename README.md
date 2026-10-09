@@ -108,6 +108,7 @@ style-atlas taste score "D:\new_batch" --model "D:\lora\artistX_style_atlas\tast
   - 離群度。
 - 只有網頁介面才有的功能：
   - 拖一張圖進畫面就能以圖搜尋。
+  - 畫風漸變：選一張圖按「從這張開始」，再選另一張按「到這張」，會列出在畫風上從前一張漸變到後一張的一串圖。適合找兩種畫風之間的過渡風格。
   - 調門檻後重新分群、一鍵匯出資料夾。
   - 按「匯出時排除」（鍵盤 X）手動剔除不要的圖，清單會存檔，匯出時放到 `_excluded\`。
   - 手動修正分群，修正會反映在之後的匯出：
@@ -161,7 +162,8 @@ how a picture is drawn rather than what it shows. On top of those vectors it can
 
 - **Prepare LoRA datasets**: split a folder by style or period, set aside duplicates and
   outliers, and export kohya-style folders (`cluster --layout kohya --dedupe`).
-- **Find images in a similar style**: drop an image into the web app, or use `search`.
+- **Find images in a similar style**: drop an image into the web app, or use `search`. A
+  "style path" lists the images that lead from one picked style to another.
 - **Explore a 3D style map** (`map`): one HTML file you can send to anyone.
 - **Check a dataset** (`audit`, `duplicates`): sizes, aspect ratios, captions, near-duplicates.
 - **Fix groups by hand** in the web app: move an image to another group, merge two groups,

@@ -9,6 +9,11 @@
 - **Hand edits in the web app**: move an image to another group, merge two groups, or split a
   group in two.
 - **Audit**: flags truncated JPEG / PNG files without decoding them.
+- **Rating mode**: the web app picks the most useful next image to rate (farthest-first), and the
+  taste model trains from 5 ratings of each kind.
+- **`--trigger-captions`**: each group's trigger word is written into the exported captions.
+- **Style path**: the images that lead from one chosen style to another.
+- **Cross-character benchmark** and `docs/LORA_GUIDE.md`.
 
 ### Fixes from the third review
 

@@ -33,7 +33,7 @@ from styleatlas.images import load_rgb, thumbnail_bytes
 from styleatlas.metrics import Neutralizer
 from styleatlas.persist import RelPathMap
 from styleatlas.report import build_payload, compute_layout, default_thumb_px, render_html
-from styleatlas.search import search
+from styleatlas.search import search, style_path
 from styleatlas.taste_session import TasteSession
 
 MAX_UPLOAD = 40 * 1024 * 1024
@@ -187,6 +187,14 @@ class StyleAtlasApp:
             self._excluded.save()
             return {"excluded": sorted(self.excluded)}
 
+    def path(self, body: dict) -> dict:
+        a = self._index({"i": body.get("a")})
+        b = self._index({"i": body.get("b")})
+        steps = body.get("steps", 8)
+        if type(steps) is not int or not 1 <= steps <= 40:
+            raise ValueError("steps must be a whole number from 1 to 40")
+        return {"path": style_path(self.atlas.style, a, b, steps)}
+
     def next_to_rate(self, body: dict) -> dict:
         with self._lock:
             return {"i": self.taste.next_to_rate(skip=set(self.excluded))}
@@ -222,6 +230,7 @@ JSON_ROUTES = {  # POST route -> StyleAtlasApp method taking the JSON body
     "api/exclude": "exclude",
     "api/taste": "vote",
     "api/next": "next_to_rate",
+    "api/path": "path",
     "api/export": "export",
 }
 REQUEST_ERRORS = (ValueError, OSError, KeyError, TypeError, OverflowError)

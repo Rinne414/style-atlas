@@ -132,3 +132,13 @@ def test_edit_groups_merges_moves_and_renumbers():
     assert moved.labels[0] == UNASSIGNED
     assert all(c.medoid in c.members for c in moved.clusters)
     assert moved.params["edited"] is True
+
+
+def test_style_path_walks_from_a_to_b_without_repeats():
+    from styleatlas.search import style_path
+
+    x, y = make_blobs([6, 6, 6])
+    path = style_path(x, 0, 6, steps=5)
+    assert path[0] == 0 and path[-1] == 6
+    assert len(path) == len(set(path)) == 7
+    assert style_path(x, 3, 3) == [3]
