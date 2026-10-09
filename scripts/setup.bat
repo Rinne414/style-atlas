@@ -40,5 +40,6 @@ echo.
 ".venv\Scripts\style-atlas.exe" doctor
 echo.
 echo Done. Drag an image folder onto scripts\StyleAtlas.bat to open its style map.
+echo For commands such as audit or cluster, open scripts\StyleAtlas-console.bat.
 echo The first run downloads the CSD model ^(2.4 GB^) once.
 pause

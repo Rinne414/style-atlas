@@ -6,6 +6,15 @@
   library with a logistic model of the examples against the library, instead of their mean
   vector (+0.055 to +0.116 average precision, BENCHMARKS.md).
 - **`search --copy-to DIR`** copies the matches, with their captions, into a new folder.
+- **`scripts\StyleAtlas-console.bat`** opens a console where the `style-atlas` command works.
+  Before, the README's commands failed after `setup.bat` with "not recognized", because the tool
+  lives in `.venv`.
+- **README**: how to download the private repo, first-run notes (keep the console open, the
+  fallback address, captions as `.txt` beside images), a short glossary (kohya, repeats, trigger
+  word), `period` in the granularity list, `_excluded/` in the output list, ComfyUI install steps
+  in the right order. Found by a first-time-user review.
+- **Tests** now syntax-check the page script (`node --check` silently skips `.js` files that use
+  `import`, so the check runs on an `.mjs` copy).
 - **Drop several images** (web app): they are searched as one style, like `search --combine`.
 - **Find more like this group** (web app): the images outside a group that look most like it,
   ranked by a model learned from the group. Click one to move it in.

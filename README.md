@@ -22,10 +22,22 @@ style-atlas 會用 CSD 風格嵌入模型，把每張圖轉成一個「畫風向
 ### Windows：三步開始
 
 1. 安裝 [Python 3.10 以上](https://www.python.org/downloads/)，安裝時勾選「Add python.exe to PATH」。
-2. 下載本專案後，雙擊 `scripts\setup.bat`。它會在專案資料夾裡建立 `.venv`，偵測到 NVIDIA 顯卡就裝 CUDA 版的 torch，沒有就裝 CPU 版，再安裝本工具。
+2. 下載本專案：在 GitHub 頁面按 **Code → Download ZIP** 再解壓縮（本專案目前是私人專案，要先請作者給你存取權），會用 git 的話也可以 `git clone`。然後雙擊 `scripts\setup.bat`。它會在專案資料夾裡建立 `.venv`，偵測到 NVIDIA 顯卡就裝 CUDA 版的 torch，沒有就裝 CPU 版，再安裝本工具。
 3. 把圖片資料夾**拖到 `scripts\StyleAtlas.bat` 上**，瀏覽器會打開網頁介面。
 
-不確定環境有沒有裝好時，可以執行 `style-atlas doctor`（或 `.venv\Scripts\style-atlas doctor`），它會檢查 Python、torch、有沒有抓到顯卡、模型是否已下載、磁碟空間。
+**要打指令時**（下面的 `audit`、`cluster`、`search` 等），請雙擊 `scripts\StyleAtlas-console.bat`，它會開一個已經設定好的命令視窗，在裡面輸入指令即可。直接開一般的命令提示字元打 `style-atlas` 會出現「不是內部或外部命令」，因為工具裝在 `.venv` 裡。
+
+不確定環境有沒有裝好時，可以在這個視窗執行 `style-atlas doctor`，它會檢查 Python、torch、有沒有抓到顯卡、模型是否已下載、磁碟空間。
+
+**第一次使用會遇到的事**
+- 開著網頁介面時，**不要關掉黑色的命令視窗**，關掉網頁就停了。瀏覽器沒自動打開的話，手動開 `http://127.0.0.1:8770`（埠號被占用時會往後找，以視窗裡印出的網址為準）。
+- 標註檔請放在圖片旁邊、同檔名的 `.txt`（例如 `001.png` 配 `001.txt`），匯出時會一起複製。子資料夾裡的圖也會一起讀進來，不要的話加 `--no-recursive`。
+- 建議先拿 100 張左右的資料夾試一次，熟悉流程後再跑大量的圖。
+
+**幾個名詞**
+- **kohya 格式**：kohya_ss／sd-scripts 訓 LoRA 用的資料夾結構，資料夾名稱像 `10_artistX_style01`，開頭的數字是 repeats。
+- **repeats**：每個 epoch 裡這個資料夾的圖要重複幾次。張數少的群 repeats 高一點，各群的份量就會接近。
+- **觸發詞（trigger word）**：寫在標註最前面的詞，訓練後在提示詞裡寫它就能叫出這種畫風。
 
 **第一次分析前**，程式會從 Hugging Face 下載 CSD 模型。下載量 2.4 GB，之後另存成 1.2 GB 的精簡檔，存在 `%USERPROFILE%\.cache\style-atlas`，只會下載一次。同一個資料夾也存放向量與縮圖快取（每張圖約幾 KB），刪掉不影響原始檔案，之後會重新產生。下載時畫面可能停很久，這是正常的。
 
@@ -64,6 +76,7 @@ style-atlas cluster "D:\lora\artistX" --layout kohya --name artistX --dedupe --d
 _duplicates\          ← 沒有數字前綴，kohya 會忽略
 _outliers\
 _unassigned\
+_excluded\            ← 在網頁介面按 X 排除的圖
 ```
 
 - 每群的 repeats 會讓「張數 × repeats」接近 100。也可以用 `--repeats 10` 固定。
@@ -113,7 +126,7 @@ style-atlas taste score "D:\new_batch" --model "D:\lora\artistX_style_atlas\tast
   - 離群度。
 - 只有網頁介面才有的功能：
   - 拖一張圖進畫面就能以圖搜尋。一次拖多張同一種畫風的圖，會當成同一種畫風一起搜尋（3 張以上時用它們訓練的小模型排序）。
-  - 畫風漸變：選一張圖按「從這張開始」，再選另一張按「到這張」，會列出在畫風上從前一張漸變到後一張的一串圖。適合找兩種畫風之間的過渡風格。
+  - 畫風漸變：選一張圖按「畫風漸變：從這張開始」，再選另一張按「畫風漸變：到這張」，會列出在畫風上從前一張漸變到後一張的一串圖。適合找兩種畫風之間的過渡風格。
   - 調門檻後重新分群、一鍵匯出資料夾。匯出時可以選一般資料夾或 kohya 格式、填概念名稱、勾選「標註加觸發詞」。
   - 按「匯出時排除」（鍵盤 X）手動剔除不要的圖，清單會存檔，匯出時放到 `_excluded\`。
   - 手動修正分群，修正會反映在之後的匯出：
@@ -137,9 +150,9 @@ style-atlas taste score "D:\new_batch" --model "D:\lora\artistX_style_atlas\tast
 - **Style Distance**：計算每張生成圖離參考集多遠，並列出最接近的是哪一張。
 - **Style Gate**：只讓夠原創的圖通過（keep original），或只讓夠像的圖通過（keep matching）。
 
-安裝步驟：
-1. 把 `comfyui` 資料夾複製或連結到 `ComfyUI/custom_nodes/style-atlas`。
-2. 在 ComfyUI 自己的 Python 裡安裝本工具，例如 `python_embeded/python.exe -m pip install -e <repo 路徑>`。
+安裝步驟（兩步都要做）：
+1. 在 ComfyUI 自己的 Python 裡安裝本工具，例如 `python_embeded\python.exe -m pip install -e <repo 路徑>`。節點的程式碼在這個套件裡。
+2. 把 `comfyui` 資料夾複製或連結到 `ComfyUI\custom_nodes\style-atlas`。這個資料夾只是讓 ComfyUI 找到節點的入口。
 
 Style Gate 的預設門檻是 0.5。在 Danbooru 上，單張圖之間的距離，同畫師的中位數約 0.40，不同畫師約 0.56。
 
@@ -204,9 +217,28 @@ how a picture is drawn rather than what it shows. On top of those vectors it can
 ### Windows quick start
 
 1. Install Python 3.10+ and tick "Add python.exe to PATH".
-2. Double-click `scripts\setup.bat`. It creates `.venv`, installs CUDA torch when an NVIDIA GPU is
-   present (otherwise CPU torch), then installs style-atlas.
+2. Get the project (GitHub: **Code -> Download ZIP** and unzip, or `git clone`; the repository is
+   private, so ask the author for access). Double-click `scripts\setup.bat`. It creates `.venv`,
+   installs CUDA torch when an NVIDIA GPU is present (otherwise CPU torch), then installs
+   style-atlas.
 3. Drag an image folder onto `scripts\StyleAtlas.bat`. The browser opens the web app.
+
+For commands (`audit`, `cluster`, `search` ...), double-click `scripts\StyleAtlas-console.bat`: it
+opens a console where `style-atlas` works. A plain console does not know the command, because it
+is installed in `.venv`.
+
+First-run notes:
+
+- Keep the console window open while you use the web app; closing it stops the app. If no
+  browser opens, go to the address the window prints (usually `http://127.0.0.1:8770`).
+- Captions are `.txt` files next to their images with the same name. Sub-folders are included
+  unless you pass `--no-recursive`.
+- Try a folder of about 100 images first.
+
+Terms: the **kohya** layout is the folder structure kohya_ss / sd-scripts train from
+(`10_artistX_style01`, where 10 is the **repeats**: how often each image is seen per epoch). A
+**trigger word** is the tag at the start of each caption that calls up the style after
+training.
 
 The first analysis downloads the CSD model once from Hugging Face (2.4 GB). It is kept as a slim
 1.2 GB file in `~/.cache/style-atlas`; set `STYLE_ATLAS_CACHE` to move it.
@@ -236,8 +268,8 @@ The output goes to `DIR_style_atlas/folders/`, next to the dataset and never ins
 
 - `<repeats>_artistX_styleNN/` folders, with captions copied alongside. Repeats are chosen so
   that images x repeats is about 100; use `--repeats N` to fix them.
-- `_duplicates/`, `_outliers/` and `_unassigned/`. Kohya skips these because they lack a number
-  prefix.
+- `_duplicates/`, `_outliers/`, `_unassigned/` and `_excluded/` (images you excluded with X in
+  the web app). Kohya skips these because they lack a number prefix.
 - `clusters.json`, which lists each group's characteristic caption tags.
 - With `--trigger-captions`, every exported caption starts with its group's trigger
   (`artistX_style01, ...`). Images without a caption get one, and source captions are never
@@ -251,7 +283,7 @@ original.
 ### Commands
 
 ```bash
-style-atlas cluster DIR [--granularity fine|medium|coarse | --threshold T | --k N]
+style-atlas cluster DIR [--granularity period|fine|medium|coarse | --threshold T | --k N]
                         [--layout plain|kohya --name X --repeats auto|N]
                         [--dedupe] [--drop-outliers N] [--export copy|link] [-o OUT]
 style-atlas doctor                 # check Python, torch, GPU, model download, disk space
@@ -333,9 +365,11 @@ Re-run `calibrate` on your own data.
 - **Style Distance**: the distance from each generated image to its closest reference.
 - **Style Gate**: keeps original or matching images.
 
-Install:
-1. Copy or link the folder into `ComfyUI/custom_nodes/style-atlas`.
-2. Install style-atlas into ComfyUI's own Python.
+Install (both steps are needed):
+1. Install style-atlas into ComfyUI's own Python, e.g.
+   `python_embeded\python.exe -m pip install -e <repo path>`. The node code lives in the package.
+2. Copy or link the `comfyui` folder into `ComfyUI/custom_nodes/style-atlas`. It is only the
+   entry point ComfyUI looks for.
 
 The Gate's default threshold is 0.5. For single images on Danbooru, the median distance is about
 0.40 between works by the same artist and 0.56 between different artists. The nodes have run with
