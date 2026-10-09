@@ -141,7 +141,7 @@ groups as single images / ARI over assigned images only / share unassigned.
   time beyond chance for 7 of 13, medium for 5, period for 9. Auto left at most 8% unassigned;
   period left 50-95% unassigned for 4 artists. `period` stays the advice for splitting one
   artist by time, then review the groups.
-- 3,000 images take about 2 s; 8,000 about 4 s.
+- 3,000 images take about 3 s; 8,000 about 4 s (8 CPU cores).
 
 **Limits of this evidence** (from a Sonnet review):
 - All of it is one Danbooru corpus with about 10 works per artist, and the 306-artist row is a
