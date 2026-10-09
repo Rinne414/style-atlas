@@ -25,6 +25,8 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+import numpy as np
+
 from styleatlas.atlas import LOAD_ERRORS, Atlas, EncodeOptions, get_encoder
 from styleatlas.cluster import (
     GRANULARITY,
@@ -276,12 +278,18 @@ class StyleAtlasApp:
         return {"hits": [{"i": h.index, "cos": round(h.cosine, 4)} for h in hits]}
 
     def _embed(self, datas: list[bytes]):
-        try:
-            images = [load_rgb(io.BytesIO(d)) for d in datas]
-        except LOAD_ERRORS as e:
-            raise ValueError(f"not a readable image: {e}") from e
+        """Style vectors of uploaded images, decoded one at a time (each can be large)."""
+        rows = []
+        for d in datas:
+            try:
+                image = load_rgb(io.BytesIO(d))
+            except LOAD_ERRORS as e:
+                raise ValueError(f"not a readable image: {e}") from e
+            with self._lock:
+                rows.append(get_encoder(self.opts).encode([image]).style[0])
+            del image
         with self._lock:
-            return self.neutral.apply(get_encoder(self.opts).encode(images).style)
+            return self.neutral.apply(np.stack(rows))
 
     def similar(self, body: dict) -> dict:
         """Images outside a group that look most like it (a model learned from the group, as in
@@ -584,6 +592,12 @@ class StyleAtlasHandler(BaseHTTPRequestHandler):
             self.end_headers()
             return
         i = self._image_index(parts[1]) if len(parts) == 2 else None
+        if i is not None and self.headers.get("Sec-Fetch-Site", "same-origin") not in (
+            "same-origin",
+            "none",
+        ):  # other sites could otherwise probe the image list through <img> tags
+            self.send_error(HTTPStatus.FORBIDDEN)
+            return
         if parts[0] == "thumb" and i is not None:
             self._send(200, self.app.thumb(i), "image/webp")
         elif parts[0] == "image" and i is not None:

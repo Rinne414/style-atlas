@@ -188,8 +188,15 @@ def export_folders(
         raise ValueError("one destination folder per image is required")
     result = ExportResult(fresh_dir(Path(out_dir)))
     used: dict[Path, set[str]] = {}
+    root = result.folder.resolve()
+    inside: dict[str, bool] = {}
     for i, src in enumerate(atlas.paths):
         folder = result.folder / folders[i]
+        if folders[i] not in inside:  # a folder name must not lead out of the export
+            inside[folders[i]] = folder.resolve().is_relative_to(root) and folder != result.folder
+        if not inside[folders[i]]:
+            result.failed.append((src, f"folder name {folders[i]!r} points outside the export"))
+            continue
         stem = _unique_stem(src.stem, used.setdefault(folder, set()))
         try:
             folder.mkdir(parents=True, exist_ok=True)

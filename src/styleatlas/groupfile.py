@@ -14,6 +14,7 @@ import numpy as np
 
 from styleatlas.atlas import Atlas
 from styleatlas.cluster import METHODS, UNASSIGNED, Clustering
+from styleatlas.dataset import clean_group_name
 
 GROUPS_FILE = "groups.json"
 MIN_KNOWN = 0.5  # restore only when the file covers at least this share of the current images
@@ -71,11 +72,13 @@ def _parse(data: dict, atlas: Atlas) -> SavedGroups | None:
     if sum(r in raw for r in rels) < MIN_KNOWN * len(rels):
         return None
     labels = np.array([max(raw.get(r, UNASSIGNED), UNASSIGNED) for r in rels], dtype=int)
-    names = {
-        int(g): n
-        for g, n in data.get("group_names", {}).items()
-        if g.isdigit() and isinstance(n, str) and n
-    }
+    names = {}  # file content is untrusted: names become folder names on export
+    for g, n in data.get("group_names", {}).items():
+        if g.isdigit() and isinstance(n, str) and n:
+            try:
+                names[int(g)] = clean_group_name(n)
+            except ValueError:
+                continue
     k = data.get("neutralize")
     return SavedGroups(
         labels, names, _settings(data.get("settings"), len(atlas)), k if type(k) is int else None

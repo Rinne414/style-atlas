@@ -21,6 +21,10 @@ SKIP_DIRS = {".styleatlas", ".git", "__pycache__", "style_atlas_out"}
 OUTPUT_SUFFIX = "_style_atlas"  # default result folders (export.output_dir) are never scanned
 
 
+# A 164 KB PNG can decode to 500 MB; CSD looks at 224 px anyway. 100 M pixels is 10,000 x 10,000.
+MAX_PIXELS = 100_000_000
+
+
 def find_images(
     root: Path, recursive: bool = True, exclude: list[Path] | None = None
 ) -> list[Path]:
@@ -31,9 +35,15 @@ def find_images(
         return [root] if root.suffix.lower() in IMAGE_SUFFIXES else []
     skip = [Path(e).resolve() for e in exclude or []]
     pattern = root.rglob("*") if recursive else root.iterdir()
+    real_root = root.resolve()
+    inside: dict[Path, bool] = {}  # per folder: does it really lie under root (no junctions)?
     found = []
     for p in pattern:
-        if not p.is_file() or p.suffix.lower() not in IMAGE_SUFFIXES:
+        if p.is_symlink() or not p.is_file() or p.suffix.lower() not in IMAGE_SUFFIXES:
+            continue  # a symlink in a downloaded dataset could point at any file
+        if p.parent not in inside:
+            inside[p.parent] = p.parent.resolve().is_relative_to(real_root)
+        if not inside[p.parent]:
             continue
         parents = p.relative_to(root).parts[:-1]
         if SKIP_DIRS.intersection(parents) or any(d.endswith(OUTPUT_SUFFIX) for d in parents):
@@ -52,6 +62,8 @@ def load_rgb(
     """Open as RGB: EXIF orientation applied, transparency flattened onto `background`.
     With max_side, JPEGs are decoded at a reduced scale (much faster for thumbnails)."""
     with Image.open(path) as im:
+        if im.width * im.height > MAX_PIXELS:  # checked before anything is decoded
+            raise ValueError(f"image too large to open safely ({im.width} x {im.height})")
         if max_side and im.format == "JPEG":
             im.draft("RGB", (max_side, max_side))
         im = ImageOps.exif_transpose(im)

@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+Security fixes from a Sonnet security review:
+- **HIGH: a crafted `groups.json` could make Export write outside its folder.** Group names read
+  from the file were not cleaned like names typed in the page, so `../../x` or an absolute path
+  became an export folder. Names from the file are now cleaned, and Export refuses any folder
+  that resolves outside the export.
+- Images over 100 million pixels are refused before decoding (decompression bombs), and search
+  uploads are decoded one at a time.
+- Symlinked files, and folders that resolve outside the dataset (junctions), are skipped when a
+  folder is scanned.
+- Thumbnails and images refuse requests that the browser marks as coming from another site.
+- `doctor` checks scipy and that the search data loads.
+
 ## 0.10.0 - 2026-10-10
 
 - `cluster --time name|mtime` shows where each group sits on the folder's timeline ("when 9%
