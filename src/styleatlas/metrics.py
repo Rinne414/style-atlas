@@ -27,23 +27,33 @@ def unit(x: np.ndarray) -> np.ndarray:
     return x / np.maximum(norms, 1e-12)
 
 
+_DENSITY_CACHE: list[tuple] = []  # the last few (queries, base, k, same_set, result)
+
+
 def neighbor_density(
     queries: np.ndarray, base: np.ndarray, k: int = DEFAULT_K, same_set: bool = False
 ) -> np.ndarray:
     """Mean cosine of each query to its k nearest rows of `base` (row i of base excluded for
-    query i when same_set). Processed in blocks of CHUNK query rows."""
+    query i when same_set). Processed in blocks of CHUNK query rows. The layout, outliers and
+    grouping all ask for the same arrays' density; repeat calls with the very same array
+    objects (never modified in place here) reuse the result."""
+    for q, b, kk, ss, out in _DENSITY_CACHE:
+        if q is queries and b is base and kk == k and ss == same_set:
+            return out.copy()
     others = base.shape[0] - (1 if same_set else 0)
     if others <= 0:
         return np.zeros(len(queries), dtype=np.float32)
-    k = max(1, min(k, others))
+    kk = max(1, min(k, others))
     out = np.empty(len(queries), dtype=np.float32)
     for s in range(0, len(queries), CHUNK):
         sims = queries[s : s + CHUNK] @ base.T
         if same_set:
             rows = np.arange(s, s + len(sims))
             sims[rows - s, rows] = -np.inf
-        out[s : s + len(sims)] = np.partition(sims, -k, axis=1)[:, -k:].mean(axis=1)
-    return out
+        out[s : s + len(sims)] = np.partition(sims, -kk, axis=1)[:, -kk:].mean(axis=1)
+    _DENSITY_CACHE.append((queries, base, k, same_set, out))
+    del _DENSITY_CACHE[:-2]
+    return out.copy()
 
 
 @dataclass(frozen=True)

@@ -125,3 +125,18 @@ def test_cli_reference_uses_the_folders_neutralizer(monkeypatch, tmp_path):
     got = cli._reference(args)
     assert np.allclose(got.style, args.neutralizer.apply(ref))
     assert not np.allclose(atlas.style, folder)
+
+
+def test_neighbor_density_reuses_only_the_same_arrays():
+    from styleatlas.metrics import neighbor_density
+
+    from .conftest import make_blobs
+
+    x, _ = make_blobs([10, 10])
+    first = neighbor_density(x, x, same_set=True)
+    first[:] = -1  # callers may change what they get back
+    again = neighbor_density(x, x, same_set=True)
+    assert (again > 0).all()
+    other = x.copy()
+    other[0] = -other[0]
+    assert not np.allclose(neighbor_density(other, other, same_set=True), again)
