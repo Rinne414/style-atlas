@@ -14,6 +14,8 @@
 - **`--trigger-captions`**: each group's trigger word is written into the exported captions.
 - **Style path**: the images that lead from one chosen style to another.
 - **Cross-character benchmark** and `docs/LORA_GUIDE.md`.
+- **ComfyUI nodes**: Load Style References, Style Distance and Style Gate. The gate keeps
+  original or matching generations.
 
 ### Fixes from the third review
 

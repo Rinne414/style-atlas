@@ -120,6 +120,20 @@ style-atlas taste score "D:\new_batch" --model "D:\lora\artistX_style_atlas\tast
 - `map` 產生的是單一 HTML 檔，three.js 和縮圖都已內嵌，離線也能開。**分享地圖等於分享這些縮圖。**
 - `serve` 只監聽本機 127.0.0.1，會檢查 Host 標頭，也只提供掃描過的檔案，不會把你的資料夾開放到網路上。
 
+### ComfyUI 節點
+
+`comfyui/` 資料夾裡有三個節點，可以把畫風檢查直接接進生成流程：
+
+- **Load Style References**：讀一個資料夾當參考集，例如畫師作品、以前生成過的圖、論壇配方的成品。
+- **Style Distance**：計算每張生成圖離參考集多遠，並列出最接近的是哪一張。
+- **Style Gate**：只讓夠原創的圖通過（keep original），或只讓夠像的圖通過（keep matching）。
+
+安裝步驟：
+1. 把 `comfyui` 資料夾複製或連結到 `ComfyUI/custom_nodes/style-atlas`。
+2. 在 ComfyUI 自己的 Python 裡安裝本工具，例如 `python_embeded/python.exe -m pip install -e <repo 路徑>`。
+
+（節點邏輯有單元測試，但還沒在實際的 ComfyUI 裡跑過。）
+
 ### 準不準？限制在哪？
 
 詳細數據在 [docs/BENCHMARKS.md](docs/BENCHMARKS.md)。主要測試資料是 297 位畫師的 2,956 張 Danbooru 作品，都是 512 px 縮圖，平均每位約 10 張。測試前已先移除 294 張近重複圖，因為重複圖會讓分數虛高。
@@ -291,6 +305,20 @@ Style drift is gradual, so treat groups as a first pass and review them in the m
 
 The `compare` z thresholds come from one person's calibration on fixed-content NovelAI renders.
 Re-run `calibrate` on your own data.
+
+### ComfyUI nodes
+
+`comfyui/` provides three nodes:
+
+- **Load Style References**: reads a folder of known styles.
+- **Style Distance**: the distance from each generated image to its closest reference.
+- **Style Gate**: keeps original or matching images.
+
+Install:
+1. Copy or link the folder into `ComfyUI/custom_nodes/style-atlas`.
+2. Install style-atlas into ComfyUI's own Python.
+
+The node logic is unit-tested, but the nodes have not been run inside ComfyUI yet.
 
 ### Credits
 
