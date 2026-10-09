@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import io
 import json
 import os
 
@@ -159,3 +160,20 @@ def test_trigger_captions_keep_non_utf8_and_do_not_double_prefix(tmp_path):
     done = export_folders(atlas, folders, tmp_path / "out", trigger_captions=True)
     assert (done.folder / "trig" / "img2.txt").read_bytes() == "中文標註".encode("big5")
     assert (done.folder / "trig" / "img3.txt").read_text(encoding="utf-8") == "trig, 1girl"
+
+
+def test_cached_thumbnails_are_reused_and_refreshed(tmp_path, monkeypatch):
+    import os
+
+    from styleatlas.images import cached_thumbnail
+
+    monkeypatch.setenv("STYLE_ATLAS_CACHE", str(tmp_path / "cache"))
+    big = tmp_path / "big.jpg"
+    Image.new("RGB", (2400, 1600), (10, 120, 200)).save(big, quality=90)
+    first = cached_thumbnail(big, 128)
+    assert Image.open(io.BytesIO(first)).size == (128, 85)
+    assert len(list((tmp_path / "cache" / "thumbs").rglob("*.webp"))) == 1
+    assert cached_thumbnail(big, 128) == first  # served from disk
+    Image.new("RGB", (800, 800), (200, 10, 10)).save(big)
+    os.utime(big, ns=(1, 1))  # a changed file must not reuse the old thumbnail
+    assert Image.open(io.BytesIO(cached_thumbnail(big, 128))).size == (128, 128)

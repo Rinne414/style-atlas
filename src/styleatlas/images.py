@@ -3,13 +3,18 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import io
+import os
 import re
+import threading
 from collections.abc import Iterable
 from pathlib import Path
 from typing import BinaryIO
 
 from PIL import Image, ImageOps
+
+from styleatlas.cachedir import cache_dir
 
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif", ".avif"}
 SKIP_DIRS = {".styleatlas", ".git", "__pycache__", "style_atlas_out"}
@@ -40,10 +45,15 @@ def find_images(
 
 
 def load_rgb(
-    path: Path | BinaryIO, background: tuple[int, int, int] = (255, 255, 255)
+    path: Path | BinaryIO,
+    background: tuple[int, int, int] = (255, 255, 255),
+    max_side: int | None = None,
 ) -> Image.Image:
-    """Open as RGB: EXIF orientation applied, transparency flattened onto `background`."""
+    """Open as RGB: EXIF orientation applied, transparency flattened onto `background`.
+    With max_side, JPEGs are decoded at a reduced scale (much faster for thumbnails)."""
     with Image.open(path) as im:
+        if max_side and im.format == "JPEG":
+            im.draft("RGB", (max_side, max_side))
         im = ImageOps.exif_transpose(im)
         if im.mode in ("RGBA", "LA") or (im.mode == "P" and "transparency" in im.info):
             rgba = im.convert("RGBA")
@@ -55,16 +65,35 @@ def load_rgb(
 
 def thumbnail_bytes(path: Path, size: int = 96, quality: int = 70) -> bytes:
     """Small WebP thumbnail (longest side `size`)."""
-    im = load_rgb(path)
+    im = load_rgb(path, max_side=size * 2)
     im.thumbnail((size, size), Image.Resampling.LANCZOS)
     buf = io.BytesIO()
     im.save(buf, format="WEBP", quality=quality)
     return buf.getvalue()
 
 
+def cached_thumbnail(path: Path, size: int = 96) -> bytes:
+    """thumbnail_bytes, kept on disk (keyed by path, size and modification time) so a folder
+    opens instantly the second time."""
+    st = Path(path).stat()
+    key = hashlib.sha1(
+        f"{Path(path).resolve()}|{st.st_size}|{st.st_mtime_ns}|{size}".encode()
+    ).hexdigest()
+    folder = cache_dir() / "thumbs" / key[:2]
+    file = folder / f"{key}.webp"
+    if file.exists():
+        return file.read_bytes()
+    data = thumbnail_bytes(path, size)
+    folder.mkdir(parents=True, exist_ok=True)
+    tmp = file.with_name(f"{file.name}.{os.getpid()}.{threading.get_ident()}.tmp")
+    tmp.write_bytes(data)
+    os.replace(tmp, file)
+    return data
+
+
 def thumbnail_data_url(path: Path, size: int = 96, quality: int = 70) -> str:
     """Small WebP thumbnail as a data URL, for self-contained HTML reports."""
-    data = thumbnail_bytes(path, size, quality)
+    data = cached_thumbnail(path, size) if quality == 70 else thumbnail_bytes(path, size, quality)
     return "data:image/webp;base64," + base64.b64encode(data).decode("ascii")
 
 

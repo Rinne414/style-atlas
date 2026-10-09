@@ -14,6 +14,7 @@ import mimetypes
 import threading
 import webbrowser
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -29,7 +30,7 @@ from styleatlas.cluster import (
 )
 from styleatlas.dataset import plan_folders
 from styleatlas.export import export_folders, output_dir, write_table
-from styleatlas.images import load_rgb, thumbnail_bytes
+from styleatlas.images import cached_thumbnail, load_rgb
 from styleatlas.metrics import Neutralizer
 from styleatlas.persist import RelPathMap
 from styleatlas.report import build_payload, compute_layout, default_thumb_px, render_html
@@ -99,10 +100,17 @@ class StyleAtlasApp:
     def thumb(self, i: int) -> bytes:
         if i not in self._thumbs:
             try:
-                self._thumbs[i] = thumbnail_bytes(self.atlas.paths[i], size=self.thumb_px)
+                self._thumbs[i] = cached_thumbnail(self.atlas.paths[i], size=self.thumb_px)
             except LOAD_ERRORS:
                 self._thumbs[i] = b""
         return self._thumbs[i]
+
+    def prewarm(self, workers: int = 4) -> None:
+        """Make every thumbnail in the background, so the page is ready when it is opened."""
+        pool = ThreadPoolExecutor(max_workers=workers, thread_name_prefix="thumbs")
+        for i in range(len(self.atlas)):
+            pool.submit(self.thumb, i)
+        pool.shutdown(wait=False)
 
     def regroup(self, body: dict) -> dict:
         method = body.get("method", "agglomerative")
@@ -370,6 +378,7 @@ def bind(app: StyleAtlasApp, port: int = 8770) -> ThreadingHTTPServer:
 
 def serve(app: StyleAtlasApp, port: int = 8770, open_browser: bool = True) -> None:
     server = bind(app, port)
+    app.prewarm()
     url = f"http://127.0.0.1:{server.server_address[1]}/"
     print(f"style-atlas is running at {url}  (Ctrl+C to stop)", flush=True)
     if open_browser:

@@ -14,12 +14,13 @@ import argparse
 import math
 import os
 from dataclasses import dataclass
-from pathlib import Path
 
 import numpy as np
 import torch
 from PIL import Image
 from torchvision import transforms as T
+
+from styleatlas.cachedir import cache_dir
 
 CSD_REPO = "tomg-group-umd/CSD-ViT-L"
 CSD_REVISION = "5bc26a6fb0487f3f00a2a7313135103a005b1b67"
@@ -31,13 +32,6 @@ CLIP_STD = (0.26862954, 0.26130258, 0.27577711)
 CROP_MODES = ("center", "tiles")
 MAX_TILES = 3
 MAX_ASPECT = 4.0  # longer strips are centre-cropped first (keeps memory bounded)
-
-
-def cache_dir() -> Path:
-    root = os.environ.get("STYLE_ATLAS_CACHE") or Path.home() / ".cache" / "style-atlas"
-    path = Path(root)
-    path.mkdir(parents=True, exist_ok=True)
-    return path
 
 
 def resolve_device(device: str) -> str:
