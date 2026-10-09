@@ -19,7 +19,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from styleatlas.atlas import Atlas
-from styleatlas.cluster import UNASSIGNED, Clustering
+from styleatlas.cluster import Clustering
+from styleatlas.dataset import plan_folders
 from styleatlas.report import cluster_table
 
 SIDECARS = (".txt", ".caption", ".json")
@@ -41,10 +42,6 @@ def output_dir(source: Path) -> Path:
     return source.parent / f"{source.name}_style_atlas"
 
 
-def folder_name(cid: int, width: int) -> str:
-    return "unassigned" if cid == UNASSIGNED else f"style_{cid + 1:0{width}d}"
-
-
 def _safe_cell(value: object) -> object:
     """Spreadsheet apps run cells starting with = + - @ as formulas; neutralise file names."""
     if isinstance(value, str) and value.startswith(FORMULA_START):
@@ -59,12 +56,19 @@ def _write_atomic(path: Path, text: str, encoding: str = "utf-8") -> None:
     os.replace(tmp, path)
 
 
-def write_table(atlas: Atlas, clustering: Clustering, out_dir: Path) -> tuple[Path, Path]:
+def write_table(
+    atlas: Atlas,
+    clustering: Clustering,
+    out_dir: Path,
+    folders: list[str] | None = None,
+    tags: dict[int, list[dict]] | None = None,
+) -> tuple[Path, Path]:
+    """clusters.csv (one row per image) and clusters.json (one entry per style group)."""
     out_dir.mkdir(parents=True, exist_ok=True)
     rows = cluster_table(atlas, clustering)
-    width = max(2, len(str(clustering.n_clusters)))
-    for r in rows:
-        r["folder"] = folder_name(r["cluster"], width)
+    folders = folders or plan_folders(atlas.paths, clustering)
+    for r, f in zip(rows, folders, strict=True):
+        r["folder"] = f
     buf = io.StringIO(newline="")
     w = csv.DictWriter(buf, fieldnames=list(rows[0].keys()) if rows else ["path"])
     w.writeheader()
@@ -79,10 +83,11 @@ def write_table(atlas: Atlas, clustering: Clustering, out_dir: Path) -> tuple[Pa
         "unassigned": clustering.n_unassigned,
         "clusters": [
             {
-                "folder": folder_name(c.id, width),
+                "folder": folders[c.medoid],
                 "size": c.size,
                 "cohesion": round(c.cohesion, 4),
                 "representative": atlas.rel(c.medoid),
+                "top_tags": (tags or {}).get(c.id, []),
             }
             for c in clustering.clusters
         ],
@@ -114,16 +119,18 @@ def _place(src: Path, dst: Path, mode: str) -> None:
 
 
 def export_folders(
-    atlas: Atlas, clustering: Clustering, out_dir: Path, mode: str = "copy"
+    atlas: Atlas, folders: list[str], out_dir: Path, mode: str = "copy"
 ) -> ExportResult:
-    """Copy or hard-link each image (and its sidecars) into style_NN folders of a fresh folder."""
+    """Copy or hard-link each image (and its sidecars) into its planned folder (see
+    dataset.plan_folders) inside a fresh output folder."""
     if mode not in EXPORT_MODES:
         raise ValueError(f"mode must be one of {EXPORT_MODES}")
+    if len(folders) != len(atlas):
+        raise ValueError("one destination folder per image is required")
     result = ExportResult(fresh_dir(Path(out_dir)))
-    width = max(2, len(str(clustering.n_clusters)))
     used: dict[Path, set[str]] = {}
     for i, src in enumerate(atlas.paths):
-        folder = result.folder / folder_name(int(clustering.labels[i]), width)
+        folder = result.folder / folders[i]
         stem = _unique_stem(src.stem, used.setdefault(folder, set()))
         try:
             folder.mkdir(parents=True, exist_ok=True)

@@ -20,6 +20,7 @@ from pathlib import Path
 
 from styleatlas.atlas import LOAD_ERRORS, Atlas, EncodeOptions, get_encoder
 from styleatlas.cluster import GRANULARITY, METHODS, cluster_styles
+from styleatlas.dataset import plan_folders
 from styleatlas.export import export_folders, output_dir, write_table
 from styleatlas.images import load_rgb, thumbnail_bytes
 from styleatlas.report import build_payload, compute_layout, default_thumb_px, render_html
@@ -120,8 +121,9 @@ class StyleAtlasApp:
         mode = body.get("mode", "copy")
         out = self.out_dir
         with self._lock:
-            write_table(self.atlas, self.clustering, out)
-            result = export_folders(self.atlas, self.clustering, out / "folders", mode=mode)
+            folders = plan_folders(self.atlas.paths, self.clustering)
+            write_table(self.atlas, self.clustering, out, folders)
+            result = export_folders(self.atlas, folders, out / "folders", mode=mode)
         return {"placed": result.placed, "failed": len(result.failed), "folder": str(result.folder)}
 
 

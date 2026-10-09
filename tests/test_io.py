@@ -9,6 +9,7 @@ from PIL import Image
 
 from styleatlas.atlas import Atlas
 from styleatlas.cluster import cluster_styles
+from styleatlas.dataset import plan_folders
 from styleatlas.encoder import square_crops
 from styleatlas.export import export_folders, write_table
 from styleatlas.images import find_images, labels_from_folders, load_rgb
@@ -72,7 +73,7 @@ def _atlas(tmp_path, sizes):
 def test_export_copies_captions_and_avoids_name_collisions(tmp_path):
     atlas = _atlas(tmp_path, [6, 5])
     result = cluster_styles(atlas.style)
-    placed = export_folders(atlas, result, tmp_path / "out")
+    placed = export_folders(atlas, plan_folders(atlas.paths, result), tmp_path / "out")
     assert placed.placed == len(atlas) and not placed.failed
     files = [p for p in (tmp_path / "out").rglob("*") if p.is_file()]
     names = sorted(p.name for p in files)
@@ -83,7 +84,8 @@ def test_export_copies_captions_and_avoids_name_collisions(tmp_path):
 
 def test_export_link_mode(tmp_path):
     atlas = _atlas(tmp_path, [6, 5])
-    export_folders(atlas, cluster_styles(atlas.style), tmp_path / "out", mode="link")
+    folders = plan_folders(atlas.paths, cluster_styles(atlas.style))
+    export_folders(atlas, folders, tmp_path / "out", mode="link")
     linked = next((tmp_path / "out").rglob("img1.png"))
     assert os.stat(linked).st_nlink >= 1
 

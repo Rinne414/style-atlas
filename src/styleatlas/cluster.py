@@ -117,6 +117,24 @@ def _finish(x: np.ndarray, raw: np.ndarray, method: str, params: dict, min_size:
     return Clustering(labels, clusters, method, params)
 
 
+def expand_clustering(sub: Clustering, kept: np.ndarray, n: int) -> Clustering:
+    """A clustering of the rows `kept` of an n-image set, re-indexed to the full set; the rows
+    left out are UNASSIGNED."""
+    labels = np.full(n, UNASSIGNED, dtype=int)
+    labels[kept] = sub.labels
+    clusters = [
+        ClusterInfo(
+            id=c.id,
+            size=c.size,
+            medoid=int(kept[c.medoid]),
+            cohesion=c.cohesion,
+            members=[int(kept[m]) for m in c.members],
+        )
+        for c in sub.clusters
+    ]
+    return Clustering(labels, clusters, sub.method, sub.params)
+
+
 def outlier_scores(x: np.ndarray, k: int = DEFAULT_K) -> np.ndarray:
     """1 - mean cosine to the k nearest other images: high = unlike the rest of the set."""
     if len(x) < 2:

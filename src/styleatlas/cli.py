@@ -65,11 +65,24 @@ def cmd_cluster(a: argparse.Namespace) -> int:
 
     out = Path(a.out) if a.out else output_dir(Path(a.folder))
     atlas = _atlas(a, a.folder, exclude=[out])
-    result = _cluster(a, atlas)
-    csv_path, json_path = write_table(atlas, result, out)
+    dups = None
+    if a.dedupe:  # cluster only the kept copies, so a stack of duplicates cannot pose as a style
+        from styleatlas.cluster import expand_clustering
+        from styleatlas.dataset import duplicate_keepers
+        from styleatlas.duplicates import near_duplicate_groups
+
+        dups = near_duplicate_groups(atlas.style, atlas.content)
+        kept = duplicate_keepers(atlas.paths, dups)
+        log(f"{len(atlas) - len(kept)} near-duplicates set aside before grouping")
+        result = expand_clustering(_cluster(a, atlas.subset(kept)), kept, len(atlas))
+    else:
+        result = _cluster(a, atlas)
+    folders, tags = _plan(a, atlas, result, dups)
+    csv_path, json_path = write_table(atlas, result, out, folders, tags)
     log(f"wrote {csv_path} and {json_path}")
+    _print_groups(atlas, result, folders, tags)
     if a.export:
-        done = export_folders(atlas, result, out / "folders", mode=a.export)
+        done = export_folders(atlas, folders, out / "folders", mode=a.export)
         log(f"{a.export}: {done.placed} images into {done.folder}")
         for p, why in done.failed:
             log(f"not exported {p}: {why}")
@@ -78,6 +91,46 @@ def cmd_cluster(a: argparse.Namespace) -> int:
             atlas, result, out / "map.html", a.projection, a.thumb, progress=log, time_source=a.time
         )
         log(f"map: {path}")
+    return 0
+
+
+def _plan(
+    a: argparse.Namespace, atlas: Atlas, result, dups: list[list[int]] | None
+) -> tuple[list[str], dict]:
+    from styleatlas.dataset import plan_folders, tag_summary
+
+    outliers = None
+    if a.drop_outliers:
+        outliers = [int(i) for i in np.argsort(-outlier_scores(atlas.style))[: a.drop_outliers]]
+    name = a.name or Path(a.folder).resolve().name
+    safe = "".join(ch if ch.isalnum() or ch in " -_." else "_" for ch in name).strip() or "style"
+    folders = plan_folders(
+        atlas.paths, result, a.layout, safe, a.repeats, dups, outliers, min_size=a.min_size
+    )
+    return folders, tag_summary(atlas.paths, result)
+
+
+def _print_groups(atlas: Atlas, result, folders: list[str], tags: dict) -> None:
+    from collections import Counter
+
+    for folder, n in sorted(Counter(folders).items()):
+        cid = next(int(result.labels[i]) for i, f in enumerate(folders) if f == folder)
+        top = ", ".join(r["tag"] for r in tags.get(cid, [])[:5]) if cid >= 0 else ""
+        log(f"  {folder:28s} {n:5d}  {top}")
+
+
+def cmd_audit(a: argparse.Namespace) -> int:
+    from styleatlas.dataset import audit
+
+    report = audit(find_images(Path(a.folder)), min_side=a.min_side, max_ratio=a.max_ratio)
+    if a.json:
+        print(json.dumps(report, ensure_ascii=False, indent=1))
+        return 0
+    for key, value in report["summary"].items():
+        print(f"{key:24s} {value}")
+    for key, files in report["files"].items():
+        for f in files[: a.show]:
+            print(f"  [{key}] {f}")
     return 0
 
 
@@ -315,6 +368,30 @@ def build_parser() -> argparse.ArgumentParser:
         "--export", choices=["copy", "link"], help="also place images into style folders"
     )
     p.add_argument("--no-map", action="store_true")
+    p.add_argument(
+        "--layout",
+        choices=["plain", "kohya"],
+        default="plain",
+        help="kohya: <repeats>_<name>_styleNN folders; set-aside folders are skipped",
+    )
+    p.add_argument("--name", help="concept name for kohya folders (default: the folder name)")
+    p.add_argument(
+        "--repeats",
+        default="auto",
+        help="kohya repeats per style folder, or auto (about 100 images x repeats each)",
+    )
+    p.add_argument(
+        "--dedupe",
+        action="store_true",
+        help="keep the best copy of each near-duplicate group; others go to _duplicates",
+    )
+    p.add_argument(
+        "--drop-outliers",
+        type=int,
+        default=0,
+        metavar="N",
+        help="move the N least typical images to _outliers",
+    )
     _cluster_args(p)
     p = add("map", cmd_map, "write the interactive 3D style map (one HTML file)")
     p.add_argument("folder")
@@ -337,6 +414,12 @@ def build_parser() -> argparse.ArgumentParser:
     p = add("outliers", cmd_outliers, "images least like the rest of a folder")
     p.add_argument("folder")
     p.add_argument("--top", type=int, default=30)
+    p = add("audit", cmd_audit, "check a training folder: sizes, aspect ratios, captions")
+    p.add_argument("folder")
+    p.add_argument("--min-side", type=int, default=512, help="training resolution to check against")
+    p.add_argument("--max-ratio", type=float, default=2.5)
+    p.add_argument("--show", type=int, default=10, help="files to list per problem")
+    p.add_argument("--json", action="store_true")
     p = add("duplicates", cmd_duplicates, "near-duplicate groups (same picture, crops, frames)")
     p.add_argument("folder")
     p.add_argument("--threshold", type=float, default=0.92, help="min(style, content) cosine")
