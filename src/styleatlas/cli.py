@@ -252,7 +252,19 @@ def cmd_search(a: argparse.Namespace) -> int:
     else:
         for row in rows:
             print(f"{row['rank']:3d}  {row['cosine']:.3f}  {row['path']}    <- {row['query']}")
+    if a.copy_to:
+        _copy_matches(atlas, [h.index for hits in results for h in hits], Path(a.copy_to))
     return 0
+
+
+def _copy_matches(atlas, indices: list[int], dest: Path) -> None:
+    from styleatlas.export import export_folders
+
+    unique = list(dict.fromkeys(indices))  # several queries may find the same image
+    done = export_folders(atlas.subset(unique), ["matches"] * len(unique), dest)
+    log(f"copied {done.placed} matches to {done.folder / 'matches'}")
+    for p, why in done.failed:
+        log(f"not copied {p}: {why}")
 
 
 def cmd_outliers(a: argparse.Namespace) -> int:
@@ -500,7 +512,14 @@ def _add_inspect_commands(add: Adder) -> None:
     p.add_argument("query", nargs="+", help="query image(s) or folder(s)")
     p.add_argument("--in", dest="within", required=True, help="folder to search")
     p.add_argument("--top", type=int, default=20)
-    p.add_argument("--combine", action="store_true", help="treat all queries as one style")
+    p.add_argument(
+        "--combine",
+        action="store_true",
+        help="treat all queries as one style (from 3 images up, a model learned from them)",
+    )
+    p.add_argument(
+        "--copy-to", metavar="DIR", help="copy the matches (with captions) into a new folder here"
+    )
     p.add_argument("--neutralize", type=int, default=0, metavar="N", help=NEUTRALIZE_HELP)
     p.add_argument("--json", action="store_true")
     p = add("outliers", cmd_outliers, "images least like the rest of a folder")

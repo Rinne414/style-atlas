@@ -87,6 +87,31 @@ singletons, and hub correction removes most of that failure.
 
 HDBSCAN left 49% of points as noise.
 
+### Searching with several example images (2026-10-10)
+
+Task: given a few works by one artist, find the rest of that artist's works in a library.
+
+Library: the deduplicated Danbooru corpus (3,000 images) plus 13 artists with 30-60 works each
+(the period corpus), 3,689 images in all. For each of the 13 artists, 5 random draws of the
+examples; the targets are that artist's other works. AP = average precision; paired bootstrap
+95% CI against the mean vector.
+
+| Scoring | 3 examples | 5 examples | 10 examples |
+|---|---|---|---|
+| Mean vector (`--combine` before) | 0.345 | 0.388 | 0.427 |
+| Logistic regression, examples vs 1,000 random library images | **0.400** (+0.055 [+0.038, +0.071]) | **0.454** (+0.066 [+0.042, +0.090]) | **0.544** (+0.116 [+0.092, +0.141]) |
+
+- Regularisation: C = 1 was best (C = 0.1 and 10 were tried); 1,000 negatives beat 300.
+- Scoring each image by its best match among the examples (max) was worse than the mean vector
+  every time (-0.04 to -0.09 AP). The mean of the top 3 or 5 matches was no better than the mean.
+- When the examples come from an artist's earliest third and the targets are the latest third,
+  the gain shrinks to +0.00 to +0.02 (every CI touches 0): a model learned from one period does not
+  reach far into another.
+- On the plain Danbooru corpus (about 12 works per artist) the gain is smaller: +0.014 AP with 3
+  examples, +0.019 with 5.
+
+`search --combine` now uses the learned model from 3 example images up.
+
 ### More than 8,000 images (2026-10-10)
 
 Average linkage needs an n x n distance matrix, which is too large above 8,000 images. Until

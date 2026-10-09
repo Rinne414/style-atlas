@@ -8,12 +8,34 @@ import numpy as np
 
 from styleatlas.metrics import CHUNK, DEFAULT_K, centroid, hub_scores, neighbor_density
 
+# With several example images, a logistic model of examples vs the library ranks the rest of an
+# artist's work better than the examples' mean vector: +0.055 / +0.066 / +0.116 average precision
+# with 3 / 5 / 10 examples on 13 artists hidden in a 3,689-image library (docs/BENCHMARKS.md).
+MIN_LEARNED = 3
+LEARNED_NEGATIVES = 1000
+LEARNED_SEED = 0
+
 
 @dataclass(frozen=True)
 class Hit:
     index: int
-    score: float  # hub-corrected similarity used for ranking
+    score: float  # used for ranking: hub-corrected similarity, or the learned model's logit
     cosine: float
+
+
+def learned_scores(examples: np.ndarray, base: np.ndarray, exclude: set[int]) -> np.ndarray:
+    """Logit of "same style as the examples" for every row of `base`: logistic regression of
+    the examples against a random sample of the library (rows in `exclude`, the examples' own
+    copies, are never used as negatives). A few unlabelled matches among the negatives do not
+    hurt much; the benchmark includes them."""
+    from sklearn.linear_model import LogisticRegression
+
+    pool = np.setdiff1d(np.arange(len(base)), sorted(exclude))
+    rng = np.random.default_rng(LEARNED_SEED)
+    neg = base[rng.choice(pool, min(LEARNED_NEGATIVES, len(pool)), replace=False)]
+    model = LogisticRegression(C=1.0, class_weight="balanced", max_iter=1000)
+    model.fit(np.vstack([examples, neg]), np.r_[np.ones(len(examples)), np.zeros(len(neg))])
+    return model.decision_function(base)
 
 
 def knn(x: np.ndarray, k: int = 8, hub_k: int = DEFAULT_K, chunk: int = CHUNK) -> np.ndarray:
@@ -80,13 +102,17 @@ def search(
     combine: bool = False,
     exclude: set[int] | None = None,
 ) -> list[list[Hit]]:
-    """Top matches in `base` per query (or for the queries' shared style when `combine`)."""
+    """Top matches in `base` per query, or for the queries' shared style when `combine`
+    (a learned model from MIN_LEARNED examples up, else their mean vector)."""
     if len(base) == 0:
         return [[] for _ in range(1 if combine else len(queries))]
     q = centroid(queries)[None, :] if combine else queries
-    density = neighbor_density(base, base, k=hub_k, same_set=True)
-    scores = hub_scores(q, base, k=hub_k, base_density=density)
     cos = q @ base.T
+    if combine and len(queries) >= MIN_LEARNED:
+        scores = learned_scores(queries, base, exclude or set())[None, :]
+    else:
+        density = neighbor_density(base, base, k=hub_k, same_set=True)
+        scores = hub_scores(q, base, k=hub_k, base_density=density)
     if exclude:
         scores[:, sorted(exclude)] = -np.inf
     results = []

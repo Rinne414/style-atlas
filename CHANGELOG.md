@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- **Search with several examples**: `search --combine` with 3 or more example images ranks the
+  library with a logistic model of the examples against the library, instead of their mean
+  vector (+0.055 to +0.116 average precision, BENCHMARKS.md).
+- **`search --copy-to DIR`** copies the matches, with their captions, into a new folder.
+
 ## 0.5.0 - 2026-10-10
 
 - **Ignore the character axis** in the web app: a live `--neutralize` switch. It rebuilds the

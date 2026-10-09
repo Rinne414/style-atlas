@@ -173,3 +173,31 @@ def test_large_sets_join_micro_groups_and_keep_the_threshold(monkeypatch):
     cluster_styles(x, threshold=0.3)  # same set, new threshold: the cached tree is cut again
     cluster_styles(x[:100], threshold=0.3)  # another set: k-means runs
     assert len(runs) == 1
+
+
+def test_a_set_of_examples_learns_a_style_with_two_looks():
+    x, y = make_blobs([20, 20, 20, 20])
+    examples = [0, 1, 2, 20, 21, 22]  # one style, drawn in two looks (groups 0 and 1)
+    hits = search(x[examples], x, top=30, combine=True, exclude=set(examples))[0]
+    assert not {h.index for h in hits} & set(examples)
+    assert all(y[h.index] in (0, 1) for h in hits[:30])
+    assert any(abs(h.score - h.cosine) > 1e-3 for h in hits)  # ranked by the learned logit
+
+
+def test_matches_are_copied_with_captions_once(tmp_path):
+    from PIL import Image
+
+    from styleatlas.atlas import Atlas
+    from styleatlas.cli import _copy_matches
+
+    x, _ = make_blobs([3])
+    paths = []
+    for i in range(3):
+        p = tmp_path / "lib" / f"m{i}.png"
+        p.parent.mkdir(exist_ok=True)
+        Image.new("RGB", (8, 8)).save(p)
+        p.with_suffix(".txt").write_text(f"tag{i}", encoding="utf-8")
+        paths.append(p)
+    _copy_matches(Atlas(tmp_path / "lib", paths, x, x, "sig"), [2, 0, 2], tmp_path / "out")
+    got = sorted(f.name for f in (tmp_path / "out" / "matches").iterdir())
+    assert got == ["m0.png", "m0.txt", "m2.png", "m2.txt"]

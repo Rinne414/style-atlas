@@ -81,12 +81,15 @@ _unassigned\
 
 ```bash
 style-atlas search ref1.png ref2.png --combine --in "D:\gallery" --top 30   # 以圖找圖
+style-atlas search "D:\examples" --combine --in "D:\gallery" --top 100 --copy-to "D:\lora\more"  # 擴充訓練集
 style-atlas map "D:\gallery" -o gallery_map.html     # 單一 HTML 3D 地圖，離線可開
 style-atlas duplicates "D:\gallery"                  # 近重複圖分組
 style-atlas outliers "D:\lora\artistX" --top 20      # 最不合群的圖
 style-atlas compare "D:\old_works" "D:\new_works"    # 兩組圖是否同一畫風（距離、p 值）
 style-atlas taste score "D:\new_batch" --model "D:\lora\artistX_style_atlas\taste_model.npz"
 ```
+
+**用幾張範例圖找更多同風格的圖**（例如擴充 LoRA 訓練集）：把範例放進一個資料夾，用 `--combine` 搜尋，再用 `--copy-to` 把結果連同標註複製出來。範例有 3 張以上時，會用範例對圖庫訓練一個小模型來排序，比單純取範例的平均向量準：在 3,689 張的圖庫裡找 13 位畫師的其他作品，平均精確度在 3／5／10 張範例時分別高 0.055／0.066／0.116。
 
 **同樣的角色出現在很多種畫風裡**時（例如用固定角色測試不同畫師組合），請加 `--neutralize 1`，或在網頁介面勾選「忽略角色軸」。CSD 的畫風向量仍會被角色外觀（髮色、服裝）強烈拉扯。在 96 種畫風 × 2 個角色的 NovelAI 算圖上：
 - 不加時，最接近的圖 89% 是「同角色、別的畫風」。
@@ -252,7 +255,7 @@ style-atlas cluster DIR [--granularity fine|medium|coarse | --threshold T | --k 
 style-atlas doctor                 # check Python, torch, GPU, model download, disk space
 style-atlas serve DIR [--port 8770] [--no-browser] [--time none|name|mtime]
 style-atlas map DIR [-o map.html] [--projection auto|umap|tsne|pca] [--time ...]
-style-atlas search QUERY... --in DIR [--top 20] [--combine] [--json]
+style-atlas search QUERY... --in DIR [--top 20] [--combine] [--copy-to DIR] [--json]
 style-atlas audit DIR [--min-side 512] [--max-ratio 2.5] [--json]
 style-atlas duplicates DIR [--threshold 0.95] [--json]
 style-atlas outliers DIR [--top 30]
