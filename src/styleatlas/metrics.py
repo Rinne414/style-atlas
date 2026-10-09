@@ -46,6 +46,39 @@ def neighbor_density(
     return out
 
 
+@dataclass(frozen=True)
+class Neutralizer:
+    """Removes each vector's deviation along the strongest directions of variation in a
+    collection, keeping the shared mean so distances keep their scale.
+
+    When the same characters appear in many styles (style-exploration renders), the strongest
+    direction is the character: on 96 NovelAI styles x 2 characters, removing one direction
+    raised same-style retrieval AUC from 0.83 to 0.98. When a collection mixes different artists,
+    the strongest direction IS the style difference, and removing it wrecked clustering (ARI 0.55
+    to 0.02). So this is opt-in, for subject-heavy collections only."""
+
+    mean: np.ndarray
+    axes: np.ndarray  # (k, d)
+
+    @classmethod
+    def fit(cls, x: np.ndarray, k: int) -> Neutralizer:
+        from sklearn.decomposition import PCA
+
+        mean = x.mean(axis=0)
+        k = max(0, min(k, len(x) - 1))
+        axes = (
+            PCA(n_components=k, random_state=0).fit(x - mean).components_
+            if k
+            else np.zeros((0, x.shape[1]), np.float32)
+        )
+        return cls(mean.astype(np.float32), axes.astype(np.float32))
+
+    def apply(self, x: np.ndarray) -> np.ndarray:
+        if not len(self.axes):
+            return x
+        return unit(x - ((x - self.mean) @ self.axes.T) @ self.axes)
+
+
 def cosine_distance(x: np.ndarray) -> np.ndarray:
     d = 1.0 - x @ x.T
     d = np.maximum(d, 0.0)

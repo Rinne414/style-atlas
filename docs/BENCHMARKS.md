@@ -124,6 +124,33 @@ follow time for 4 of 6 artists with a manageable number of groups. 0.30 fragment
 haruyama_kazunori varies a lot, but not in step with time. This test is the basis for the
 `period` granularity.
 
+## Same subjects in many styles: `--neutralize` (2026-10-09)
+
+This is the style-exploration case, where the same characters are rendered in many styles.
+
+- **Data**: 96 NovelAI V5 style recipes, each rendered with the same 2 characters, 192 SFW
+  images. Labels are the recipes.
+- **Problem**: before any correction, an image's nearest neighbour was the *same character in
+  another style* 89% of the time, and its style twin only 10%. Even CSD style vectors are pulled
+  strongly by character looks (hair colour, outfit).
+
+| Correction | Twin is nearest | Recipe-pair AUC | Mixture ARI (Danbooru, 2/3/5 artists) | Period Mantel r |
+|---|---|---|---|---|
+| none (default) | 10% | 0.827 | 0.55 / 0.50 / 0.48 | +0.19 |
+| `--neutralize 1` (flatten the strongest direction, keep the mean) | **46%** | **0.980** | 0.02 / 0.14 / 0.27 | +0.12 |
+| centring each character separately (needs labels) | 51% | 0.976 | (n/a) | (n/a) |
+
+Removing the strongest direction of variation has opposite effects depending on the collection:
+
+- **Same subjects, many styles**: the strongest direction is the subject, so removing it fixes
+  style search. Danbooru
+  same-artist retrieval was unchanged (top-1 46.3% vs 46.3%).
+- **Different artists mixed**: the strongest direction *is* the style difference, so removing it
+  wrecks clustering.
+
+That is why `--neutralize` is opt-in. It is meant only for collections where the same characters
+recur across styles.
+
 ## Near-duplicate threshold (2026-10-09)
 
 Pairs were checked by eye at each score of min(style cos, content cos):

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 import numpy as np
@@ -11,6 +11,7 @@ from PIL import Image
 
 from styleatlas.encoder import CSDEncoder, cache_dir, encoder_signature
 from styleatlas.images import find_images, load_rgb
+from styleatlas.metrics import Neutralizer
 from styleatlas.store import VectorStore
 
 Progress = Callable[[str], None]
@@ -45,6 +46,11 @@ class Atlas:
             return p.relative_to(self.root).as_posix()
         except ValueError:
             return p.as_posix()
+
+    def neutralized(self, k: int) -> tuple[Atlas, Neutralizer]:
+        """A copy whose style vectors ignore the k strongest directions of variation."""
+        n = Neutralizer.fit(self.style, k)
+        return replace(self, style=n.apply(self.style)), n
 
     def subset(self, idx: np.ndarray | list[int]) -> Atlas:
         idx = list(idx)

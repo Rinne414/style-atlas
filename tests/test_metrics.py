@@ -80,3 +80,24 @@ def test_split_half_noise_is_small_within_one_style(blobs):
 def test_split_half_noise_needs_four_images():
     with pytest.raises(ValueError):
         split_half_noise(unit(np.eye(3, 8)))
+
+
+def test_neutralizer_removes_a_dominant_subject_axis():
+    from styleatlas.metrics import Neutralizer
+
+    rng = np.random.default_rng(0)
+    styles = unit(rng.normal(size=(20, 768)))
+    subject = unit(rng.normal(size=(1, 768)))[0] * 3.0  # two subjects far apart on one axis
+    x = unit(np.vstack([styles + subject, styles - subject]))  # style i = rows i and i + 20
+    style_id = np.r_[np.arange(20), np.arange(20)]
+
+    def twin_rate(v):
+        s = v @ v.T
+        np.fill_diagonal(s, -np.inf)
+        return float(np.mean(style_id[s.argmax(1)] == style_id))
+
+    assert twin_rate(x) < 0.1  # before: nearest neighbour = same subject, other style
+    n = Neutralizer.fit(x, 1)
+    assert twin_rate(n.apply(x)) > 0.9
+    assert np.allclose(np.linalg.norm(n.apply(x), axis=1), 1.0, atol=1e-5)
+    assert Neutralizer.fit(x, 0).apply(x) is x

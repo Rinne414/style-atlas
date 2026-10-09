@@ -82,6 +82,12 @@ style-atlas compare "D:\old_works" "D:\new_works"    # 兩組圖是否同一畫�
 style-atlas taste score "D:\new_batch" --model "D:\lora\artistX_style_atlas\taste_model.npz"
 ```
 
+**同樣的角色出現在很多種畫風裡**時（例如用固定角色測試不同畫師組合），請加 `--neutralize 1`。CSD 的畫風向量仍會被角色外觀（髮色、服裝）強烈拉扯。在 96 種畫風 × 2 個角色的 NovelAI 算圖上：
+- 不加時，最接近的圖 89% 是「同角色、別的畫風」。
+- 加了之後，同畫風配對的 AUC 從 0.83 提高到 0.98。
+
+但**混合不同畫師時不要用**：那時最主要的差異就是畫風本身，移除後分群會壞掉。
+
 `--time name` 會從檔名裡的 Pixiv／Danbooru 作品編號推出先後順序（編號會隨上傳時間遞增），`--time mtime` 則用檔案修改時間。開了之後，每個畫風群旁都會畫出時間分佈，可以看出哪種畫風是早期、哪種是近期。
 
 支援 png、jpg、webp、bmp、gif；avif 需要 Pillow 本身支援。動圖只看第一格。CPU 預設最多用 8 個執行緒並降低優先權，不會拖垮整台電腦；`--threads 0` 可取消限制。
@@ -215,6 +221,9 @@ Common options:
 
 - `--device auto|cpu|cuda`
 - `--resolution 224|336`: 336 is about 1 point better at retrieval and 2.5x slower.
+- `--neutralize 1` (cluster, map, serve, search): use it when the same characters appear in many
+  styles. On 96 NovelAI styles x 2 characters it raised same-style AUC from 0.83 to 0.98. Do not
+  use it on a mix of different artists, where it removes the style difference itself.
 - `--crop center|tiles`
 - `--threads N` (default 8)
 - `--cache-db PATH`

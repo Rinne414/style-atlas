@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+### Subject-heavy collections
+
+`--neutralize N` (cluster, map, serve, search) removes the N strongest directions of variation.
+
+- **Where it helps**: with the same characters in many styles, style search across characters
+  works. Same-style AUC went from 0.83 to 0.98 on 96 NovelAI styles x 2 characters.
+- **Where it hurts**: mixtures of different artists. It is opt-in for that reason.
+
+Near-duplicate groups are split by complete linkage, so every pair in a group meets the
+threshold.
+
+Second Sonnet review fixes:
+
+- Saved votes and exclusions survive renames.
+- Startup is robust.
+- Request validation is strict.
+- The web export sets duplicates aside.
+- The keeper avoids excluded copies.
+- `--repeats` is validated.
+
 ### Period splitting and duplicate threshold
 
 - `--granularity period` (cut 0.35) splits one artist's work into periods. On 6 prolific

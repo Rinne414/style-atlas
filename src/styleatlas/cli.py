@@ -17,6 +17,11 @@ from styleatlas.images import TIME_SOURCES, find_images, labels_from_folders
 from styleatlas.metrics import StyleScale, group_difference, split_half_noise, unit
 from styleatlas.project import PROJECTIONS
 
+NEUTRALIZE_HELP = (
+    "ignore the N strongest directions of variation (try 1) when the same characters appear in "
+    "many styles; do not use it on a mix of different artists"
+)
+
 
 def log(msg: str) -> None:
     print(msg, file=sys.stderr, flush=True)
@@ -39,6 +44,9 @@ def _atlas(a: argparse.Namespace, folder: str, exclude: list[Path] | None = None
     atlas = build_atlas(Path(folder), _opts(a), log, recursive=not a.no_recursive, exclude=exclude)
     for p, why in atlas.failed:
         log(f"skipped {p}: {why}")
+    if getattr(a, "neutralize", 0):
+        atlas, _ = atlas.neutralized(a.neutralize)
+        log(f"ignoring the {a.neutralize} strongest direction(s) of variation (subject axis)")
     return atlas
 
 
@@ -168,6 +176,9 @@ def cmd_search(a: argparse.Namespace) -> int:
         log("no readable query images")
         return 1
     atlas = build_atlas(Path(a.within), opts, log, recursive=not a.no_recursive)
+    if a.neutralize:
+        atlas, neutral = atlas.neutralized(a.neutralize)
+        qstyle = neutral.apply(qstyle)
     query_files = {q.resolve() for q in qkept}
     same = {i for i, p in enumerate(atlas.paths) if p.resolve() in query_files}
     results = search(qstyle, atlas.style, top=a.top, combine=a.combine, exclude=same)
@@ -318,8 +329,12 @@ def cmd_taste(a: argparse.Namespace) -> int:
 def cmd_serve(a: argparse.Namespace) -> int:
     from styleatlas.serve import StyleAtlasApp, serve
 
+    k, a.neutralize = a.neutralize, 0
+    atlas, neutral = _atlas(a, a.folder), None
+    if k:  # the dropped query images must get the same transform as the folder
+        atlas, neutral = atlas.neutralized(k)
     app = StyleAtlasApp(
-        _atlas(a, a.folder), _opts(a), a.projection, a.title, progress=log, time_source=a.time
+        atlas, _opts(a), a.projection, a.title, progress=log, time_source=a.time, neutral=neutral
     )
     serve(app, port=a.port, open_browser=not a.no_browser)
     return 0
@@ -354,6 +369,7 @@ def _cluster_args(p: argparse.ArgumentParser) -> None:
         choices=TIME_SOURCES,
         help="show when each style was made: file-name id (Pixiv/Danbooru) or mtime",
     )
+    g.add_argument("--neutralize", type=int, default=0, metavar="N", help=NEUTRALIZE_HELP)
     g.add_argument("--thumb", type=int, help="thumbnail px in the map (default 128, 72 above 2k)")
 
 
@@ -415,12 +431,14 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--title")
     p.add_argument("--projection", default="auto", choices=PROJECTIONS)
     p.add_argument("--time", default="none", choices=TIME_SOURCES)
+    p.add_argument("--neutralize", type=int, default=0, metavar="N", help=NEUTRALIZE_HELP)
     p.add_argument("--no-browser", action="store_true")
     p = add("search", cmd_search, "find images in a folder whose style is closest to the query")
     p.add_argument("query", nargs="+", help="query image(s) or folder(s)")
     p.add_argument("--in", dest="within", required=True, help="folder to search")
     p.add_argument("--top", type=int, default=20)
     p.add_argument("--combine", action="store_true", help="treat all queries as one style")
+    p.add_argument("--neutralize", type=int, default=0, metavar="N", help=NEUTRALIZE_HELP)
     p.add_argument("--json", action="store_true")
     p = add("outliers", cmd_outliers, "images least like the rest of a folder")
     p.add_argument("folder")

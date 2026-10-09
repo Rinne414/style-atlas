@@ -23,6 +23,7 @@ from styleatlas.cluster import GRANULARITY, METHODS, cluster_styles
 from styleatlas.dataset import plan_folders
 from styleatlas.export import export_folders, output_dir, write_table
 from styleatlas.images import load_rgb, thumbnail_bytes
+from styleatlas.metrics import Neutralizer
 from styleatlas.persist import RelPathMap
 from styleatlas.report import build_payload, compute_layout, default_thumb_px, render_html
 from styleatlas.search import search
@@ -44,10 +45,12 @@ class StyleAtlasApp:
         title: str | None = None,
         progress: Callable[[str], None] = lambda _: None,
         time_source: str = "none",
+        neutral: Neutralizer | None = None,
     ):
         self.opts = opts
         self.title = title
         self.time_source = time_source
+        self.neutral = neutral or Neutralizer.fit(atlas.style, 0)
         self.atlas = atlas
         self.layout = compute_layout(self.atlas, projection, progress)
         self.settings: dict = {"method": "agglomerative", "threshold": GRANULARITY["medium"]}
@@ -115,7 +118,7 @@ class StyleAtlasApp:
         except LOAD_ERRORS as e:
             raise ValueError(f"not a readable image: {e}") from e
         with self._lock:
-            query = get_encoder(self.opts).encode([image]).style
+            query = self.neutral.apply(get_encoder(self.opts).encode([image]).style)
         hits = search(query, self.atlas.style, top=top)[0]
         return [{"i": h.index, "cos": round(h.cosine, 4)} for h in hits]
 
