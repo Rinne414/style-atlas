@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.6.0 - 2026-10-10
 
 - **Search with several examples**: `search --combine` with 3 or more example images ranks the
   library with a logistic model of the examples against the library, instead of their mean
