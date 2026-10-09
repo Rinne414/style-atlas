@@ -23,7 +23,7 @@ def test_taste_learns_separable_preferences_and_roundtrips(tmp_path):
 
 
 def test_taste_needs_enough_examples():
-    x, y = make_blobs([5, 30])
+    x, y = make_blobs([4, 30])  # MIN_PER_CLASS is 5
     with pytest.raises(ValueError):
         train_taste(x[y == 0], x[y == 1], "sig")
 
@@ -114,3 +114,21 @@ def test_taste_session_survives_duplicate_only_votes(tmp_path):
     for i in range(18):
         state = session.vote(i, i < 9)  # 9 + 9 votes but only one distinct image each
     assert state["scores"] is None and state["likes"] == 9
+
+
+def test_next_to_rate_spreads_out_over_the_collection(tmp_path):
+    from pathlib import Path
+
+    from styleatlas.atlas import Atlas
+    from styleatlas.taste_session import TasteSession
+
+    x, y = make_blobs([6, 6, 6])
+    paths = [Path(tmp_path / f"img{i}.png") for i in range(len(x))]
+    session = TasteSession(Atlas(tmp_path, paths, x, x, "sig"), tmp_path / "out")
+    seen = []
+    for _ in range(3):
+        i = session.next_to_rate()
+        seen.append(int(y[i]))
+        session.vote(i, True)
+    assert sorted(seen) == [0, 1, 2]  # one from each style before any repeat
+    assert session.next_to_rate(skip=set(range(len(x)))) is None

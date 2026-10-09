@@ -25,7 +25,7 @@ from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
 PCA_DIMS = 20
-MIN_PER_CLASS = 8
+MIN_PER_CLASS = 5  # with diverse picks, 10 ratings already gave AUC ~0.69
 
 
 @dataclass(frozen=True)

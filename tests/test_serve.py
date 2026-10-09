@@ -79,24 +79,26 @@ def test_search_rejects_non_images(server):
 def test_taste_votes_train_after_enough_examples_and_persist(server):
     port, root = server
     hdr = {"X-Style-Atlas": "1", "Content-Type": "application/json"}
-    state = None
-    for i in range(15):  # first blob liked (8 images), second disliked (7 images)
-        body = json.dumps({"i": i, "like": i < 8})
-        status, data = request(port, "POST", "/api/taste", body, hdr)
+
+    def vote(i, like):
+        status, data = request(port, "POST", "/api/taste", json.dumps({"i": i, "like": like}), hdr)
         assert status == 200
-        state = json.loads(data)
-    assert state["likes"] == 8 and state["dislikes"] == 7 and state["scores"] is None
-    request(port, "POST", "/api/taste", json.dumps({"i": 7, "like": False}), hdr)
-    status, data = request(port, "POST", "/api/taste", json.dumps({"i": 6, "like": False}), hdr)
-    state = json.loads(data)
-    assert state["likes"] == 6 and state["scores"] is None  # 6 < 8 liked again
-    for i in (6, 7):
-        status, data = request(port, "POST", "/api/taste", json.dumps({"i": i, "like": True}), hdr)
-    request(port, "POST", "/api/taste", json.dumps({"i": 14, "like": None}), hdr)
-    status, data = request(port, "POST", "/api/taste", json.dumps({"i": 14, "like": False}), hdr)
+        return json.loads(data)
+
+    for i in range(4):  # first blob = images 0-7, second = 8-14
+        vote(i, True)
+        state = vote(8 + i, False)
+    assert state["likes"] == 4 and state["scores"] is None  # below 5 of each
+    vote(4, True)
+    state = vote(12, False)
+    assert state["scores"] is not None and len(state["scores"]) == 15
+    state = vote(12, None)  # removing a vote drops below the minimum again
+    assert state["dislikes"] == 4 and state["scores"] is None
+    status, data = request(port, "POST", "/api/next", "{}", hdr)
+    assert status == 200 and json.loads(data)["i"] not in {0, 1, 2, 3, 4, 8, 9, 10, 11}
     out = root.parent / f"{root.name}_style_atlas"
     saved = json.loads((out / "taste_votes.json").read_text(encoding="utf-8"))
-    assert len(saved) == 15
+    assert len(saved) == 9
     assert request(port, "POST", "/api/taste", json.dumps({"i": 0, "like": "yes"}), hdr)[0] == 400
 
 

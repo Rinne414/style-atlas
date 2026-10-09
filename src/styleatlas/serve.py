@@ -187,6 +187,10 @@ class StyleAtlasApp:
             self._excluded.save()
             return {"excluded": sorted(self.excluded)}
 
+    def next_to_rate(self, body: dict) -> dict:
+        with self._lock:
+            return {"i": self.taste.next_to_rate(skip=set(self.excluded))}
+
     def vote(self, body: dict) -> dict:
         i = self._index(body)
         like = body.get("like")
@@ -217,6 +221,7 @@ JSON_ROUTES = {  # POST route -> StyleAtlasApp method taking the JSON body
     "api/merge": "merge",
     "api/exclude": "exclude",
     "api/taste": "vote",
+    "api/next": "next_to_rate",
     "api/export": "export",
 }
 REQUEST_ERRORS = (ValueError, OSError, KeyError, TypeError, OverflowError)

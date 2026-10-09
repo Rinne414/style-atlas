@@ -22,6 +22,8 @@ const T = {
     layoutStyle: "Layout: style similarity", layoutMeasures: "Layout: measures",
     m_map: "(map position)", m_taste: "taste p(like)", m_ref: "distance to reference (originality)",
     m_time: "time", m_outlier: "atypical (outlier)",
+    rateNext: "Rate the most useful next image", ratingHint: "Rating mode: press L or D, the next image follows (Esc stops)",
+    allRated: "Every image is rated.",
     taste: "Taste", like: "Like (L)", dislike: "Dislike (D)", clearVote: "Clear",
     tasteHelp: "Rate images with Like / Dislike (select one on the map, then press L or D). After {n} of each, a model learns your taste from the style vectors and ranks the unrated images.",
     tasteCount: "liked {a} · disliked {b}", tasteAuc: "cross-validated AUC {x} (0.5 = guessing). Treat it as a rough filter: it separates liked from disliked, not good from better.",
@@ -43,6 +45,8 @@ const T = {
     layoutStyle: "版面：畫風相似", layoutMeasures: "版面：量化軸",
     m_map: "（地圖位置）", m_taste: "口味分數", m_ref: "離參考集距離（原創度）",
     m_time: "時間", m_outlier: "離群度",
+    rateNext: "評下一張最有用的圖", ratingHint: "評分模式：按 L 或 D，自動跳下一張（Esc 結束）",
+    allRated: "全部都評過了。",
     taste: "口味", like: "喜歡 (L)", dislike: "不喜歡 (D)", clearVote: "清除",
     tasteHelp: "在地圖上選一張圖，按喜歡或不喜歡（鍵盤 L / D）。兩種各滿 {n} 張後，模型會用畫風向量學你的口味，替還沒評的圖排序。",
     tasteCount: "喜歡 {a} · 不喜歡 {b}", tasteAuc: "交叉驗證 AUC {x}（0.5 = 亂猜）。只適合粗篩：分得出喜歡和不喜歡，分不出好和更好。",
@@ -518,6 +522,17 @@ function voteButtons(i) {
   return row;
 }
 
+let RATING = false;
+
+async function rateNext() {
+  try {
+    const r = await post("api/next", "{}", "application/json");
+    if (r.i === null) { RATING = false; setStatus(t("allRated")); return; }
+    RATING = true; setStatus(t("ratingHint"));
+    select(r.i);
+  } catch (e) { setStatus(String(e.message || e)); }
+}
+
 async function castVote(i, like) {
   try {
     TASTE = await post("api/taste", JSON.stringify({ i, like }), "application/json");
@@ -527,6 +542,7 @@ async function castVote(i, like) {
     if (layoutMode === "measures" && (before !== after || after.includes("taste"))) applyLayout();
     const old = $("pane-selected").querySelector(".votes");
     if (selected === i && old) old.replaceWith(voteButtons(i));
+    if (RATING && like !== null) rateNext();
   } catch (e) { setStatus(String(e.message || e)); }
 }
 
@@ -550,6 +566,9 @@ function buildTaste() {
   const add = (cls, text) => { const d = document.createElement("div"); d.className = cls; d.textContent = text; pane.append(d); };
   add("kv", t("tasteHelp").replace("{n}", TASTE.min));
   add("kv", t("tasteCount").replace("{a}", TASTE.likes).replace("{b}", TASTE.dislikes));
+  const go = document.createElement("button"); go.textContent = t("rateNext");
+  go.addEventListener("click", rateNext);
+  pane.append(go);
   if (!TASTE.scores) return;
   add("kv", t("tasteAuc").replace("{x}", TASTE.auc.toFixed(2)));
   const unrated = [...PTS.keys()].filter((i) => voteOf(i) === undefined)
@@ -634,7 +653,7 @@ $("theme").addEventListener("click", () => {
 addEventListener("keydown", (e) => {
   if (["INPUT", "SELECT", "TEXTAREA"].includes(e.target.tagName)) return;
   if (e.ctrlKey || e.metaKey || e.altKey) return;
-  if (e.key === "Escape") $("home").click();
+  if (e.key === "Escape") { RATING = false; setStatus(""); $("home").click(); }
   if (DATA.live && selected !== null && (e.key === "l" || e.key === "L")) castVote(selected, true);
   if (DATA.live && selected !== null && (e.key === "d" || e.key === "D")) castVote(selected, false);
   if (DATA.live && selected !== null && (e.key === "x" || e.key === "X")) toggleExclude(selected);

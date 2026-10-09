@@ -207,6 +207,28 @@ The product matches the research result. Two known limits, from the research: th
 not rank *degrees* of liking among good candidates, and it dropped to chance on images from a
 new generator.
 
+## Which image to rate next (2026-10-10)
+
+This is a pool-based simulation on the same 140 real votes:
+
+- Each trial holds out 40 images and uses the other 100 as the pool.
+- A strategy picks which image is rated next, and its real vote is revealed.
+- The score is the AUC on the held-out 40 after n ratings, averaged over 50 trials.
+
+| Strategy | 10 | 15 | 20 | 30 | 40 | 60 |
+|---|---|---|---|---|---|---|
+| random | 0.615 | 0.668 | 0.680 | 0.717 | 0.730 | 0.749 |
+| **farthest-first** (least like anything already rated) | **0.691** | 0.682 | **0.702** | 0.710 | 0.731 | 0.755 |
+| most uncertain (classic active learning) | 0.622 | 0.660 | 0.680 | 0.708 | 0.735 | 0.755 |
+| uncertain + diverse | 0.685 | 0.680 | 0.699 | 0.719 | 0.733 | 0.734 |
+
+- **Farthest-first** gets to AUC about 0.69 after 10 ratings; random picking needs about 25.
+- **From 40 ratings on**, every strategy scores the same.
+- **Uncertainty sampling** does not beat random.
+
+The web app's "rate the most useful next image" therefore uses farthest-first. The model now
+trains from 5 ratings of each kind, down from 8.
+
 ## Tried and rejected
 
 ### Subtracting the CSD content head (2026-10-09)
