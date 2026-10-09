@@ -78,6 +78,9 @@
   h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted);
     margin: 14px 0 8px; font-weight: 600; }
   .empty { color: var(--muted); padding: 20px 4px; }
+  .votes { display: flex; gap: 6px; margin: 8px 0; }
+  .votes button.on { background: var(--accent); color: #1d1f23; border-color: var(--accent); }
+  .grid img.liked { border-color: #6fcf97; } .grid img.disliked { border-color: #eb5757; }
   footer { border-top: 1px solid var(--line); padding: 8px 12px; color: var(--muted); font-size: 11px; }
   @media (max-width: 820px) {
     #app { grid-template-columns: 1fr; grid-template-rows: 58vh 1fr; }
@@ -120,11 +123,13 @@
       <button data-pane="selected"></button>
       <button data-pane="outliers"></button>
       <button data-pane="dups"></button>
+      <button data-pane="taste" hidden></button>
     </div>
     <div class="pane on" id="pane-clusters"></div>
     <div class="pane" id="pane-selected"></div>
     <div class="pane" id="pane-outliers"></div>
     <div class="pane" id="pane-dups"></div>
+    <div class="pane" id="pane-taste"></div>
     <footer></footer>
   </aside>
 </div>
@@ -151,7 +156,11 @@ const T = {
     searching: "embedding the query…", exported: "copied {n} images to {f}", query: "Your image",
     custom: "custom", regrouping: "regrouping…", dups: "Duplicates",
     dupHelp: "Groups of near-identical pictures (same image, crops, frames of one scene). Keep one per group for LoRA training.",
-    noDups: "No near-duplicates found.", fine: "fine", medium: "medium", coarse: "coarse", foot: "Style vectors: CSD ViT-L (Somepalli et al. 2024, CC-BY-4.0). Map layout is for viewing only; groups are computed in the full space." },
+    noDups: "No near-duplicates found.",
+    taste: "Taste", like: "Like (L)", dislike: "Dislike (D)", clearVote: "Clear",
+    tasteHelp: "Rate images with Like / Dislike (select one on the map, then press L or D). After {n} of each, a model learns your taste from the style vectors and ranks the unrated images.",
+    tasteCount: "liked {a} · disliked {b}", tasteAuc: "cross-validated AUC {x} (0.5 = guessing). Treat it as a rough filter: it separates liked from disliked, not good from better.",
+    tasteTop: "Most likely to like (unrated)", tasteBottom: "Least likely (unrated)", fine: "fine", medium: "medium", coarse: "coarse", foot: "Style vectors: CSD ViT-L (Somepalli et al. 2024, CC-BY-4.0). Map layout is for viewing only; groups are computed in the full space." },
   zh: { images: "張圖", clusters: "畫風群", selected: "選取", outliers: "離群",
     find: "以檔名篩選", thumbs: "縮圖", dots: "圓點", spin: "旋轉", home: "重置",
     unassigned: "未歸類", style: "畫風", size: "張", cohesion: "分散度",
@@ -162,7 +171,11 @@ const T = {
     searching: "計算查詢圖中…", exported: "已複製 {n} 張到 {f}", query: "你的圖",
     custom: "自訂", regrouping: "重新分群中…", dups: "重複",
     dupHelp: "幾乎相同的圖（同一張、裁切、同場景連續畫面）。訓 LoRA 時每組留一張即可。",
-    noDups: "沒有找到近重複的圖。", fine: "細", medium: "中", coarse: "粗", foot: "風格向量：CSD ViT-L（Somepalli 等，2024，CC-BY-4.0）。地圖排版只供瀏覽，分群是在完整向量空間計算。" },
+    noDups: "沒有找到近重複的圖。",
+    taste: "口味", like: "喜歡 (L)", dislike: "不喜歡 (D)", clearVote: "清除",
+    tasteHelp: "在地圖上選一張圖，按喜歡或不喜歡（鍵盤 L / D）。兩種各滿 {n} 張後，模型會用畫風向量學你的口味，替還沒評的圖排序。",
+    tasteCount: "喜歡 {a} · 不喜歡 {b}", tasteAuc: "交叉驗證 AUC {x}（0.5 = 亂猜）。只適合粗篩：分得出喜歡和不喜歡，分不出好和更好。",
+    tasteTop: "最可能喜歡（未評分）", tasteBottom: "最不可能喜歡（未評分）", fine: "細", medium: "中", coarse: "粗", foot: "風格向量：CSD ViT-L（Somepalli 等，2024，CC-BY-4.0）。地圖排版只供瀏覽，分群是在完整向量空間計算。" },
 };
 let lang = (navigator.language || "en").toLowerCase().startsWith("zh") ? "zh" : "en";
 const t = (k) => T[lang][k];
@@ -433,6 +446,7 @@ function select(i) {
   const a = document.createElement("a"); a.href = PTS[i].f; a.target = "_blank"; a.rel = "noopener";
   a.textContent = t("open"); a.style.color = "var(--accent)"; kv.append(a);
   pane.append(kv);
+  if (DATA.live) pane.append(voteButtons(i));
   const h = document.createElement("h3"); h.textContent = t("nearest"); pane.append(h);
   const g = document.createElement("div"); g.className = "grid";
   PTS[i].k.forEach((j) => g.append(thumb(j)));
@@ -521,7 +535,7 @@ function applyText() {
     const e = document.createElement("div"); e.className = "empty"; e.textContent = t("pick");
     $("pane-selected").replaceChildren(e);
   }
-  buildClusters(); buildOutliers(); buildDups(); liveText();
+  buildClusters(); buildOutliers(); buildDups(); liveText(); if (DATA.live) buildTaste();
 }
 
 function setStatus(msg) { $("status").textContent = msg || ""; }
@@ -558,7 +572,64 @@ function showSearch(file, hits) {
   showPane("selected");
 }
 
+let TASTE = null;
+
+function voteOf(i) { return TASTE && TASTE.votes[String(i)]; }
+
+function voteButtons(i) {
+  const row = document.createElement("div"); row.className = "votes";
+  [["like", true], ["dislike", false], ["clearVote", null]].forEach(([k, v]) => {
+    const b = document.createElement("button"); b.textContent = t(k);
+    if (v !== null && voteOf(i) === v) b.classList.add("on");
+    b.addEventListener("click", () => castVote(i, v));
+    row.append(b);
+  });
+  return row;
+}
+
+async function castVote(i, like) {
+  try {
+    TASTE = await post("api/taste", JSON.stringify({ i, like }), "application/json");
+    buildTaste();
+    const old = $("pane-selected").querySelector(".votes");
+    if (selected === i && old) old.replaceWith(voteButtons(i));
+  } catch (e) { setStatus(String(e.message || e)); }
+}
+
+function tasteGrid(indices) {
+  const g = document.createElement("div"); g.className = "grid";
+  indices.forEach((i) => {
+    const im = thumb(i);
+    const v = voteOf(i); if (v === true) im.classList.add("liked"); if (v === false) im.classList.add("disliked");
+    if (TASTE.scores) im.title = `${PTS[i].n} · p(like) ${TASTE.scores[i].toFixed(2)}`;
+    g.append(im);
+  });
+  return g;
+}
+
+function buildTaste() {
+  if (!DATA.live) return;
+  const tab = document.querySelector('.tabs button[data-pane="taste"]');
+  tab.hidden = false;
+  tab.textContent = t("taste");
+  const pane = $("pane-taste"); pane.replaceChildren();
+  const add = (cls, text) => { const d = document.createElement("div"); d.className = cls; d.textContent = text; pane.append(d); };
+  add("kv", t("tasteHelp").replace("{n}", TASTE.min));
+  add("kv", t("tasteCount").replace("{a}", TASTE.likes).replace("{b}", TASTE.dislikes));
+  if (!TASTE.scores) return;
+  add("kv", t("tasteAuc").replace("{x}", TASTE.auc.toFixed(2)));
+  const unrated = [...PTS.keys()].filter((i) => voteOf(i) === undefined)
+    .sort((a, b) => TASTE.scores[b] - TASTE.scores[a]);
+  const h1 = document.createElement("h3"); h1.textContent = t("tasteTop");
+  const h2 = document.createElement("h3"); h2.textContent = t("tasteBottom");
+  const nTop = Math.min(40, Math.ceil(unrated.length / 2));
+  const nBottom = Math.min(20, unrated.length - nTop);  // the two lists never overlap
+  pane.append(h1, tasteGrid(unrated.slice(0, nTop)));
+  if (nBottom > 0) pane.append(h2, tasteGrid(unrated.slice(unrated.length - nBottom).reverse()));
+}
+
 function setupLive() {
+  TASTE = DATA.live.taste;
   $("live").style.display = "flex";
   const s = DATA.live.settings;
   $("thr").value = (s.threshold ?? DATA.live.granularity.medium).toFixed(2);
@@ -628,6 +699,8 @@ $("theme").addEventListener("click", () => {
 addEventListener("keydown", (e) => {
   if (e.target.tagName === "INPUT") return;
   if (e.key === "Escape") $("home").click();
+  if (DATA.live && selected !== null && (e.key === "l" || e.key === "L")) castVote(selected, true);
+  if (DATA.live && selected !== null && (e.key === "d" || e.key === "D")) castVote(selected, false);
   if (e.key === "+" || e.key === "=") setSize(pointSize * 1.2);
   if (e.key === "-") setSize(pointSize / 1.2);
 });

@@ -60,10 +60,10 @@ def cmd_embed(a: argparse.Namespace) -> int:
 
 
 def cmd_cluster(a: argparse.Namespace) -> int:
-    from styleatlas.export import export_folders, write_table
+    from styleatlas.export import export_folders, output_dir, write_table
     from styleatlas.report import write_map
 
-    out = Path(a.out or Path(a.folder) / "style_atlas_out")
+    out = Path(a.out) if a.out else output_dir(Path(a.folder))
     atlas = _atlas(a, a.folder, exclude=[out])
     result = _cluster(a, atlas)
     csv_path, json_path = write_table(atlas, result, out)

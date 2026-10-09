@@ -16,13 +16,15 @@ import webbrowser
 from collections.abc import Callable
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 
 from styleatlas.atlas import LOAD_ERRORS, Atlas, EncodeOptions, get_encoder
 from styleatlas.cluster import GRANULARITY, METHODS, cluster_styles
-from styleatlas.export import export_folders, write_table
+from styleatlas.export import export_folders, output_dir, write_table
 from styleatlas.images import load_rgb, thumbnail_bytes
 from styleatlas.report import build_payload, compute_layout, default_thumb_px, render_html
 from styleatlas.search import search
+from styleatlas.taste_session import TasteSession
 
 MAX_UPLOAD = 40 * 1024 * 1024
 POST_HEADER = "X-Style-Atlas"
@@ -51,6 +53,11 @@ class StyleAtlasApp:
         self.thumb_px = default_thumb_px(len(self.atlas))
         self._thumbs: dict[int, bytes] = {}
         self._lock = threading.Lock()
+        self.taste = TasteSession(atlas, self.out_dir)
+
+    @property
+    def out_dir(self) -> Path:
+        return output_dir(self.atlas.root)
 
     def page(self) -> str:
         payload = build_payload(
@@ -62,7 +69,11 @@ class StyleAtlasApp:
             self.title,
             self.time_source,
         )
-        payload["live"] = {"settings": self.settings, "granularity": GRANULARITY}
+        payload["live"] = {
+            "settings": self.settings,
+            "granularity": GRANULARITY,
+            "taste": self.taste.state(),
+        }
         return render_html(payload)
 
     def thumb(self, i: int) -> bytes:
@@ -98,9 +109,16 @@ class StyleAtlasApp:
         hits = search(query, self.atlas.style, top=top)[0]
         return [{"i": h.index, "cos": round(h.cosine, 4)} for h in hits]
 
+    def vote(self, body: dict) -> dict:
+        like = body.get("like")
+        if like is not None and not isinstance(like, bool):
+            raise ValueError("like must be true, false or null")
+        with self._lock:
+            return self.taste.vote(int(body["i"]), like)
+
     def export(self, body: dict) -> dict:
         mode = body.get("mode", "copy")
-        out = self.atlas.root / "style_atlas_out"
+        out = self.out_dir
         with self._lock:
             write_table(self.atlas, self.clustering, out)
             result = export_folders(self.atlas, self.clustering, out / "folders", mode=mode)
@@ -179,6 +197,8 @@ def make_handler(app: StyleAtlasApp, allowed_hosts: set[str]) -> type[BaseHTTPRe
                     self._json(200, {"hits": app.search_image(body)})
                 elif route == "api/regroup":
                     self._json(200, app.regroup(json.loads(body)))
+                elif route == "api/taste":
+                    self._json(200, app.vote(json.loads(body)))
                 elif route == "api/export":
                     self._json(200, app.export(json.loads(body)))
                 else:

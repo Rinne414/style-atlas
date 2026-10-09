@@ -50,3 +50,22 @@ def test_taste_save_adds_npz_suffix(tmp_path):
     x, y = make_blobs([10, 10], spread=0.9)
     saved = train_taste(x[y == 0], x[y == 1], "sig").save(tmp_path / "model")
     assert saved.name == "model.npz" and saved.exists()
+
+
+def test_taste_session_fits_saves_and_reloads(tmp_path):
+    from pathlib import Path
+
+    from styleatlas.atlas import Atlas
+    from styleatlas.taste_session import TasteSession
+
+    x, y = make_blobs([10, 10], spread=0.9)
+    paths = [Path(tmp_path / f"img{i}.png") for i in range(len(x))]
+    atlas = Atlas(tmp_path, paths, x, x, "sig")
+    session = TasteSession(atlas, tmp_path / "out")
+    for i in range(len(x)):
+        state = session.vote(i, bool(y[i] == 0))
+    assert state["auc"] is not None and state["auc"] > 0.9
+    assert len(state["scores"]) == len(x)
+    assert (tmp_path / "out" / "taste_model.npz").exists()
+    again = TasteSession(atlas, tmp_path / "out")
+    assert again.state()["likes"] == 10 and again.state()["scores"] is not None

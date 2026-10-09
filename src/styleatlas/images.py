@@ -13,6 +13,7 @@ from PIL import Image, ImageOps
 
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif", ".avif"}
 SKIP_DIRS = {".styleatlas", ".git", "__pycache__", "style_atlas_out"}
+OUTPUT_SUFFIX = "_style_atlas"  # default result folders (export.output_dir) are never scanned
 
 
 def find_images(
@@ -29,7 +30,8 @@ def find_images(
     for p in pattern:
         if not p.is_file() or p.suffix.lower() not in IMAGE_SUFFIXES:
             continue
-        if SKIP_DIRS.intersection(p.relative_to(root).parts[:-1]):
+        parents = p.relative_to(root).parts[:-1]
+        if SKIP_DIRS.intersection(parents) or any(d.endswith(OUTPUT_SUFFIX) for d in parents):
             continue
         if skip and any(p.resolve().is_relative_to(e) for e in skip):
             continue

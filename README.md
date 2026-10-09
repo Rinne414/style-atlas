@@ -40,7 +40,8 @@ Windows 使用者也可以直接把圖片資料夾**拖到 `scripts/StyleAtlas.b
 # 1. 把一個 LoRA 資料集依畫風分群，另外複製到 style_01、style_02 …
 #    同名的 .txt / .caption 標註會一起複製；原始檔案不會被移動或刪除
 style-atlas cluster "D:/lora/artistX" --export copy
-#    輸出在 D:/lora/artistX/style_atlas_out/：clusters.csv、clusters.json、map.html、folders/
+#    輸出在旁邊的 D:/lora/artistX_style_atlas/（不會寫進資料集資料夾本身）：
+#    clusters.csv、clusters.json、map.html、folders/
 
 # 2. 分太細或太粗？換顆粒度，或直接指定群數
 style-atlas cluster "D:/lora/artistX" --granularity fine     # fine / medium（預設）/ coarse

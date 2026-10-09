@@ -66,7 +66,7 @@ def test_regroup_and_export(server):
     status, data = request(port, "POST", "/api/export", json.dumps({"mode": "copy"}), hdr)
     result = json.loads(data)
     assert status == 200 and result["placed"] == 15
-    assert (root / "style_atlas_out" / "clusters.csv").exists()
+    assert (root.parent / f"{root.name}_style_atlas" / "clusters.csv").exists()
 
 
 def test_search_rejects_non_images(server):
@@ -74,3 +74,27 @@ def test_search_rejects_non_images(server):
     hdr = {"X-Style-Atlas": "1", "Content-Type": "image/png"}
     status, data = request(port, "POST", "/api/search", b"not an image", hdr)
     assert status == 400 and "readable" in json.loads(data)["error"]
+
+
+def test_taste_votes_train_after_enough_examples_and_persist(server):
+    port, root = server
+    hdr = {"X-Style-Atlas": "1", "Content-Type": "application/json"}
+    state = None
+    for i in range(15):  # first blob liked (8 images), second disliked (7 images)
+        body = json.dumps({"i": i, "like": i < 8})
+        status, data = request(port, "POST", "/api/taste", body, hdr)
+        assert status == 200
+        state = json.loads(data)
+    assert state["likes"] == 8 and state["dislikes"] == 7 and state["scores"] is None
+    request(port, "POST", "/api/taste", json.dumps({"i": 7, "like": False}), hdr)
+    status, data = request(port, "POST", "/api/taste", json.dumps({"i": 6, "like": False}), hdr)
+    state = json.loads(data)
+    assert state["likes"] == 6 and state["scores"] is None  # 6 < 8 liked again
+    for i in (6, 7):
+        status, data = request(port, "POST", "/api/taste", json.dumps({"i": i, "like": True}), hdr)
+    request(port, "POST", "/api/taste", json.dumps({"i": 14, "like": None}), hdr)
+    status, data = request(port, "POST", "/api/taste", json.dumps({"i": 14, "like": False}), hdr)
+    out = root.parent / f"{root.name}_style_atlas"
+    saved = json.loads((out / "taste_votes.json").read_text(encoding="utf-8"))
+    assert len(saved) == 15
+    assert request(port, "POST", "/api/taste", json.dumps({"i": 0, "like": "yes"}), hdr)[0] == 400

@@ -34,6 +34,13 @@ class ExportResult:
     failed: list[tuple[Path, str]] = field(default_factory=list)
 
 
+def output_dir(source: Path) -> Path:
+    """Default place for results: a sibling of the scanned folder, so the dataset folder itself
+    is never written to (kohya and other trainers will not pick up stray copies)."""
+    source = Path(source).resolve()
+    return source.parent / f"{source.name}_style_atlas"
+
+
 def folder_name(cid: int, width: int) -> str:
     return "unassigned" if cid == UNASSIGNED else f"style_{cid + 1:0{width}d}"
 
