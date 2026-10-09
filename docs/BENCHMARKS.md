@@ -189,6 +189,24 @@ images. `bench` removes near-duplicates at 0.92 to keep benchmark numbers honest
 
 Hub correction helps on AI illustration as much as on human artwork.
 
+## Taste model (2026-10-09)
+
+The question is whether `taste` (and the web app's Like / Dislike) reproduces the research
+result.
+
+- **Data**: one person's 140 like/dislike votes on single NovelAI renders (81 liked).
+- **Protocol**: 5-fold cross-validation repeated 5 times.
+
+| Pipeline | CV AUC |
+|---|---|
+| research (scaler, PCA-20, logistic C=0.1) | 0.761 |
+| **style-atlas `train_taste`** (PCA-20, scaler, balanced logistic C=0.5) | **0.769** |
+| same, C between 0.05 and 1.0 | 0.766-0.778 |
+
+The product matches the research result. Two known limits, from the research: the model does
+not rank *degrees* of liking among good candidates, and it dropped to chance on images from a
+new generator.
+
 ## Tried and rejected
 
 ### Subtracting the CSD content head (2026-10-09)
