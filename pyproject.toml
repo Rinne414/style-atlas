@@ -17,6 +17,7 @@ dependencies = [
   "open_clip_torch>=2.24",
   "huggingface_hub>=0.23",
   "scikit-learn>=1.3",
+  "scipy>=1.10",
   "psutil>=5.9",
   "safetensors>=0.4",
 ]

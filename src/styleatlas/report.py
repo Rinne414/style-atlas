@@ -157,11 +157,17 @@ def _vendor(name: str) -> str:
     return code.replace("</script", r"<\/script")  # cannot end the <script> element early
 
 
+def page_script() -> str:
+    """The page's module script: the map viewer, then the web-app features and start-up."""
+    files = resources.files("styleatlas").joinpath("templates")
+    return "\n".join(files.joinpath(f).read_text("utf-8") for f in ("map.js", "map_app.js"))
+
+
 def render_html(payload: dict) -> str:
     files = resources.files("styleatlas").joinpath("templates")
     template = files.joinpath("map.html").read_text("utf-8")
     template = template.replace("/*__MAP_CSS__*/", files.joinpath("map.css").read_text("utf-8"), 1)
-    template = template.replace("/*__MAP_JS__*/", files.joinpath("map.js").read_text("utf-8"), 1)
+    template = template.replace("/*__MAP_JS__*/", page_script(), 1)
     template = template.replace("/*__THREE_JS__*/", _vendor("three.module.min.js"), 1)
     template = template.replace("/*__ORBIT_JS__*/", _vendor("OrbitControls.js"), 1)
     data = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))

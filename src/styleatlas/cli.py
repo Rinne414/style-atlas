@@ -97,7 +97,7 @@ def cmd_cluster(a: argparse.Namespace) -> int:
     parse_repeats(a.repeats)
     if a.trigger_captions and not a.export:
         raise ValueError("--trigger-captions only applies with --export copy|link")
-    from styleatlas.export import export_folders, output_dir, write_table
+    from styleatlas.export import output_dir, write_table
     from styleatlas.report import write_map
 
     out = Path(a.out) if a.out else output_dir(Path(a.folder))
@@ -119,17 +119,7 @@ def cmd_cluster(a: argparse.Namespace) -> int:
     log(f"wrote {csv_path} and {json_path}")
     _print_groups(atlas, result, folders, tags)
     if a.export:
-        done = export_folders(
-            atlas,
-            folders,
-            out / "folders",
-            mode=a.export,
-            trigger_captions=a.trigger_captions,
-            layout=a.layout,
-        )
-        log(f"{a.export}: {done.placed} images into {done.folder}")
-        for p, why in done.failed:
-            log(f"not exported {p}: {why}")
+        _export(a, atlas, folders, out)
     if not a.no_map:
         path = write_map(
             atlas,
@@ -143,6 +133,22 @@ def cmd_cluster(a: argparse.Namespace) -> int:
         )
         log(f"map: {path}")
     return 0
+
+
+def _export(a: argparse.Namespace, atlas: Atlas, folders: list[str], out: Path) -> None:
+    from styleatlas.export import export_folders
+
+    done = export_folders(
+        atlas,
+        folders,
+        out / "folders",
+        mode=a.export,
+        trigger_captions=a.trigger_captions,
+        layout=a.layout,
+    )
+    log(f"{a.export}: {done.placed} images into {done.folder}")
+    for p, why in done.failed:
+        log(f"not exported {p}: {why}")
 
 
 def _plan(

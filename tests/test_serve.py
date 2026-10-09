@@ -398,14 +398,14 @@ def test_the_page_script_parses(tmp_path):
     """`node --check` skips .js files that use import, so the check runs on an .mjs copy."""
     import shutil
     import subprocess
-    from pathlib import Path
+
+    from styleatlas.report import page_script
 
     node = shutil.which("node")
     if node is None:
         pytest.skip("node is not installed")
-    src = Path(__file__).parents[1] / "src" / "styleatlas" / "templates" / "map.js"
     copy = tmp_path / "map.mjs"
-    copy.write_bytes(src.read_bytes())
+    copy.write_text(page_script(), encoding="utf-8")
     result = subprocess.run([node, "--check", str(copy)], capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
 
