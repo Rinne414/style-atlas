@@ -29,7 +29,7 @@ from styleatlas.cluster import (
     edit_groups,
     split_group,
 )
-from styleatlas.dataset import plan_folders
+from styleatlas.dataset import clean_group_name, plan_folders
 from styleatlas.export import export_folders, output_dir, write_table
 from styleatlas.images import cached_thumbnail, load_rgb
 from styleatlas.metrics import Neutralizer
@@ -72,6 +72,7 @@ class StyleAtlasApp:
         self._thumbs: dict[int, bytes] = {}
         self._lock = threading.Lock()
         self.taste: TasteSession | None = None
+        self.group_names: dict[int, str] = {}  # medoid image index -> name
         self._apply_space(neutralize)
         self.taste = TasteSession(self.atlas, self.out_dir)
         self._excluded = RelPathMap(self.out_dir / "excluded.json", atlas)
@@ -129,6 +130,7 @@ class StyleAtlasApp:
                 "excluded": sorted(self.excluded),
                 "revision": self.revision,
                 "neutralize": self.neutralize,
+                "names": {str(k): v for k, v in self.names_by_group().items()},
             }
         return render_html(payload)
 
@@ -217,6 +219,26 @@ class StyleAtlasApp:
             moves = {m: target for m in members}
             return self._edited(edit_groups(self.atlas.style, self.clustering, moves))
 
+    def rename(self, body: dict) -> dict:
+        """Name a group for export. Names follow the group's most central image, so they survive
+        renumbering; an empty name removes it."""
+        name = body.get("name", "")
+        if not isinstance(name, str) or len(name) > 120:
+            raise ValueError("name must be text (at most 120 characters)")
+        with self._lock:
+            self._check_revision(body)
+            group = self._group(body.get("group"), allow_unassigned=False)
+            medoid = self.clustering.clusters[group].medoid
+            if name.strip():
+                self.group_names[medoid] = clean_group_name(name)
+            else:
+                self.group_names.pop(medoid, None)
+            return {"names": self.names_by_group()}
+
+    def names_by_group(self) -> dict[int, str]:
+        by_medoid = {c.medoid: c.id for c in self.clustering.clusters}
+        return {by_medoid[m]: n for m, n in self.group_names.items() if m in by_medoid}
+
     def split(self, body: dict) -> dict:
         """Hand edit: cut one group in two."""
         with self._lock:
@@ -277,6 +299,7 @@ class StyleAtlasApp:
                 self.clustering,
                 duplicate_groups=self.layout.duplicates,
                 excluded=sorted(self.excluded),
+                group_names=self.names_by_group(),
             )
             write_table(self.atlas, self.clustering, out, folders)
             result = export_folders(self.atlas, folders, out / "folders", mode=mode)
@@ -293,6 +316,7 @@ JSON_ROUTES = {  # POST route -> StyleAtlasApp method taking the JSON body
     "api/next": "next_to_rate",
     "api/path": "path",
     "api/neutralize": "set_neutralize",
+    "api/rename": "rename",
     "api/export": "export",
 }
 REQUEST_ERRORS = (ValueError, OSError, KeyError, TypeError, OverflowError)

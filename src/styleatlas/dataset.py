@@ -148,6 +148,17 @@ def parse_repeats(repeats: str | int) -> int | None:
     return n
 
 
+INVALID_NAME_CHARS = set('<>:"/\\|?*') | {chr(c) for c in range(32)}
+
+
+def clean_group_name(name: str) -> str:
+    """A group name usable as a folder name and trigger word on every OS (CJK is fine)."""
+    out = "".join("_" if ch in INVALID_NAME_CHARS else ch for ch in str(name)).strip(" ._")
+    if not out:
+        raise ValueError("group name is empty after removing characters folders cannot use")
+    return out[:60]
+
+
 def auto_repeats(size: int, target: int = AUTO_REPEATS_TARGET) -> int:
     return max(1, round(target / max(1, size)))
 
@@ -162,6 +173,7 @@ def plan_folders(
     outliers: list[int] | None = None,
     min_size: int = 1,
     excluded: list[int] | None = None,
+    group_names: dict[int, str] | None = None,
 ) -> list[str]:
     """Destination folder name for every image. A style group left with fewer than `min_size`
     images after duplicates and outliers are set aside counts as unassigned."""
@@ -182,11 +194,15 @@ def plan_folders(
             folders.append(aside[i])
         elif cid == UNASSIGNED or sizes[cid] < min_size:
             folders.append(SET_ASIDE["unassigned"] if layout == "kohya" else "unassigned")
-        elif layout == "plain":
-            folders.append(f"style_{cid + 1:0{width}d}")
         else:
-            n = auto_repeats(sizes[cid]) if fixed is None else fixed
-            folders.append(f"{n}_{name}_style{cid + 1:0{width}d}")
+            label = (group_names or {}).get(cid) or f"style{cid + 1:0{width}d}"
+            if layout == "plain":
+                folders.append(
+                    label if cid in (group_names or {}) else f"style_{cid + 1:0{width}d}"
+                )
+            else:
+                n = auto_repeats(sizes[cid]) if fixed is None else fixed
+                folders.append(f"{n}_{name}_{label}")
     return folders
 
 

@@ -26,6 +26,7 @@ const T = {
     pathTitle: "Style path (from the start image to this one)",
     neutral: "Ignore the character axis", neutralBusy: "recomputing…",
     oneGroup: "Everything landed in one group: try the fine or period granularity, then Regroup.",
+    nameGroup: "name (Enter)",
     rateNext: "Rate the most useful next image", ratingHint: "Rating mode: press L or D, the next image follows (Esc stops)",
     allRated: "Every image is rated.",
     taste: "Taste", like: "Like (L)", dislike: "Dislike (D)", clearVote: "Clear",
@@ -53,6 +54,7 @@ const T = {
     pathTitle: "畫風漸變（從起點到這張）",
     neutral: "忽略角色軸", neutralBusy: "重新計算中…",
     oneGroup: "所有圖都在同一群：試試把顆粒度改成「細」或「時期」，再按重新分群。",
+    nameGroup: "取名（Enter）",
     rateNext: "評下一張最有用的圖", ratingHint: "評分模式：按 L 或 D，自動跳下一張（Esc 結束）",
     allRated: "全部都評過了。",
     taste: "口味", like: "喜歡 (L)", dislike: "不喜歡 (D)", clearVote: "清除",
@@ -306,7 +308,11 @@ function timeStrip(members, color) {
   return wrap;
 }
 
-function clusterName(c) { return c < 0 ? t("unassigned") : `${t("style")} ${c + 1}`; }
+function clusterName(c) {
+  if (c < 0) return t("unassigned");
+  const named = DATA.live && DATA.live.names && DATA.live.names[String(c)];
+  return named ? `${t("style")} ${c + 1} · ${named}` : `${t("style")} ${c + 1}`;
+}
 
 function thumb(i, onClick) {
   const img = document.createElement("img");
@@ -379,6 +385,12 @@ function buildClusters() {
           if (DATA.live && c.id >= 0) {
             const bar = document.createElement("div"); bar.style.cssText = "grid-column:1/-1;margin-bottom:4px";
             bar.append(groupSelect(t("mergeInto"), c.id, false, (into) => editPost("api/merge", { from: c.id, into })));
+            const nameBox = document.createElement("input");
+            nameBox.placeholder = t("nameGroup"); nameBox.value = (DATA.live.names || {})[String(c.id)] || "";
+            nameBox.style.cssText = "margin-left:6px;width:120px;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:5px 8px;font:inherit;font-size:12px";
+            nameBox.addEventListener("click", (e) => e.stopPropagation());
+            nameBox.addEventListener("keydown", (e) => { e.stopPropagation(); if (e.key === "Enter") editPost("api/rename", { group: c.id, name: nameBox.value }); });
+            bar.append(nameBox);
             if (c.size >= 2) {
               const sp = document.createElement("button"); sp.textContent = t("splitGroup"); sp.style.marginLeft = "6px";
               sp.addEventListener("click", (e) => { e.stopPropagation(); editPost("api/split", { group: c.id }); });

@@ -180,3 +180,19 @@ def test_neutralize_can_be_switched_live(server):
     assert request(port, "POST", "/api/neutralize", json.dumps({"k": 9}), hdr)[0] == 400
     status, data = request(port, "POST", "/api/neutralize", json.dumps({"k": 0}), hdr)
     assert json.loads(data)["neutralize"] == 0
+
+
+def test_group_names_follow_the_group_and_name_the_export(server):
+    port, _ = server
+    hdr = {"X-Style-Atlas": "1", "Content-Type": "application/json"}
+    request(port, "POST", "/api/regroup", json.dumps({"threshold": 0.5}), hdr)
+    body = {"group": 1, "name": "早期: sketch/line", "rev": 1}
+    status, data = request(port, "POST", "/api/rename", json.dumps(body), hdr)
+    assert status == 200 and json.loads(data)["names"] == {"1": "早期_ sketch_line"}
+    status, data = request(port, "POST", "/api/export", json.dumps({"mode": "copy"}), hdr)
+    from pathlib import Path
+
+    folders = {p.name for p in Path(json.loads(data)["folder"]).iterdir()}
+    assert "早期_ sketch_line" in folders
+    bad = {"group": 0, "name": 5, "rev": 1}
+    assert request(port, "POST", "/api/rename", json.dumps(bad), hdr)[0] == 400

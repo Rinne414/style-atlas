@@ -144,3 +144,18 @@ def test_truncation_check_tolerates_trailers(tmp_path):
     good = _img(tmp_path / "trailer.png", (64, 64))
     good.write_bytes(good.read_bytes() + b"\x00" * 500 + b"EXTRA-METADATA" * 20)
     assert image_info(good).truncated is False
+
+
+def test_group_names_in_folder_plans(tmp_path):
+    import pytest
+
+    from styleatlas.dataset import clean_group_name
+
+    x, _ = make_blobs([4, 4])
+    paths = [_img(tmp_path / f"i{i}.png") for i in range(8)]
+    result = cluster_styles(x, min_size=2)
+    folders = plan_folders(paths, result, "kohya", "a", "3", group_names={0: "early"})
+    assert set(folders) == {"3_a_early", "3_a_style02"}
+    assert clean_group_name('a<b>:c"d/e') == "a_b__c_d_e"
+    with pytest.raises(ValueError):
+        clean_group_name(" ..// ")

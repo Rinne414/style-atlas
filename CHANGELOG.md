@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- **Ignore the character axis** in the web app: a live `--neutralize` switch. It rebuilds the
+  layout, groups and taste model in the new space.
+- **Group names**: name a group in the web app, and the name is used for its export folder and
+  trigger word.
+- **One-group hint**: suggests a finer granularity when everything lands in one group.
+- **Style Gate**: the default threshold is now 0.5. The nodes were verified with the real CSD
+  model on CPU.
+
 ## 0.4.0 - 2026-10-10
 
 ### New
