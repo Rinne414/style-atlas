@@ -108,6 +108,13 @@ style-atlas taste score "D:\new_batch" --model "D:\lora\artistX_style_atlas\tast
 - 不加時，最接近的圖 89% 是「同角色、別的畫風」。
 - 加了之後，同畫風配對的 AUC 從 0.83 提高到 0.98。
 
+這主要改善的是**以圖找圖**。同一個模型、固定角色的算圖，畫風差異通常比門檻還小，用門檻分群（自動、中、時期以外的選項）多半只會得到一群，或按角色分。實測 16 種配方 × 8 張的 Anima 算圖時：
+- 以圖找圖找到同配方的比例是 56%，加 `--neutralize 2` 後是 62%。
+- 門檻分群全部失敗。
+- `--neutralize 2 --method kmeans --k 16`（直接指定群數）的 ARI 是 0.22。另一組 7 種配方的測試是 0.53。
+
+這類資料夾請以「以圖找圖」為主，或指定群數。
+
 但**混合不同畫師時不要用**：那時最主要的差異就是畫風本身，移除後分群會壞掉。
 
 `--time name` 會從檔名裡的 Pixiv／Danbooru 作品編號推出先後順序（編號會隨上傳時間遞增），`--time mtime` 則用檔案修改時間。開了之後，每個畫風群旁都會畫出時間分佈，可以看出哪種畫風是早期、哪種是近期。
@@ -312,6 +319,12 @@ Common options:
 - `--neutralize 1` (cluster, map, serve, search): use it when the same characters appear in many
   styles. On 96 NovelAI styles x 2 characters it raised same-style AUC from 0.83 to 0.98. Do not
   use it on a mix of different artists, where it removes the style difference itself.
+  - It helps search much more than grouping. AI renders from one model with fixed characters
+    differ by less than any threshold cut. On 16 Anima recipes x 8 renders, every cut gave one
+    group or a split by character, and search found the same recipe 56% of the time (62% with
+    `--neutralize 2`).
+  - `--neutralize 2 --method kmeans --k 16`, which sets the number of groups, reached ARI 0.22
+    there (0.53 on another set of 7 recipes).
 - `--crop center|tiles`
 - `--threads N` (default 8)
 - `--cache-db PATH`
