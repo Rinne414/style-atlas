@@ -179,3 +179,16 @@ def test_duplicate_names_get_distinct_folders(tmp_path):
     assert plain == {"Early", "early_2", "unassigned_2"}
     kohya = set(plan_folders(paths, result, "kohya", "a", "3", group_names={0: "style02"}))
     assert kohya == {"3_a_style02", "3_a_style02_2", "3_a_style03"}
+
+
+def test_distinctive_tags_name_what_sets_a_group_apart():
+    from styleatlas.dataset import distinctive_tags
+
+    summary = {
+        0: [
+            {"tag": "1girl", "share": 1.0, "lift": 1.0},
+            {"tag": "sketch", "share": 0.8, "lift": 2.5},
+        ],
+        1: [{"tag": "1girl", "share": 1.0, "lift": 1.0}],
+    }
+    assert distinctive_tags(summary) == {0: ["sketch"], 1: []}

@@ -7,6 +7,8 @@
   galleries into a few big groups; auto beat it by 0.13-0.18 ARI on 50-306 artists and matched
   it on 2-20 (BENCHMARKS.md). `--granularity medium` keeps the old behaviour.
 - Clustering builds one average-linkage tree and cuts it (scipy), for both normal and large sets.
+- **Group tags in the map**: when images have caption `.txt` files, each group's row shows the
+  tags that set it apart (e.g. "sketch, white background"), in the web app and in `map`.
 
 ## 0.6.0 - 2026-10-10
 

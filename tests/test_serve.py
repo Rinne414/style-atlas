@@ -417,3 +417,14 @@ def test_regroup_without_a_threshold_is_auto(tmp_path):
     assert app.settings["threshold"] is None and app.clustering.params["auto"]
     with pytest.raises(ValueError):
         app.regroup({"threshold": "0.4"})
+
+
+def test_the_page_lists_each_groups_characteristic_tags(tmp_path):
+    app, atlas = _app(tmp_path, (8, 7))
+    app.regroup({"threshold": 0.5})
+    for i, p in enumerate(atlas.paths):
+        tag = "sketch" if app.clustering.labels[i] == 1 else "color"
+        p.with_suffix(".txt").write_text(f"1girl, {tag}", encoding="utf-8")
+    app._tag_sets = None  # captions written after start-up
+    html = app.page()
+    assert '"tags":["color"]' in html and '"tags":["sketch"]' in html

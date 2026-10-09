@@ -375,6 +375,10 @@ function buildClusters() {
     const mt = document.createElement("div"); mt.className = "meta";
     mt.textContent = `${c.size} ${t("size")}` + (c.cohesion !== undefined ? ` · ${t("cohesion")} ${c.cohesion.toFixed(3)}` : "");
     txt.append(nm, mt);
+    if (c.tags && c.tags.length) {
+      const tg = document.createElement("div"); tg.className = "meta tags"; tg.textContent = c.tags.join(", ");
+      txt.append(tg);
+    }
     const strip = timeStrip(c.members, colorOf(c.id));
     if (strip) txt.append(strip);
     row.append(img, txt);

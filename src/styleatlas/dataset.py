@@ -109,11 +109,16 @@ def duplicate_keepers(
 
 
 def tag_summary(
-    paths: list[Path], clustering: Clustering, top: int = 8, min_count: int = 2
+    paths: list[Path],
+    clustering: Clustering,
+    top: int = 8,
+    min_count: int = 2,
+    tags: list[set[str]] | None = None,
 ) -> dict[int, list[dict]]:
     """Per style group: its most frequent caption tags and how over-represented each is
-    (lift = share in the group / share in the whole folder)."""
-    tags = [set(read_tags(p)) for p in paths]
+    (lift = share in the group / share in the whole folder). `tags` are the images' tag sets,
+    when already read."""
+    tags = tags if tags is not None else [set(read_tags(p)) for p in paths]
     if not any(tags):
         return {}
     overall = Counter(t for ts in tags for t in ts)
@@ -133,6 +138,16 @@ def tag_summary(
         rows.sort(key=lambda r: (-r["share"] * min(r["lift"], 3.0), r["tag"]))
         out[c.id] = rows[:top]
     return out
+
+
+def distinctive_tags(
+    summary: dict[int, list[dict]], top: int = 4, min_lift: float = 1.3
+) -> dict[int, list[str]]:
+    """The few tags that set each group apart (over-represented by `min_lift` or more), for a
+    one-line description in the map."""
+    return {
+        g: [r["tag"] for r in rows if r["lift"] >= min_lift][:top] for g, rows in summary.items()
+    }
 
 
 def parse_repeats(repeats: str | int) -> int | None:

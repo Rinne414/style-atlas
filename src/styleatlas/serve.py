@@ -30,7 +30,15 @@ from styleatlas.cluster import (
     edit_groups,
     split_group,
 )
-from styleatlas.dataset import LAYOUTS, clean_group_name, is_unassigned, plan_folders
+from styleatlas.dataset import (
+    LAYOUTS,
+    clean_group_name,
+    distinctive_tags,
+    is_unassigned,
+    plan_folders,
+    read_tags,
+    tag_summary,
+)
 from styleatlas.export import export_folders, output_dir, write_table
 from styleatlas.groupfile import GROUPS_FILE, SavedGroups, carry_names, load_groups, save_groups
 from styleatlas.images import cached_thumbnail, load_rgb
@@ -75,6 +83,7 @@ class StyleAtlasApp:
         self.revision = 0  # bumped on every regroup / hand edit; edits must name the one they saw
         self.thumb_px = default_thumb_px(len(atlas))
         self._thumbs: dict[int, bytes] = {}
+        self._tag_sets: list[set[str]] | None = None
         self._lock = threading.Lock()
         self.taste: TasteSession | None = None
         self.group_names: dict[int, str] = {}  # group id -> name, carried across regroupings
@@ -142,6 +151,7 @@ class StyleAtlasApp:
                 lambda i: f"image/{i}",
                 self.title,
                 self.time_source,
+                self._group_tags(),
             )
             payload["live"] = {
                 "settings": dict(self.settings),
@@ -156,6 +166,13 @@ class StyleAtlasApp:
                 "can_undo": bool(self._history),
             }
         return render_html(payload)
+
+    def _group_tags(self) -> dict[int, list[str]]:
+        """Each group's characteristic caption tags (captions are read once per session)."""
+        if self._tag_sets is None:
+            self._tag_sets = [set(read_tags(p)) for p in self.atlas.paths]
+        summary = tag_summary(self.atlas.paths, self.clustering, tags=self._tag_sets)
+        return distinctive_tags(summary)
 
     def thumb(self, i: int) -> bytes:
         if i not in self._thumbs:

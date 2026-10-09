@@ -14,6 +14,7 @@ import numpy as np
 
 from styleatlas.atlas import LOAD_ERRORS, Atlas
 from styleatlas.cluster import Clustering, outlier_scores
+from styleatlas.dataset import distinctive_tags, tag_summary
 from styleatlas.duplicates import near_duplicate_groups
 from styleatlas.images import file_time, thumbnail_data_url
 from styleatlas.metrics import centroid
@@ -76,8 +77,10 @@ def build_payload(
     link_of: Callable[[int], str],
     title: str | None = None,
     time_source: str = "none",
+    group_tags: dict[int, list[str]] | None = None,
 ) -> dict:
     times = [file_time(p, time_source) for p in atlas.paths]
+    group_tags = group_tags or {}
     points = [
         {
             "p": layout.coords[i].round(4).tolist(),
@@ -100,7 +103,13 @@ def build_payload(
         "params": clustering.params,
         "signature": atlas.signature,
         "clusters": [
-            {"id": c.id, "size": c.size, "medoid": c.medoid, "cohesion": round(c.cohesion, 4)}
+            {
+                "id": c.id,
+                "size": c.size,
+                "medoid": c.medoid,
+                "cohesion": round(c.cohesion, 4),
+                "tags": group_tags.get(c.id, []),
+            }
             for c in clustering.clusters
         ],
         "points": points,
@@ -137,7 +146,8 @@ def map_payload(
     def link_of(i: int) -> str:
         return _rel_link(atlas.paths[i], out_dir)
 
-    return build_payload(atlas, clustering, layout, thumb_of, link_of, title, time_source)
+    tags = distinctive_tags(tag_summary(atlas.paths, clustering))
+    return build_payload(atlas, clustering, layout, thumb_of, link_of, title, time_source, tags)
 
 
 def _vendor(name: str) -> str:
