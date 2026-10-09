@@ -157,12 +157,19 @@ def make_handler(app: StyleAtlasApp, allowed_hosts: set[str]) -> type[BaseHTTPRe
     return type("BoundStyleAtlasHandler", (StyleAtlasHandler,), attrs)
 
 
+class _Server(ThreadingHTTPServer):
+    # The page asks for many thumbnails at once; Windows refuses connections beyond the listen
+    # backlog (5 by default) while the server is busy, e.g. making thumbnails right after start.
+    request_queue_size = 64
+    daemon_threads = True
+
+
 def bind(app: StyleAtlasApp, port: int = 8770) -> ThreadingHTTPServer:
     """Server on the first free port from `port`, wired to `app` (not yet serving)."""
     server = None
     for candidate in range(port, port + 20):
         try:
-            server = ThreadingHTTPServer(("127.0.0.1", candidate), BaseHTTPRequestHandler)
+            server = _Server(("127.0.0.1", candidate), BaseHTTPRequestHandler)
             break
         except OSError:
             continue

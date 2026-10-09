@@ -490,3 +490,9 @@ def test_prewarm_reads_the_captions(tmp_path):
     atlas.paths[0].with_suffix(".txt").write_text("sketch", encoding="utf-8")
     app._read_tags()
     assert app._tag_sets[0] == {"sketch"} and app._tag_sets[1] == set()
+
+
+def test_the_server_queues_bursts_of_thumbnail_requests(server):
+    from styleatlas.webserver import _Server
+
+    assert _Server.request_queue_size >= 64

@@ -147,10 +147,14 @@ const FRAG = `
     gl_FragColor = vec4(c.rgb * (0.35 + 0.65 * vAlpha), c.a * (0.2 + 0.8 * vAlpha));
   }`;
 
-async function loadImage(src) {
+async function loadImage(src, retries = 1) {
   const img = new Image();
   img.src = src;
-  try { await img.decode(); return img; } catch { return null; }
+  try { await img.decode(); return img; } catch {
+    if (retries <= 0) return null;
+    await new Promise((r) => setTimeout(r, 800));  // a busy server may have dropped it
+    return loadImage(src, retries - 1);
+  }
 }
 
 // The pages are made at once with a coloured dot in every cell, so the map shows straight away;
