@@ -1,0 +1,114 @@
+"""The command line end to end, with a stand-in encoder: each image's style vector comes from its
+average colour, so folders of red, green and blue pictures are three clean styles."""
+
+from __future__ import annotations
+
+import json
+
+import numpy as np
+import pytest
+from PIL import Image, ImageDraw
+
+from styleatlas.cli import main
+from styleatlas.encoder import Embeddings, encoder_signature
+
+COLOURS = {"red": (220, 40, 40), "green": (40, 200, 60), "blue": (40, 60, 220)}
+
+
+class FakeEncoder:
+    device = "cpu"
+    signature = encoder_signature("center")
+
+    def encode(self, images: list[Image.Image]) -> Embeddings:
+        rows = []
+        for im in images:
+            a = np.asarray(im.convert("RGB").resize((16, 16)), dtype=np.float32) / 255
+            v = np.zeros(768, np.float32)
+            v[:3] = a.mean(axis=(0, 1)) * 4
+            seed = int(a.sum() * 1000) % 2**32  # same picture, same vector
+            v += np.random.default_rng(seed).normal(0, 0.05, 768).astype(np.float32)
+            rows.append(v / np.linalg.norm(v))
+        s = np.stack(rows)
+        return Embeddings(s, s)
+
+
+@pytest.fixture
+def lib(tmp_path, monkeypatch):
+    """lib/<colour>/<colour>__<id>.png, 6 per colour, with captions; a tmp cache."""
+    monkeypatch.setenv("STYLE_ATLAS_CACHE", str(tmp_path / "cache"))
+    monkeypatch.setattr("styleatlas.atlas.get_encoder", lambda opts: FakeEncoder())
+    root = tmp_path / "lib"
+    for name, rgb in COLOURS.items():
+        (root / name).mkdir(parents=True)
+        for i in range(6):
+            im = Image.new("RGB", (64, 64), rgb)
+            ImageDraw.Draw(im).ellipse([i * 8, i * 6, i * 8 + 10, i * 6 + 10], fill=(255, 255, 255))
+            p = root / name / f"{name}__{100000 + 10 * i + len(name)}.png"
+            im.save(p)
+            p.with_suffix(".txt").write_text(f"1girl, {name}_tag", encoding="utf-8")
+    return root
+
+
+def test_cluster_exports_kohya_folders_with_triggers(lib, tmp_path, capsys):
+    out = tmp_path / "out"
+    code = main(
+        ["cluster", str(lib), "--device", "cpu", "--layout", "kohya", "--name", "art",
+         "--export", "copy", "--trigger-captions", "--no-map", "--time", "name", "-o", str(out)]
+    )  # fmt: skip
+    assert code == 0
+    folders = sorted(p.name for p in (out / "folders").iterdir())
+    assert len(folders) == 3 and all(f.split("_", 1)[1].startswith("art_style") for f in folders)
+    caption = next((out / "folders" / folders[0]).glob("*.txt")).read_text(encoding="utf-8")
+    assert caption.startswith(folders[0].split("_", 1)[1] + ", 1girl")
+    assert (out / "clusters.csv").exists()
+    assert "when" in capsys.readouterr().err
+
+
+def test_period_split_and_refused_flag_mix(lib, tmp_path, capsys):
+    out = tmp_path / "out"
+    args = ["cluster", str(lib / "red"), "--device", "cpu", "--granularity", "period", "--k", "2"]
+    assert main([*args, "--no-map", "-o", str(out)]) == 0
+    err = capsys.readouterr().err
+    assert "(kmeans)" in err and "soft" in err  # 6 images: the boundaries note
+    assert main([*args, "--method", "hdbscan", "--no-map", "-o", str(out)]) == 1
+
+
+def test_search_combines_examples_and_copies_the_matches(lib, tmp_path):
+    examples = [str(p) for p in sorted((lib / "red").glob("*.png"))[:3]]
+    out = tmp_path / "found"
+    code = main(
+        ["search", *examples, "--in", str(lib), "--combine", "--top", "3", "--device", "cpu",
+         "--copy-to", str(out)]
+    )  # fmt: skip
+    assert code == 0
+    copied = sorted(p.name for p in (out / "matches").glob("*.png"))
+    assert len(copied) == 3 and all(name.startswith("red__") for name in copied)
+
+
+def test_audit_duplicates_outliers_and_compare(lib, capsys):
+    assert main(["audit", str(lib), "--json", "--device", "cpu"]) == 0
+    report = json.loads(capsys.readouterr().out)
+    assert report["summary"]["smaller_than_min_side"] == 18  # 64 px pictures
+
+    copy = lib / "red" / "copy.png"
+    copy.write_bytes((lib / "red" / "red__100003.png").read_bytes())
+    assert main(["duplicates", str(lib), "--json", "--device", "cpu"]) == 0
+    groups = json.loads(capsys.readouterr().out)
+    assert any("red/copy.png" in g for g in groups)
+
+    assert main(["outliers", str(lib), "--top", "3", "--device", "cpu"]) == 0
+    assert len(capsys.readouterr().out.strip().splitlines()) == 3
+
+    assert main(["compare", str(lib / "red"), str(lib / "blue"), "--device", "cpu"]) == 0
+    verdict = json.loads(capsys.readouterr().out)
+    assert verdict["images"] == [7, 6] and verdict["centroid_distance"] > 0.5
+
+
+def test_map_and_bench(lib, tmp_path, capsys):
+    html = tmp_path / "map.html"
+    assert main(["map", str(lib), "-o", str(html), "--projection", "pca", "--device", "cpu"]) == 0
+    assert "atlas-data" in html.read_text(encoding="utf-8")
+    capsys.readouterr()  # map prints where it wrote the file
+    assert main(["bench", str(lib), "--trials", "2", "--device", "cpu"]) == 0
+    report = json.loads(capsys.readouterr().out)
+    assert report["whitened"]["top1"] == 1.0 and report["labels"] == 3
