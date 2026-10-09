@@ -55,7 +55,7 @@ def checks() -> list[tuple[str, str, str]]:
         (OK if py_ok else FAIL, "python", f"{platform.python_version()} ({sys.executable})"),
     ]
     rows += _torch_lines()
-    for name in ("open_clip", "sklearn", "huggingface_hub", "safetensors", "PIL"):
+    for name in ("open_clip", "sklearn", "scipy", "huggingface_hub", "safetensors", "PIL"):
         try:
             module = __import__(name)
             rows.append((OK, name, getattr(module, "__version__", "installed")))
@@ -67,7 +67,18 @@ def checks() -> list[tuple[str, str, str]]:
         rows.append((OK, "umap", "installed (UMAP map layouts)"))
     except ImportError:
         rows.append((OK, "umap", "not installed (t-SNE layouts are used; optional)"))
-    return rows + _model_lines()
+    return rows + [_whitening_line()] + _model_lines()
+
+
+def _whitening_line() -> tuple[str, str, str]:
+    """The search whitening ships inside the package; a broken install loses it."""
+    try:
+        from styleatlas.whiten import _params
+
+        _params()
+        return (OK, "search data", "whitening map loaded")
+    except (OSError, KeyError, ValueError) as e:
+        return (FAIL, "search data", f"cannot load the whitening map ({e}): reinstall")
 
 
 def run() -> int:
