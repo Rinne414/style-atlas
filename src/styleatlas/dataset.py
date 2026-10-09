@@ -52,6 +52,22 @@ class ImageInfo:
     height: int
     frames: int
     file_size: int
+    truncated: bool = False
+
+
+END_MARKERS = {"JPEG": b"\xff\xd9", "PNG": b"IEND"}
+TAIL_BYTES = 64
+
+
+def _looks_truncated(path: Path, fmt: str | None) -> bool:
+    """Cheap check without decoding: JPEG and PNG files end with a fixed marker."""
+    marker = END_MARKERS.get(fmt or "")
+    if marker is None:
+        return False
+    with open(path, "rb") as f:
+        f.seek(0, 2)
+        f.seek(max(0, f.tell() - TAIL_BYTES))
+        return marker not in f.read()
 
 
 def image_info(path: Path) -> ImageInfo | None:
@@ -59,7 +75,8 @@ def image_info(path: Path) -> ImageInfo | None:
     try:
         with Image.open(path) as im:
             frames = 2 if getattr(im, "is_animated", False) else 1
-            return ImageInfo(im.width, im.height, frames, Path(path).stat().st_size)
+            cut = _looks_truncated(Path(path), im.format)
+            return ImageInfo(im.width, im.height, frames, Path(path).stat().st_size, cut)
     except (OSError, ValueError, SyntaxError, Image.DecompressionBombError):
         return None
 
@@ -177,6 +194,7 @@ def audit(paths: list[Path], min_side: int = 512, max_ratio: float = 2.5) -> dic
     """Problems a trainer would hit: small or extreme images, animations, missing captions."""
     report: dict[str, list[str]] = {
         "unreadable": [],
+        "truncated": [],
         "smaller_than_min_side": [],
         "extreme_aspect_ratio": [],
         "animated": [],
@@ -189,6 +207,8 @@ def audit(paths: list[Path], min_side: int = 512, max_ratio: float = 2.5) -> dic
         if info is None:
             report["unreadable"].append(str(p))
             continue
+        if info.truncated:
+            report["truncated"].append(str(p))
         sides.append(min(info.width, info.height))
         if min(info.width, info.height) < min_side:
             report["smaller_than_min_side"].append(str(p))
