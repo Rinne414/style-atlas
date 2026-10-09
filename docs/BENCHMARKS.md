@@ -124,6 +124,13 @@ Caveats (from a Sonnet review):
 - **Small groups.** A period can come out small (4 of 46 images for one artist). Periods under
   `--min-size` (3) count as unassigned, and `cluster` warns about groups under 8.
 - **Below about 100 images** the boundaries move with the seed; `cluster` prints a note.
+- Tried afterwards, no gain (13 artists, k-means with 3 groups, mean AMI 0.126 as is):
+  - Removing the artist's own 1-5 strongest directions first (as `--neutralize` does):
+    0.078 / 0.048 / 0.015, worse every time. The time signal lives in those directions.
+  - Keeping only the top 2-50 principal components: 0.108-0.119 (-0.006 to -0.018). It is much
+    more stable across seeds (agreement 0.90-1.00 at 2-5 components, against 0.67), but the
+    seed is fixed anyway.
+  - The search whitening: -0.005 (above).
 
 ### Choosing the cut automatically (2026-10-10)
 
