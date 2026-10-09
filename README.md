@@ -19,11 +19,19 @@ style-atlas 會用 CSD 風格嵌入模型，把每張圖轉成一個「畫風向
 | **檢查資料集**：解析度、極端比例、缺標註、近重複 | `audit`、`duplicates` |
 | **量化畫風與口味**：兩組圖是否同一畫風、個人喜好模型 | `compare`、`taste`、網頁介面的「喜歡／不喜歡」 |
 
+![網頁介面：72 張圖自動分成 4 個畫風群，右側是群組清單與名稱](docs/images/map.jpg)
+
+![點開一群：其他群淡出，可以取名、合併、拆群，或「找更多像這群的」](docs/images/group.jpg)
+
+（截圖裡的圖片是 `scripts\make_demo_images.py` 程式產生的四種抽象風格，不是任何人的作品。）
+
 ### Windows：三步開始
 
 1. 安裝 [Python 3.10 以上](https://www.python.org/downloads/)，安裝時勾選「Add python.exe to PATH」。
 2. 下載本專案：在 GitHub 頁面按 **Code → Download ZIP** 再解壓縮（本專案目前是私人專案，要先請作者給你存取權），會用 git 的話也可以 `git clone`。然後雙擊 `scripts\setup.bat`。它會在專案資料夾裡建立 `.venv`，偵測到 NVIDIA 顯卡就裝 CUDA 版的 torch，沒有就裝 CPU 版，再安裝本工具。
 3. 把圖片資料夾**拖到 `scripts\StyleAtlas.bat` 上**，瀏覽器會打開網頁介面。
+
+想先試試看：在 `scripts\StyleAtlas-console.bat` 開的視窗裡執行 `python scripts\make_demo_images.py demo_styles`，會產生 72 張四種風格的範例圖；再把 `demo_styles` 資料夾拖到 `StyleAtlas.bat` 上。
 
 **要打指令時**（下面的 `audit`、`cluster`、`search` 等），請雙擊 `scripts\StyleAtlas-console.bat`，它會開一個已經設定好的命令視窗，在裡面輸入指令即可。直接開一般的命令提示字元打 `style-atlas` 會出現「不是內部或外部命令」，因為工具裝在 `.venv` 裡。
 
@@ -235,6 +243,11 @@ how a picture is drawn rather than what it shows. On top of those vectors it can
   Undo (or Ctrl+Z) steps back through the last 30 edits, regroups and renames.
 - **Quantify style and taste**: `compare` two sets, or train a personal like/dislike model in
   the web app or with `taste`.
+
+![The web app: 72 images grouped into 4 styles, with named groups on the right](docs/images/map.jpg)
+
+(The pictures are four abstract styles made by `scripts/make_demo_images.py`, not anyone's
+artwork. Run it to get a folder you can try the tool on.)
 
 ### Windows quick start
 
