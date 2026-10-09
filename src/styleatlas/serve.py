@@ -8,6 +8,7 @@ POST (a cross-site form or simple request cannot set it).
 
 from __future__ import annotations
 
+import base64
 import io
 import json
 import mimetypes
@@ -42,6 +43,7 @@ from styleatlas.taste_session import TasteSession
 MAX_UPLOAD = 40 * 1024 * 1024
 POST_HEADER = "X-Style-Atlas"
 SEARCH_TOP = 48
+MAX_QUERY_IMAGES = 32
 MAX_NEUTRALIZE = 3
 UNDO_STEPS = 30
 EXPORT_MIN_GROUP = 3  # groups left smaller after set-asides go to _unassigned (as in the CLI)
@@ -193,14 +195,29 @@ class StyleAtlasApp:
         return {"clusters": self.clustering.n_clusters, "unassigned": self.clustering.n_unassigned}
 
     def search_image(self, data: bytes, top: int = SEARCH_TOP) -> list[dict]:
+        hits = search(self._embed([data]), self.atlas.style, top=top)[0]
+        return [{"i": h.index, "cos": round(h.cosine, 4)} for h in hits]
+
+    def search_set(self, body: dict) -> dict:
+        """Several dropped images searched as one style (as `search --combine`)."""
+        images = body.get("images")
+        if (
+            not isinstance(images, list)
+            or not 1 <= len(images) <= MAX_QUERY_IMAGES
+            or not all(isinstance(s, str) for s in images)
+        ):
+            raise ValueError(f"images must be a list of 1 to {MAX_QUERY_IMAGES} base64 strings")
+        query = self._embed([base64.b64decode(s, validate=True) for s in images])
+        hits = search(query, self.atlas.style, top=SEARCH_TOP, combine=True)[0]
+        return {"hits": [{"i": h.index, "cos": round(h.cosine, 4)} for h in hits]}
+
+    def _embed(self, datas: list[bytes]):
         try:
-            image = load_rgb(io.BytesIO(data))
+            images = [load_rgb(io.BytesIO(d)) for d in datas]
         except LOAD_ERRORS as e:
             raise ValueError(f"not a readable image: {e}") from e
         with self._lock:
-            query = self.neutral.apply(get_encoder(self.opts).encode([image]).style)
-        hits = search(query, self.atlas.style, top=top)[0]
-        return [{"i": h.index, "cos": round(h.cosine, 4)} for h in hits]
+            return self.neutral.apply(get_encoder(self.opts).encode(images).style)
 
     def similar(self, body: dict) -> dict:
         """Images outside a group that look most like it (a model learned from the group, as in
@@ -432,6 +449,7 @@ JSON_ROUTES = {  # POST route -> StyleAtlasApp method taking the JSON body
     "api/rename": "rename",
     "api/undo": "undo",
     "api/similar": "similar",
+    "api/search_set": "search_set",
     "api/export": "export",
 }
 REQUEST_ERRORS = (ValueError, OSError, KeyError, TypeError, OverflowError)

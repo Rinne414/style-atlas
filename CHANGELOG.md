@@ -6,6 +6,7 @@
   library with a logistic model of the examples against the library, instead of their mean
   vector (+0.055 to +0.116 average precision, BENCHMARKS.md).
 - **`search --copy-to DIR`** copies the matches, with their captions, into a new folder.
+- **Drop several images** (web app): they are searched as one style, like `search --combine`.
 - **Find more like this group** (web app): the images outside a group that look most like it,
   ranked by a model learned from the group. Click one to move it in.
 

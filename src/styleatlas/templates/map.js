@@ -11,8 +11,8 @@ const T = {
     pick: "Click an image in the map to see its closest styles.", nearest: "Closest styles",
     members: "Members", cluster: "style", outlierHelp: "Images least like the rest of the set (candidates to drop from a LoRA dataset).",
     loading: "building map…", open: "open file", searchImg: "Search by image…",
-    drop: "Drop an image to find its closest styles", regroup: "Regroup", export: "Export folders",
-    searching: "embedding the query…", exported: "Copied {n} images to {f}.", query: "Your image",
+    drop: "Drop one image, or several of one style, to find the closest styles", regroup: "Regroup", export: "Export folders",
+    searching: "embedding the query…", exported: "Copied {n} images to {f}.", query: "Your image", queries: "Your {n} images, searched as one style",
     custom: "custom", regrouping: "regrouping…", period: "period (one artist)", dups: "Duplicates",
     dupHelp: "Groups of near-identical pictures (same image, crops, frames of one scene). Keep one per group for LoRA training.",
     noDups: "No near-duplicates found.",
@@ -42,8 +42,8 @@ const T = {
     pick: "在地圖上點一張圖，看最接近的畫風。", nearest: "最接近的畫風", members: "成員",
     cluster: "畫風群", outlierHelp: "和整組最不像的圖（訓 LoRA 前可考慮剔除）。",
     loading: "建立地圖中…", open: "開啟檔案", searchImg: "以圖搜尋…",
-    drop: "放開圖片，找最接近的畫風", regroup: "重新分群", export: "匯出資料夾",
-    searching: "計算查詢圖中…", exported: "已複製 {n} 張到 {f}。", query: "你的圖",
+    drop: "放開一張圖，或同一種畫風的多張圖，找最接近的畫風", regroup: "重新分群", export: "匯出資料夾",
+    searching: "計算查詢圖中…", exported: "已複製 {n} 張到 {f}。", query: "你的圖", queries: "你的 {n} 張圖（當成同一種畫風搜尋）",
     custom: "自訂", regrouping: "重新分群中…", period: "時期（單一畫師）", dups: "重複",
     dupHelp: "幾乎相同的圖（同一張、裁切、同場景連續畫面）。訓 LoRA 時每組留一張即可。",
     noDups: "沒有找到近重複的圖。",
@@ -478,27 +478,47 @@ async function post(url, body, type) {
   return j;
 }
 
-async function searchFile(file) {
-  if (!file || !file.type.startsWith("image/")) return;
+const MAX_QUERY_IMAGES = 32;
+
+function toBase64(file) {
+  return new Promise((ok, fail) => {
+    const r = new FileReader();
+    r.onload = () => ok(String(r.result).split(",")[1]);
+    r.onerror = () => fail(r.error);
+    r.readAsDataURL(file);
+  });
+}
+
+// One image: nearest styles. Several: searched as one style (a model learned from 3 up).
+async function searchFiles(fileList) {
+  const files = [...(fileList || [])].filter((f) => f.type.startsWith("image/")).slice(0, MAX_QUERY_IMAGES);
+  if (!files.length) return;
   setStatus(t("searching"));
   try {
-    const { hits } = await post("api/search", file, file.type);
+    const { hits } = files.length === 1
+      ? await post("api/search", files[0], files[0].type)
+      : await post("api/search_set", JSON.stringify({ images: await Promise.all(files.map(toBase64)) }), "application/json");
     setStatus("");
-    showSearch(file, hits);
+    showSearch(files, hits);
   } catch (e) { setStatus(String(e.message || e)); }
 }
 
-function showSearch(file, hits) {
+function showSearch(files, hits) {
   selected = null; focusCluster = null; searchHits = new Set(hits.map((h) => h.i)); recolor();
   if (hits.length) focusOn(hits.slice(0, 8).map((h) => h.i));
   const pane = $("pane-selected"); pane.replaceChildren();
-  const h = document.createElement("h3"); h.textContent = t("query");
-  const q = document.createElement("img"); q.className = "query"; q.alt = file.name;
-  q.src = URL.createObjectURL(file);
+  const h = document.createElement("h3");
+  h.textContent = files.length > 1 ? t("queries").replace("{n}", files.length) : t("query");
+  const qs = document.createElement("div"); if (files.length > 1) qs.className = "grid";
+  files.forEach((f) => {
+    const q = document.createElement("img"); q.alt = f.name; q.src = URL.createObjectURL(f);
+    if (files.length === 1) q.className = "query";
+    qs.append(q);
+  });
   const h2 = document.createElement("h3"); h2.textContent = t("nearest");
   const g = document.createElement("div"); g.className = "grid";
   hits.forEach((x) => { const im = thumb(x.i); im.title = `${PTS[x.i].n} · cos ${x.cos.toFixed(3)}`; g.append(im); });
-  pane.append(h, q, h2, g);
+  pane.append(h, qs, h2, g);
   showPane("selected");
 }
 
@@ -677,7 +697,7 @@ function setupLive() {
   const s = DATA.live.settings;
   $("thr").value = (s.threshold ?? DATA.live.granularity.medium).toFixed(2);
   $("pickBtn").addEventListener("click", () => $("pickFile").click());
-  $("pickFile").addEventListener("change", (e) => searchFile(e.target.files[0]));
+  $("pickFile").addEventListener("change", (e) => searchFiles(e.target.files));
   $("gran").addEventListener("change", (e) => {
     if (e.target.value in DATA.live.granularity) $("thr").value = DATA.live.granularity[e.target.value].toFixed(2);
   });
@@ -704,7 +724,7 @@ function setupLive() {
   addEventListener("dragover", (e) => e.preventDefault());
   addEventListener("drop", (e) => {
     e.preventDefault(); depth = 0; document.body.classList.remove("dragging");
-    searchFile(e.dataTransfer.files[0]);
+    searchFiles(e.dataTransfer.files);
   });
 }
 

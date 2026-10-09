@@ -365,3 +365,30 @@ def test_more_like_a_group_finds_its_strays(tmp_path):
     assert all(h["group"] != group for h in hits)
     with pytest.raises(ValueError):
         app.similar({"group": 99})
+
+
+def test_several_dropped_images_search_as_one_style(tmp_path, monkeypatch):
+    import base64
+    import io
+
+    import numpy as np
+
+    app, atlas = _app(tmp_path, (8, 7))
+
+    class FakeEncoder:  # the images' red channel picks the stored vector they stand for
+        def encode(self, images):
+            rows = [atlas.style[np.asarray(im)[0, 0, 0]] for im in images]
+            return type("E", (), {"style": np.stack(rows)})
+
+    monkeypatch.setattr("styleatlas.serve.get_encoder", lambda opts: FakeEncoder())
+
+    def png(i):
+        buf = io.BytesIO()
+        Image.new("RGB", (16, 16), (i, 0, 0)).save(buf, "PNG")
+        return base64.b64encode(buf.getvalue()).decode()
+
+    hits = app.search_set({"images": [png(0), png(1), png(2)]})["hits"]
+    assert {h["i"] for h in hits[:8]} == set(range(8))  # the first blob, examples included
+    for bad in ({"images": []}, {"images": ["not base64!"]}, {"images": [png(0)] * 33}):
+        with pytest.raises(ValueError):
+            app.search_set(bad)
