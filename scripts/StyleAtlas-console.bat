@@ -8,9 +8,11 @@ if not exist "%VENV%\style-atlas.exe" (
   exit /b 1
 )
 set "PATH=%VENV%;%PATH%"
+cd /d "%~dp0.."
 echo style-atlas is ready in this window. Examples:
 echo   style-atlas audit "D:\lora\artistX"
 echo   style-atlas cluster "D:\lora\artistX" --layout kohya --name artistX --dedupe --export copy
 echo   style-atlas --help
+echo   python scripts\make_demo_images.py demo_styles   (72 demo images to try)
 echo.
 cmd /k
