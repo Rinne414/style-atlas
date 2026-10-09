@@ -27,10 +27,10 @@ set "VPY=.venv\Scripts\python.exe"
 "%VPY%" -m pip install --upgrade pip
 where nvidia-smi >nul 2>nul
 if errorlevel 1 (
-  echo No NVIDIA GPU found: installing CPU torch ^(slower, still works^).
+  echo No NVIDIA GPU found: installing CPU torch ^(about 200 MB; slower, still works^).
   "%VPY%" -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
 ) else (
-  echo NVIDIA GPU found: installing CUDA torch.
+  echo NVIDIA GPU found: installing CUDA torch ^(about 2.5 GB download, please wait^).
   "%VPY%" -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
 )
 if errorlevel 1 ( echo torch install failed. & pause & exit /b 1 )
