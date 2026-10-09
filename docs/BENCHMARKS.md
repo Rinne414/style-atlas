@@ -151,6 +151,16 @@ Removing the strongest direction of variation has opposite effects depending on 
 That is why `--neutralize` is opt-in. It is meant only for collections where the same characters
 recur across styles.
 
+**Second check, different characters.** 131 other recipes were each rendered with Carlotta and
+Changli; no Jane or Nicole image was involved. `--neutralize` learns nothing in advance. It
+computes the direction from the collection itself, so it carries over:
+
+| Correction | Twin is nearest | Same character is nearest | Recipe-pair AUC |
+|---|---|---|---|
+| none | 11% | 95% | 0.866 |
+| `--neutralize 1` | 31% | 70% | **0.967** |
+| `--neutralize 2` | 40% | 59% | 0.967 |
+
 ## Near-duplicate threshold (2026-10-09)
 
 Pairs were checked by eye at each score of min(style cos, content cos):
@@ -214,6 +224,21 @@ differences below about 0.02-0.03 are within noise.
 
 None of these beats the default by more than noise, so the limit is the embedding and not the
 grouping algorithm.
+
+### Fixed "nuisance" directions learned from renders (2026-10-09)
+
+The idea was nuisance attribute projection. Directions of "same recipe, different
+character/seed" variation were learned from 2,204 within-recipe deviations in the other
+NovelAI research rounds, then projected out of every vector, with r93 held out.
+
+- **Held-out r93**: recipe-pair AUC went from 0.83 to 0.99 with 8 directions. Danbooru top-1
+  rose +1.25 points (paired CI +0.3 to +2.2), and the mixture ARIs held.
+- **Why that was misleading**: r93 uses the same two characters as the training rounds. With
+  directions trained without any Carlotta or Changli image, the unseen pair did not improve at
+  all: AUC 0.866, then 0.848 at 8 directions.
+- **What the directions are**: they encode "Jane vs Nicole", not general subject variation.
+
+Not adopted. The per-collection `--neutralize` does generalise; see above.
 
 ## Demo: 3 artists, 10 works each
 
