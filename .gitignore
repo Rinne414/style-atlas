@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+# outputs and caches that may contain user images or vectors
+style_atlas_out/
+*.sqlite
+*.safetensors
+*.npz
+*map.html
+!src/styleatlas/templates/map.html

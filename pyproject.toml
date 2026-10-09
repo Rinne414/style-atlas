@@ -1,0 +1,43 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "style-atlas"
+version = "0.1.0"
+description = "Measure, cluster, search and map illustration art styles (CSD style embeddings with hubness correction)."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Rinne414" }]
+dependencies = [
+  "numpy>=1.26",
+  "pillow>=10.0",
+  "torch>=2.2",
+  "torchvision>=0.17",
+  "open_clip_torch>=2.24",
+  "huggingface_hub>=0.23",
+  "scikit-learn>=1.3",
+  "psutil>=5.9",
+]
+
+[project.optional-dependencies]
+umap = ["umap-learn>=0.5.6"]
+dev = ["pytest>=8.0", "ruff>=0.5"]
+
+[project.scripts]
+style-atlas = "styleatlas.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/styleatlas"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["model: needs the CSD weights (slow, downloads 2.4 GB on first run)"]
+addopts = "-m 'not model'"

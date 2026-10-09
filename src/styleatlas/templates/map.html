@@ -1,0 +1,490 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Style Atlas</title>
+<style>
+  :root {
+    --bg: #0d0f12; --panel: #15181d; --panel2: #1c2027; --ink: #e9e6e1; --muted: #8f949c;
+    --line: #2a2f37; --accent: #f2c38b; --focus: #ffffff;
+  }
+  :root[data-theme="light"] {
+    --bg: #f4f2ee; --panel: #ffffff; --panel2: #f0ede8; --ink: #1d1f23; --muted: #6b7078;
+    --line: #dcd8d1; --accent: #b4682a; --focus: #000000;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink);
+    font: 13px/1.45 system-ui, "Segoe UI", "Noto Sans TC", "PingFang TC", sans-serif; }
+  #app { display: grid; grid-template-columns: minmax(0, 1fr) 360px; height: 100%; }
+  #stage { position: relative; overflow: hidden; }
+  #gl { display: block; width: 100%; height: 100%; cursor: grab; }
+  #hud { position: absolute; left: 14px; top: 12px; right: 14px; display: flex; gap: 10px;
+    align-items: flex-start; pointer-events: none; }
+  #hud > * { pointer-events: auto; }
+  #title h1 { margin: 0; font-size: 17px; font-weight: 650; letter-spacing: .01em; }
+  #title .sub { color: var(--muted); font-size: 12px; }
+  .tools { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  button, .chip { background: var(--panel); color: var(--ink); border: 1px solid var(--line);
+    padding: 6px 10px; border-radius: 999px; cursor: pointer; font: inherit; font-size: 12px; }
+  button.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  input[type=search] { background: var(--panel); color: var(--ink); border: 1px solid var(--line);
+    padding: 6px 10px; border-radius: 999px; width: 180px; font: inherit; }
+  #tip { position: absolute; pointer-events: none; display: none; background: var(--panel);
+    border: 1px solid var(--line); border-radius: 10px; padding: 6px; max-width: 240px; z-index: 5;
+    box-shadow: 0 8px 30px rgba(0,0,0,.35); }
+  #tip img { display: block; max-width: 228px; max-height: 260px; border-radius: 6px; }
+  #tip .cap { color: var(--muted); font-size: 11px; margin-top: 4px; word-break: break-all; }
+  #loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted);
+    background: var(--bg); z-index: 9; font-size: 14px; }
+  aside { background: var(--panel); border-left: 1px solid var(--line); display: flex;
+    flex-direction: column; min-height: 0; }
+  .tabs { display: flex; border-bottom: 1px solid var(--line); }
+  .tabs button { flex: 1; border: 0; border-radius: 0; background: transparent; padding: 10px 6px;
+    color: var(--muted); }
+  .tabs button.on { color: var(--ink); box-shadow: inset 0 -2px 0 var(--accent); background: transparent; }
+  .pane { flex: 1; overflow: auto; padding: 12px; display: none; }
+  .pane.on { display: block; }
+  .cl { display: grid; grid-template-columns: 54px 1fr; gap: 10px; padding: 8px; border-radius: 10px;
+    cursor: pointer; border: 1px solid transparent; align-items: center; }
+  .cl:hover { background: var(--panel2); }
+  .cl.on { border-color: var(--accent); background: var(--panel2); }
+  .cl img { width: 54px; height: 54px; object-fit: cover; border-radius: 8px; border: 3px solid; }
+  .cl .name { font-weight: 600; }
+  .cl .meta { color: var(--muted); font-size: 12px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 6px; }
+  .grid img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 6px; cursor: pointer;
+    border: 2px solid transparent; background: var(--panel2); }
+  .grid img:hover { border-color: var(--accent); }
+  .big { width: 100%; border-radius: 10px; background: var(--panel2); display: block; }
+  .kv { color: var(--muted); font-size: 12px; margin: 8px 0; word-break: break-all; }
+  .kv b { color: var(--ink); font-weight: 600; }
+  h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted);
+    margin: 14px 0 8px; font-weight: 600; }
+  .empty { color: var(--muted); padding: 20px 4px; }
+  footer { border-top: 1px solid var(--line); padding: 8px 12px; color: var(--muted); font-size: 11px; }
+  @media (max-width: 820px) {
+    #app { grid-template-columns: 1fr; grid-template-rows: 58vh 1fr; }
+    aside { border-left: 0; border-top: 1px solid var(--line); }
+    input[type=search] { width: 120px; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <canvas id="gl"></canvas>
+    <div id="hud">
+      <div id="title"><h1></h1><div class="sub"></div></div>
+      <div class="tools">
+        <input id="find" type="search">
+        <button id="mode"></button>
+        <button id="spin"></button>
+        <button id="home"></button>
+        <button id="theme">◐</button>
+        <button id="lang">中</button>
+      </div>
+    </div>
+    <div id="tip"><img alt=""><div class="cap"></div></div>
+    <div id="loading">…</div>
+  </div>
+  <aside>
+    <div class="tabs">
+      <button data-pane="clusters" class="on"></button>
+      <button data-pane="selected"></button>
+      <button data-pane="outliers"></button>
+    </div>
+    <div class="pane on" id="pane-clusters"></div>
+    <div class="pane" id="pane-selected"></div>
+    <div class="pane" id="pane-outliers"></div>
+    <footer></footer>
+  </aside>
+</div>
+<script id="atlas-data" type="application/json">/*__STYLE_ATLAS_DATA__*/null</script>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+const DATA = JSON.parse(document.getElementById("atlas-data").textContent);
+const PTS = DATA.points;
+const N = PTS.length;
+const T = {
+  en: { images: "images", clusters: "Styles", selected: "Selected", outliers: "Outliers",
+    find: "filter by file name", thumbs: "Thumbnails", dots: "Dots", spin: "Rotate", home: "Reset",
+    unassigned: "Unassigned", style: "Style", size: "images", cohesion: "spread",
+    pick: "Click an image in the map to see its closest styles.", nearest: "Closest styles",
+    members: "Members", cluster: "style", outlierHelp: "Images least like the rest of the set (candidates to drop from a LoRA dataset).",
+    loading: "building map…", open: "open file", foot: "Style vectors: CSD ViT-L (Somepalli et al. 2024, CC-BY-4.0). Map layout is for viewing only; groups are computed in the full space." },
+  zh: { images: "張圖", clusters: "畫風群", selected: "選取", outliers: "離群",
+    find: "以檔名篩選", thumbs: "縮圖", dots: "圓點", spin: "旋轉", home: "重置",
+    unassigned: "未歸類", style: "畫風", size: "張", cohesion: "分散度",
+    pick: "在地圖上點一張圖，看最接近的畫風。", nearest: "最接近的畫風", members: "成員",
+    cluster: "畫風群", outlierHelp: "和整組最不像的圖（訓 LoRA 前可考慮剔除）。",
+    loading: "建立地圖中…", open: "開啟檔案", foot: "風格向量：CSD ViT-L（Somepalli 等，2024，CC-BY-4.0）。地圖排版只供瀏覽，分群是在完整向量空間計算。" },
+};
+let lang = (navigator.language || "en").toLowerCase().startsWith("zh") ? "zh" : "en";
+const t = (k) => T[lang][k];
+const $ = (id) => document.getElementById(id);
+
+const PALETTE = ["#f2994a","#56ccf2","#bb6bd9","#6fcf97","#eb5757","#f2c94c","#2d9cdb","#9b51e0",
+  "#27ae60","#e0607e","#a0d468","#ff9f80","#4fc1e9","#ac92ec","#48cfad","#fc6e51","#ffce54",
+  "#5d9cec","#ed5565","#8cc152"];
+const colorOf = (c) => c < 0 ? "#6b7078" : PALETTE[c % PALETTE.length];
+
+/* ---------- three.js scene ---------- */
+const canvas = $("gl");
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(50, 1, 0.01, 100);
+const HOME = new THREE.Vector3(0, 0.6, 3.1);
+camera.position.copy(HOME);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.6;
+const SPREAD = 1.6;
+const pos = new Float32Array(N * 3);
+PTS.forEach((p, i) => { pos[i*3] = p.p[0]*SPREAD; pos[i*3+1] = p.p[1]*SPREAD; pos[i*3+2] = p.p[2]*SPREAD; });
+
+function setBackground() {
+  scene.background = new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue("--bg").trim());
+}
+setBackground();
+
+const CELL = N <= 2048 ? 128 : 64;   // atlas pages are 4096 px squares
+const PER_ROW = 4096 / CELL;
+const PER_PAGE = PER_ROW * PER_ROW;
+const pages = [];
+const alpha = new Float32Array(N).fill(1);
+let mode = N <= 6000 ? "thumbs" : "dots";
+let pointSize = Math.min(0.4, Math.max(0.05, 1.6 / Math.cbrt(Math.max(N, 1))));
+
+const VERT = `
+  attribute float aAlpha; attribute vec2 aCell; attribute vec3 aColor;
+  uniform float uSize; uniform float uScale;
+  varying float vAlpha; varying vec2 vCell; varying vec3 vColor;
+  void main() {
+    vAlpha = aAlpha; vCell = aCell; vColor = aColor;
+    vec4 mv = modelViewMatrix * vec4(position, 1.0);
+    gl_PointSize = uSize * uScale / -mv.z * (0.55 + 0.45 * aAlpha);
+    gl_Position = projectionMatrix * mv;
+  }`;
+const FRAG = `
+  uniform sampler2D uAtlas; uniform float uCell; uniform int uMode;
+  varying float vAlpha; varying vec2 vCell; varying vec3 vColor;
+  void main() {
+    vec2 pc = vec2(gl_PointCoord.x, 1.0 - gl_PointCoord.y);
+    if (uMode == 1) {
+      float d = length(gl_PointCoord - 0.5);
+      if (d > 0.5) discard;
+      float edge = smoothstep(0.5, 0.42, d);
+      gl_FragColor = vec4(vColor, edge * (0.25 + 0.75 * vAlpha));
+      return;
+    }
+    vec4 c = texture2D(uAtlas, (vCell + pc) * uCell);
+    if (c.a < 0.08) discard;
+    gl_FragColor = vec4(c.rgb * (0.35 + 0.65 * vAlpha), c.a * (0.2 + 0.8 * vAlpha));
+  }`;
+
+async function loadImage(src) {
+  const img = new Image();
+  img.src = src;
+  try { await img.decode(); return img; } catch { return null; }
+}
+
+async function buildPages() {
+  for (let start = 0; start < N; start += PER_PAGE) {
+    const count = Math.min(PER_PAGE, N - start);
+    const rows = Math.ceil(count / PER_ROW);
+    const cv = document.createElement("canvas");
+    cv.width = PER_ROW * CELL; cv.height = PER_ROW * CELL;
+    const g = cv.getContext("2d");
+    const imgs = await Promise.all(PTS.slice(start, start + count).map((p) => p.t ? loadImage(p.t) : null));
+    imgs.forEach((img, j) => {
+      const x0 = (j % PER_ROW) * CELL, y0 = Math.floor(j / PER_ROW) * CELL;
+      const col = colorOf(PTS[start + j].c);
+      if (img) {
+        const s = (CELL - 8) / Math.max(img.width, img.height);
+        const w = img.width * s, h = img.height * s;
+        const x = x0 + (CELL - w) / 2, y = y0 + (CELL - h) / 2;
+        g.fillStyle = col; g.fillRect(x - 4, y - 4, w + 8, h + 8);
+        g.drawImage(img, x, y, w, h);
+      } else {
+        g.fillStyle = col; g.beginPath(); g.arc(x0 + CELL/2, y0 + CELL/2, CELL/4, 0, 7); g.fill();
+      }
+    });
+    pages.push(makePage(start, count, cv));
+    $("loading").textContent = `${t("loading")} ${Math.min(start + count, N)} / ${N}`;
+  }
+}
+
+function makePage(start, count, cv) {
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.flipY = false;
+  tex.minFilter = THREE.LinearMipmapLinearFilter;
+  tex.anisotropy = 4;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(pos.slice(start * 3, (start + count) * 3), 3));
+  const cell = new Float32Array(count * 2), color = new Float32Array(count * 3);
+  const tmp = new THREE.Color();
+  for (let j = 0; j < count; j++) {
+    cell[j*2] = j % PER_ROW; cell[j*2+1] = Math.floor(j / PER_ROW);
+    tmp.set(colorOf(PTS[start + j].c)); color.set([tmp.r, tmp.g, tmp.b], j * 3);
+  }
+  geo.setAttribute("aCell", new THREE.BufferAttribute(cell, 2));
+  geo.setAttribute("aColor", new THREE.BufferAttribute(color, 3));
+  geo.setAttribute("aAlpha", new THREE.BufferAttribute(alpha.slice(start, start + count), 1));
+  const mat = new THREE.ShaderMaterial({
+    vertexShader: VERT, fragmentShader: FRAG, transparent: true, depthWrite: true,
+    uniforms: { uAtlas: { value: tex }, uCell: { value: 1 / PER_ROW }, uSize: { value: pointSize },
+      uScale: { value: 1 }, uMode: { value: mode === "dots" ? 1 : 0 } },
+  });
+  const obj = new THREE.Points(geo, mat);
+  scene.add(obj);
+  return { start, count, obj, mat, geo };
+}
+
+function pushAlpha() {
+  for (const pg of pages) {
+    const a = pg.geo.getAttribute("aAlpha");
+    a.array.set(alpha.subarray(pg.start, pg.start + pg.count));
+    a.needsUpdate = true;
+  }
+}
+
+function resize() {
+  const r = canvas.parentElement.getBoundingClientRect();
+  renderer.setSize(r.width, r.height, false);
+  camera.aspect = r.width / r.height;
+  camera.updateProjectionMatrix();
+  const scale = r.height * renderer.getPixelRatio() * 0.9;
+  for (const pg of pages) pg.mat.uniforms.uScale.value = scale;
+}
+addEventListener("resize", resize);
+
+/* ---------- interaction ---------- */
+let focusCluster = null, selected = null, filter = "";
+let flyTo = null;
+
+function recolor() {
+  const q = filter.toLowerCase();
+  for (let i = 0; i < N; i++) {
+    let on = true;
+    if (focusCluster !== null) on = PTS[i].c === focusCluster;
+    if (q) on = on && PTS[i].n.toLowerCase().includes(q);
+    if (selected !== null) on = i === selected || PTS[selected].k.includes(i);
+    alpha[i] = on ? 1 : 0.12;
+  }
+  pushAlpha();
+}
+
+function centerOf(indices) {
+  const c = new THREE.Vector3();
+  indices.forEach((i) => c.add(new THREE.Vector3(pos[i*3], pos[i*3+1], pos[i*3+2])));
+  return c.multiplyScalar(1 / Math.max(1, indices.length));
+}
+
+function focusOn(indices) {
+  const target = centerOf(indices);
+  const dir = camera.position.clone().sub(controls.target).normalize();
+  flyTo = { target, cam: target.clone().add(dir.multiplyScalar(1.6)), k: 0 };
+  controls.autoRotate = false; $("spin").classList.remove("on");
+}
+
+const ray = new THREE.Vector3();
+function pick(ev) {
+  const r = canvas.getBoundingClientRect();
+  const mx = ev.clientX - r.left, my = ev.clientY - r.top;
+  let best = -1, bestD = Infinity;
+  const radius = 8;
+  for (let i = 0; i < N; i++) {
+    if (alpha[i] < 0.5) continue;
+    ray.set(pos[i*3], pos[i*3+1], pos[i*3+2]).project(camera);
+    if (ray.z > 1) continue;
+    const sx = (ray.x + 1) / 2 * r.width, sy = (1 - ray.y) / 2 * r.height;
+    const d = Math.hypot(sx - mx, sy - my);
+    const depth = camera.position.distanceTo(new THREE.Vector3(pos[i*3], pos[i*3+1], pos[i*3+2]));
+    const reach = Math.max(radius, pointSize * r.height * 0.45 / depth);
+    if (d < reach && depth + d * 0.002 < bestD) { bestD = depth + d * 0.002; best = i; }
+  }
+  return best;
+}
+
+let downAt = null;
+canvas.addEventListener("pointerdown", (e) => { downAt = [e.clientX, e.clientY]; });
+canvas.addEventListener("pointerup", (e) => {
+  if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 5) return;
+  const i = pick(e);
+  if (i >= 0) select(i); else { selected = null; recolor(); }
+});
+canvas.addEventListener("pointermove", (e) => {
+  const tip = $("tip");
+  if (e.buttons) { tip.style.display = "none"; return; }
+  const i = pick(e);
+  if (i < 0) { tip.style.display = "none"; canvas.style.cursor = "grab"; return; }
+  canvas.style.cursor = "pointer";
+  tip.querySelector("img").src = PTS[i].t;
+  tip.querySelector(".cap").textContent = `${PTS[i].n} · ${clusterName(PTS[i].c)}`;
+  const r = canvas.getBoundingClientRect();
+  tip.style.display = "block";
+  tip.style.left = Math.min(e.clientX - r.left + 14, r.width - 250) + "px";
+  tip.style.top = Math.min(e.clientY - r.top + 14, r.height - 290) + "px";
+});
+canvas.addEventListener("pointerleave", () => { $("tip").style.display = "none"; });
+
+function clusterName(c) { return c < 0 ? t("unassigned") : `${t("style")} ${c + 1}`; }
+
+function thumb(i, onClick) {
+  const img = document.createElement("img");
+  img.src = PTS[i].t; img.alt = PTS[i].n; img.title = PTS[i].n; img.loading = "lazy";
+  img.addEventListener("click", onClick || (() => select(i)));
+  return img;
+}
+
+function select(i) {
+  selected = i; recolor();
+  focusOn([i, ...PTS[i].k.slice(0, 4)]);
+  const pane = $("pane-selected");
+  pane.replaceChildren();
+  const big = document.createElement("img");
+  big.className = "big"; big.src = PTS[i].f; big.alt = PTS[i].n;
+  big.onerror = () => { big.onerror = null; big.src = PTS[i].t; };
+  pane.append(big);
+  const kv = document.createElement("div"); kv.className = "kv";
+  const b = document.createElement("b"); b.textContent = PTS[i].n;
+  kv.append(b, document.createElement("br"),
+    document.createTextNode(`${clusterName(PTS[i].c)} · outlier ${PTS[i].o.toFixed(3)} · `));
+  const a = document.createElement("a"); a.href = PTS[i].f; a.target = "_blank"; a.rel = "noopener";
+  a.textContent = t("open"); a.style.color = "var(--accent)"; kv.append(a);
+  pane.append(kv);
+  const h = document.createElement("h3"); h.textContent = t("nearest"); pane.append(h);
+  const g = document.createElement("div"); g.className = "grid";
+  PTS[i].k.forEach((j) => g.append(thumb(j)));
+  pane.append(g);
+  showPane("selected");
+}
+
+function showPane(name) {
+  document.querySelectorAll(".tabs button").forEach((b) => b.classList.toggle("on", b.dataset.pane === name));
+  document.querySelectorAll(".pane").forEach((p) => p.classList.toggle("on", p.id === "pane-" + name));
+}
+document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => showPane(b.dataset.pane)));
+
+function buildClusters() {
+  const pane = $("pane-clusters");
+  pane.replaceChildren();
+  const groups = [...DATA.clusters.map((c) => ({ ...c, members: [] }))];
+  const un = { id: -1, size: 0, medoid: -1, members: [] };
+  PTS.forEach((p, i) => (p.c >= 0 ? groups[p.c].members : un.members).push(i));
+  un.size = un.members.length; if (un.size) un.medoid = un.members[0];
+  for (const c of [...groups, ...(un.size ? [un] : [])]) {
+    const row = document.createElement("div"); row.className = "cl";
+    const img = document.createElement("img"); img.src = PTS[c.medoid]?.t || ""; img.alt = "";
+    img.style.borderColor = colorOf(c.id);
+    const txt = document.createElement("div");
+    const nm = document.createElement("div"); nm.className = "name"; nm.textContent = clusterName(c.id);
+    const mt = document.createElement("div"); mt.className = "meta";
+    mt.textContent = `${c.size} ${t("size")}` + (c.cohesion !== undefined ? ` · ${t("cohesion")} ${c.cohesion.toFixed(3)}` : "");
+    txt.append(nm, mt); row.append(img, txt);
+    const grid = document.createElement("div"); grid.className = "grid"; grid.style.display = "none";
+    grid.style.margin = "4px 0 10px";
+    row.addEventListener("click", () => {
+      const on = focusCluster !== c.id;
+      focusCluster = on ? c.id : null; selected = null; recolor();
+      pane.querySelectorAll(".cl").forEach((r) => r.classList.remove("on"));
+      pane.querySelectorAll(".grid").forEach((g) => (g.style.display = "none"));
+      if (on) {
+        row.classList.add("on"); grid.style.display = "grid";
+        if (!grid.childElementCount) c.members.slice(0, 120).forEach((j) => grid.append(thumb(j)));
+        focusOn(c.members);
+      }
+    });
+    pane.append(row, grid);
+  }
+}
+
+function buildOutliers() {
+  const pane = $("pane-outliers"); pane.replaceChildren();
+  const help = document.createElement("div"); help.className = "kv"; help.textContent = t("outlierHelp");
+  const g = document.createElement("div"); g.className = "grid";
+  [...PTS.keys()].sort((a, b) => PTS[b].o - PTS[a].o).slice(0, 60).forEach((i) => g.append(thumb(i)));
+  pane.append(help, g);
+}
+
+function applyText() {
+  document.documentElement.lang = lang === "zh" ? "zh-Hant" : "en";
+  $("title").querySelector("h1").textContent = DATA.title;
+  $("title").querySelector(".sub").textContent =
+    `${N} ${t("images")} · ${DATA.clusters.length} ${t("clusters").toLowerCase()} · ${DATA.method} · ${DATA.projection}`;
+  $("find").placeholder = t("find");
+  $("mode").textContent = mode === "thumbs" ? t("dots") : t("thumbs");
+  $("spin").textContent = t("spin"); $("home").textContent = t("home");
+  $("lang").textContent = lang === "zh" ? "EN" : "中";
+  const tabs = document.querySelectorAll(".tabs button");
+  tabs[0].textContent = t("clusters"); tabs[1].textContent = t("selected"); tabs[2].textContent = t("outliers");
+  document.querySelector("footer").textContent = t("foot");
+  if (selected === null) {
+    const e = document.createElement("div"); e.className = "empty"; e.textContent = t("pick");
+    $("pane-selected").replaceChildren(e);
+  }
+  buildClusters(); buildOutliers();
+}
+
+$("find").addEventListener("input", (e) => { filter = e.target.value.trim(); recolor(); });
+$("mode").addEventListener("click", () => {
+  mode = mode === "thumbs" ? "dots" : "thumbs";
+  pages.forEach((pg) => (pg.mat.uniforms.uMode.value = mode === "dots" ? 1 : 0));
+  applyText();
+});
+$("spin").classList.add("on");
+$("spin").addEventListener("click", () => {
+  controls.autoRotate = !controls.autoRotate; $("spin").classList.toggle("on", controls.autoRotate);
+});
+$("home").addEventListener("click", () => {
+  focusCluster = null; selected = null; filter = ""; $("find").value = ""; recolor();
+  flyTo = { target: new THREE.Vector3(), cam: HOME.clone(), k: 0 };
+  document.querySelectorAll(".cl").forEach((r) => r.classList.remove("on"));
+});
+$("lang").addEventListener("click", () => { lang = lang === "zh" ? "en" : "zh"; applyText(); });
+$("theme").addEventListener("click", () => {
+  const root = document.documentElement;
+  root.dataset.theme = root.dataset.theme === "light" ? "dark" : "light";
+  setBackground();
+});
+addEventListener("keydown", (e) => {
+  if (e.target.tagName === "INPUT") return;
+  if (e.key === "Escape") $("home").click();
+  if (e.key === "+" || e.key === "=") setSize(pointSize * 1.2);
+  if (e.key === "-") setSize(pointSize / 1.2);
+});
+canvas.addEventListener("wheel", (e) => { if (e.altKey) { e.preventDefault(); setSize(pointSize * (e.deltaY < 0 ? 1.1 : 1 / 1.1)); } }, { passive: false });
+function setSize(s) { pointSize = Math.min(0.6, Math.max(0.02, s)); pages.forEach((pg) => (pg.mat.uniforms.uSize.value = pointSize)); }
+
+function animate() {
+  requestAnimationFrame(animate);
+  if (flyTo) {
+    flyTo.k = Math.min(1, flyTo.k + 0.06);
+    controls.target.lerp(flyTo.target, flyTo.k);
+    camera.position.lerp(flyTo.cam, flyTo.k);
+    if (flyTo.k >= 1) flyTo = null;
+  }
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+applyText();
+await buildPages();
+resize();
+$("loading").style.display = "none";
+animate();
+</script>
+</body>
+</html>
