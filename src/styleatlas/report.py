@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from importlib import resources
 from pathlib import Path
 from urllib.parse import quote
@@ -18,7 +18,7 @@ from styleatlas.duplicates import near_duplicate_groups
 from styleatlas.images import file_time, thumbnail_data_url
 from styleatlas.metrics import centroid
 from styleatlas.project import project_3d
-from styleatlas.search import knn
+from styleatlas.search import knn, nearest_reference
 
 NEIGHBORS = 12
 DATA_MARK = "/*__STYLE_ATLAS_DATA__*/null"
@@ -46,15 +46,26 @@ class Layout:
     neighbors: np.ndarray
     outliers: np.ndarray
     duplicates: list[list[int]]
+    ref_dist: np.ndarray | None = None  # distance to the nearest --reference image
+    ref_name: list[str] | None = None
+    ref_title: str | None = None
 
 
 def compute_layout(
-    atlas: Atlas, projection: str = "auto", progress: Callable[[str], None] = lambda _: None
+    atlas: Atlas,
+    projection: str = "auto",
+    progress: Callable[[str], None] = lambda _: None,
+    reference: Atlas | None = None,
 ) -> Layout:
     coords, used = project_3d(atlas.style, projection)
     progress(f"projected {len(atlas)} images with {used}")
     dups = near_duplicate_groups(atlas.style, atlas.content)
-    return Layout(coords, used, knn(atlas.style, k=NEIGHBORS), outlier_scores(atlas.style), dups)
+    layout = Layout(coords, used, knn(atlas.style, k=NEIGHBORS), outlier_scores(atlas.style), dups)
+    if reference is None or not len(reference):
+        return layout
+    dist, which = nearest_reference(atlas.style, reference.style)
+    names = [reference.rel(int(j)) for j in which]
+    return replace(layout, ref_dist=dist, ref_name=names, ref_title=reference.root.name)
 
 
 def build_payload(
@@ -77,6 +88,8 @@ def build_payload(
             "o": round(float(layout.outliers[i]), 4),
             "k": layout.neighbors[i].tolist(),
             "ts": times[i],
+            "r": None if layout.ref_dist is None else round(float(layout.ref_dist[i]), 4),
+            "rn": None if layout.ref_name is None else layout.ref_name[i],
         }
         for i in range(len(atlas))
     ]
@@ -93,6 +106,7 @@ def build_payload(
         "points": points,
         "duplicates": layout.duplicates,
         "time_source": time_source if any(v is not None for v in times) else "none",
+        "reference": layout.ref_title,
     }
 
 
@@ -105,10 +119,11 @@ def map_payload(
     title: str | None = None,
     progress: Callable[[str], None] = lambda _: None,
     time_source: str = "none",
+    reference: Atlas | None = None,
 ) -> dict:
     """Payload for a standalone file: thumbnails embedded, links relative to the HTML file."""
     px = thumb_px or default_thumb_px(len(atlas))
-    layout = compute_layout(atlas, projection, progress)
+    layout = compute_layout(atlas, projection, progress, reference)
     out_dir = out_path.resolve().parent
 
     def thumb_of(i: int) -> str:
@@ -149,11 +164,12 @@ def write_map(
     title: str | None = None,
     progress: Callable[[str], None] = lambda _: None,
     time_source: str = "none",
+    reference: Atlas | None = None,
 ) -> Path:
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     payload = map_payload(
-        atlas, clustering, out_path, projection, thumb_px, title, progress, time_source
+        atlas, clustering, out_path, projection, thumb_px, title, progress, time_source, reference
     )
     tmp = out_path.with_suffix(".tmp")
     tmp.write_text(render_html(payload), encoding="utf-8")

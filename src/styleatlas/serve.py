@@ -46,13 +46,14 @@ class StyleAtlasApp:
         progress: Callable[[str], None] = lambda _: None,
         time_source: str = "none",
         neutral: Neutralizer | None = None,
+        reference: Atlas | None = None,
     ):
         self.opts = opts
         self.title = title
         self.time_source = time_source
         self.neutral = neutral or Neutralizer.fit(atlas.style, 0)
         self.atlas = atlas
-        self.layout = compute_layout(self.atlas, projection, progress)
+        self.layout = compute_layout(self.atlas, projection, progress, reference)
         self.settings: dict = {"method": "agglomerative", "threshold": GRANULARITY["medium"]}
         self.clustering = cluster_styles(self.atlas.style, threshold=self.settings["threshold"])
         self.thumb_px = default_thumb_px(len(self.atlas))

@@ -107,3 +107,13 @@ def test_near_duplicates_are_grouped_and_reduced():
     other, _ = make_blobs([13], seed=5)
     other = unit(np.random.default_rng(1).normal(size=other.shape))  # unrelated content
     assert near_duplicate_groups(style, other, threshold=0.99) == []  # content must agree too
+
+
+def test_nearest_reference_distance_and_index():
+    from styleatlas.search import nearest_reference
+
+    x, y = make_blobs([5, 5])
+    ref = x[[0, 5]]
+    dist, which = nearest_reference(x, ref, chunk=3)
+    assert (which == (y == 1).astype(int)).all()
+    assert dist[0] < 1e-5 and (dist >= -1e-6).all()

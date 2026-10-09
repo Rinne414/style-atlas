@@ -34,6 +34,20 @@ def knn(x: np.ndarray, k: int = 8, hub_k: int = DEFAULT_K, chunk: int = CHUNK) -
     return out
 
 
+def nearest_reference(
+    x: np.ndarray, ref: np.ndarray, chunk: int = CHUNK
+) -> tuple[np.ndarray, np.ndarray]:
+    """(distance, index) of each row's closest reference vector; distance = 1 - cosine.
+    Used as an originality measure: how far an image is from every style you already know."""
+    dist = np.empty(len(x), dtype=np.float32)
+    which = np.empty(len(x), dtype=int)
+    for s in range(0, len(x), chunk):
+        sims = x[s : s + chunk] @ ref.T
+        which[s : s + chunk] = sims.argmax(axis=1)
+        dist[s : s + chunk] = 1.0 - sims.max(axis=1)
+    return dist, which
+
+
 def search(
     queries: np.ndarray,
     base: np.ndarray,

@@ -28,6 +28,11 @@
   button, .chip { background: var(--panel); color: var(--ink); border: 1px solid var(--line);
     padding: 6px 10px; border-radius: 999px; cursor: pointer; font: inherit; font-size: 12px; }
   button.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  #layoutSel, #axes select { background: var(--panel); color: var(--ink); border: 1px solid var(--line);
+    border-radius: 999px; padding: 6px 8px; font: inherit; font-size: 12px; max-width: 150px;
+    text-overflow: ellipsis; }
+  #axes { display: inline-flex; gap: 4px; }
+  #axes[hidden] { display: none; }
   input[type=search] { background: var(--panel); color: var(--ink); border: 1px solid var(--line);
     padding: 6px 10px; border-radius: 999px; width: 180px; font: inherit; }
   #live { position: absolute; left: 14px; bottom: 14px; right: 14px; display: none; gap: 8px;
@@ -97,6 +102,8 @@
       <div id="title"><h1></h1><div class="sub"></div></div>
       <div class="tools">
         <input id="find" type="search">
+        <select id="layoutSel"></select>
+        <span id="axes" hidden><select id="axX"></select><select id="axY"></select><select id="axZ"></select></span>
         <button id="mode"></button>
         <button id="spin"></button>
         <button id="home"></button>
@@ -159,6 +166,9 @@ const T = {
     noDups: "No near-duplicates found.",
     exclude: "Exclude from export (X)", included: "Excluded - undo (X)",
     excludedList: "Excluded by you ({n}) - exported to _excluded",
+    layoutStyle: "Layout: style similarity", layoutMeasures: "Layout: measures",
+    m_map: "(map position)", m_taste: "taste p(like)", m_ref: "distance to reference (originality)",
+    m_time: "time", m_outlier: "atypical (outlier)",
     taste: "Taste", like: "Like (L)", dislike: "Dislike (D)", clearVote: "Clear",
     tasteHelp: "Rate images with Like / Dislike (select one on the map, then press L or D). After {n} of each, a model learns your taste from the style vectors and ranks the unrated images.",
     tasteCount: "liked {a} · disliked {b}", tasteAuc: "cross-validated AUC {x} (0.5 = guessing). Treat it as a rough filter: it separates liked from disliked, not good from better.",
@@ -176,6 +186,9 @@ const T = {
     noDups: "沒有找到近重複的圖。",
     exclude: "匯出時排除 (X)", included: "已排除，取消 (X)",
     excludedList: "你排除的圖（{n}）：匯出時放到 _excluded",
+    layoutStyle: "版面：畫風相似", layoutMeasures: "版面：量化軸",
+    m_map: "（地圖位置）", m_taste: "口味分數", m_ref: "離參考集距離（原創度）",
+    m_time: "時間", m_outlier: "離群度",
     taste: "口味", like: "喜歡 (L)", dislike: "不喜歡 (D)", clearVote: "清除",
     tasteHelp: "在地圖上選一張圖，按喜歡或不喜歡（鍵盤 L / D）。兩種各滿 {n} 張後，模型會用畫風向量學你的口味，替還沒評的圖排序。",
     tasteCount: "喜歡 {a} · 不喜歡 {b}", tasteAuc: "交叉驗證 AUC {x}（0.5 = 亂猜）。只適合粗篩：分得出喜歡和不喜歡，分不出好和更好。",
@@ -205,6 +218,8 @@ controls.autoRotateSpeed = 0.6;
 const SPREAD = 1.6;
 const pos = new Float32Array(N * 3);
 PTS.forEach((p, i) => { pos[i*3] = p.p[0]*SPREAD; pos[i*3+1] = p.p[1]*SPREAD; pos[i*3+2] = p.p[2]*SPREAD; });
+const basePos = pos.slice();
+let morph = null;
 
 function setBackground() {
   scene.background = new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue("--bg").trim());
@@ -447,7 +462,8 @@ function select(i) {
   const b = document.createElement("b"); b.textContent = PTS[i].n;
   kv.append(b, document.createElement("br"),
     document.createTextNode(`${clusterName(PTS[i].c)} · outlier ${PTS[i].o.toFixed(3)} · ` +
-      (HAS_TIME && PTS[i].ts !== null ? `${fmtTime(PTS[i].ts)} · ` : "")));
+      (HAS_TIME && PTS[i].ts !== null ? `${fmtTime(PTS[i].ts)} · ` : "") +
+      (DATA.reference && PTS[i].r !== null ? `${t("m_ref")} ${PTS[i].r.toFixed(3)} (${PTS[i].rn}) · ` : "")));
   const a = document.createElement("a"); a.href = PTS[i].f; a.target = "_blank"; a.rel = "noopener";
   a.textContent = t("open"); a.style.color = "var(--accent)"; kv.append(a);
   pane.append(kv);
@@ -547,6 +563,7 @@ function applyText() {
     $("pane-selected").replaceChildren(e);
   }
   buildClusters(); buildOutliers(); buildDups(); liveText(); if (DATA.live) buildTaste();
+  setupAxes(); if (layoutMode === "measures") drawAxes();
 }
 
 function setStatus(msg) { $("status").textContent = msg || ""; }
@@ -618,7 +635,8 @@ function voteButtons(i) {
 async function castVote(i, like) {
   try {
     TASTE = await post("api/taste", JSON.stringify({ i, like }), "application/json");
-    buildTaste();
+    buildTaste(); setupAxes();
+    if (layoutMode === "measures" && ["axX", "axY", "axZ"].some((id) => $(id).value === "taste")) applyLayout();
     const old = $("pane-selected").querySelector(".votes");
     if (selected === i && old) old.replaceWith(voteButtons(i));
   } catch (e) { setStatus(String(e.message || e)); }
@@ -738,8 +756,113 @@ addEventListener("keydown", (e) => {
 canvas.addEventListener("wheel", (e) => { if (e.altKey) { e.preventDefault(); setSize(pointSize * (e.deltaY < 0 ? 1.1 : 1 / 1.1)); } }, { passive: false });
 function setSize(s) { pointSize = Math.min(0.6, Math.max(0.02, s)); pages.forEach((pg) => (pg.mat.uniforms.uSize.value = pointSize)); }
 
+/* ---------- measure axes ---------- */
+let layoutMode = "style";
+let axisLines = null;
+
+function measure(key) {
+  if (key === "outlier") return PTS.map((p) => p.o);
+  if (key === "time") return HAS_TIME ? PTS.map((p) => p.ts) : null;
+  if (key === "ref") return DATA.reference ? PTS.map((p) => p.r) : null;
+  if (key === "taste") return (typeof TASTE !== "undefined" && TASTE && TASTE.scores) ? TASTE.scores : null;
+  return null;
+}
+
+function availableMeasures() {
+  return ["taste", "ref", "time", "outlier"].filter((k) => measure(k));
+}
+
+function rankNorm(vals) {
+  const idx = [...vals.keys()].filter((i) => vals[i] !== null && vals[i] !== undefined);
+  idx.sort((a, b) => vals[a] - vals[b]);
+  const out = new Float32Array(vals.length);
+  idx.forEach((i, r) => { out[i] = idx.length > 1 ? (r / (idx.length - 1)) * 2 - 1 : 0; });
+  return out;
+}
+
+function targetPositions() {
+  const target = basePos.slice();
+  if (layoutMode !== "measures") return target;
+  ["axX", "axY", "axZ"].forEach((id, d) => {
+    const key = $(id).value;
+    const vals = key === "map" ? null : measure(key);
+    if (!vals) return;
+    const r = rankNorm(vals);
+    for (let i = 0; i < N; i++) target[i * 3 + d] = r[i] * SPREAD;
+  });
+  return target;
+}
+
+function applyLayout() {
+  morph = { from: pos.slice(), to: targetPositions(), k: 0 };
+  drawAxes();
+}
+
+function stepMorph() {
+  if (!morph) return;
+  morph.k = Math.min(1, morph.k + 0.04);
+  const e = morph.k < 0.5 ? 2 * morph.k * morph.k : 1 - Math.pow(-2 * morph.k + 2, 2) / 2;
+  for (let j = 0; j < pos.length; j++) pos[j] = morph.from[j] + (morph.to[j] - morph.from[j]) * e;
+  for (const pg of pages) {
+    const a = pg.geo.getAttribute("position");
+    a.array.set(pos.subarray(pg.start * 3, (pg.start + pg.count) * 3));
+    a.needsUpdate = true;
+    pg.geo.computeBoundingSphere();
+  }
+  if (morph.k >= 1) morph = null;
+}
+
+function label(text, at) {
+  const cv = document.createElement("canvas"); cv.width = 512; cv.height = 64;
+  const g = cv.getContext("2d"); g.font = "28px system-ui, sans-serif";
+  g.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--accent");
+  g.fillText(text, 8, 42);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), depthTest: false }));
+  sp.position.copy(at); sp.scale.set(1.2, 0.15, 1);
+  return sp;
+}
+
+function drawAxes() {
+  if (axisLines) { scene.remove(axisLines); axisLines = null; }
+  if (layoutMode !== "measures") return;
+  axisLines = new THREE.Group();
+  const L = SPREAD * 1.05;
+  const pts = [-L, -L, -L, L, -L, -L, -L, -L, -L, -L, L, -L, -L, -L, -L, -L, -L, L];
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
+  axisLines.add(new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: 0x8f949c })));
+  const ends = [new THREE.Vector3(L, -L, -L), new THREE.Vector3(-L, L, -L), new THREE.Vector3(-L, -L, L)];
+  ["axX", "axY", "axZ"].forEach((id, d) => {
+    const key = $(id).value;
+    axisLines.add(label(`${"XYZ"[d]}: ${t("m_" + key)} →`, ends[d]));
+  });
+  scene.add(axisLines);
+}
+
+function setupAxes() {
+  const opts = ["map", ...availableMeasures()];
+  const defaults = availableMeasures();
+  ["axX", "axY", "axZ"].forEach((id, d) => {
+    const sel = $(id); const cur = sel.value;
+    sel.replaceChildren(...opts.map((k) => { const o = document.createElement("option"); o.value = k; o.textContent = t("m_" + k); return o; }));
+    sel.value = cur && opts.includes(cur) ? cur : (defaults[d] || "map");
+  });
+  const ls = $("layoutSel");
+  ls.replaceChildren(...["style", "measures"].map((k) => {
+    const o = document.createElement("option"); o.value = k;
+    o.textContent = t(k === "style" ? "layoutStyle" : "layoutMeasures"); return o;
+  }));
+  ls.value = layoutMode;
+}
+
+$("layoutSel").addEventListener("change", (e) => {
+  layoutMode = e.target.value; $("axes").hidden = layoutMode !== "measures"; applyLayout();
+});
+["axX", "axY", "axZ"].forEach((id) => $(id).addEventListener("change", applyLayout));
+
 function animate() {
   requestAnimationFrame(animate);
+  stepMorph();
   if (flyTo) {
     flyTo.k = Math.min(1, flyTo.k + 0.06);
     controls.target.lerp(flyTo.target, flyTo.k);

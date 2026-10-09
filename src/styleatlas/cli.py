@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
@@ -20,6 +21,12 @@ from styleatlas.project import PROJECTIONS
 NEUTRALIZE_HELP = (
     "ignore the N strongest directions of variation (try 1) when the same characters appear in "
     "many styles; do not use it on a mix of different artists"
+)
+
+
+REFERENCE_HELP = (
+    "folder of styles you already know (artists, forum recipes); adds an originality axis: "
+    "distance from each image to its closest reference"
 )
 
 
@@ -48,6 +55,17 @@ def _atlas(a: argparse.Namespace, folder: str, exclude: list[Path] | None = None
         atlas, _ = atlas.neutralized(a.neutralize)
         log(f"ignoring the {a.neutralize} strongest direction(s) of variation (subject axis)")
     return atlas
+
+
+def _reference(a: argparse.Namespace, neutral=None) -> Atlas | None:
+    """The --reference folder (styles you already know), embedded the same way."""
+    if not getattr(a, "reference", None):
+        return None
+    ref = build_atlas(Path(a.reference), _opts(a), log, recursive=True)
+    if neutral is not None:
+        ref = replace(ref, style=neutral.apply(ref.style))
+    log(f"reference: {len(ref)} images from {a.reference}")
+    return ref
 
 
 def _cluster(a: argparse.Namespace, atlas: Atlas):
@@ -99,7 +117,14 @@ def cmd_cluster(a: argparse.Namespace) -> int:
             log(f"not exported {p}: {why}")
     if not a.no_map:
         path = write_map(
-            atlas, result, out / "map.html", a.projection, a.thumb, progress=log, time_source=a.time
+            atlas,
+            result,
+            out / "map.html",
+            a.projection,
+            a.thumb,
+            progress=log,
+            time_source=a.time,
+            reference=_reference(a),
         )
         log(f"map: {path}")
     return 0
@@ -160,7 +185,15 @@ def cmd_map(a: argparse.Namespace) -> int:
     result = _cluster(a, atlas)
     out = Path(a.out or Path(a.folder) / "style_atlas_map.html")
     path = write_map(
-        atlas, result, out, a.projection, a.thumb, a.title, progress=log, time_source=a.time
+        atlas,
+        result,
+        out,
+        a.projection,
+        a.thumb,
+        a.title,
+        progress=log,
+        time_source=a.time,
+        reference=_reference(a),
     )
     print(path)
     return 0
@@ -334,7 +367,14 @@ def cmd_serve(a: argparse.Namespace) -> int:
     if k:  # the dropped query images must get the same transform as the folder
         atlas, neutral = atlas.neutralized(k)
     app = StyleAtlasApp(
-        atlas, _opts(a), a.projection, a.title, progress=log, time_source=a.time, neutral=neutral
+        atlas,
+        _opts(a),
+        a.projection,
+        a.title,
+        progress=log,
+        time_source=a.time,
+        neutral=neutral,
+        reference=_reference(a, neutral),
     )
     serve(app, port=a.port, open_browser=not a.no_browser)
     return 0
@@ -370,6 +410,7 @@ def _cluster_args(p: argparse.ArgumentParser) -> None:
         help="show when each style was made: file-name id (Pixiv/Danbooru) or mtime",
     )
     g.add_argument("--neutralize", type=int, default=0, metavar="N", help=NEUTRALIZE_HELP)
+    g.add_argument("--reference", metavar="DIR", help=REFERENCE_HELP)
     g.add_argument("--thumb", type=int, help="thumbnail px in the map (default 128, 72 above 2k)")
 
 
@@ -432,6 +473,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--projection", default="auto", choices=PROJECTIONS)
     p.add_argument("--time", default="none", choices=TIME_SOURCES)
     p.add_argument("--neutralize", type=int, default=0, metavar="N", help=NEUTRALIZE_HELP)
+    p.add_argument("--reference", metavar="DIR", help=REFERENCE_HELP)
     p.add_argument("--no-browser", action="store_true")
     p = add("search", cmd_search, "find images in a folder whose style is closest to the query")
     p.add_argument("query", nargs="+", help="query image(s) or folder(s)")

@@ -97,6 +97,11 @@ style-atlas taste score "D:\new_batch" --model "D:\lora\artistX_style_atlas\tast
 - 縮圖浮在 3D 空間中，外框顏色代表畫風群。可以拖曳旋轉、滾輪縮放，`+` / `-` 調整縮圖大小。
 - 點右側的畫風群，鏡頭會飛過去並列出成員。點地圖上任一張圖，會列出最接近的 12 張。
 - 「離群」「重複」分頁分別列出最不合群的圖和近重複圖組。
+- 右上角可以把「版面」從「畫風相似」切到「量化軸」。切換後，三個軸可以各自選一種指標，縮圖會移動到對應位置。可選的指標有：
+  - 口味分數：用網頁介面評過分之後才有。
+  - 離參考集距離（原創度）：要先用 `--reference 資料夾` 指定已知的畫風，例如畫師作品或論壇配方。
+  - 時間。
+  - 離群度。
 - 只有網頁介面才有的功能：
   - 拖一張圖進畫面就能以圖搜尋。
   - 調門檻後重新分群、一鍵匯出資料夾。
@@ -221,6 +226,9 @@ Common options:
 
 - `--device auto|cpu|cuda`
 - `--resolution 224|336`: 336 is about 1 point better at retrieval and 2.5x slower.
+- `--reference DIR` (cluster, map, serve): a folder of styles you already know. It adds an
+  originality measure, the distance from each image to its closest reference. The map's
+  "measures" layout can then put taste, originality, time and atypicality on the X / Y / Z axes.
 - `--neutralize 1` (cluster, map, serve, search): use it when the same characters appear in many
   styles. On 96 NovelAI styles x 2 characters it raised same-style AUC from 0.83 to 0.98. Do not
   use it on a mix of different artists, where it removes the style difference itself.
