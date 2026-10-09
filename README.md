@@ -427,6 +427,18 @@ The Gate's default threshold is 0.5. For single images on Danbooru, the median d
 0.40 between works by the same artist and 0.56 between different artists. The nodes have run with
 the real CSD model from Python, but not yet inside ComfyUI.
 
+### Development
+
+```bash
+pip install -e ".[dev]"
+pytest                 # fast tests, no model needed (they run in CI)
+pytest -m model        # end to end with the real CSD model on generated demo styles (CPU is fine)
+ruff check src tests && ruff format src tests
+```
+
+Benchmarks and how each default was chosen: [docs/BENCHMARKS.md](docs/BENCHMARKS.md). The search
+whitening is refit with `scripts/fit_whitening.py`.
+
 ### Credits
 
 - CSD: Somepalli et al. 2024. Code under MIT, weights under CC-BY-4.0, downloaded at runtime.
