@@ -1,11 +1,14 @@
 # Changelog
 
-## Unreleased
+## 0.9.0 - 2026-10-10
 
 - **Search whitening**: search ranks in a whitened space learned from 306 Danbooru artists
   (within-artist variation turned down). On artists never seen when it was learned: single-image
   top-1 +2 to +5 points, learned set search +0.05 to +0.07 AP, and a small gain on AI renders.
   Groups, duplicates, the Style Gate and taste keep plain CSD distances.
+- `bench` reports the whitened space too.
+- Docs: grouping in the whitened space (better on Danbooru, collapses AI renders, so not used),
+  and what `--neutralize` does and does not fix for AI renders with fixed characters.
 
 ## 0.8.0 - 2026-10-10
 
