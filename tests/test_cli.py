@@ -4,6 +4,7 @@ average colour, so folders of red, green and blue pictures are three clean style
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -56,11 +57,17 @@ def test_cluster_exports_kohya_folders_with_triggers(lib, tmp_path, capsys):
          "--export", "copy", "--trigger-captions", "--no-map", "--time", "name", "-o", str(out)]
     )  # fmt: skip
     assert code == 0
-    folders = sorted(p.name for p in (out / "folders").iterdir())
+    folders = sorted(p.name for p in (out / "folders").iterdir() if p.is_dir())
     assert len(folders) == 3 and all(f.split("_", 1)[1].startswith("art_style") for f in folders)
     caption = next((out / "folders" / folders[0]).glob("*.txt")).read_text(encoding="utf-8")
     assert caption.startswith(folders[0].split("_", 1)[1] + ", 1girl")
     assert (out / "clusters.csv").exists()
+    tomllib = pytest.importorskip("tomllib")  # Python 3.11+
+    config = tomllib.loads((out / "folders" / "dataset_config.toml").read_text(encoding="utf-8"))
+    subsets = config["datasets"][0]["subsets"]
+    assert sorted(Path(s["image_dir"]).name for s in subsets) == folders
+    assert all(s["num_repeats"] == int(Path(s["image_dir"]).name.split("_")[0]) for s in subsets)
+    assert config["general"]["keep_tokens"] == 1  # the trigger stays first
     assert "when" in capsys.readouterr().err
 
 

@@ -87,6 +87,7 @@ _duplicates\          ← 沒有數字前綴，kohya 會忽略
 _outliers\
 _unassigned\
 _excluded\            ← 在網頁介面按 X 排除的圖
+dataset_config.toml   ← kohya sd-scripts 的資料集設定（`--dataset_config`），列出每群的資料夾與 repeats
 ```
 
 - 每群的 repeats 會讓「張數 × repeats」接近 100。也可以用 `--repeats 10` 固定。
@@ -305,6 +306,8 @@ The output goes to `DIR_style_atlas/folders/`, next to the dataset and never ins
 
 - `<repeats>_artistX_styleNN/` folders, with captions copied alongside. Repeats are chosen so
   that images x repeats is about 100; use `--repeats N` to fix them.
+- `dataset_config.toml`, a kohya sd-scripts dataset config (`--dataset_config`) with every style
+  folder and its repeats; set the resolution and batch size for your model.
 - `_duplicates/`, `_outliers/`, `_unassigned/` and `_excluded/` (images you excluded with X in
   the web app). Kohya skips these because they lack a number prefix.
 - `clusters.json`, which lists each group's characteristic caption tags.

@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- **`dataset_config.toml`** is written with every kohya export (CLI and web app): a kohya
+  sd-scripts dataset config listing each style folder with its repeats, with `keep_tokens = 1`
+  when trigger captions are on. Resolution and batch size are starting points.
+
 ## 0.13.0 - 2026-10-10
 
 - **README screenshots**, made from generated abstract images, so no one's artwork appears.

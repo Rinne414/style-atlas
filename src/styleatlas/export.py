@@ -210,7 +210,45 @@ def export_folders(
                     (folder / f"{stem}{ext}").unlink(missing_ok=True)
             continue
         result.placed += 1
+    if layout == "kohya":
+        write_kohya_config(result.folder, folders, trigger_captions)
     return result
+
+
+KOHYA_CONFIG = "dataset_config.toml"
+
+
+def write_kohya_config(root: Path, folders: list[str], trigger: bool = False) -> Path | None:
+    """A kohya sd-scripts dataset config (--dataset_config) listing every style folder with its
+    repeats; set-aside folders are left out. Resolution and batch size are starting points."""
+    subsets = []
+    for name in sorted(set(folders)):
+        head, _, rest = name.partition("_")
+        if name.startswith("_") or not head.isdigit() or not rest:
+            continue
+        path = json.dumps(str((root / name).resolve()), ensure_ascii=False)  # a TOML basic string
+        subsets.append(
+            f"  [[datasets.subsets]]\n  image_dir = {path}\n  num_repeats = {int(head)}\n"
+        )
+    if not subsets:
+        return None
+    lines = [
+        "# Written by style-atlas. Use it with --dataset_config. Set resolution and batch_size",
+        "# for your model (1024 for SDXL / Illustrious, 512 for SD 1.5).",
+        "[general]",
+        "shuffle_caption = true",
+        'caption_extension = ".txt"',
+        f"keep_tokens = {1 if trigger else 0}  # 1 keeps the trigger word first when shuffling",
+        "",
+        "[[datasets]]",
+        "resolution = 1024",
+        "batch_size = 1",
+        "enable_bucket = true",
+        "",
+    ]
+    path = root / KOHYA_CONFIG
+    path.write_text("\n".join(lines) + "\n" + "\n".join(subsets), encoding="utf-8")
+    return path
 
 
 def _unique_stem(stem: str, taken: set[str]) -> str:
