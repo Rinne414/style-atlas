@@ -146,7 +146,10 @@ def _vendor(name: str) -> str:
 
 
 def render_html(payload: dict) -> str:
-    template = resources.files("styleatlas").joinpath("templates/map.html").read_text("utf-8")
+    files = resources.files("styleatlas").joinpath("templates")
+    template = files.joinpath("map.html").read_text("utf-8")
+    template = template.replace("/*__MAP_CSS__*/", files.joinpath("map.css").read_text("utf-8"), 1)
+    template = template.replace("/*__MAP_JS__*/", files.joinpath("map.js").read_text("utf-8"), 1)
     template = template.replace("/*__THREE_JS__*/", _vendor("three.module.min.js"), 1)
     template = template.replace("/*__ORBIT_JS__*/", _vendor("OrbitControls.js"), 1)
     data = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))

@@ -210,104 +210,113 @@ class StyleAtlasApp:
         return {"placed": result.placed, "failed": len(result.failed), "folder": str(result.folder)}
 
 
-def make_handler(app: StyleAtlasApp, allowed_hosts: set[str]) -> type[BaseHTTPRequestHandler]:
-    class Handler(BaseHTTPRequestHandler):
-        def log_message(self, fmt: str, *args: object) -> None:  # keep the console quiet
+JSON_ROUTES = {  # POST route -> StyleAtlasApp method taking the JSON body
+    "api/regroup": "regroup",
+    "api/move": "move",
+    "api/split": "split",
+    "api/merge": "merge",
+    "api/exclude": "exclude",
+    "api/taste": "vote",
+    "api/export": "export",
+}
+REQUEST_ERRORS = (ValueError, OSError, KeyError, TypeError, OverflowError)
+
+
+class StyleAtlasHandler(BaseHTTPRequestHandler):
+    """Request handler; `make_handler` binds `app` and `allowed_hosts` on a subclass."""
+
+    app: StyleAtlasApp
+    allowed_hosts: frozenset[str] = frozenset()
+
+    def log_message(self, fmt: str, *args: object) -> None:  # keep the console quiet
+        return
+
+    def _host_ok(self) -> bool:
+        if self.headers.get("Host", "") in self.allowed_hosts:
+            return True
+        self.send_error(HTTPStatus.FORBIDDEN, "unexpected Host header")
+        return False
+
+    def _send(self, status: int, body: bytes, ctype: str) -> None:
+        self.send_response(status)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(len(body)))
+        cache = "no-store" if ctype.startswith("text/html") else "max-age=3600"
+        self.send_header("Cache-Control", cache)
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _json(self, status: int, obj: object) -> None:
+        body = json.dumps(obj, ensure_ascii=False).encode("utf-8")
+        self._send(status, body, "application/json")
+
+    def _image_index(self, part: str) -> int | None:
+        try:
+            i = int(part)
+        except ValueError:
+            return None
+        return i if 0 <= i < len(self.app.atlas) else None
+
+    def do_GET(self) -> None:
+        if not self._host_ok():
             return
-
-        def _host_ok(self) -> bool:
-            if self.headers.get("Host", "") in allowed_hosts:
-                return True
-            self.send_error(HTTPStatus.FORBIDDEN, "unexpected Host header")
-            return False
-
-        def _send(self, status: int, body: bytes, ctype: str) -> None:
-            self.send_response(status)
-            self.send_header("Content-Type", ctype)
-            self.send_header("Content-Length", str(len(body)))
-            self.send_header(
-                "Cache-Control", "no-store" if ctype.startswith("text/html") else "max-age=3600"
-            )
-            self.send_header("X-Content-Type-Options", "nosniff")
+        parts = self.path.split("?")[0].strip("/").split("/")
+        if parts == [""]:
+            self._send(200, self.app.page().encode("utf-8"), "text/html; charset=utf-8")
+            return
+        if parts == ["favicon.ico"]:
+            self.send_response(HTTPStatus.NO_CONTENT)
             self.end_headers()
-            self.wfile.write(body)
+            return
+        i = self._image_index(parts[1]) if len(parts) == 2 else None
+        if parts[0] == "thumb" and i is not None:
+            self._send(200, self.app.thumb(i), "image/webp")
+        elif parts[0] == "image" and i is not None:
+            path = self.app.atlas.paths[i]
+            ctype = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+            self._send(200, path.read_bytes(), ctype)
+        else:
+            self.send_error(HTTPStatus.NOT_FOUND)
 
-        def _json(self, status: int, obj: object) -> None:
-            self._send(
-                status, json.dumps(obj, ensure_ascii=False).encode("utf-8"), "application/json"
-            )
+    def _read_body(self) -> bytes | None:
+        """The POST body, or None after an error response (bad host, header or size)."""
+        if not self._host_ok():
+            return None
+        if self.headers.get(POST_HEADER) != "1":
+            self.send_error(HTTPStatus.FORBIDDEN, f"missing {POST_HEADER} header")
+            return None
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            length = -1
+        if length <= 0 or length > MAX_UPLOAD:
+            self.send_error(HTTPStatus.REQUEST_ENTITY_TOO_LARGE)
+            return None
+        return self.rfile.read(length)
 
-        def _index(self, part: str) -> int | None:
-            try:
-                i = int(part)
-            except ValueError:
-                return None
-            return i if 0 <= i < len(app.atlas) else None
-
-        def do_GET(self) -> None:
-            if not self._host_ok():
-                return
-            parts = self.path.split("?")[0].strip("/").split("/")
-            if parts == [""]:
-                self._send(200, app.page().encode("utf-8"), "text/html; charset=utf-8")
-                return
-            if parts == ["favicon.ico"]:
-                self.send_response(HTTPStatus.NO_CONTENT)
-                self.end_headers()
-                return
-            i = self._index(parts[1]) if len(parts) == 2 else None
-            if parts[0] == "thumb" and i is not None:
-                self._send(200, app.thumb(i), "image/webp")
-            elif parts[0] == "image" and i is not None:
-                path = app.atlas.paths[i]
-                ctype = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
-                self._send(200, path.read_bytes(), ctype)
+    def do_POST(self) -> None:
+        body = self._read_body()
+        if body is None:
+            return
+        route = self.path.split("?")[0].strip("/")
+        try:
+            if route == "api/search":
+                self._json(200, {"hits": self.app.search_image(body)})
+            elif route in JSON_ROUTES:
+                payload = json.loads(body)
+                if not isinstance(payload, dict):
+                    raise ValueError("expected a JSON object")
+                self._json(200, getattr(self.app, JSON_ROUTES[route])(payload))
             else:
                 self.send_error(HTTPStatus.NOT_FOUND)
+        except REQUEST_ERRORS as e:
+            self._json(400, {"error": str(e)})
 
-        def do_POST(self) -> None:
-            if not self._host_ok():
-                return
-            if self.headers.get(POST_HEADER) != "1":
-                self.send_error(HTTPStatus.FORBIDDEN, f"missing {POST_HEADER} header")
-                return
-            try:
-                length = int(self.headers.get("Content-Length") or 0)
-            except ValueError:
-                length = -1
-            if length <= 0 or length > MAX_UPLOAD:
-                self.send_error(HTTPStatus.REQUEST_ENTITY_TOO_LARGE)
-                return
-            body = self.rfile.read(length)
-            route = self.path.split("?")[0].strip("/")
-            try:
-                payload: dict = {}
-                if route != "api/search":
-                    payload = json.loads(body)
-                    if not isinstance(payload, dict):
-                        raise ValueError("expected a JSON object")
-                if route == "api/search":
-                    self._json(200, {"hits": app.search_image(body)})
-                elif route == "api/regroup":
-                    self._json(200, app.regroup(payload))
-                elif route == "api/move":
-                    self._json(200, app.move(payload))
-                elif route == "api/split":
-                    self._json(200, app.split(payload))
-                elif route == "api/merge":
-                    self._json(200, app.merge(payload))
-                elif route == "api/exclude":
-                    self._json(200, app.exclude(payload))
-                elif route == "api/taste":
-                    self._json(200, app.vote(payload))
-                elif route == "api/export":
-                    self._json(200, app.export(payload))
-                else:
-                    self.send_error(HTTPStatus.NOT_FOUND)
-            except (ValueError, OSError, KeyError, TypeError, OverflowError) as e:
-                self._json(400, {"error": str(e)})
 
-    return Handler
+def make_handler(app: StyleAtlasApp, allowed_hosts: set[str]) -> type[BaseHTTPRequestHandler]:
+    attrs = {"app": app, "allowed_hosts": frozenset(allowed_hosts)}
+    return type("BoundStyleAtlasHandler", (StyleAtlasHandler,), attrs)
 
 
 def bind(app: StyleAtlasApp, port: int = 8770) -> ThreadingHTTPServer:

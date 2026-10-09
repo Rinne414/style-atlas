@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from collections.abc import Callable
 from dataclasses import replace
 from pathlib import Path
 
@@ -417,52 +418,47 @@ def _cluster_args(p: argparse.ArgumentParser) -> None:
     g.add_argument("--thumb", type=int, help="thumbnail px in the map (default 128, 72 above 2k)")
 
 
-def build_parser() -> argparse.ArgumentParser:
-    ap = argparse.ArgumentParser(prog="style-atlas", description=__doc__)
-    ap.add_argument("--version", action="version", version=f"style-atlas {__version__}")
-    sub = ap.add_subparsers(dest="cmd", required=True)
+Adder = Callable[..., argparse.ArgumentParser]
 
-    def add(name: str, fn, help_: str, common: bool = True) -> argparse.ArgumentParser:
-        p = sub.add_parser(name, help=help_, description=help_)
-        p.set_defaults(fn=fn)
-        if common:
-            _common(p)
-        return p
 
+def _lora_args(p: argparse.ArgumentParser) -> None:
+    g = p.add_argument_group("training dataset")
+    g.add_argument(
+        "--export", choices=["copy", "link"], help="also place images into style folders"
+    )
+    g.add_argument(
+        "--layout",
+        choices=["plain", "kohya"],
+        default="plain",
+        help="kohya: <repeats>_<name>_styleNN folders; set-aside folders are skipped",
+    )
+    g.add_argument("--name", help="concept name for kohya folders (default: the folder name)")
+    g.add_argument(
+        "--repeats", default="auto", help="kohya repeats per style folder, or auto (~100 per epoch)"
+    )
+    g.add_argument(
+        "--dedupe",
+        action="store_true",
+        help="keep the best copy of each near-duplicate group; others go to _duplicates",
+    )
+    g.add_argument(
+        "--drop-outliers",
+        type=int,
+        default=0,
+        metavar="N",
+        help="move N least typical to _outliers",
+    )
+
+
+def _add_folder_commands(add: Adder) -> None:
     add("embed", cmd_embed, "embed and cache a folder").add_argument("folder")
     p = add(
         "cluster", cmd_cluster, "group a folder by style; write CSV/JSON, map, optional folders"
     )
     p.add_argument("folder")
     p.add_argument("-o", "--out")
-    p.add_argument(
-        "--export", choices=["copy", "link"], help="also place images into style folders"
-    )
     p.add_argument("--no-map", action="store_true")
-    p.add_argument(
-        "--layout",
-        choices=["plain", "kohya"],
-        default="plain",
-        help="kohya: <repeats>_<name>_styleNN folders; set-aside folders are skipped",
-    )
-    p.add_argument("--name", help="concept name for kohya folders (default: the folder name)")
-    p.add_argument(
-        "--repeats",
-        default="auto",
-        help="kohya repeats per style folder, or auto (about 100 images x repeats each)",
-    )
-    p.add_argument(
-        "--dedupe",
-        action="store_true",
-        help="keep the best copy of each near-duplicate group; others go to _duplicates",
-    )
-    p.add_argument(
-        "--drop-outliers",
-        type=int,
-        default=0,
-        metavar="N",
-        help="move the N least typical images to _outliers",
-    )
+    _lora_args(p)
     _cluster_args(p)
     p = add("map", cmd_map, "write the interactive 3D style map (one HTML file)")
     p.add_argument("folder")
@@ -478,6 +474,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--neutralize", type=int, default=0, metavar="N", help=NEUTRALIZE_HELP)
     p.add_argument("--reference", metavar="DIR", help=REFERENCE_HELP)
     p.add_argument("--no-browser", action="store_true")
+
+
+def _add_inspect_commands(add: Adder) -> None:
     p = add("search", cmd_search, "find images in a folder whose style is closest to the query")
     p.add_argument("query", nargs="+", help="query image(s) or folder(s)")
     p.add_argument("--in", dest="within", required=True, help="folder to search")
@@ -497,36 +496,25 @@ def build_parser() -> argparse.ArgumentParser:
     p = add("duplicates", cmd_duplicates, "near-duplicate groups (same picture, crops, frames)")
     p.add_argument("folder")
     p.add_argument(
-        "--threshold",
-        type=float,
-        default=0.95,
-        help="min(style, content) cosine; 0.92 also catches redraws of one pose",
+        "--threshold", type=float, default=0.95, help="min(style, content) cosine; 0.92 is looser"
     )
     p.add_argument("--json", action="store_true")
+
+
+def _add_measure_commands(add: Adder) -> None:
     p = add("compare", cmd_compare, "do two folders differ in style? distance, z units, p-value")
     p.add_argument("a")
     p.add_argument("b")
     p.add_argument("--rounds", type=int, default=999)
     p.add_argument("--noise-floor", type=float, help="from `calibrate` (default 0.071)")
-    p = add(
-        "calibrate", cmd_calibrate, "estimate the noise floor from sub-folders of one style each"
-    )
+    p = add("calibrate", cmd_calibrate, "estimate the noise floor from one-style sub-folders")
     p.add_argument("folder")
     p = add("bench", cmd_bench, "score retrieval and clustering against sub-folder labels")
     p.add_argument("folder", nargs="?")
     p.add_argument("--npz", help="precomputed vectors; label = key prefix before --sep")
-    p.add_argument(
-        "--labels",
-        choices=["folder", "prefix"],
-        default="folder",
-        help="label = first sub-folder, or file-name prefix before --sep",
-    )
+    p.add_argument("--labels", choices=["folder", "prefix"], default="folder")
     p.add_argument("--sep", default="__")
-    p.add_argument(
-        "--keep-duplicates",
-        action="store_true",
-        help="do not reduce near-duplicates to one image before scoring",
-    )
+    p.add_argument("--keep-duplicates", action="store_true", help="score duplicates too")
     p.add_argument("--dup-threshold", type=float, default=0.92)
     p.add_argument("--trials", type=int, default=30)
     p = add("taste", cmd_taste, "train or apply a personal like/dislike model", common=False)
@@ -540,6 +528,23 @@ def build_parser() -> argparse.ArgumentParser:
     t2.add_argument("--model", default="taste_model.npz")
     for t in (t1, t2):
         _common(t)
+
+
+def build_parser() -> argparse.ArgumentParser:
+    ap = argparse.ArgumentParser(prog="style-atlas", description=__doc__)
+    ap.add_argument("--version", action="version", version=f"style-atlas {__version__}")
+    sub = ap.add_subparsers(dest="cmd", required=True)
+
+    def add(name: str, fn, help_: str, common: bool = True) -> argparse.ArgumentParser:
+        p = sub.add_parser(name, help=help_, description=help_)
+        p.set_defaults(fn=fn)
+        if common:
+            _common(p)
+        return p
+
+    _add_folder_commands(add)
+    _add_inspect_commands(add)
+    _add_measure_commands(add)
     return ap
 
 
