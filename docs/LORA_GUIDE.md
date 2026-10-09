@@ -44,6 +44,7 @@ style-atlas cluster "D:\lora\artistX" --layout kohya --name artistX --dedupe --d
 
 - 也可以直接在網頁介面按「匯出資料夾」：選 kohya、填概念名稱，必要時勾「標註加觸發詞」。網頁上的手動修正、排除和名稱都會反映在匯出結果。
 - 每群會匯出成 `<repeats>_artistX_styleNN\` 資料夾（取過名的群用名字），標註檔一起複製。
+- 要按時期拆就加 `--granularity period --time name`。指令會在每群後面印出它在作品時間軸上的位置，例如 `when 9% [3%-28%]` 表示這群的中位數落在最早的 9%（中間一半落在 3%～28%），一看就知道哪群是早期、哪群是近期。
 - repeats 會自動調成「張數 × repeats ≈ 100」，也可以用 `--repeats N` 指定。
 - 被排除的圖放在 `_duplicates\`、`_outliers\`、`_unassigned\`、`_excluded\` 這幾個資料夾。它們沒有數字前綴，所以 kohya 不會拿來訓練。
 - 想**一群訓一個 LoRA**（例如早期、近期畫風分開）：把那一群的資料夾單獨當 train_data_dir。
