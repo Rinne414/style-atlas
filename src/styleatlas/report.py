@@ -15,7 +15,7 @@ import numpy as np
 from styleatlas.atlas import LOAD_ERRORS, Atlas
 from styleatlas.cluster import Clustering, outlier_scores
 from styleatlas.duplicates import near_duplicate_groups
-from styleatlas.images import thumbnail_data_url
+from styleatlas.images import file_time, thumbnail_data_url
 from styleatlas.metrics import centroid
 from styleatlas.project import project_3d
 from styleatlas.search import knn
@@ -64,7 +64,9 @@ def build_payload(
     thumb_of: Callable[[int], str],
     link_of: Callable[[int], str],
     title: str | None = None,
+    time_source: str = "none",
 ) -> dict:
+    times = [file_time(p, time_source) for p in atlas.paths]
     points = [
         {
             "p": layout.coords[i].round(4).tolist(),
@@ -74,6 +76,7 @@ def build_payload(
             "f": link_of(i),
             "o": round(float(layout.outliers[i]), 4),
             "k": layout.neighbors[i].tolist(),
+            "ts": times[i],
         }
         for i in range(len(atlas))
     ]
@@ -89,6 +92,7 @@ def build_payload(
         ],
         "points": points,
         "duplicates": layout.duplicates,
+        "time_source": time_source if any(v is not None for v in times) else "none",
     }
 
 
@@ -100,6 +104,7 @@ def map_payload(
     thumb_px: int | None = None,
     title: str | None = None,
     progress: Callable[[str], None] = lambda _: None,
+    time_source: str = "none",
 ) -> dict:
     """Payload for a standalone file: thumbnails embedded, links relative to the HTML file."""
     px = thumb_px or default_thumb_px(len(atlas))
@@ -114,9 +119,10 @@ def map_payload(
         except LOAD_ERRORS:
             return ""
 
-    return build_payload(
-        atlas, clustering, layout, thumb_of, lambda i: _rel_link(atlas.paths[i], out_dir), title
-    )
+    def link_of(i: int) -> str:
+        return _rel_link(atlas.paths[i], out_dir)
+
+    return build_payload(atlas, clustering, layout, thumb_of, link_of, title, time_source)
 
 
 def _vendor(name: str) -> str:
@@ -142,10 +148,13 @@ def write_map(
     thumb_px: int | None = None,
     title: str | None = None,
     progress: Callable[[str], None] = lambda _: None,
+    time_source: str = "none",
 ) -> Path:
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    payload = map_payload(atlas, clustering, out_path, projection, thumb_px, title, progress)
+    payload = map_payload(
+        atlas, clustering, out_path, projection, thumb_px, title, progress, time_source
+    )
     tmp = out_path.with_suffix(".tmp")
     tmp.write_text(render_html(payload), encoding="utf-8")
     os.replace(tmp, out_path)

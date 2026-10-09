@@ -116,3 +116,13 @@ def test_resize_pos_embed_keeps_224_and_grows_to_336():
     big = resize_pos_embed(pos, 336)
     assert big.shape == (1 + 24 * 24, 8)
     assert torch.equal(big[0], pos[0])  # class token untouched
+
+
+def test_file_time_sources(tmp_path):
+    from styleatlas.images import file_time
+
+    p = _img(tmp_path / "artist__12345678_p0.png")
+    assert file_time(p, "name") == 12345678.0
+    assert file_time(_img(tmp_path / "no_id.png"), "name") is None
+    assert file_time(p, "mtime") > 0
+    assert file_time(p, "none") is None

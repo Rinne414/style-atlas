@@ -66,6 +66,8 @@
   .cl img { width: 54px; height: 54px; object-fit: cover; border-radius: 8px; border: 3px solid; }
   .cl .name { font-weight: 600; }
   .cl .meta { color: var(--muted); font-size: 12px; }
+  .cl .when { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 11px; margin-top: 3px; }
+  .cl canvas { display: block; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 6px; }
   .grid img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 6px; cursor: pointer;
     border: 2px solid transparent; background: var(--panel2); }
@@ -378,6 +380,33 @@ canvas.addEventListener("pointermove", (e) => {
 });
 canvas.addEventListener("pointerleave", () => { $("tip").style.display = "none"; });
 
+const TIMES = PTS.map((p) => p.ts).filter((v) => v !== null && v !== undefined);
+const TMIN = TIMES.length ? Math.min(...TIMES) : 0, TMAX = TIMES.length ? Math.max(...TIMES) : 0;
+const HAS_TIME = DATA.time_source && DATA.time_source !== "none" && TMAX > TMIN;
+
+function fmtTime(v) {
+  if (DATA.time_source === "mtime") return new Date(v * 1000).toISOString().slice(0, 7);
+  return "#" + Math.round(v).toLocaleString();
+}
+
+function timeStrip(members, color) {
+  const ts = members.map((i) => PTS[i].ts).filter((v) => v !== null && v !== undefined);
+  if (!HAS_TIME || !ts.length) return null;
+  const BINS = 30, W = 120, H = 16;
+  const bins = new Array(BINS).fill(0);
+  ts.forEach((v) => bins[Math.min(BINS - 1, Math.floor((v - TMIN) / (TMAX - TMIN) * BINS))]++);
+  const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+  const g = cv.getContext("2d"); const top = Math.max(...bins);
+  g.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--line"); g.fillRect(0, H - 1, W, 1);
+  g.fillStyle = color;
+  bins.forEach((b, i) => { if (b) { const h = Math.max(2, b / top * (H - 2)); g.fillRect(i * (W / BINS), H - 1 - h, W / BINS - 1, h); } });
+  const wrap = document.createElement("div"); wrap.className = "when";
+  const label = document.createElement("span");
+  label.textContent = `${fmtTime(Math.min(...ts))} – ${fmtTime(Math.max(...ts))}`;
+  wrap.append(cv, label);
+  return wrap;
+}
+
 function clusterName(c) { return c < 0 ? t("unassigned") : `${t("style")} ${c + 1}`; }
 
 function thumb(i, onClick) {
@@ -399,7 +428,8 @@ function select(i) {
   const kv = document.createElement("div"); kv.className = "kv";
   const b = document.createElement("b"); b.textContent = PTS[i].n;
   kv.append(b, document.createElement("br"),
-    document.createTextNode(`${clusterName(PTS[i].c)} · outlier ${PTS[i].o.toFixed(3)} · `));
+    document.createTextNode(`${clusterName(PTS[i].c)} · outlier ${PTS[i].o.toFixed(3)} · ` +
+      (HAS_TIME && PTS[i].ts !== null ? `${fmtTime(PTS[i].ts)} · ` : "")));
   const a = document.createElement("a"); a.href = PTS[i].f; a.target = "_blank"; a.rel = "noopener";
   a.textContent = t("open"); a.style.color = "var(--accent)"; kv.append(a);
   pane.append(kv);
@@ -431,7 +461,10 @@ function buildClusters() {
     const nm = document.createElement("div"); nm.className = "name"; nm.textContent = clusterName(c.id);
     const mt = document.createElement("div"); mt.className = "meta";
     mt.textContent = `${c.size} ${t("size")}` + (c.cohesion !== undefined ? ` · ${t("cohesion")} ${c.cohesion.toFixed(3)}` : "");
-    txt.append(nm, mt); row.append(img, txt);
+    txt.append(nm, mt);
+    const strip = timeStrip(c.members, colorOf(c.id));
+    if (strip) txt.append(strip);
+    row.append(img, txt);
     const grid = document.createElement("div"); grid.className = "grid"; grid.style.display = "none";
     grid.style.margin = "4px 0 10px";
     row.addEventListener("click", () => {

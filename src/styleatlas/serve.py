@@ -39,9 +39,11 @@ class StyleAtlasApp:
         projection: str = "auto",
         title: str | None = None,
         progress: Callable[[str], None] = lambda _: None,
+        time_source: str = "none",
     ):
         self.opts = opts
         self.title = title
+        self.time_source = time_source
         self.atlas = atlas
         self.layout = compute_layout(self.atlas, projection, progress)
         self.settings: dict = {"method": "agglomerative", "threshold": GRANULARITY["medium"]}
@@ -58,6 +60,7 @@ class StyleAtlasApp:
             lambda i: f"thumb/{i}",
             lambda i: f"image/{i}",
             self.title,
+            self.time_source,
         )
         payload["live"] = {"settings": self.settings, "granularity": GRANULARITY}
         return render_html(payload)

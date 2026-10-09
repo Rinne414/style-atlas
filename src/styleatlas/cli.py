@@ -13,7 +13,7 @@ from styleatlas import __version__
 from styleatlas.atlas import Atlas, EncodeOptions, build_atlas, embed_paths
 from styleatlas.cluster import GRANULARITY, METHODS, cluster_styles, outlier_scores
 from styleatlas.encoder import CROP_MODES, RESOLUTIONS
-from styleatlas.images import find_images, labels_from_folders
+from styleatlas.images import TIME_SOURCES, find_images, labels_from_folders
 from styleatlas.metrics import StyleScale, group_difference, split_half_noise, unit
 from styleatlas.project import PROJECTIONS
 
@@ -74,7 +74,9 @@ def cmd_cluster(a: argparse.Namespace) -> int:
         for p, why in done.failed:
             log(f"not exported {p}: {why}")
     if not a.no_map:
-        path = write_map(atlas, result, out / "map.html", a.projection, a.thumb, progress=log)
+        path = write_map(
+            atlas, result, out / "map.html", a.projection, a.thumb, progress=log, time_source=a.time
+        )
         log(f"map: {path}")
     return 0
 
@@ -85,7 +87,9 @@ def cmd_map(a: argparse.Namespace) -> int:
     atlas = _atlas(a, a.folder)
     result = _cluster(a, atlas)
     out = Path(a.out or Path(a.folder) / "style_atlas_map.html")
-    path = write_map(atlas, result, out, a.projection, a.thumb, a.title, progress=log)
+    path = write_map(
+        atlas, result, out, a.projection, a.thumb, a.title, progress=log, time_source=a.time
+    )
     print(path)
     return 0
 
@@ -250,7 +254,9 @@ def cmd_taste(a: argparse.Namespace) -> int:
 def cmd_serve(a: argparse.Namespace) -> int:
     from styleatlas.serve import StyleAtlasApp, serve
 
-    app = StyleAtlasApp(_atlas(a, a.folder), _opts(a), a.projection, a.title, progress=log)
+    app = StyleAtlasApp(
+        _atlas(a, a.folder), _opts(a), a.projection, a.title, progress=log, time_source=a.time
+    )
     serve(app, port=a.port, open_browser=not a.no_browser)
     return 0
 
@@ -278,6 +284,12 @@ def _cluster_args(p: argparse.ArgumentParser) -> None:
     g.add_argument("--method", default="agglomerative", choices=METHODS)
     g.add_argument("--min-size", type=int, default=3, help="smaller groups become 'unassigned'")
     g.add_argument("--projection", default="auto", choices=PROJECTIONS)
+    g.add_argument(
+        "--time",
+        default="none",
+        choices=TIME_SOURCES,
+        help="show when each style was made: file-name id (Pixiv/Danbooru) or mtime",
+    )
     g.add_argument("--thumb", type=int, help="thumbnail px in the map (default 128, 72 above 2k)")
 
 
@@ -314,6 +326,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--port", type=int, default=8770)
     p.add_argument("--title")
     p.add_argument("--projection", default="auto", choices=PROJECTIONS)
+    p.add_argument("--time", default="none", choices=TIME_SOURCES)
     p.add_argument("--no-browser", action="store_true")
     p = add("search", cmd_search, "find images in a folder whose style is closest to the query")
     p.add_argument("query", nargs="+", help="query image(s) or folder(s)")

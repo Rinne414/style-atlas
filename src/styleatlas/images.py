@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import io
+import re
 from collections.abc import Iterable
 from pathlib import Path
 from typing import BinaryIO
@@ -63,6 +64,24 @@ def thumbnail_data_url(path: Path, size: int = 96, quality: int = 70) -> str:
     """Small WebP thumbnail as a data URL, for self-contained HTML reports."""
     data = thumbnail_bytes(path, size, quality)
     return "data:image/webp;base64," + base64.b64encode(data).decode("ascii")
+
+
+TIME_SOURCES = ("none", "name", "mtime")
+_DIGITS = re.compile(r"\d{5,}")
+
+
+def file_time(path: Path, source: str) -> float | None:
+    """A sortable time for `path`: the file's modified time, or the largest run of 5+ digits in
+    its name (Pixiv and Danbooru ids grow with upload date). None when unavailable."""
+    if source == "mtime":
+        try:
+            return Path(path).stat().st_mtime
+        except OSError:
+            return None
+    if source == "name":
+        runs = _DIGITS.findall(Path(path).stem)
+        return float(max(int(r) for r in runs)) if runs else None
+    return None
 
 
 def labels_from_folders(paths: Iterable[Path], root: Path) -> list[str]:

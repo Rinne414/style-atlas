@@ -53,6 +53,10 @@ style-atlas map "D:/gallery" -o gallery_map.html
 # 5. 網頁介面：自動開瀏覽器；把圖拖進畫面就能搜尋，調門檻後按「重新分群」，再按「匯出資料夾」
 style-atlas serve "D:/lora/artistX"
 
+# 加上 --time name（用檔名裡的 Pixiv / Danbooru 作品編號）或 --time mtime（檔案修改時間），
+# 每個畫風群旁會畫出時間分佈：一眼看出哪種畫風是早期、哪種是近期
+style-atlas serve "D:/lora/artistX" --time name
+
 # 6. 資料集裡哪些圖最「不合群」（訓練前可考慮剔除）
 style-atlas outliers "D:/lora/artistX" --top 20
 style-atlas duplicates "D:/lora/artistX"      # 近重複圖分組
@@ -133,7 +137,7 @@ a slim 1.2 GB safetensors file in `~/.cache/style-atlas/`. Set `STYLE_ATLAS_CACH
 style-atlas cluster DIR [--granularity fine|medium|coarse | --threshold T | --k N]
                         [--method agglomerative|hdbscan] [--export copy|link] [-o OUT]
 style-atlas map DIR [-o map.html] [--projection auto|umap|tsne|pca]
-style-atlas serve DIR [--port 8770] [--no-browser]
+style-atlas serve DIR [--port 8770] [--no-browser] [--time none|name|mtime]
 style-atlas search QUERY... --in DIR [--top 20] [--combine] [--json]
 style-atlas outliers DIR [--top 30]
 style-atlas duplicates DIR [--threshold 0.92] [--json]
