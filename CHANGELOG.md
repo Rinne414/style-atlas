@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.8.0 - 2026-10-10
+
+- The map subtitle says how groups were made in words ("auto cut 0.43", "3 periods").
 
 - **Periods are now k-means** (`--granularity period`, the web app's "時期"): one artist's work
   is split into 3 groups (`--k` or the web box sets the number) that cover nearly every image.
