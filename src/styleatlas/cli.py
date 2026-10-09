@@ -52,7 +52,7 @@ def _atlas(a: argparse.Namespace, folder: str, exclude: list[Path] | None = None
     for p, why in atlas.failed:
         log(f"skipped {p}: {why}")
     if getattr(a, "neutralize", 0):
-        atlas, _ = atlas.neutralized(a.neutralize)
+        atlas, a.neutralizer = atlas.neutralized(a.neutralize)  # reused for --reference
         log(f"ignoring the {a.neutralize} strongest direction(s) of variation (subject axis)")
     return atlas
 
@@ -62,6 +62,7 @@ def _reference(a: argparse.Namespace, neutral=None) -> Atlas | None:
     if not getattr(a, "reference", None):
         return None
     ref = build_atlas(Path(a.reference), _opts(a), log, recursive=True)
+    neutral = neutral or getattr(a, "neutralizer", None)  # same space as the folder
     if neutral is not None:
         ref = replace(ref, style=neutral.apply(ref.style))
     log(f"reference: {len(ref)} images from {a.reference}")

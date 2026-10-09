@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 import pytest
 
@@ -101,3 +103,25 @@ def test_neutralizer_removes_a_dominant_subject_axis():
     assert twin_rate(n.apply(x)) > 0.9
     assert np.allclose(np.linalg.norm(n.apply(x), axis=1), 1.0, atol=1e-5)
     assert Neutralizer.fit(x, 0).apply(x) is x
+
+
+def test_cli_reference_uses_the_folders_neutralizer(monkeypatch, tmp_path):
+    import argparse
+
+    from styleatlas import cli
+    from styleatlas.atlas import Atlas
+
+    rng = np.random.default_rng(1)
+    folder = unit(rng.normal(size=(12, 768)))
+    ref = unit(rng.normal(size=(4, 768)))
+    fake = {
+        "folder": Atlas(tmp_path, [tmp_path / f"f{i}.png" for i in range(12)], folder, folder, "s"),
+        "ref": Atlas(tmp_path, [tmp_path / f"r{i}.png" for i in range(4)], ref, ref, "s"),
+    }
+    monkeypatch.setattr(cli, "build_atlas", lambda root, *a, **k: fake[Path(root).name])
+    monkeypatch.setattr(cli, "_opts", lambda a: None)
+    args = argparse.Namespace(neutralize=1, reference="ref", no_recursive=False)
+    atlas = cli._atlas(args, "folder")
+    got = cli._reference(args)
+    assert np.allclose(got.style, args.neutralizer.apply(ref))
+    assert not np.allclose(atlas.style, folder)
