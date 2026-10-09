@@ -28,7 +28,7 @@ style-atlas 會用 CSD 風格嵌入模型，把每張圖轉成一個「畫風向
 ### Windows：三步開始
 
 1. 安裝 [Python 3.10 以上](https://www.python.org/downloads/)，安裝時勾選「Add python.exe to PATH」。
-2. 下載本專案：在 GitHub 頁面按 **Code → Download ZIP** 再解壓縮（本專案目前是私人專案，要先請作者給你存取權），會用 git 的話也可以 `git clone`。然後雙擊 `scripts\setup.bat`。它會在專案資料夾裡建立 `.venv`，偵測到 NVIDIA 顯卡就裝 CUDA 版的 torch，沒有就裝 CPU 版，再安裝本工具。
+2. 下載本專案：登入 GitHub 後，在專案頁面按 **Code → Download ZIP** 再解壓縮（本專案目前是私人專案，要先請作者給你存取權），會用 git 的話也可以 `git clone`。然後雙擊 `scripts\setup.bat`。它會在專案資料夾裡建立 `.venv`，偵測到 NVIDIA 顯卡就裝 CUDA 版的 torch（下載約 2.5 GB），沒有就裝 CPU 版（約 200 MB），再安裝本工具。
 3. 把圖片資料夾**拖到 `scripts\StyleAtlas.bat` 上**，瀏覽器會打開網頁介面。
 
 想先試試看：在 `scripts\StyleAtlas-console.bat` 開的視窗裡執行 `python scripts\make_demo_images.py demo_styles`，會產生 72 張四種風格的範例圖；再把 `demo_styles` 資料夾拖到 `StyleAtlas.bat` 上。
@@ -61,6 +61,8 @@ pip install -e ".[umap]"    # 選用：地圖改用 UMAP 版面
 ```
 
 ### 訓 LoRA 前的建議流程
+
+以下的 `style-atlas ...` 指令都在 `scripts\StyleAtlas-console.bat` 開的視窗裡輸入。
 
 ```bash
 # 1. 檢查：太小的圖、極端長寬比、動圖、缺標註或標註是空的
@@ -252,10 +254,10 @@ artwork. Run it to get a folder you can try the tool on.)
 ### Windows quick start
 
 1. Install Python 3.10+ and tick "Add python.exe to PATH".
-2. Get the project (GitHub: **Code -> Download ZIP** and unzip, or `git clone`; the repository is
-   private, so ask the author for access). Double-click `scripts\setup.bat`. It creates `.venv`,
-   installs CUDA torch when an NVIDIA GPU is present (otherwise CPU torch), then installs
-   style-atlas.
+2. Get the project (sign in to GitHub, then **Code -> Download ZIP** and unzip, or `git clone`;
+   the repository is private, so ask the author for access). Double-click `scripts\setup.bat`. It creates `.venv`,
+   installs CUDA torch when an NVIDIA GPU is present (about a 2.5 GB download; otherwise CPU
+   torch, about 200 MB), then installs style-atlas.
 3. Drag an image folder onto `scripts\StyleAtlas.bat`. The browser opens the web app.
 
 For commands (`audit`, `cluster`, `search` ...), double-click `scripts\StyleAtlas-console.bat`: it
@@ -331,8 +333,8 @@ style-atlas outliers DIR [--top 30]
 style-atlas compare DIR_A DIR_B [--noise-floor X]
 style-atlas calibrate DIR          # sub-folders = groups known to share one style
 style-atlas bench DIR              # sub-folders = labels (e.g. one artist each)
-style-atlas taste train --like DIR --dislike DIR [--model taste.npz]
-style-atlas taste score DIR [--model taste.npz]
+style-atlas taste train --like DIR --dislike DIR [--model taste_model.npz]
+style-atlas taste score DIR [--model taste_model.npz]
 ```
 
 Common options:

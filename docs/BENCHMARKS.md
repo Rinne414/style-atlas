@@ -58,13 +58,13 @@ adjusted Rand index (ARI) against the artist labels, averaged over 60 draws: 1 i
 
 | Granularity (threshold) | 2 artists | 3 artists | 5 artists |
 |---|---|---|---|
-| period (0.35, meant for one artist) | 0.26 | 0.21 | 0.27 |
+| cut 0.35 (`period` until 0.8.0) | 0.26 | 0.21 | 0.27 |
 | fine (0.40) | 0.43 | 0.36 | 0.43 |
-| **medium (0.47, default)** | **0.55** | **0.49** | **0.51** |
+| **medium (0.47, the default until 0.7.0)** | **0.55** | **0.49** | **0.51** |
 | coarse (0.55) | 0.46 | 0.41 | 0.35 |
 
-`period` over-splits a mixture of different artists. Use it only inside one artist's work (see
-"One artist over time").
+A 0.35 cut over-splits a mixture of different artists. The default is now `auto`, and `period`
+is now k-means within one artist. Both are covered further down.
 
 **Distance (development run, 90 draws, before deduplication):**
 
@@ -285,6 +285,14 @@ the whitened space did worse than the fixed cut on Danbooru. A fixed cut needs c
 kind of collection, so grouping stays in plain space with `auto`. (No setting recovered the Anima
 recipes in either space: the characters dominate, which is what `--neutralize` is for.)
 
+### Single-image distances (the Style Gate's scale)
+
+Danbooru, deduplicated: plain CSD distance (1 - cosine) between single images.
+- Same artist: median 0.405 (middle half 0.31-0.51).
+- Different artists: median 0.566 (0.48-0.67).
+- At the Style Gate's default of 0.5, 72.5% of same-artist pairs and 31% of different-artist
+  pairs fall below it.
+
 ### Query expansion for single-image search (tried, not used)
 
 Average query expansion: search, add the top 3 hits to the query, search again, all in the
@@ -385,7 +393,7 @@ This is the LoRA case where one artist's style changes between periods.
 - **Groups against time**: the NMI between the style groups and posting-time quartiles. A star
   marks p < 0.05 against shuffled times. Each cell gives the number of groups, then the NMI.
 
-| Artist | n | Mantel r | cut 0.35 (`period`) | cut 0.40 (`fine`) | cut 0.47 (`medium`) |
+| Artist | n | Mantel r | cut 0.35 (the old `period`) | cut 0.40 (`fine`) | cut 0.47 (`medium`) |
 |---|---|---|---|---|---|
 | bow_(bhp) | 48 | -0.03 | 30g 0.40 | 20g 0.31 | 8g 0.19 |
 | ebifurya | 51 | +0.24* | 4g 0.27* | 2g 0.14* | 2g 0.14* |
@@ -405,7 +413,8 @@ This is the LoRA case where one artist's style changes between periods.
 - **Drift is real.** Works far apart in time differ more in CSD style for 12 of 13 artists.
 - **The default `medium` cut is too coarse here.** It usually leaves one artist in one group,
   because the drift is gradual. Groups at 0.35 follow posting time for 9 of 13 artists. This is
-  the basis for the `period` granularity.
+  the basis for the first `period` granularity. Since 0.8.0 `period` is k-means (see
+  "Splitting one artist into periods: k-means").
 - **0.35 fragments some artists.** Some artists split into many small groups: onikobe_rin went
   to 46 groups from 60 works. Look at the time strips in the web app and merge groups by hand,
   or raise the cut.

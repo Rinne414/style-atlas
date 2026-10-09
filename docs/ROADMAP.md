@@ -1,5 +1,7 @@
 # Roadmap and open questions
 
+(The author's working notes: decisions still to make, measured limits, ideas.)
+
 ## Decisions waiting for the owner
 
 1. **"3D 圖"**: which 3D views did friends mean? Both are now in the tool.
@@ -20,6 +22,10 @@
 5. **README screenshots.** For now the README shows the real interface on generated abstract
    images (`scripts/make_demo_images.py`), so no artwork is involved. Real art would show the
    tool better. Should the owner's own renders, or public-domain art, replace them?
+6. **External anime benchmark.** LSASRD (CVPRW 2022) has 20,937 images from 190 anime works, with
+   a cross-role protocol. It would be the strongest public test of "style, not character". Access
+   needs a signed release agreement e-mailed to the authors, so only the owner can request it:
+   https://github.com/nkjcqvcpi/ASR
 
 ## Known limits, measured
 
@@ -35,11 +41,6 @@ All of these are in `docs/BENCHMARKS.md`.
   for collections where the same characters recur, but must not be used on mixed artists.
 - **Taste model**: it separates like from dislike (AUC about 0.77 on one person's votes). It does
   not rank degrees of liking, and it may fail on a new generator.
-
-6. **External anime benchmark.** LSASRD (CVPRW 2022) has 20,937 images from 190 anime works, with
-   a cross-role protocol. It would be the strongest public test of "style, not character". Access
-   needs a signed release agreement e-mailed to the authors, so only the owner can request it:
-   https://github.com/nkjcqvcpi/ASR
 
 ## Ideas not done yet
 
