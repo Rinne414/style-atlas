@@ -40,7 +40,7 @@ from styleatlas.dataset import (
     read_tags,
     tag_summary,
 )
-from styleatlas.export import export_folders, output_dir, write_table
+from styleatlas.export import KOHYA_CONFIG, export_folders, output_dir, write_table
 from styleatlas.groupfile import GROUPS_FILE, SavedGroups, carry_names, load_groups, save_groups
 from styleatlas.images import cached_thumbnail, load_rgb
 from styleatlas.metrics import Neutralizer
@@ -497,6 +497,7 @@ class StyleAtlasApp:
             "failed": len(result.failed),
             "folder": str(result.folder),
             "small_groups": len(small),  # left with < EXPORT_MIN_GROUP images: in unassigned
+            "config": (result.folder / KOHYA_CONFIG).exists(),
         }
 
 

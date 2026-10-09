@@ -232,6 +232,7 @@ def test_web_export_can_write_a_kohya_layout_with_triggers(server):
     folder = Path(json.loads(data)["folder"])
     groups = sorted(p.name for p in folder.iterdir() if p.is_dir() and not p.name.startswith("_"))
     assert (folder / "dataset_config.toml").exists()  # the web export writes it too
+    assert json.loads(data)["config"] is True
     assert groups and all(g.split("_", 1)[1].startswith("artistX_style") for g in groups)
     caption = next((folder / groups[0]).glob("*.txt")).read_text(encoding="utf-8")
     assert caption.startswith(groups[0].split("_", 1)[1])

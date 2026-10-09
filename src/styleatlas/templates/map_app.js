@@ -263,7 +263,8 @@ function setupLive() {
         trigger: $("expTrig").checked };
       const r = await post("api/export", JSON.stringify(body), "application/json");
       const small = r.small_groups ? " " + t("smallGroups").replace("{n}", r.small_groups) : "";
-      setStatus(t("exported").replace("{n}", r.placed).replace("{f}", r.folder) + small);
+      const config = r.config ? " " + t("configWritten") : "";
+      setStatus(t("exported").replace("{n}", r.placed).replace("{f}", r.folder) + small + config);
       addOpenFolder();
     } catch (e) { setStatus(String(e.message || e)); }
   });
