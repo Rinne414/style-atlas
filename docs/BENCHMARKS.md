@@ -149,8 +149,13 @@ groups as single images / ARI over assigned images only / share unassigned.
 - Not tested:
   - artists with hundreds of works each, or very uneven mixtures (95/5);
   - another source, such as Pixiv or AI renders;
-  - how the chosen cut behaves just above 3,000 images (where sampling starts) and above 8,000
-    (where the tree joins micro-groups).
+  - real sets above 8,000 images.
+- Checked afterwards:
+  - **Sampling** (silhouette on 3,000 of the 3,245 raw images): 8 sampling seeds chose 0.37
+    seven times and 0.36 once; the full silhouette chose 0.37.
+  - **The micro-group path** (forced on the same 3,245 images with 800 or 1,600 micro-groups):
+    auto chose 0.40-0.42 instead of 0.37 and reached ARI 0.11-0.15 instead of 0.24. That is
+    still well above medium on that path (0.04).
 - `--granularity medium` keeps the old behaviour.
 
 ### Searching with several example images (2026-10-10)
