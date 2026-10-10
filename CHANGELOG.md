@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.23.0 - 2026-10-10
 
 - **Copies of a folder image among dropped images.** When you search with images in the web app,
   those that are near-duplicates of one in the folder (same picture, crop or recolour; the
