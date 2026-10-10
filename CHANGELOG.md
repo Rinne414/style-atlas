@@ -71,6 +71,10 @@ New:
 
 Clearer output (from three first-time-user tests: English, Chinese, and searching in Chinese):
 
+- Wording that matches the measurements (from a product review by a second model): a folder
+  more spread than 90% of single artists "may be a mix" (about 1 in 10 single artists lands
+  there too) instead of "probably a mix"; the README states the search numbers, that periods
+  are a first pass, what the taste model is, and that the ComfyUI nodes are experimental.
 - `search` looks further down the ranking when near-copies are folded out, so each query gets
   `--top` results (it could show fewer); a query that does not exist or cannot be read is
   named; the folder ranking is in Chinese and says what a score of 0 or below means; the

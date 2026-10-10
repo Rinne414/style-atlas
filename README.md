@@ -13,13 +13,13 @@ style-atlas 會看每張圖「怎麼畫」（不是畫了什麼），自動把�
 
 | 你想做的事 | 怎麼做 |
 |---|---|
-| **訓 LoRA 前整理資料集**：分出不同畫風，或把同一位畫師分成幾個時期，排除重複圖與離群圖，匯出成 kohya 資料夾 | `cluster --layout kohya --dedupe`（分時期加 `--granularity period`），或網頁介面的「匯出資料夾」 |
-| **找畫風相近的圖**：一張或同畫風的幾張圖當範例，也能把結果直接複製成資料夾 | 網頁介面拖圖進去，或用 `search`（`--combine`、`--copy-to`） |
+| **訓 LoRA 前整理資料集**：分出不同畫風，或把同一位畫師分成幾個時期（時期是初步整理，請在網頁上確認），排除重複圖與離群圖，匯出成 kohya 資料夾 | `cluster --layout kohya --dedupe`（分時期加 `--granularity period`），或網頁介面的「匯出資料夾」 |
+| **找畫風相近的圖**：一張或同畫風的幾張圖當範例，也能把結果直接複製成資料夾（實測：同一位畫師的其他作品，第一名猜中約 47%，前 10 名內約 71%） | 網頁介面拖圖進去，或用 `search`（`--combine`、`--copy-to`） |
 | **整理很多位畫師的圖庫**：依畫師分群（20 位以上的圖庫比預設的自動分群更貼近畫師） | `cluster --granularity artists`，或網頁分群選單的「依畫師」 |
 | **這張圖像哪位畫師？**：圖庫按畫師（或畫風）分資料夾時，列出最像的資料夾 | `search --by-folder` |
 | **3D 畫風地圖**：縮圖浮在 3D 空間，可轉動，點一下就看最接近的畫風；也可以每位畫師一個點，看誰和誰畫風相近 | `map`（畫師地圖加 `--by-folder`），或網頁介面的「存成分享用地圖」（單一 HTML 檔，可直接傳給朋友）；按 P 存成圖片 |
-| **檢查資料集**：解析度、小圖放大、壓縮太重、極端比例、缺標註、近重複，以及整個資料夾的畫風一致性（像一位畫師，還是混了好幾種） | `audit`、`duplicates` |
-| **量化畫風與口味**：兩組圖是否同一畫風、差在哪裡（亮度、鮮豔度、線條量等）、個人喜好模型 | `compare`、`taste`、網頁介面的外觀描述與「喜歡／不喜歡」 |
+| **檢查資料集**：解析度、小圖放大、壓縮太重、極端比例、缺標註、近重複，以及整個資料夾的畫風一致性（像一位畫師，還是可能混了好幾種；兩位畫師混在一起約一半抓得到） | `audit`、`duplicates` |
+| **量化畫風與口味**：兩組圖是否同一畫風、差在哪裡（亮度、鮮豔度、線條量等）、用你自己的喜歡／不喜歡訓練的個人口味模型（不是通用美學分數；一個人實測 AUC 約 0.77，換了生成來源可能失準） | `compare`、`taste`、網頁介面的外觀描述與「喜歡／不喜歡」 |
 | **補新圖進已分好的資料集**：一批新圖各自該放哪一群、哪些和資料集裡的圖重複、哪些哪群都不像（放進 `_unsure` 讓你看） | `sort` |
 | **一頁畫風報告**：一致性、外觀和 278 位畫師比的位置、最像的畫師、各畫風群的代表圖，存成一個 HTML 檔，方便保存或傳給朋友 | `report` |
 
@@ -305,7 +305,7 @@ style-atlas taste score "D:\new_batch" --model "D:\my_taste.npz"
 - 這些是影像統計，不是美感分數：「線條多」不代表比較好。
 - 長邊小於 256 px 的小圖會被誤判成「線條多、平塗少」，比較時請用尺寸差不多的圖。大圖之間的尺寸差異則幾乎沒有影響。
 
-### ComfyUI 節點
+### ComfyUI 節點（實驗性）
 
 `comfyui/` 資料夾裡有三個節點，可以把畫風檢查直接接進生成流程：
 
@@ -375,7 +375,7 @@ how a picture is drawn rather than what it shows. On top of those vectors it can
   (CSD looks at 224 px), so the check measures their sharpness at training size
   (BENCHMARKS.md).
 - **Style consistency** (Check tab, `cluster`): how spread the folder's style is next to 114
-  single Danbooru artists. Folders more spread than 90% of them are flagged as a probable mix;
+  single Danbooru artists. Folders more spread than 90% of them are flagged as a possible mix;
   on artists the tool had never seen this caught 49% of two-artist and 85% of three-artist
   mixes, and 11% of single artists.
 - **Fix groups by hand** in the web app: "Find more like this" lists the images outside a group
@@ -581,7 +581,7 @@ Common options:
 
 How the style vectors, grouping and search work, how accurate they are and where they fail: [docs/ACCURACY.md](docs/ACCURACY.md). Every number comes from [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
 
-### ComfyUI nodes
+### ComfyUI nodes (experimental)
 
 `comfyui/` provides three nodes:
 

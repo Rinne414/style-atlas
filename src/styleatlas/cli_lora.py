@@ -299,14 +299,17 @@ def _when(pos: np.ndarray | None, members: list[int]) -> str:
 CONSISTENCY_WORDS_ZH = {
     "tight": "很一致",
     "like one artist": "在一位畫師的正常範圍內；兩三位畫師混在一起也常落在這裡",
-    "mixed": "多半混了不同畫風或時期；下面的分群把它分開",
+    "mixed": "可能混了不同畫風或時期（約 1 成的單一畫師也會落在這裡）；下面的分群把它分開",
 }
 CONSISTENCY_WORDS = {
     "tight": "very consistent",
     "like one artist": (
         "in the range of a single artist; a mix of two or three artists often reads this way too"
     ),
-    "mixed": "probably a mix of styles or periods; the groups below split it",
+    "mixed": (
+        "may be a mix of styles or periods (about 1 in 10 single artists also lands here); "
+        "the groups below split it"
+    ),
 }
 
 

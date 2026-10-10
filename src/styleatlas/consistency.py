@@ -28,7 +28,7 @@ REFERENCE = np.array(
         0.715, 0.725, 0.742, 0.758, 0.777, 0.783, 0.790, 0.813, 0.842, 0.894,
     ]
 )  # fmt: skip
-MIXED = 90  # above this percentile of single artists, a folder is probably a mix
+MIXED = 90  # above this percentile of single artists, a folder may be a mix (11% false alarms)
 
 
 @dataclass(frozen=True)
