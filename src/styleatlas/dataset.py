@@ -89,7 +89,7 @@ def read_tags(image: Path) -> list[str]:
     side = caption_of(image)
     if side is None:
         return []
-    text = side.read_text(encoding="utf-8", errors="replace")
+    text = side.read_text(encoding="utf-8-sig", errors="replace")  # Notepad writes a BOM
     return [t.strip().lower() for t in text.replace("\n", ",").split(",") if t.strip()]
 
 

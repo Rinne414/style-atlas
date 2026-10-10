@@ -265,3 +265,12 @@ def test_images_fall_into_kohya_buckets():
     assert (1024, 1024) in resos and (704, 1024) in resos and all(max(r) <= 1024 for r in resos)
     counts = bucket_counts([(1024, 1024), (2048, 2048), (832, 1216), (1216, 832), (832, 1216)])
     assert counts == {"704x1024": 2, "1024x1024": 2, "1024x704": 1}
+
+
+def test_caption_tags_ignore_a_utf8_byte_order_mark(tmp_path):
+    from styleatlas.dataset import read_tags
+
+    img = tmp_path / "a.png"
+    Image.new("RGB", (8, 8)).save(img)
+    img.with_suffix(".txt").write_bytes("\ufeffwatermark, 1girl".encode())  # as Notepad saves
+    assert read_tags(img) == ["watermark", "1girl"]

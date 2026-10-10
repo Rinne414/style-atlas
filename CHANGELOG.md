@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fix: a caption saved with a UTF-8 byte order mark (Windows Notepad) hid its first tag from
+  the watermark check, tag search and the per-group tags.
 - `.jfif` files (what Chrome on Windows often saves JPEGs from X/Twitter as) are now found.
 - Fix: in the web app, opening an original WebP image downloaded it instead of showing it
   (Windows did not know the WebP type, and the server sends nosniff); image types now come from
