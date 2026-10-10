@@ -193,6 +193,7 @@ CSD 向量只告訴你兩種畫風差多遠，沒說差在哪裡。所以每張�
 - 每張圖只算一次，結果存在快取裡；之後新嵌入的圖在嵌入時順便算，不必再讀一次檔。舊版就嵌入過的圖，第一次會花一點時間補算。
 - 單張圖的數值雜訊大，請比較**群的平均**。在 306 位畫師、3,259 張 Danbooru 作品上，各量測有 13～40% 的差異來自「畫師不同」（線條量 0.40、平塗度 0.37、鮮豔度 0.32、亮度 0.32、對比 0.26、冷暖 0.13），其餘來自同一畫師的不同作品（場景、構圖）。冷暖最受場景影響。
 - 這些是影像統計，不是美感分數：「線條多」不代表比較好。
+- 長邊小於 256 px 的小圖，線條量會偏高、平塗度偏低（192 px 時約 +0.4 / -0.6 個標準差），比較時請用尺寸差不多的圖。大圖縮小則幾乎沒有影響。
 
 ### ComfyUI 節點
 
@@ -432,7 +433,9 @@ Common options:
   in `clusters.json`, and as B minus A in `compare`. A single image is noisy: on 3,259 Danbooru
   works by 306 artists, 13-40% of each measure's spread was between artists (lines 0.40,
   flatness 0.37, colourfulness 0.32, brightness 0.32, contrast 0.26, warmth 0.13), so compare
-  group means. They describe; they do not judge quality.
+  group means. They describe; they do not judge quality. Images are shrunk, never enlarged:
+  below 256 px (long side), lines read higher and flatness lower (about +0.4 and -0.6 SD at
+  192 px), so compare groups of similar image sizes.
 
 ### Accuracy and limits
 

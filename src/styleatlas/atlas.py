@@ -19,6 +19,7 @@ from styleatlas.store import VectorStore
 
 Progress = Callable[[str], None]
 LOAD_ERRORS = (OSError, ValueError, Image.DecompressionBombError, SyntaxError)
+LOOK_CHUNK = 500  # images measured between cache saves
 
 
 @dataclass
@@ -193,10 +194,15 @@ def measure_looks(
             progress(f"measuring the look of {len(todo)} images (once)")
             workers = max(1, min(8, os.cpu_count() or 1))
             with ThreadPoolExecutor(workers) as pool:
-                measured = list(pool.map(_measure_file, [p for _, p in todo]))
-            found = {k: v for (k, _), v in zip(todo, measured, strict=True)}
-            store.put_looks({k: v for k, v in found.items() if not np.isnan(v).any()}, LOOK_VERSION)
-            have.update(found)
+                for start in range(0, len(todo), LOOK_CHUNK):  # saved as it goes: Ctrl+C keeps it
+                    part = todo[start : start + LOOK_CHUNK]
+                    measured = pool.map(_measure_file, [p for _, p in part])
+                    found = {k: v for (k, _), v in zip(part, measured, strict=True)}
+                    good = {k: v for k, v in found.items() if not np.isnan(v).any()}
+                    store.put_looks(good, LOOK_VERSION)
+                    have.update(found)
+                    if len(todo) > LOOK_CHUNK:
+                        progress(f"measured {start + len(part)}/{len(todo)}")
     if not paths:
         return np.zeros((0, len(LOOK_NAMES)), np.float32)
     x = np.stack([have[keys[p]] if p in keys else nan for p in paths]).astype(np.float32)

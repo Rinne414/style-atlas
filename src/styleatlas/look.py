@@ -13,6 +13,10 @@ statistics on a copy whose long side is 256 px:
 On 3,259 Danbooru works by 306 artists, 13-40% of each measure's spread was between artists
 (ICC: lines 0.40, flatness 0.37, colourfulness 0.32, brightness 0.32, contrast 0.26, warmth
 0.13). A single image says little; the mean of a group is what to compare (docs/BENCHMARKS.md).
+
+Images are shrunk, never enlarged. Below 256 px lines and flatness are biased (a 192 px copy
+read +0.4 SD lines, -0.6 SD flatness; enlarging instead gave -0.3 and -0.3), so compare groups
+of similar sizes. Shrinking a 1216 px original to 512 px moved nothing by more than 0.06 SD.
 """
 
 from __future__ import annotations
@@ -21,7 +25,7 @@ import numpy as np
 from PIL import Image
 
 LOOK_NAMES = ("brightness", "contrast", "colourfulness", "warmth", "lines", "flatness")
-LOOK_VERSION = 1  # bump when a formula changes: cached values of older versions are ignored
+LOOK_VERSION = 2  # bump when a formula changes: cached values of older versions are ignored
 SIDE = 256
 EDGE = 0.12  # luma gradient that counts as a line
 FLAT = 0.01  # luma gradient below which an area is flat
@@ -36,11 +40,9 @@ def measure(image: Image.Image) -> np.ndarray:
     y = 0.2126 * r + 0.7152 * g + 0.0722 * b
     rg, yb = r - g, 0.5 * (r + g) - b
     colourful = np.hypot(rg.std(), yb.std()) + 0.3 * np.hypot(rg.mean(), yb.mean())
-    gx = np.zeros_like(y)
-    gy = np.zeros_like(y)
-    gx[:, 1:-1] = (y[:, 2:] - y[:, :-2]) / 2
-    gy[1:-1, :] = (y[2:, :] - y[:-2, :]) / 2
-    grad = np.hypot(gx, gy)
+    gx = (y[1:-1, 2:] - y[1:-1, :-2]) / 2  # interior pixels only: the border has no gradient
+    gy = (y[2:, 1:-1] - y[:-2, 1:-1]) / 2
+    grad = np.hypot(gx, gy) if gx.size else np.zeros((1, 1), np.float32)
     values = (
         y.mean(),
         y.std(),
