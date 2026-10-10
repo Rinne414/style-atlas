@@ -189,6 +189,7 @@ function recolor() {
     alpha[i] = on ? 1 : 0.12;
     // marks sit on top of the view: marked bright, the rest visible but softer (still pickable)
     if (MARKED.size) alpha[i] = MARKED.has(i) ? 1 : on ? 0.6 : 0.12;
+    if (EXCLUDED.has(i)) alpha[i] = Math.min(alpha[i], 0.25);  // excluded: still there, faded
   }
   pushAlpha();
   fadeNames();
@@ -207,7 +208,7 @@ function focusOn(indices) {
   const dir = camera.position.clone().sub(controls.target).normalize();
   const dist = Math.min(3.2, Math.max(0.9, radius * 2.4 + pointSize * 4));
   flyTo = { target, cam: target.clone().add(dir.multiplyScalar(dist)), k: 0 };
-  controls.autoRotate = false; $("spin").classList.remove("on");
+  setSpin(false);
 }
 
 const ray = new THREE.Vector3();
@@ -305,7 +306,7 @@ function select(i) {
   const kv = document.createElement("div"); kv.className = "kv";
   const b = document.createElement("b"); b.textContent = PTS[i].n;
   kv.append(b, document.createElement("br"),
-    document.createTextNode(`${clusterName(PTS[i].c)} · outlier ${PTS[i].o.toFixed(3)} · ` +
+    document.createTextNode(`${clusterName(PTS[i].c)} · ${t("m_outlier")} ${PTS[i].o.toFixed(3)} · ` +
       (HAS_TIME && PTS[i].ts !== null ? `${fmtTime(PTS[i].ts)} · ` : "") +
       (DATA.reference && PTS[i].r !== null ? `${t("m_ref")} ${PTS[i].r.toFixed(3)} (${PTS[i].rn}) · ` : "")));
   const a = document.createElement("a"); a.href = PTS[i].f; a.target = "_blank"; a.rel = "noopener";
@@ -492,7 +493,12 @@ function issueBlock(k, list) {  // one kind of problem: its count, and the image
   const sub = document.createElement("div"); sub.className = "meta";
   const many = list.length > 0.9 * N;  // e.g. a folder without any captions: say so, no grid
   sub.textContent = `${t("chk_" + k).replace("{n}", CHECK.min_side).replace("{q}", CHECK.low_jpeg)}${lang === "zh" ? "：" : ": "}${many ? t("checkAll").replace("{n}", list.length) : list.length}`;
-  if (many) return [sub];
+  if (many) {
+    const why = T[lang]["checkAllWhy_" + k];
+    if (!why) return [sub];
+    const hint = document.createElement("div"); hint.className = "kv"; hint.textContent = why;
+    return [sub, hint];
+  }
   const pick = document.createElement("button"); pick.textContent = t("selectThese");
   pick.style.cssText = "margin:2px 0 4px";
   pick.addEventListener("click", () => { MARKED = new Set(list); showMarks(); });  // then exclude at once
@@ -509,13 +515,16 @@ async function runCheck(minSide) {
   buildOutliers();  // also brings the button back
 }
 
+const OUTLIERS_SHARE = 0.1, OUTLIERS_MIN = 5, OUTLIERS_MAX = 60;  // least typical tenth, 5..60
+
 function buildOutliers() {
   const pane = $("pane-outliers"); pane.replaceChildren();
   if (DATA.live) pane.append(checkSection());
   const oh = document.createElement("h3"); oh.textContent = t("outliersTitle");
   const help = document.createElement("div"); help.className = "kv"; help.textContent = t("outlierHelp");
   const g = document.createElement("div"); g.className = "grid";
-  [...PTS.keys()].sort((a, b) => PTS[b].o - PTS[a].o).slice(0, 60).forEach((i) => g.append(thumb(i)));
+  const shown = Math.min(OUTLIERS_MAX, Math.max(OUTLIERS_MIN, Math.ceil(N * OUTLIERS_SHARE)));
+  [...PTS.keys()].sort((a, b) => PTS[b].o - PTS[a].o).slice(0, shown).forEach((i) => g.append(thumb(i)));
   pane.append(oh, help, g);
   if (DATA.live && EXCLUDED.size) {
     const h = document.createElement("h3"); h.textContent = t("excludedList").replace("{n}", EXCLUDED.size);
@@ -557,7 +566,8 @@ function applyText() {
   $("title").querySelector("h1").textContent = DATA.title;
   $("title").querySelector(".sub").textContent =
     `${N} ${t("images")} · ${DATA.clusters.length} ${t("clusters").toLowerCase()} · ${methodText()}` +
-    (DATA.params && DATA.params.edited ? ` · ${t("edited")}` : "");
+    (DATA.params && DATA.params.edited ? ` · ${t("edited")}` : "") +
+    (EXCLUDED.size ? ` · ${t("excludedN").replace("{n}", EXCLUDED.size)}` : "");
   $("find").placeholder = t(DATA.live ? "findLive" : "find");
   $("mode").textContent = mode === "thumbs" ? t("dots") : t("thumbs");
   $("spin").textContent = t("spin"); $("home").textContent = t("home"); $("names").textContent = t("names");
@@ -614,10 +624,16 @@ $("mode").addEventListener("click", () => {
   pages.forEach((pg) => (pg.mat.uniforms.uMode.value = mode === "dots" ? 1 : 0));
   applyText();
 });
-$("spin").classList.add("on");
-$("spin").addEventListener("click", () => {
-  controls.autoRotate = !controls.autoRotate; $("spin").classList.toggle("on", controls.autoRotate);
-});
+const SPIN_KEY = "styleAtlasSpin";  // per tab: an edit reloads the page
+function setSpin(on) {
+  controls.autoRotate = on; $("spin").classList.toggle("on", on);
+  try { sessionStorage.setItem(SPIN_KEY, on ? "1" : "0"); } catch (e) { /* storage off */ }
+}
+let spinPref = null;
+try { spinPref = sessionStorage.getItem(SPIN_KEY); } catch (e) { /* storage off */ }
+setSpin(spinPref !== "0");
+$("spin").addEventListener("click", () => setSpin(!controls.autoRotate));
+canvas.addEventListener("pointerdown", () => { if (controls.autoRotate) setSpin(false); });
 $("home").addEventListener("click", () => {
   focusCluster = null; selected = null; searchHits = null; filter = ""; folderFilter = null; tagOnly = null;
   $("find").value = ""; recolor();
@@ -633,7 +649,10 @@ function showHelp(on) {
   if (!on) return;
   const rows = [["drag", "keyRotate"], ["wheel", "keyZoom"], ["sizeKeys", "keySize"],
     ["Esc", "keyHome"], ["P", "keySnap"], ...(DATA.live ? [["shiftKeys", "keyMark"], ["L / D", "keyVote"], ["X", "keyExclude"], ["Ctrl + Z", "keyUndo"]] : [])];
-  box.replaceChildren(...rows.map(([key, what]) => {
+  const about = ["helpWhat1", "helpWhat2", "helpWhat3"].map((key) => {
+    const p = document.createElement("p"); p.className = "about"; p.textContent = t(key); return p;
+  });
+  box.replaceChildren(...about, ...rows.map(([key, what]) => {
     const line = document.createElement("div");
     const b = document.createElement("b"); b.textContent = ["drag", "wheel", "sizeKeys", "shiftKeys"].includes(key) ? t(key) : key;
     line.append(b, document.createTextNode(t(what)));

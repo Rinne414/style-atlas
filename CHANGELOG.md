@@ -67,6 +67,12 @@ Clearer output (from three first-time-user tests: English, Chinese, and searchin
 - `compare` lists at most 10 near-copy pairs (`--json` has all) and says that `calibrate`
   measures the z scale on your own folders.
 - Every option has a `--help` line; `search` and `outliers` refuse `--top 0`.
+- Web app, from a first-time web user test: the ? box first says what the map shows (closeness,
+  colours, spread); the map stops turning when you grab it and stays still after an edit, which
+  now keeps the camera where it was; excluded images are faded on the map and counted in the
+  header; the outlier list shows the least typical tenth (5 to 60) instead of up to 60; a check
+  that flags every image says why that may be; the image details say 離群度 instead of
+  "outlier".
 - Each style group says which sub-folders its images come from ("來自：dayama 9"), in the report
   and on the web map, when the folder has several: a gallery sorted by artist shows which group
   is which artist.

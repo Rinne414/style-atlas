@@ -73,6 +73,8 @@
     border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; font-size: 12px;
     color: var(--ink); max-width: 340px; line-height: 1.7; }
   #help b { display: inline-block; min-width: 108px; margin-right: 10px; color: var(--muted); font-weight: 600; }
+  #help p.about { margin: 0 0 8px; line-height: 1.5; }
+  #help p.about:last-of-type { padding-bottom: 8px; border-bottom: 1px solid var(--line); }
   #tip { position: absolute; pointer-events: none; display: none; background: var(--panel);
     border: 1px solid var(--line); border-radius: 10px; padding: 6px; max-width: 240px; z-index: 5;
     box-shadow: 0 8px 30px rgba(0,0,0,.35); }

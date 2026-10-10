@@ -275,7 +275,7 @@ async function toggleExclude(i) {
   try {
     const r = await post("api/exclude", JSON.stringify({ i, excluded: !EXCLUDED.has(i) }), "application/json");
     EXCLUDED = new Set(r.excluded);
-    buildOutliers();
+    buildOutliers(); recolor(); applyText();
     if (RATING && EXCLUDED.has(i)) { rateNext(); return; }
     const old = $("pane-selected").querySelector(".votes");
     if (selected === i && old) old.replaceWith(voteButtons(i));
@@ -298,7 +298,7 @@ function groupSelect(title, current, withUnassigned, onPick) {
 async function editPost(url, body) {
   try {
     await post(url, JSON.stringify({ ...body, rev: DATA.live.revision }), "application/json");
-    location.reload();
+    reloadKeepingView();
   }
   catch (e) { setStatus(String(e.message || e)); }
 }
@@ -306,7 +306,7 @@ async function editPost(url, body) {
 async function placeUnassigned() {  // fitting images move; a reload shows the new groups
   try {
     const r = await post("api/place_unassigned", JSON.stringify({ rev: DATA.live.revision }), "application/json");
-    if (r.moved) location.reload();
+    if (r.moved) reloadKeepingView();
     else setStatus(t("placedNone").replace("{n}", r.left));
   } catch (e) { setStatus(String(e.message || e)); }
 }
@@ -515,7 +515,7 @@ function setupRegroup() {  // granularity, cut, periods, the regroup button and 
         : g === "artists" ? { method: "artists" }
         : { threshold: g === "auto" ? null : parseFloat($("thr").value) };
       await post("api/regroup", JSON.stringify(body), "application/json");
-      location.reload();
+      reloadKeepingView();
     } catch (e) { setStatus(String(e.message || e)); }
   });
 }
@@ -615,7 +615,25 @@ function showPeriods(on) {
   $("thrLbl").htmlFor = on ? "periods" : "thr";
 }
 
+const VIEW_KEY = "styleAtlasView";  // the camera, carried over the reload after an edit
+function reloadKeepingView() {
+  const view = { cam: camera.position.toArray(), target: controls.target.toArray() };
+  try { sessionStorage.setItem(VIEW_KEY, JSON.stringify(view)); } catch (e) { /* storage off */ }
+  location.reload();
+}
+
+function restoreView() {
+  let view = null;
+  try {
+    view = JSON.parse(sessionStorage.getItem(VIEW_KEY) || "null");
+    sessionStorage.removeItem(VIEW_KEY);
+  } catch (e) { return; }
+  if (!view || !Array.isArray(view.cam) || !Array.isArray(view.target)) return;
+  camera.position.fromArray(view.cam); controls.target.fromArray(view.target); controls.update();
+}
+
 // start-up
+restoreView();
 if (DATA.live) setupLive();
 applyText();
 buildPages();
