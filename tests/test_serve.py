@@ -624,3 +624,20 @@ def test_a_reference_folder_can_be_set_and_cleared_live(tmp_path, monkeypatch):
     for network in ("\\\\host\\share", "//host/share"):  # never touched: it would send credentials
         with pytest.raises(ValueError, match="network"):
             app.set_reference({"folder": network})
+
+
+def test_a_kohya_export_with_chinese_names_writes_a_valid_dataset_config(tmp_path):
+    from pathlib import Path
+
+    tomllib = pytest.importorskip("tomllib")  # Python 3.11+
+    folder = tmp_path / "資料夾"
+    folder.mkdir()
+    app, _ = _app(folder, (8, 7))
+    app.regroup({"threshold": 0.5})
+    app.rename({"group": 0, "name": "早期 線稿", "rev": app.revision})
+    out = app.export({"mode": "copy", "layout": "kohya", "name": "畫師", "trigger": True})
+    root = Path(out["folder"])
+    config = tomllib.loads((root / "dataset_config.toml").read_text(encoding="utf-8"))
+    dirs = [Path(s["image_dir"]) for s in config["datasets"][0]["subsets"]]
+    assert all(d.is_dir() for d in dirs) and any("早期 線稿" in d.name for d in dirs)
+    assert config["general"]["keep_tokens"] == 1
