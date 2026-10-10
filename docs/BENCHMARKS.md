@@ -751,6 +751,19 @@ originals by 148 different artists, all polished digital paintings, read as one 
   pure groups (single periods) scored higher than the impure ones, and 67% were flagged. So the
   group cards show no such flag.
 
+**Is the number of groups a sign of a mix? No.** Folders of 20 images from the 19 unseen
+artists of `unseen_big`, 60 draws each, grouped with the default automatic cut (groups of 3+):
+
+| Folder | 1 group | 2 groups | 3+ groups | Consistency says "mixed" |
+|---|---|---|---|---|
+| one artist | 32% | 43% | 25% | 7% |
+| two artists, 10 + 10 | 7% | 47% | 47% | 65% |
+| three artists | 3% | 17% | 80% | 80% |
+
+Two thirds of single artists split into two or more groups (sub-styles, periods), so the
+groups say how a folder can be divided, not how many artists it holds; the consistency verdict
+is the signal for a mix.
+
 ## Families of artists: grouping folder means (2026-10-10)
 
 `map --by-folder` puts one point per sub-folder at the folder's mean style. How well do those

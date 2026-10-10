@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Docs: the number of groups is not a sign of a mix (two thirds of single artists split into 2+
+  groups; consistency flags 7%). BENCHMARKS.md and the LoRA guide say so.
+
 ## 0.41.0 - 2026-10-10
 
 - Web page: the map area is the page's main landmark and the page has a description
