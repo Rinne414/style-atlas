@@ -433,7 +433,7 @@ function groupBar(c) {  // live app only: the edits for a group, or placing the 
   }), confirmMerge);
   if (DATA.clusters.length >= 2) bar.append(groupSelect(t("compareWith"), c.id, false, (other) => showCompare(c.id, other)));
   const nameBox = document.createElement("input"); nameBox.name = "groupName"; nameBox.setAttribute("aria-label", t("nameGroup"));
-  nameBox.placeholder = t("nameGroup"); nameBox.value = (DATA.live.names || {})[String(c.id)] || "";
+  nameBox.placeholder = t("nameGroup"); nameBox.title = t("nameGroupTip"); nameBox.value = (DATA.live.names || {})[String(c.id)] || "";
   nameBox.style.cssText = "margin-left:6px;width:120px;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:5px 8px;font:inherit;font-size:12px";
   nameBox.addEventListener("click", (e) => e.stopPropagation());
   nameBox.addEventListener("keydown", (e) => { e.stopPropagation(); if (e.key === "Enter") editPost("api/rename", { group: c.id, name: nameBox.value }); });
