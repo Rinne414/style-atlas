@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.18.0 - 2026-10-10
 
 - Fixes from a Sonnet review of this release:
   - Selected images are now shown on top of the normal view instead of replacing it, so a box
