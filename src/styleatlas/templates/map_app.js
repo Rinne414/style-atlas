@@ -41,7 +41,7 @@ async function searchFiles(fileList) {
       ? await post("api/search", files[0], files[0].type)  // {hits}: one image is no batch
       : await post("api/search_set", JSON.stringify({ images: await Promise.all(files.map(toBase64)) }), "application/json");
     setStatus("");
-    showSearch(files, r.hits, r.fit, r.folders);
+    showSearch(files, r.hits, r.fit, r.folders, r.copies);
   } catch (e) { setStatus(String(e.message || e)); }
 }
 
@@ -75,7 +75,16 @@ function folderList(folders) {  // which sub-folder (an artist, a style) the que
   return [h, box];
 }
 
-function showSearch(files, hits, fit, folders) {
+function copyList(files, copies) {  // dropped images that the folder already holds (or a LoRA repeated)
+  const box = document.createElement("div"); box.className = "kv warn";
+  box.textContent = t("copiesLine").replace("{k}", copies.length).replace("{n}", files.length);
+  box.title = t("copiesTip");
+  const g = document.createElement("div"); g.className = "grid";
+  copies.forEach((c) => { const im = thumb(c.i); im.title = `${files[c.q].name} ≈ ${PTS[c.i].n} (${c.score.toFixed(3)})`; g.append(im); });
+  return [box, g];
+}
+
+function showSearch(files, hits, fit, folders, copies) {
   selected = null; focusCluster = null; searchHits = new Set(hits.map((h) => h.i)); recolor();
   if (hits.length) focusOn(hits.slice(0, 8).map((h) => h.i));
   const pane = $("pane-selected"); pane.replaceChildren();
@@ -91,7 +100,8 @@ function showSearch(files, hits, fit, folders) {
   const h2 = document.createElement("h3"); h2.textContent = t("nearest");
   const g = document.createElement("div"); g.className = "grid";
   hits.forEach((x) => { const im = thumb(x.i); im.title = `${PTS[x.i].n} · cos ${x.cos.toFixed(3)}`; g.append(im); });
-  pane.append(h, qs, ...(fit && fit.length ? fitSummary(fit) : []),
+  pane.append(h, qs, ...(copies && copies.length ? copyList(files, copies) : []),
+    ...(fit && fit.length ? fitSummary(fit) : []),
     ...(folders && folders.length ? folderList(folders) : []), h2, g);
   showPane("selected");
 }

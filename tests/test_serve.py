@@ -410,6 +410,8 @@ def test_several_dropped_images_search_as_one_style(tmp_path, monkeypatch):
     got = app.search_set({"images": [png(0), png(1), png(2)]})
     assert {h["i"] for h in got["hits"][:8]} == set(range(8))  # the first blob, examples included
     assert got["folders"] == []  # no sub-folders to rank
+    assert [c["q"] for c in got["copies"]] == [0, 1, 2]  # the examples are the folder's own
+    assert all(c["i"] == c["q"] and c["score"] > 0.99 for c in got["copies"])
     for bad in ({"images": []}, {"images": ["not base64!"]}, {"images": [png(0)] * 33}):
         with pytest.raises(ValueError):
             app.search_set(bad)
@@ -579,9 +581,10 @@ def test_uploads_move_by_their_own_character_and_a_failed_switch_leaves_no_undo(
     monkeypatch.setattr("styleatlas.serve.get_encoder", lambda opts: FakeEncoder())
     buf = io.BytesIO()
     Image.new("RGB", (8, 8)).save(buf, format="PNG")
-    got = app._embed([buf.getvalue()])
+    got, raw = app._embed([buf.getvalue()])
     assert np.allclose(got, app.space.apply(style, content))
     assert not np.allclose(got, app.space.apply(style, style))
+    assert np.allclose(raw[0], style) and np.allclose(raw[1], content)  # plain, for copies
 
     def broken(*args, **kwargs):
         raise ValueError("no subjects")

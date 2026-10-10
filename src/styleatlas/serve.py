@@ -42,6 +42,7 @@ from styleatlas.dataset import (
     read_tags,
     tag_summary,
 )
+from styleatlas.duplicates import DEFAULT_THRESHOLD as SAME_PICTURE
 from styleatlas.export import (
     KOHYA_CONFIG,
     export_folders,
@@ -328,12 +329,25 @@ class StyleAtlasApp(GroupEdits):
         return {"clusters": self.clustering.n_clusters, "unassigned": self.clustering.n_unassigned}
 
     def search_image(self, data: bytes, top: int = SEARCH_TOP) -> dict:
-        query = self._embed([data])
+        query, raw = self._embed([data])
         hits = search(query, self.atlas.style, top=top)[0]
         return {
             "hits": [{"i": h.index, "cos": round(h.cosine, 4)} for h in hits],
             "folders": self.closest_folders(query),
+            "copies": self.copies(*raw),
         }
+
+    def copies(self, style: np.ndarray, content: np.ndarray) -> list[dict]:
+        """Dropped images that are near-duplicates of one in the folder (the same picture, a
+        crop or a recolour; duplicates.py): a LoRA render that repeats a training image, or a
+        found image the folder already has. Plain CSD, where that threshold was set."""
+        score = np.minimum(style @ self.raw.style.T, content @ self.raw.content.T)
+        out = []
+        for k, row in enumerate(score):
+            i = int(np.argmax(row))
+            if row[i] >= SAME_PICTURE:
+                out.append({"q": k, "i": i, "score": round(float(row[i]), 3)})
+        return out
 
     def closest_folders(self, query: np.ndarray, combine: bool = False) -> list[dict]:
         """The opened folder's sub-folders ranked by style, as `search --by-folder` (the first
@@ -378,17 +392,19 @@ class StyleAtlasApp(GroupEdits):
             or not all(isinstance(s, str) for s in images)
         ):
             raise ValueError(f"images must be a list of 1 to {MAX_QUERY_IMAGES} base64 strings")
-        query = self._embed([base64.b64decode(s, validate=True) for s in images])
+        query, raw = self._embed([base64.b64decode(s, validate=True) for s in images])
         hits = search(query, self.atlas.style, top=SEARCH_TOP, combine=True)[0]
         return {
             "hits": [{"i": h.index, "cos": round(h.cosine, 4)} for h in hits],
             "fit": self.fit(query),
             "folders": self.closest_folders(query, combine=True),
+            "copies": self.copies(*raw),
         }
 
-    def _embed(self, datas: list[bytes]):
+    def _embed(self, datas: list[bytes]) -> tuple[np.ndarray, tuple[np.ndarray, np.ndarray]]:
         """Style vectors of uploaded images, decoded one at a time (each can be large), in the
-        current space (the content vectors place them with a character)."""
+        current space (the content vectors place them with a character), and the plain
+        (style, content) vectors."""
         styles, contents = [], []
         for d in datas:
             try:
@@ -400,8 +416,9 @@ class StyleAtlasApp(GroupEdits):
             styles.append(emb.style[0])
             contents.append(emb.content[0])
             del image
+        style, content = np.stack(styles), np.stack(contents)
         with self._lock:
-            return self.space.apply(np.stack(styles), np.stack(contents))
+            return self.space.apply(style, content), (style, content)
 
     def similar(self, body: dict) -> dict:
         """Images outside a group that look most like it (a model learned from the group, as in

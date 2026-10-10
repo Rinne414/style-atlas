@@ -94,6 +94,7 @@
   .cl .name { font-weight: 600; }
   .cl .meta { color: var(--muted); font-size: 12px; }
   .near a { color: var(--accent); text-decoration: none; }
+  .kv.warn { color: var(--accent); }
   .near a:hover, .near a:focus-visible { text-decoration: underline; }
   .cl .when { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 11px; margin-top: 3px; }
   .cl canvas { display: block; }
