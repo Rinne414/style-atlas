@@ -154,6 +154,10 @@ def test_map_and_bench(lib, tmp_path, capsys):
     assert main(["map", str(lib), "--by-folder", "-o", str(folders), "--projection", "pca",
                  "--device", "cpu"]) == 0  # fmt: skip
     assert folders.exists()
+    assert "families" in capsys.readouterr().err  # the points are folders, grouped in families
+    assert main(["map", str(lib), "--projection", "pca", "--device", "cpu"]) == 0
+    assert (tmp_path / "lib_style_atlas" / "style_atlas_map.html").exists()  # next to, not in
+    assert not list(lib.glob("*.html"))
     assert main(["map", str(lib), "-o", str(html), "--projection", "pca", "--device", "cpu"]) == 0
     text = html.read_text(encoding="utf-8")
     assert "atlas-data" in text and '"look_names":["brightness"' in text
