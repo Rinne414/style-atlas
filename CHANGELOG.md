@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- **Consistency reference from unseen artists**: the percentile is now read against 114 artists
+  the whitening never saw (it was 250 artists it had seen, which put new single artists at the
+  60th percentile instead of the 50th). Tested on held-out halves: 11% false alarms; 49% of
+  two-artist, 85% of three and 100% of five-artist mixes flagged.
 ## 0.34.0 - 2026-10-10
 
 - **Held-out re-check of search with several examples**: the learned model's gain over the

@@ -723,7 +723,19 @@ whitening nor the reference had seen (10 or more works each), 20-image folders:
 | Five artists | 100% | 0.991 | 48% | 0.892 |
 
 The whitened measure holds up, a little weaker than on the seen artists, and stays far ahead of
-plain CSD. The product quotes these held-out numbers. A limit seen on the way: 150 large
+plain CSD.
+
+**Reference from unseen artists.** Single unseen artists sat at the 60th percentile of the
+reference above (built on seen artists), not the 50th. A reference built on half of the 114
+unseen artists, tested on the other half:
+
+| Reference | Single artists: median percentile, above 90 | Two | Three | Five |
+|---|---|---|---|---|
+| 250 seen artists | 61, 14% | 57% | 91% | 100% |
+| 57 unseen artists | 49, 11% | 49% | 85% | 100% |
+
+The product now uses a reference from all 114 unseen artists, so a new folder's percentile is
+on a fair scale, and quotes the second row. A limit seen on the way: 150 large
 originals by 148 different artists, all polished digital paintings, read as one artist's range
 (78th percentile). When many artists share one finished look, the measure cannot tell them apart.
 

@@ -336,10 +336,10 @@ how a picture is drawn rather than what it shows. On top of those vectors it can
   or URL (`watermark`, `signature`, `artist name`, `web address` ...). The style map cannot
   find enlarged images (CSD looks at 224 px), so the check measures their sharpness at
   training size (BENCHMARKS.md).
-- **Style consistency** (Check tab, `cluster`): how spread the folder's style is next to 250
+- **Style consistency** (Check tab, `cluster`): how spread the folder's style is next to 114
   single Danbooru artists. Folders more spread than 90% of them are flagged as a probable mix;
-  on artists the tool had never seen this caught 51% of two-artist and 91% of three-artist
-  mixes, and 13% of single artists.
+  on artists the tool had never seen this caught 49% of two-artist and 85% of three-artist
+  mixes, and 11% of single artists.
 - **Fix groups by hand** in the web app: "Find more like this" lists the images outside a group
   that look most like it; move an image to another group, merge two groups,
   split a group in two, or exclude images (X), which are then exported to `_excluded/`.

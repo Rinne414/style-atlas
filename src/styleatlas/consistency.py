@@ -1,10 +1,12 @@
 """How consistent is a folder's style? Compared with single artists, so the number means
 something: "spread" is the mean distance of each image to the centre of the others (whitened
 CSD), averaged over random 10-image samples because it shrinks as a set grows (0.76 at 5 images,
-0.71 at 10, 0.65 at all of the same artists' works). The reference is 250 Danbooru artists.
+0.71 at 10, 0.65 at all of the same artists' works). The reference is 114 Danbooru artists that
+neither the search whitening nor anything else here was fitted on, so new folders are read on a
+fair scale.
 
-On 114 artists the whitening and the reference never saw, 13% of single artists were more
-spread than 90% of the reference, against 51% of two-artist mixes, 91% of three and 100% of five
+Built on half of those artists and tested on the other half, 11% of single artists were more
+spread than 90% of the reference, against 49% of two-artist mixes, 85% of three and 100% of five
 (docs/BENCHMARKS.md, "Style consistency")."""
 
 from __future__ import annotations
@@ -19,11 +21,11 @@ from styleatlas.whiten import whiten
 SAMPLE = 10  # images per draw; the reference was measured the same way
 DRAWS = 30
 SEED = 0
-# spread at SAMPLE of 250 single Danbooru artists, at percentiles 0, 5, ..., 100
+# spread at SAMPLE of 114 single Danbooru artists unseen by the whitening, percentiles 0..100
 REFERENCE = np.array(
     [
-        0.000, 0.381, 0.476, 0.506, 0.553, 0.577, 0.603, 0.617, 0.640, 0.654, 0.675,
-        0.690, 0.703, 0.719, 0.734, 0.751, 0.773, 0.790, 0.801, 0.834, 0.887,
+        0.349, 0.478, 0.507, 0.595, 0.620, 0.632, 0.637, 0.660, 0.674, 0.697, 0.707,
+        0.715, 0.725, 0.742, 0.758, 0.777, 0.783, 0.790, 0.813, 0.842, 0.894,
     ]
 )  # fmt: skip
 MIXED = 90  # above this percentile of single artists, a folder is probably a mix
