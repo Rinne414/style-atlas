@@ -29,6 +29,7 @@ const T = {
     exclude: "Exclude from export (X)", included: "Excluded - undo (X)",
     excludedList: "Excluded by you ({n}) - exported to _excluded",
     compareWith: "Compare with…", compareTitle: "{a} compared with {b}",
+    manyGroups: "Many small groups. If this folder is one artist's work, pick 'medium' or 'period' in the grouping menu (bottom left), then Regroup.",
     firstHint: "Start here: click a style on the right to see its images · the Check tab checks the dataset · ? lists every shortcut",
     refPath: "reference folder (styles you know)", refLoad: "Load reference", refClear: "Clear reference",
     refBusy: "loading the reference… the first time, every image in it is embedded (minutes)",
@@ -103,6 +104,7 @@ const T = {
     exclude: "匯出時排除 (X)", included: "已排除，取消 (X)",
     excludedList: "你排除的圖（{n}）：匯出時放到 _excluded",
     compareWith: "和…比較", compareTitle: "{a} 和 {b} 比較",
+    manyGroups: "分出很多小群。如果這是同一位畫師的資料夾，可以把左下的分群選單改成「中」或「時期」，再按重新分群。",
     firstHint: "從這裡開始：點右側的畫風群看成員 ·「檢查」分頁可以檢查資料集 · 按 ? 看所有操作",
     refPath: "參考資料夾（已知畫風）", refLoad: "載入參考", refClear: "清除參考",
     refBusy: "載入參考資料夾中…第一次會嵌入裡面的每張圖，可能要幾分鐘",
@@ -644,7 +646,9 @@ function applyText() {
     $("pane-selected").replaceChildren(e);
   }
   buildClusters(); buildOutliers(); buildDups(); liveText(); if (DATA.live) buildTaste();
+  const many = DATA.clusters.length > Math.max(12, N / 8);  // e.g. one varied artist cut into dozens
   if (DATA.live && DATA.clusters.length <= 1 && N > 10) setStatus(t("oneGroup"));
+  else if (DATA.live && many && !DATA.live.restored && !(DATA.params || {}).edited) setStatus(t("manyGroups"));
   else if (DATA.live && DATA.live.restored && !$("status").textContent) setStatus(t("restored"));
   else if (DATA.live && !DATA.live.restored && !$("status").textContent) setStatus(t("firstHint"));
   setupAxes(); if (layoutMode === "measures") drawAxes();

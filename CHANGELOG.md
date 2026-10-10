@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- When "auto" cuts a folder into many small groups (more than 12, and more than one per 8
+  images), the web app suggests "medium" or "period" for a single artist's folder. The varied
+  artist that auto had cut into 46 groups now gets this hint.
 - The open_clip warning "Model initialized randomly" no longer appears while the model loads.
   It was harmless (the CSD weights load right after, strictly checked) but alarming. The built
   wheel was checked end to end with the real model on CPU.
