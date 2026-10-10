@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.17.0 - 2026-10-10
 
 - **Reference folder in the web app**: type a folder of styles you know and press "Load
   reference" (or clear it). The measures layout gets its originality axis without restarting with
