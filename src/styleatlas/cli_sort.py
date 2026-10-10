@@ -17,7 +17,7 @@ import numpy as np
 from styleatlas.atlas import Atlas
 from styleatlas.cli_common import _atlas, log, saved_groups, web_exclusions
 from styleatlas.cluster import UNASSIGNED, Clustering, Fit, fit_to_groups, from_labels
-from styleatlas.dataset import group_labels
+from styleatlas.dataset import group_labels, is_unassigned
 from styleatlas.duplicates import copies_of
 from styleatlas.export import export_folders, output_dir, write_csv
 from styleatlas.images import labels_from_folders
@@ -25,18 +25,25 @@ from styleatlas.whiten import whiten
 
 UNSURE = "_unsure"  # closest group, but less alike than 90% of that group's own images
 ALREADY = "_already_in_dataset"  # a near-copy of an image the dataset already holds
+RESERVED = {UNSURE.casefold(), ALREADY.casefold()}
 MOSTLY_IN, MOSTLY_OUT = 0.5, 0.25  # share of a batch that fits (docs/BENCHMARKS.md)
+MIN_BATCH = 8  # below this many new images the share says little: no verdict on the batch
 
 
 def cmd_sort(a: argparse.Namespace) -> int:
+    new_root, data_root = Path(a.folder).resolve(), Path(a.into).resolve()
+    if new_root == data_root:
+        raise ValueError("the new images and the dataset are the same folder")
     out = Path(a.out) if a.out else output_dir(Path(a.folder))
-    dataset = _atlas(a, a.into)
-    new = _atlas(a, a.folder, exclude=[out])
+    # neither side reads the other when one folder holds the other, nor earlier results
+    dataset = _atlas(a, a.into, exclude=[out, *_nested(new_root, data_root)])
+    new = _atlas(a, a.folder, exclude=[out, *_nested(data_root, new_root)])
     if len(new) == 0:
         log(f"no readable images in {a.folder}")
         return 1
     clustering, labels = _dataset_groups(a, dataset)
     skip = set(web_exclusions(dataset, Path(a.into)))
+    _note_small_groups(clustering, labels, skip)
     fits = fit_to_groups(
         whiten(dataset.style, keep=False), clustering, whiten(new.style, keep=False), skip
     )
@@ -59,15 +66,19 @@ def cmd_sort(a: argparse.Namespace) -> int:
     return 0
 
 
+def _nested(inner: Path, outer: Path) -> list[Path]:
+    return [inner] if inner.is_relative_to(outer) else []
+
+
 def _dataset_groups(a: argparse.Namespace, dataset: Atlas) -> tuple[Clustering, dict[int, str]]:
     """The groups to sort into with their folder labels: the dataset's sub-folders (--by-folder,
-    leaving out set-aside ones such as _excluded), else its style groups as `cluster` and the web
-    app make them."""
+    leaving out set-aside ones such as _excluded or unassigned), else its style groups as
+    `cluster` and the web app make them."""
     if not a.by_folder:
         clustering, names = saved_groups(a, dataset, Path(a.into))
-        return clustering, group_labels(clustering, "plain", names)
+        return clustering, _unreserved(group_labels(clustering, "plain", names))
     names = labels_from_folders(dataset.paths, dataset.root)
-    kept = sorted({n for n in names if n and not n.startswith("_")})
+    kept = sorted({n for n in names if n and not n.startswith("_") and not is_unassigned(n)})
     if not kept:
         raise ValueError(f"{a.into} has no sub-folders to sort into")
     index = {n: k for k, n in enumerate(kept)}
@@ -75,6 +86,17 @@ def _dataset_groups(a: argparse.Namespace, dataset: Atlas) -> tuple[Clustering, 
         dataset.style, np.array([index.get(n, UNASSIGNED) for n in names]), "folders"
     )
     return clustering, {c.id: names[c.members[0]] for c in clustering.clusters}
+
+
+def _unreserved(labels: dict[int, str]) -> dict[int, str]:
+    """A group named like a set-aside folder must not end up in it."""
+    return {g: f"{n}_group" if n.casefold() in RESERVED else n for g, n in labels.items()}
+
+
+def _note_small_groups(clustering: Clustering, labels: dict[int, str], skip: set[int]) -> None:
+    small = [labels[c.id] for c in clustering.clusters if sum(m not in skip for m in c.members) < 2]
+    if small:
+        log(f"too few images (under 2) to sort into: {', '.join(small)}")
 
 
 def _destination(i: int, fit: Fit, labels: dict[int, str], copies: dict[int, int]) -> str:
@@ -105,20 +127,23 @@ def _rows(
 
 
 def _summary(fits: list[Fit], labels: dict[int, str], folders: list[str]) -> None:
-    placed = Counter(labels[f.group] for f in fits)
-    fitting = Counter(
-        labels[f.group] for f, d in zip(fits, folders, strict=True) if d not in (UNSURE, ALREADY)
-    )
-    log(f"{len(fits)} new images, closest group of each:")
+    rest = [(f, d) for f, d in zip(fits, folders, strict=True) if d != ALREADY]
+    if len(rest) < len(fits):
+        log(
+            f"{len(fits) - len(rest)} of {len(fits)} new images are near-copies of images the "
+            f"dataset already holds ({ALREADY})"
+        )
+    if not rest:
+        return
+    placed = Counter(labels[f.group] for f, _ in rest)
+    fitting = Counter(labels[f.group] for f, d in rest if d != UNSURE)
+    log(f"{len(rest)} new images, closest group of each:")
     for name, n in sorted(placed.items(), key=lambda t: -t[1]):
         log(f"  {name:30s} {n:5d}  ({fitting[name]} fit)")
-    already = folders.count(ALREADY)
-    if already:
-        log(f"{already} are near-copies of images the dataset already holds ({ALREADY})")
-    if already == len(fits):
-        return
-    share = sum(fitting.values()) / (len(fits) - already)
-    if share > MOSTLY_IN:
+    share = sum(fitting.values()) / len(rest)
+    if len(rest) < MIN_BATCH:
+        verdict = f"too few images to judge the batch (under {MIN_BATCH})"
+    elif share > MOSTLY_IN:
         verdict = "mostly the dataset's styles"
     elif share <= MOSTLY_OUT:
         verdict = "mostly unlike the dataset's styles"

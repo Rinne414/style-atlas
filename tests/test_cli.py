@@ -329,8 +329,46 @@ def test_sort_needs_groups_to_sort_into(lib, tmp_path, capsys):
 
 
 def test_sort_of_images_the_dataset_already_holds_gives_no_verdict(lib, tmp_path, capsys):
+    again = tmp_path / "again"
+    again.mkdir()
+    for p in (lib / "red").glob("*.png"):
+        (again / p.name).write_bytes(p.read_bytes())
     out = tmp_path / "out"
-    args = ["sort", str(lib / "red"), "--into", str(lib), "-o", str(out), "--by-folder"]
+    args = ["sort", str(again), "--into", str(lib), "-o", str(out), "--by-folder"]
     assert main([*args, "--device", "cpu"]) == 0
     assert {r["folder"] for r in _sorted_rows(out).values()} == {"_already_in_dataset"}
     assert "fit their group" not in capsys.readouterr().err
+
+
+def test_sort_keeps_new_images_and_set_aside_folders_out_of_the_dataset(lib, tmp_path, capsys):
+    inside = lib / "new_batch"  # new images kept inside the dataset folder
+    inside.mkdir()
+    for p in _new_images(lib, tmp_path).iterdir():
+        if p.name != "again.png":
+            (inside / p.name).write_bytes(p.read_bytes())
+    (lib / "unassigned").mkdir()  # left over by a plain-layout export
+    for p in sorted((lib / "blue").glob("*.png"))[:2]:
+        (lib / "unassigned" / p.name).write_bytes(p.read_bytes())
+    out = tmp_path / "out"
+    args = ["sort", str(inside), "--into", str(lib), "-o", str(out), "--by-folder"]
+    assert main([*args, "--device", "cpu"]) == 0
+    rows = _sorted_rows(out)
+    assert {r["closest_group"] for r in rows.values()} <= {"red", "green", "blue"}
+    assert "_already_in_dataset" not in {r["folder"] for r in rows.values()}
+    assert "too few images to judge the batch" in capsys.readouterr().err
+    with pytest.raises(SystemExit):
+        main(["sort", str(lib), "--device", "cpu"])  # --into is required
+    assert main(["sort", str(lib), "--into", str(lib), "--device", "cpu"]) == 1
+    assert "the same folder" in capsys.readouterr().err
+
+
+def test_sort_names_small_groups_and_keeps_reserved_names_apart(lib, tmp_path, capsys):
+    from styleatlas.cli_sort import _unreserved
+
+    assert _unreserved({0: "_Unsure", 1: "early"}) == {0: "_Unsure_group", 1: "early"}
+    (lib / "solo").mkdir()
+    (lib / "solo" / "one.png").write_bytes(next((lib / "green").glob("*.png")).read_bytes())
+    new = _new_images(lib, tmp_path)
+    args = ["sort", str(new), "--into", str(lib), "-o", str(tmp_path / "o"), "--by-folder"]
+    assert main([*args, "--device", "cpu"]) == 0
+    assert "too few images (under 2) to sort into: solo" in capsys.readouterr().err
