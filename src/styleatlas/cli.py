@@ -6,311 +6,46 @@ import argparse
 import json
 import sys
 from collections.abc import Callable
-from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
 
 from styleatlas import __version__
-from styleatlas.atlas import Atlas, EncodeOptions, build_atlas, embed_paths, measure_looks
-from styleatlas.cluster import GRANULARITY, METHODS, PERIODS, cluster_styles, outlier_scores
+from styleatlas.atlas import build_atlas, embed_paths, measure_looks
+from styleatlas.cli_common import (  # noqa: F401 (re-exported for tests and callers)
+    CHARACTERS_HELP,
+    NEUTRALIZE_HELP,
+    REFERENCE_HELP,
+    SOFT_PERIODS,
+    _atlas,
+    _cluster,
+    _log_space,
+    _neutralize_count,
+    _opts,
+    _positive_int,
+    _reference,
+    _space,
+    log,
+)
+from styleatlas.cli_lora import FEW_FOR_LORA, _lora_args, cmd_cluster  # noqa: F401
+from styleatlas.cluster import GRANULARITY, METHODS, PERIODS, outlier_scores
 from styleatlas.encoder import CROP_MODES, RESOLUTIONS
 from styleatlas.images import TIME_SOURCES, find_images, labels_from_folders
-from styleatlas.look import LOOK_NAMES, describe, difference, profile
+from styleatlas.look import LOOK_NAMES, describe, difference
 from styleatlas.metrics import (
-    CHARACTERS,
-    MAX_NEUTRALIZE,
     PLAIN,
     StyleScale,
-    SubjectCentring,
     group_difference,
     split_half_noise,
     unit,
 )
 from styleatlas.project import PROJECTIONS
 
-SOFT_PERIODS = 100  # below this, k-means periods changed with the seed (agreement ARI 0.3-0.7)
-NEUTRALIZE_HELP = (
-    "ignore the N strongest directions of variation (try 1) when the same characters appear in "
-    "many styles (--ignore-characters usually does better); not for a mix of different artists"
-)
-CHARACTERS_HELP = (
-    "when the same characters appear in many styles: find the characters from the picture "
-    "content and compare styles as if all were drawn on the same character; not for a mix of "
-    "different artists"
-)
-
-
-REFERENCE_HELP = (
-    "folder of styles you already know (artists, forum recipes); adds an originality axis: "
-    "distance from each image to its closest reference"
-)
-
-
-def log(msg: str) -> None:
-    print(msg, file=sys.stderr, flush=True)
-
-
-def _opts(a: argparse.Namespace) -> EncodeOptions:
-    from styleatlas.safety import limit_resources
-
-    limit_resources(a.threads)
-    return EncodeOptions(
-        device=a.device,
-        crop=a.crop,
-        batch_size=a.batch,
-        resolution=a.resolution,
-        db_path=Path(a.cache_db) if a.cache_db else None,
-    )
-
-
-def _atlas(a: argparse.Namespace, folder: str, exclude: list[Path] | None = None) -> Atlas:
-    atlas = build_atlas(Path(folder), _opts(a), log, recursive=not a.no_recursive, exclude=exclude)
-    for p, why in atlas.failed:
-        log(f"skipped {p}: {why}")
-    space = _space(a)
-    if space != PLAIN:
-        atlas, a.fitted_space = atlas.in_space(space)  # reused for --reference
-        _log_space(a.fitted_space.transform)
-    return atlas
-
-
-def _space(a: argparse.Namespace) -> str:
-    """The vector space chosen on the command line (see metrics.StyleSpace)."""
-    if getattr(a, "ignore_characters", False):
-        return CHARACTERS
-    n = getattr(a, "neutralize", 0)
-    return f"neutralize-{n}" if n else PLAIN
-
-
-def _positive_int(text: str) -> int:
-    n = int(text)
-    if n < 1:
-        raise argparse.ArgumentTypeError("must be 1 or more")
-    return n
-
-
-def _neutralize_count(text: str) -> int:
-    n = int(text)
-    if not 0 <= n <= MAX_NEUTRALIZE:
-        raise argparse.ArgumentTypeError(f"takes 0 to {MAX_NEUTRALIZE}")
-    return n
-
-
-def _log_space(transform: object) -> None:
-    if isinstance(transform, SubjectCentring):
-        n = len(transform.centres)
-        if not n:
-            log("too few images to find characters: styles are compared as they are")
-        else:
-            log(f"comparing styles per character: {n} subjects found in the picture content")
-    else:
-        k = len(getattr(transform, "axes", []))
-        log(f"ignoring the {k} strongest direction(s) of variation (subject axis)")
-
-
-def _reference(a: argparse.Namespace) -> Atlas | None:
-    """The --reference folder (styles you already know), embedded the same way."""
-    if not getattr(a, "reference", None):
-        return None
-    ref = build_atlas(Path(a.reference), _opts(a), log, recursive=True)
-    for p, why in ref.failed:
-        log(f"reference skipped {p}: {why}")
-    space = getattr(a, "fitted_space", None)  # same space as the folder
-    if space is not None:
-        ref = replace(ref, style=space.apply(ref.style, ref.content))
-    log(f"reference: {len(ref)} images from {a.reference}")
-    return ref
-
-
-def _cluster(a: argparse.Namespace, atlas: Atlas):
-    method, k, threshold = a.method, a.k, a.threshold
-    if a.granularity == "period" and threshold is None:
-        if method != "agglomerative":
-            raise ValueError("--granularity period uses k-means; leave out --method")
-        method, k = "kmeans", a.k or PERIODS
-        if len(atlas) < SOFT_PERIODS:
-            log(
-                f"note: with fewer than {SOFT_PERIODS} images the period boundaries are soft; "
-                "check them in the web app (serve)"
-            )
-    elif threshold is None:
-        threshold = GRANULARITY.get(a.granularity)  # None for auto
-    result = cluster_styles(
-        atlas.style, method=method, threshold=threshold, n_clusters=k, min_size=a.min_size
-    )
-    cut = result.params.get("threshold")
-    how = f", cut {cut} ({'auto' if result.params.get('auto') else 'set'})" if cut else ""
-    log(f"{result.n_clusters} styles, {result.n_unassigned} unassigned ({result.method}{how})")
-    if "note" in result.params:
-        log("note: " + result.params["note"])
-    return result
-
 
 def cmd_embed(a: argparse.Namespace) -> int:
     atlas = _atlas(a, a.folder)
     log(f"{len(atlas)} images embedded, {len(atlas.failed)} skipped")
     return 0
-
-
-def cmd_cluster(a: argparse.Namespace) -> int:
-    from styleatlas.dataset import parse_repeats
-
-    parse_repeats(a.repeats)
-    if a.trigger_captions and not a.export:
-        raise ValueError("--trigger-captions only applies with --export copy|link")
-    from styleatlas.export import output_dir, write_table
-    from styleatlas.report import write_map
-
-    out = Path(a.out) if a.out else output_dir(Path(a.folder))
-    atlas = _atlas(a, a.folder, exclude=[out]).with_looks(_opts(a), log)
-    dups = None
-    if a.dedupe:  # cluster only the kept copies, so a stack of duplicates cannot pose as a style
-        from styleatlas.cluster import expand_clustering
-        from styleatlas.dataset import duplicate_keepers
-        from styleatlas.duplicates import near_duplicate_groups
-
-        dups = near_duplicate_groups(atlas.style, atlas.content)
-        kept = duplicate_keepers(atlas.paths, dups)
-        log(f"{len(atlas) - len(kept)} near-duplicates set aside before grouping")
-        result = expand_clustering(_cluster(a, atlas.subset(kept)), kept, len(atlas))
-    else:
-        result = _cluster(a, atlas)
-    folders, tags = _plan(a, atlas, result, dups)
-    csv_path, json_path = write_table(atlas, result, out, folders, tags)
-    log(f"wrote {csv_path} and {json_path}")
-    _print_groups(atlas, result, folders, tags, a.time)
-    if a.export:
-        _export(a, atlas, folders, out)
-    if not a.no_map:
-        path = write_map(
-            atlas,
-            result,
-            out / "map.html",
-            a.projection,
-            a.thumb,
-            progress=log,
-            time_source=a.time,
-            reference=_reference(a),
-        )
-        log(f"map: {path}")
-    return 0
-
-
-def _export(a: argparse.Namespace, atlas: Atlas, folders: list[str], out: Path) -> None:
-    from styleatlas.export import export_folders, parse_tags
-
-    done = export_folders(
-        atlas,
-        folders,
-        out / "folders",
-        mode=a.export,
-        trigger_captions=a.trigger_captions,
-        layout=a.layout,
-        strip_tags=parse_tags(a.strip_tags or ""),
-    )
-    log(f"{a.export}: {done.placed} images into {done.folder}")
-    for p, why in done.failed:
-        log(f"not exported {p}: {why}")
-
-
-def _plan(
-    a: argparse.Namespace, atlas: Atlas, result, dups: list[list[int]] | None
-) -> tuple[list[str], dict]:
-    from styleatlas.dataset import plan_folders, tag_summary
-
-    excluded = _web_exclusions(atlas, Path(a.folder))
-    outliers = None
-    if a.drop_outliers:  # the N most atypical among the images not already excluded
-        skip = set(excluded)
-        order = [int(i) for i in np.argsort(-outlier_scores(atlas.style))]
-        outliers = [i for i in order if i not in skip][: a.drop_outliers]
-    name = a.name or Path(a.folder).resolve().name
-    safe = "".join(ch if ch.isalnum() or ch in " -_." else "_" for ch in name).strip() or "style"
-    folders = plan_folders(
-        atlas.paths,
-        result,
-        a.layout,
-        safe,
-        a.repeats,
-        dups,
-        outliers,
-        min_size=a.min_size,
-        excluded=excluded,
-        max_per_group=a.max_per_group,
-        style=atlas.style,
-    )
-    trimmed = sum(f == "_trimmed" for f in folders)
-    if trimmed:
-        log(f"{trimmed} image(s) beyond {a.max_per_group} per group go to _trimmed")
-    return folders, tag_summary(atlas.paths, result)
-
-
-def _web_exclusions(atlas: Atlas, folder: Path) -> list[int]:
-    """Images excluded by hand (X) in the web app: they go to _excluded here too."""
-    from styleatlas.export import output_dir
-    from styleatlas.persist import RelPathMap
-
-    marks = RelPathMap(output_dir(folder) / "excluded.json", atlas, read_only=True)
-    if marks.unreadable:
-        log(f"warning: could not read {marks.path}; the web app's exclusions are NOT applied")
-    excluded = sorted(i for i, v in marks.values.items() if v is True)
-    if excluded:
-        log(f"{len(excluded)} image(s) you excluded in the web app go to _excluded")
-    return excluded
-
-
-def _timeline(atlas: Atlas, source: str) -> np.ndarray | None:
-    """Each image's position in the folder's timeline (0 oldest, 1 newest; NaN when unknown)."""
-    from styleatlas.images import file_time
-
-    times = np.array([file_time(p, source) or np.nan for p in atlas.paths], dtype=float)
-    known = ~np.isnan(times)
-    if source == "none" or known.sum() < 2:
-        return None
-    pos = np.full(len(times), np.nan)
-    order = np.argsort(times[known], kind="stable")
-    pos[np.flatnonzero(known)[order]] = np.arange(known.sum()) / (known.sum() - 1)
-    return pos
-
-
-def _when(pos: np.ndarray | None, members: list[int]) -> str:
-    if pos is None:
-        return ""
-    v = pos[members]
-    v = v[~np.isnan(v)]
-    if not len(v):
-        return ""
-    q1, med, q3 = np.percentile(v, [25, 50, 75])
-    return f"  when {med:4.0%} [{q1:.0%}-{q3:.0%}]"
-
-
-def _print_groups(
-    atlas: Atlas, result, folders: list[str], tags: dict, time_source: str = "none"
-) -> None:
-    from collections import Counter
-
-    pos = _timeline(atlas, time_source)
-    if pos is not None:
-        log("when = position in the folder's timeline (0% oldest): median [middle half]")
-    for folder, n in sorted(Counter(folders).items()):
-        members = [i for i, f in enumerate(folders) if f == folder]
-        if folder.startswith("_"):
-            log(f"  {folder:28s} {n:5d}")
-            continue
-        cid = int(result.labels[members[0]])
-        top = ", ".join(r["tag"] for r in tags.get(cid, [])[:5]) if cid >= 0 else ""
-        few = "  (few images)" if n < FEW_FOR_LORA else ""
-        look = ""
-        if atlas.looks is not None:
-            look = f"  [{describe(profile(atlas.looks, members)) or 'average look'}]"
-        log(f"  {folder:28s} {n:5d}{few}{_when(pos, members)}{look}  {top}")
-    small = [f for f, n in Counter(folders).items() if not f.startswith("_") and n < FEW_FOR_LORA]
-    if small:
-        log(
-            f"note: {len(small)} group(s) have fewer than {FEW_FOR_LORA} images; common advice is "
-            "8-15+ per style LoRA, so consider merging them (web app) or a coarser --granularity"
-        )
 
 
 def cmd_audit(a: argparse.Namespace) -> int:
@@ -596,52 +331,6 @@ def _cluster_args(p: argparse.ArgumentParser) -> None:
 
 
 Adder = Callable[..., argparse.ArgumentParser]
-FEW_FOR_LORA = 8  # style-LoRA guides suggest starting at 8-15 images (docs/LORA_GUIDE.md)
-
-
-def _lora_args(p: argparse.ArgumentParser) -> None:
-    g = p.add_argument_group("training dataset")
-    g.add_argument(
-        "--export", choices=["copy", "link"], help="also place images into style folders"
-    )
-    g.add_argument(
-        "--layout",
-        choices=["plain", "kohya"],
-        default="plain",
-        help="kohya: <repeats>_<name>_styleNN folders; set-aside folders are skipped",
-    )
-    g.add_argument("--name", help="concept name for kohya folders (default: the folder name)")
-    g.add_argument(
-        "--repeats", default="auto", help="kohya repeats per style folder, or auto (~100 per epoch)"
-    )
-    g.add_argument(
-        "--trigger-captions",
-        action="store_true",
-        help="start every exported caption with its group's trigger word (artistX_style01)",
-    )
-    g.add_argument(
-        "--dedupe",
-        action="store_true",
-        help="keep the best copy of each near-duplicate group; others go to _duplicates",
-    )
-    g.add_argument(
-        "--drop-outliers",
-        type=int,
-        default=0,
-        metavar="N",
-        help="move N least typical to _outliers",
-    )
-    g.add_argument(
-        "--strip-tags",
-        metavar="TAGS",
-        help='remove these caption tags in the exported copies, e.g. "sketch, monochrome"',
-    )
-    g.add_argument(
-        "--max-per-group",
-        type=_positive_int,
-        metavar="N",
-        help="keep at most N images per style, chosen to cover it; the rest go to _trimmed",
-    )
 
 
 def _add_folder_commands(add: Adder) -> None:

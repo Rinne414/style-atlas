@@ -186,7 +186,7 @@ def test_cached_thumbnails_are_reused_and_refreshed(tmp_path, monkeypatch):
 
 
 def test_cluster_output_places_each_group_on_the_timeline(tmp_path):
-    from styleatlas.cli import _timeline, _when
+    from styleatlas.cli_lora import _timeline, _when
 
     atlas = _atlas(tmp_path, [3, 3])
     for i, p in enumerate(atlas.paths):  # ids in the names give the order

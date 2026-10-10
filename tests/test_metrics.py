@@ -108,7 +108,7 @@ def test_neutralizer_removes_a_dominant_subject_axis():
 def test_cli_reference_uses_the_folders_neutralizer(monkeypatch, tmp_path):
     import argparse
 
-    from styleatlas import cli
+    from styleatlas import cli_common as cli
     from styleatlas.atlas import Atlas
 
     folder, content, *_ = _characters_in_styles()
