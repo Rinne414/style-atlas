@@ -83,6 +83,13 @@ def _short(path: str, root: Path) -> str:
 def cmd_outliers(a: argparse.Namespace) -> int:
     atlas = _atlas(a, a.folder)
     scores = outlier_scores(atlas.style)
+    log(
+        tr(
+            "score = how unlike its nearest neighbours each image is (0 = like the rest; "
+            "highest first)",
+            "分數 = 每張圖和最像它的幾張差多少（0 = 和其他圖一樣；由高到低）",
+        )
+    )
     for i in np.argsort(-scores)[: a.top]:
         print(f"{scores[i]:.3f}  {atlas.rel(int(i))}")
     return 0

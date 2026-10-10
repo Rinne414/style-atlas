@@ -278,16 +278,33 @@ def cmd_taste(a: argparse.Namespace) -> int:
         model = train_taste(like, dislike, encoder_signature(opts.crop, opts.resolution))
         saved = model.save(Path(a.model))
         log(
-            f"saved {saved}: {model.n_like} liked / {model.n_dislike} disliked, "
-            f"CV AUC {model.cv_auc:.3f}"
+            tr(
+                f"saved {saved}: {model.n_like} liked / {model.n_dislike} disliked, "
+                f"CV AUC {model.cv_auc:.3f} (0.5 = guessing, 1 = always right)",
+                f"已存 {saved}：喜歡 {model.n_like} 張 / 不喜歡 {model.n_dislike} 張，"
+                f"交叉驗證 AUC {model.cv_auc:.3f}（0.5 = 亂猜，1 = 全對）",
+            )
         )
         return 0
     model = TasteModel.load(Path(a.model))
     atlas = build_atlas(Path(a.folder), opts, log)
     if model.signature != atlas.signature:
-        log(f"model was trained on {model.signature}, images embedded as {atlas.signature}")
+        log(
+            tr(
+                f"model was trained on {model.signature}, images embedded as {atlas.signature}; "
+                "embed with the same settings or train again",
+                f"模型是用 {model.signature} 訓練的，這些圖卻是用 {atlas.signature} 算的；"
+                "請用相同設定，或重新訓練",
+            )
+        )
         return 1
     scores = model.score(atlas.style)
+    log(
+        tr(
+            "score = chance you like it (0-1, highest first)",
+            "分數 = 你會喜歡的機率（0-1，由高到低）",
+        )
+    )
     for i in np.argsort(-scores):
         print(f"{scores[i]:.3f}  {atlas.rel(int(i))}")
     return 0
