@@ -954,6 +954,20 @@ Batch size on the CPU (same 64 images, loading ahead): 8 / 16 / 32 images per ba
 
 ## Tried and rejected
 
+### A two-way split statistic for mixes (2026-10-10)
+
+Could a folder's best split into two say "two artists" better than its spread? Statistic: k-means
+k=2 on whitened vectors, distance between the two centres over the mean distance of images to
+their own centre. Folders of 20 images from the 19 unseen artists of `unseen_big`, 80 draws each,
+at the shipped verdict's false-alarm rate (6% of single artists):
+
+| Mix | Caught by the spread (AUC) | Caught by the split statistic (AUC) |
+|---|---|---|
+| 2 artists | 52% (0.86) | 11% (0.76) |
+| 3 artists | 81% (0.95) | 4% (0.70) |
+
+Single artists split cleanly too (sub-styles, periods), so the split says little. Not used.
+
 ### Negative examples in search (2026-10-10)
 
 "Like these, but not like those": 15 prolific artists, 5 works of artist A as examples and 5 of
