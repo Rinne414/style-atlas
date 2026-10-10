@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.16.0 - 2026-10-10
 
 - **Record a turn**: one button saves an 8-second video (MP4 where the browser can, else WebM) of the 3D map
   turning once, made in the browser, for sharing. It works in the shareable HTML map too.
