@@ -28,7 +28,7 @@ IMAGE_TYPES = {  # suffix -> media type; Windows' registry may lack some (.webp)
     ".avif": "image/avif",
 }
 IMAGE_SUFFIXES = set(IMAGE_TYPES)
-SKIP_DIRS = {".styleatlas", ".git", "__pycache__", "style_atlas_out"}
+SKIP_DIRS = {".styleatlas", ".git", "__pycache__", "style_atlas_out", "__MACOSX"}
 OUTPUT_SUFFIX = "_style_atlas"  # default result folders (export.output_dir) are never scanned
 
 
@@ -53,6 +53,8 @@ def find_images(
     for p in pattern:
         if p.is_symlink() or not p.is_file() or p.suffix.lower() not in IMAGE_SUFFIXES:
             continue  # a symlink in a downloaded dataset could point at any file
+        if p.name.startswith("._"):
+            continue  # macOS metadata ("AppleDouble") next to each file in zips made on a Mac
         if p.parent not in inside:
             inside[p.parent] = p.parent.resolve().is_relative_to(real_root)
         if not inside[p.parent]:

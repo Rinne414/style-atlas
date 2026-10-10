@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Folders unzipped from a Mac no longer report their `__MACOSX` folder and `._name.png`
+  metadata files as unreadable images.
 - **Command output in Chinese.** On a Chinese Windows (or a `zh` locale) the main messages of
   `cluster`, `sort`, `report` and the embedding progress are in Traditional Chinese, with the
   look words the web page uses ("偏亮、線條多"); `STYLE_ATLAS_LANG=en` or `zh` chooses. More

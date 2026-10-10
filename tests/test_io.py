@@ -320,3 +320,11 @@ def test_jfif_files_are_found_and_served_as_jpeg(tmp_path):
     assert [p.name for p in find_images(tmp_path)] == ["from_x.jfif"]
     assert load_rgb(tmp_path / "from_x.jfif").size == (32, 32)
     assert IMAGE_TYPES[".jfif"] == "image/jpeg" and IMAGE_TYPES[".webp"] == "image/webp"
+
+
+def test_mac_zip_leftovers_are_not_images(tmp_path):
+    Image.new("RGB", (8, 8)).save(tmp_path / "a.png")
+    (tmp_path / "._a.png").write_bytes(b"\x00\x05\x16\x07 AppleDouble")
+    (tmp_path / "__MACOSX").mkdir()
+    (tmp_path / "__MACOSX" / "._a.png").write_bytes(b"\x00\x05\x16\x07")
+    assert [p.name for p in find_images(tmp_path)] == ["a.png"]
