@@ -68,8 +68,8 @@ function folderList(folders) {  // which sub-folder (an artist, a style) the que
   const box = document.createElement("div"); box.className = "meta near";
   folders.forEach((f, k) => {
     const a = document.createElement("a"); a.href = "#";
-    a.textContent = `${f.folder} (${f.size})`;
-    a.title = `${t("folderTip")} · ${f.score.toFixed(3)}`;
+    a.textContent = `${f.folder} ${f.score.toFixed(2)} (${f.size})`;
+    a.title = t("folderTip");
     a.addEventListener("click", (e) => {
       e.preventDefault();
       filter = ""; searchHits = null; tagOnly = null; folderFilter = f.folder; $("find").value = f.folder + "/";
@@ -119,7 +119,7 @@ function copyButton(hits) {  // gather the results into a folder, e.g. to grow a
     copy.disabled = true;
     try {
       const r = await post("api/copy_hits", JSON.stringify({ items: hits.map((x) => x.i) }), "application/json");
-      setStatus(t("exported").replace("{n}", r.placed).replace("{f}", r.folder)); addOpenFolder();
+      setStatus(t("copiedHits").replace("{n}", r.placed).replace("{f}", r.folder)); addOpenFolder();
     } catch (e) { setStatus(String(e.message || e)); }
     copy.disabled = false;
   });

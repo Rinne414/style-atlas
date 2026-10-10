@@ -78,7 +78,7 @@ Clearer output (from three first-time-user tests: English, Chinese, and searchin
   comparison opens with its verdict and says how many images each strip shows; the export
   message says how many images go to training and names the groups that fell under 3 images
   after duplicates and exclusions; the duplicates tab says that the export keeps one per group
-  by itself.
+  by itself; an image search shows each sub-folder's score next to its name.
 - Each style group says which sub-folders its images come from ("來自：dayama 9"), in the report
   and on the web map, when the folder has several: a gallery sorted by artist shows which group
   is which artist.
