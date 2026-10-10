@@ -132,7 +132,7 @@ async function toggleExclude(i) {
 }
 
 function groupSelect(title, current, withUnassigned, onPick) {
-  const sel = document.createElement("select");
+  const sel = document.createElement("select"); sel.name = "group"; sel.setAttribute("aria-label", title);
   sel.style.cssText = "background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:5px 8px;font:inherit;font-size:12px;max-width:170px";
   const head = document.createElement("option"); head.value = ""; head.textContent = title; sel.append(head);
   const ids = DATA.clusters.map((c) => c.id).concat(withUnassigned ? [-1] : []);
@@ -343,6 +343,10 @@ function liveText() {
   $("gran").value = cur && cur !== "custom" ? cur : initial;
   $("periods").title = t("periods");
   showPeriods($("gran").value === "period");
+  const tips = { pickBtn: "tipSearch", gran: "tipGran", thr: "tipThr", regroup: "tipRegroup", undo: "tipUndo",
+    expLayout: "tipLayout", expName: "tipName", expTrigWrap: "tipTrig", export: "tipExport",
+    saveMap: "tipSaveMap", neutralWrap: "tipNeutral" };
+  Object.entries(tips).forEach(([id, key]) => { $(id).title = t(key); });
 }
 
 // "period" asks for a number of periods instead of a distance cut.

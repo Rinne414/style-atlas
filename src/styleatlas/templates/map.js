@@ -28,6 +28,17 @@ const T = {
     exclude: "Exclude from export (X)", included: "Excluded - undo (X)",
     excludedList: "Excluded by you ({n}) - exported to _excluded",
     compareWith: "Compare with…", compareTitle: "{a} compared with {b}",
+    tipSearch: "Pick one or more images (or drop them on the map) to find this style in the folder",
+    tipGran: "How finely to split: auto picks a cut from the images; period splits one artist into N parts",
+    tipThr: "The cut used by Regroup: lower = more, smaller groups",
+    tipRegroup: "Group again with the setting on the left (Undo goes back)", tipUndo: "Undo the last edit or regroup (Ctrl+Z)",
+    tipLayout: "Export as plain folders, or as kohya folders (10_name_style01) with dataset_config.toml",
+    tipName: "Name used in the exported folders and trigger words", tipTrig: "Start every exported caption with its group's trigger word",
+    tipExport: "Copy the groups into a new folder next to this one (your files are never moved)",
+    tipSaveMap: "Save this map as one HTML file you can send to anyone",
+    tipNeutral: "When the same characters appear in many styles: compare styles as if all were the same character",
+    tipMode: "Show thumbnails or coloured dots", tipNames: "Show or hide the group names on the map",
+    tipHome: "Back to the whole map (Esc)", tipLayoutSel: "Arrange by style similarity, or by measures on three axes",
     checkTitle: "Dataset check", minSide: "short side < {n} px", checkRun: "Check", checking: "checking…",
     checkClean: "No problems found.", checkAll: "all {n} images", outliersTitle: "Least like the rest",
     chk_smaller_than_min_side: "Short side under {n} px", chk_extreme_aspect_ratio: "Extreme aspect ratio",
@@ -85,6 +96,17 @@ const T = {
     exclude: "匯出時排除 (X)", included: "已排除，取消 (X)",
     excludedList: "你排除的圖（{n}）：匯出時放到 _excluded",
     compareWith: "和…比較", compareTitle: "{a} 和 {b} 比較",
+    tipSearch: "選一張或幾張圖（也可以直接拖到地圖上），在這個資料夾裡找同樣畫風的圖",
+    tipGran: "分得多細：自動會依圖片決定；時期會把同一位畫師分成幾段",
+    tipThr: "重新分群用的門檻：越小，群越多、越小",
+    tipRegroup: "用左邊的設定重新分群（可以按復原回去）", tipUndo: "復原上一個修改或分群（Ctrl+Z）",
+    tipLayout: "匯出成一般資料夾，或 kohya 格式（10_名稱_style01）並附 dataset_config.toml",
+    tipName: "匯出的資料夾名稱和觸發詞會用這個名字", tipTrig: "匯出的每個標註開頭加上該群的觸發詞",
+    tipExport: "把各群複製到這個資料夾旁邊的新資料夾（原始檔案不會被移動）",
+    tipSaveMap: "把這張地圖存成單一 HTML 檔，可以直接傳給別人",
+    tipNeutral: "同樣的角色出現在很多畫風時勾選：比較畫風時當作都是同一個角色",
+    tipMode: "切換縮圖或圓點", tipNames: "顯示或隱藏地圖上的群名",
+    tipHome: "回到整張地圖（Esc）", tipLayoutSel: "依畫風相似排列，或依三個量化軸排列",
     checkTitle: "資料集檢查", minSide: "短邊 < {n} px", checkRun: "開始檢查", checking: "檢查中…",
     checkClean: "沒有發現問題。", checkAll: "全部 {n} 張", outliersTitle: "最不合群的圖",
     chk_smaller_than_min_side: "短邊小於 {n} px", chk_extreme_aspect_ratio: "長寬比極端",
@@ -474,7 +496,7 @@ function buildClusters() {
             const bar = document.createElement("div"); bar.style.cssText = "grid-column:1/-1;margin-bottom:4px";
             bar.append(groupSelect(t("mergeInto"), c.id, false, (into) => editPost("api/merge", { from: c.id, into })));
             if (DATA.clusters.length >= 2) bar.append(groupSelect(t("compareWith"), c.id, false, (other) => showCompare(c.id, other)));
-            const nameBox = document.createElement("input");
+            const nameBox = document.createElement("input"); nameBox.name = "groupName"; nameBox.setAttribute("aria-label", t("nameGroup"));
             nameBox.placeholder = t("nameGroup"); nameBox.value = (DATA.live.names || {})[String(c.id)] || "";
             nameBox.style.cssText = "margin-left:6px;width:120px;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:5px 8px;font:inherit;font-size:12px";
             nameBox.addEventListener("click", (e) => e.stopPropagation());
@@ -506,7 +528,7 @@ let CHECK = null;  // the last dataset check (live app only)
 function checkSection() {
   const box = document.createElement("div");
   const h = document.createElement("h3"); h.textContent = t("checkTitle");
-  const side = document.createElement("select");
+  const side = document.createElement("select"); side.name = "minSide"; side.setAttribute("aria-label", t("checkTitle"));
   [512, 768, 1024].forEach((n) => {
     const o = document.createElement("option"); o.value = String(n); o.textContent = t("minSide").replace("{n}", n); side.append(o);
   });
@@ -593,6 +615,8 @@ function applyText() {
   $("find").placeholder = t("find");
   $("mode").textContent = mode === "thumbs" ? t("dots") : t("thumbs");
   $("spin").textContent = t("spin"); $("home").textContent = t("home"); $("names").textContent = t("names");
+  $("mode").title = t("tipMode"); $("names").title = t("tipNames"); $("home").title = t("tipHome");
+  $("layoutSel").title = t("tipLayoutSel");
   $("lang").textContent = lang === "zh" ? "EN" : "中";
   $("helpBtn").title = t("keys");
   if (!$("help").hidden) showHelp(true);

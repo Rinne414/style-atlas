@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Every control in the web app has a one-line tooltip (Chinese and English), and the form fields
+  made on the fly carry names and labels.
 - **Check tab** in the web app (the Outliers tab, renamed): "Check" runs the dataset audit of
   `audit` and lists small, extreme, animated and truncated images, missing or empty captions and
   greyscale images in a colour set, with thumbnails to exclude (X). With this, the whole LoRA
