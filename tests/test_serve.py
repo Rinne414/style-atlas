@@ -643,6 +643,14 @@ def test_two_groups_compared(server, tmp_path):
     assert set(got["look"]) == set(LOOK_NAMES)
     with pytest.raises(ValueError):
         app.compare({"a": a, "b": a})
+    picked = [int(i) for i in np.flatnonzero(labels == a)[:4]]  # images picked on the map
+    mine = app.compare({"items": picked, "b": b})
+    assert mine["sizes"] == [4, 10] and mine["verdict"] == "clearly different"
+    same = app.compare({"items": picked, "b": a})  # part of the same group: no real difference
+    assert same["distance"] < mine["distance"]
+    for bad in ({"items": picked[:1], "b": b}, {"items": [], "b": b}):
+        with pytest.raises(ValueError):
+            app.compare(bad)
     port, _ = server
     hdr = {"X-Style-Atlas": "1", "Content-Type": "application/json"}
     status, data = request(port, "POST", "/api/compare", json.dumps({"a": 0, "b": 1}), hdr)

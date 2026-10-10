@@ -511,14 +511,20 @@ class StyleAtlasApp(GroupEdits):
 
     def compare(self, body: dict) -> dict:
         """Two groups side by side, as `style-atlas compare`: centroid distance, its z and verdict
-        on the default scale, a permutation p-value, and how group b looks next to group a."""
+        on the default scale, a permutation p-value, and how group b looks next to group a.
+        "items" (images picked on the map) can stand in for group a."""
         with self._lock:
-            a = self._group(body.get("a"), allow_unassigned=False)
             b = self._group(body.get("b"), allow_unassigned=False)
-            if a == b:
-                raise ValueError("pick two different groups")
-            ma = list(self.clustering.clusters[a].members)
             mb = list(self.clustering.clusters[b].members)
+            if "items" in body:
+                ma = self._indices({"items": body.get("items")})
+                if len(ma) < 2:
+                    raise ValueError("pick at least 2 images to compare")
+            else:
+                a = self._group(body.get("a"), allow_unassigned=False)
+                if a == b:
+                    raise ValueError("pick two different groups")
+                ma = list(self.clustering.clusters[a].members)
             x, looks = self.atlas.style, self.atlas.looks
         dist, p = group_difference(x[ma], x[mb], rounds=COMPARE_ROUNDS)
         scale = StyleScale()

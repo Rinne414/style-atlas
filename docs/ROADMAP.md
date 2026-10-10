@@ -89,7 +89,7 @@ All of these are in `docs/BENCHMARKS.md`.
 - **From the v0.24 product critique, not done yet**:
   - Negative examples in search ("not like this"). Search inside a caption tag is done (0.26).
   - Caption checks against the image, for example `monochrome` on a colourful picture.
-  - Comparing any two selections on the map, not only two named groups.
+  - Comparing two free selections (a selection against a group is done, 0.27).
   - An aspect-ratio bucket report as the trainer will see it.
   - A one-page report for a folder (consistency, looks, nearest artists, originality).
   - Rejected: hiding the taste model. Quantifying taste is one of the owner's goals.

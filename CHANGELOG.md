@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- **Compare a selection with a group.** Images picked on the map (Shift+click or Shift+drag)
+  can be compared with any group from the selection bar: style distance, z, p-value and how
+  they look different.
+
 ## 0.26.0 - 2026-10-10
 
 - **Search inside a caption tag.** With `#tag` in the filter box, a search by image only looks at
