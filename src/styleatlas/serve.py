@@ -149,6 +149,8 @@ class StyleAtlasApp(GroupEdits):
         saved = load_groups(self._groups_path, atlas)
         if saved and saved.space is not None:
             space = saved.space  # the switch as it was left in the page
+        if saved:  # group as the page last did (e.g. by artist), then put the saved labels on
+            self.settings = {**self.settings, **saved.settings}
         self._apply_space(space)
         self.restored = saved is not None
         if saved:

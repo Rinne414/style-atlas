@@ -172,6 +172,7 @@ def test_the_web_app_can_group_by_artist_and_keeps_it_after_a_restart(tmp_path):
     assert app.clustering.method == "artists" and app.settings["method"] == "artists"
     again = StyleAtlasApp(atlas, EncodeOptions(device="cpu"), "pca")
     assert again.settings["method"] == "artists"  # the page selects "by artist" again
+    assert again.clustering.method == "artists" and again._edit_vectors is again.raw.style
     assert (again.clustering.labels == app.clustering.labels).all()
     with pytest.raises(ValueError):
         app.regroup({"method": "spectral"})

@@ -10,7 +10,14 @@ from pathlib import Path
 import numpy as np
 
 from styleatlas.atlas import Atlas
-from styleatlas.cluster import UNASSIGNED, Clustering, edit_groups, fit_to_groups, split_group
+from styleatlas.cluster import (
+    ARTISTS,
+    UNASSIGNED,
+    Clustering,
+    edit_groups,
+    fit_to_groups,
+    split_group,
+)
 from styleatlas.dataset import clean_group_name
 from styleatlas.groupfile import GROUPS_FILE, SavedGroups, carry_names, save_groups
 from styleatlas.metrics import StyleSpace
@@ -50,6 +57,12 @@ class GroupEdits:
         if not 0 <= value < self.clustering.n_clusters:
             raise ValueError("no such group")
         return value
+
+    @property
+    def _edit_vectors(self):
+        """The vectors hand edits recompute medoids and spreads in: those the groups were made
+        in (plain CSD for the by-artist grouping, else the current space)."""
+        return self.raw.style if self.clustering.method == ARTISTS else self.atlas.style
 
     def _check_revision(self, body: dict) -> None:
         """Group ids change after every edit; refuse an edit made on an outdated page."""
@@ -109,7 +122,7 @@ class GroupEdits:
     def _restore(self, saved: SavedGroups) -> None:
         """Saved groups (new images start unassigned), with their names."""
         moves = dict(enumerate(saved.labels.tolist()))
-        self.clustering = edit_groups(self.atlas.style, self.clustering, moves)
+        self.clustering = edit_groups(self._edit_vectors, self.clustering, moves)
         self.settings = {**self.settings, **saved.settings, "edited": True}
         self.group_names = carry_names(saved.labels, self.clustering.labels, saved.names)
 
@@ -121,7 +134,7 @@ class GroupEdits:
             self._check_revision(body)
             target = self._group(body.get("to"), allow_unassigned=True)
             moves = dict.fromkeys(items, target)
-            return self._edited(edit_groups(self.atlas.style, self.clustering, moves))
+            return self._edited(edit_groups(self._edit_vectors, self.clustering, moves))
 
     def place_unassigned(self, body: dict) -> dict:
         """Hand edit, as one undo step: each unassigned image (not excluded) that fits its
@@ -141,7 +154,7 @@ class GroupEdits:
             moves = {i: f.group for i, f in zip(rows, fits, strict=False) if f.fits}
             if not moves:
                 return {"moved": 0, "left": len(rows), "revision": self.revision}
-            done = self._edited(edit_groups(self.atlas.style, self.clustering, moves))
+            done = self._edited(edit_groups(self._edit_vectors, self.clustering, moves))
             return {**done, "moved": len(moves), "left": len(rows) - len(moves)}
 
     def merge(self, body: dict) -> dict:
@@ -154,7 +167,7 @@ class GroupEdits:
                 raise ValueError("pick two different groups")
             members = self.clustering.clusters[source].members
             moves = {m: target for m in members}
-            return self._edited(edit_groups(self.atlas.style, self.clustering, moves), target)
+            return self._edited(edit_groups(self._edit_vectors, self.clustering, moves), target)
 
     def rename(self, body: dict) -> dict:
         """Name a group for export (an empty name removes it). Names follow their images
@@ -187,7 +200,7 @@ class GroupEdits:
             group = self._group(body.get("group"), allow_unassigned=False)
             if self.clustering.clusters[group].size > MAX_SPLIT:
                 raise ValueError("group too large to split here; regroup into smaller groups")
-            return self._edited(split_group(self.atlas.style, self.clustering, group))
+            return self._edited(split_group(self._edit_vectors, self.clustering, group))
 
     def _indices(self, body: dict) -> list[int]:
         """The images an edit applies to: "items" (a list of indices) or the single "i"."""

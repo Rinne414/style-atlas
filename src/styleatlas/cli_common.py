@@ -164,10 +164,10 @@ def saved_groups(
 
 
 def _cluster_by_artist(a: argparse.Namespace, atlas: Atlas) -> Clustering:
-    if _space(a) != PLAIN or a.threshold is not None or a.k:
+    if _space(a) != PLAIN or a.threshold is not None or a.k or a.method != "agglomerative":
         raise ValueError(
             "--granularity artists takes plain style vectors and its own cut: leave out "
-            "--neutralize, --ignore-characters, --threshold and --k"
+            "--neutralize, --ignore-characters, --threshold, --k and --method"
         )
     result = cluster_by_artist(atlas.style, min_size=a.min_size)
     how = f"by artist: whitened, cut {ARTISTS_CUT}"

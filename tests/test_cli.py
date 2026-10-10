@@ -416,3 +416,5 @@ def test_cluster_by_artist_and_its_refused_combinations(lib, tmp_path, capsys):
     assert "by artist: whitened, cut 0.9" in capsys.readouterr().err
     assert main([*base, "--granularity", "artists", "--neutralize", "1"]) == 1
     assert "takes plain style vectors" in capsys.readouterr().err
+    assert main([*base, "--granularity", "artists", "--method", "hdbscan"]) == 1
+    assert "--method" in capsys.readouterr().err

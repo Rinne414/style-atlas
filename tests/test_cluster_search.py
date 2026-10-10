@@ -386,3 +386,11 @@ def test_grouping_by_artist_runs_in_the_whitened_space_and_reports_in_plain():
             x[c.members].mean(axis=0) / np.linalg.norm(x[c.members].mean(axis=0))
         )
         assert c.medoid == c.members[int(np.argmin(d))]
+
+
+def test_grouping_by_artist_with_nothing_left_after_min_size():
+    from styleatlas.cluster import cluster_by_artist
+
+    x, _ = make_blobs([3, 3])
+    result = cluster_by_artist(x, min_size=10)
+    assert result.n_clusters == 0 and (result.labels == -1).all()
