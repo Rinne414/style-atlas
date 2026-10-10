@@ -176,7 +176,7 @@ style-atlas taste score "D:\new_batch" --model "D:\my_taste.npz"
 ### 網頁介面與 3D 地圖
 
 - 縮圖浮在 3D 空間中，外框顏色代表畫風群，群名浮在每群中央（右上角「群名」可關掉；最多顯示最大的 16 群）。可以拖曳旋轉、滾輪縮放，`+` / `-` 調整縮圖大小。按 `?`（或右上角的 ? 按鈕）會列出所有快捷鍵。
-- 右上角「錄一圈」會把地圖轉一圈錄成 8 秒的影片（WebM），可以直接分享。
+- 右上角「錄一圈」會把地圖轉一圈錄成 8 秒的影片（Chrome／Edge 是 MP4，Firefox 是 WebM），可以直接分享。
 - 點右側的畫風群，鏡頭會飛過去並列出成員。點地圖上任一張圖，會列出最接近的 12 張。
 - 「檢查」分頁：按「開始檢查」會列出太小的圖、極端長寬比、混在彩色圖裡的黑白圖、沒有標註或標註是空的圖、動圖（和 `audit` 指令相同，不用打指令）；下面是最不合群的圖。「重複」分頁列出近重複圖組。
 - 右上角可以把「版面」從「畫風相似」切到「量化軸」。切換後，三個軸可以各自選一種指標，縮圖會移動到對應位置。可選的指標有：
@@ -294,7 +294,7 @@ how a picture is drawn rather than what it shows. On top of those vectors it can
 - **Explore a 3D style map** (`map`, or "Save shareable map" in the web app): one HTML file you
   can send to anyone. Group names float at each group's centre ("Names" hides them), and groups
   show their characteristic caption tags. "Record a turn" saves an 8-second video of the map
-  turning once (WebM), for sharing.
+  turning once (MP4 in Chrome and Edge, WebM in Firefox), for sharing.
 - **Check a dataset** (`audit`, `duplicates`, or the web app's Check tab): sizes, aspect ratios,
   captions, near-duplicates, greyscale images mixed into a colour set.
 - **Fix groups by hand** in the web app: "Find more like this" lists the images outside a group

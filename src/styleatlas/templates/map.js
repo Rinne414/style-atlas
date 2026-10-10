@@ -7,7 +7,7 @@ const N = PTS.length;
 const T = {
   en: { images: "images", clusters: "Styles", selected: "Selected", outliers: "Check",
     find: "filter by file name", thumbs: "Thumbnails", dots: "Dots", spin: "Rotate", home: "Reset", names: "Names", rec: "Record a turn", recording: "recording {s}s",
-    recNo: "This browser cannot record video", tipRec: "Record one turn of the map as a video to share (WebM)",
+    recNo: "This browser cannot record video", tipRec: "Record one turn of the map as a video to share (MP4, or WebM)",
     unassigned: "Unassigned", style: "Style", size: "images", cohesion: "spread",
     pick: "Click an image in the map to see its closest styles.", nearest: "Closest styles",
     members: "Members", cluster: "style", outlierHelp: "Images least like the rest of the set (candidates to drop from a LoRA dataset).",
@@ -76,7 +76,7 @@ const T = {
     tasteTop: "Most likely to like (unrated)", tasteBottom: "Least likely (unrated)", fine: "fine", medium: "medium", coarse: "coarse", auto: "auto (picked from the images)", foot: "Style vectors: CSD ViT-L (Somepalli et al. 2024, CC-BY-4.0). Map layout is for viewing only; groups are computed in the full space." },
   zh: { images: "張圖", clusters: "畫風群", selected: "選取", outliers: "檢查",
     find: "以檔名篩選", thumbs: "縮圖", dots: "圓點", spin: "旋轉", home: "重置", names: "群名", rec: "錄一圈", recording: "錄影中 {s} 秒",
-    recNo: "這個瀏覽器不支援錄影", tipRec: "把地圖轉一圈錄成影片（WebM），可以直接分享",
+    recNo: "這個瀏覽器不支援錄影", tipRec: "把地圖轉一圈錄成影片（MP4 或 WebM），可以直接分享",
     unassigned: "未歸類", style: "畫風", size: "張", cohesion: "分散度",
     pick: "在地圖上點一張圖，看最接近的畫風。", nearest: "最接近的畫風", members: "成員",
     cluster: "畫風群", outlierHelp: "和整組最不像的圖（訓 LoRA 前可考慮剔除）。",
@@ -842,7 +842,9 @@ let recordingNow = false;
 
 function recorderType() {
   if (!canvas.captureStream || typeof MediaRecorder === "undefined") return null;
-  return ["video/webm;codecs=vp9", "video/webm", "video/mp4"].find((m) => MediaRecorder.isTypeSupported(m)) || null;
+  // MP4 first: social apps take it more readily than WebM (Firefox only records WebM)
+  const types = ["video/mp4;codecs=avc1", "video/mp4", "video/webm;codecs=vp9", "video/webm"];
+  return types.find((m) => MediaRecorder.isTypeSupported(m)) || null;
 }
 
 async function recordTurn() {
