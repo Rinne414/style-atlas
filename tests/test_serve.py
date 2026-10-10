@@ -453,7 +453,9 @@ def test_the_map_can_be_saved_as_one_shareable_file(tmp_path):
     app, _ = _app(tmp_path)
     app.regroup({"threshold": 0.5})
     app.rename({"group": 0, "name": "early", "rev": app.revision})
-    html = Path(app.save_map({})["file"]).read_text(encoding="utf-8")
+    saved = app.save_map({})
+    html = Path(saved["file"]).read_text(encoding="utf-8")
+    assert saved["mb"] == round(Path(saved["file"]).stat().st_size / 1e6, 1)
     assert "data:image/" in html and '"names":{"0":"early"}' in html
     assert "thumb/" not in html  # nothing points back at the local server
 

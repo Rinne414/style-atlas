@@ -59,6 +59,8 @@ New:
   kohya sd-scripts reads the pixels as stored and ignores the EXIF orientation (checked in
   its `library/utils.py`), so a phone photo trains sideways; ai-toolkit and OneTrainer turn
   it upright.
+- Shareable maps (`map`, the web app's 「存成分享用地圖」) say their file size, and above 10 MB (Discord's
+  free limit) suggest `--thumb 64`.
 - **Export preview** (web: 「預覽」 next to 開始匯出): the folders, image counts and repeats an export
   would write, the set-aside folders, small groups, trigger words and steps per epoch, without
   writing anything (`cluster` without `--export` already prints its plan).

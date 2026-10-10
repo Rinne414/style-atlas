@@ -51,6 +51,7 @@ def cmd_embed(a: argparse.Namespace) -> int:
 
 
 LARGE_MAP = 8000  # thumbnails make the single-file map ~2 KB per image
+LARGE_SHARE_MB = 10  # Discord's upload limit without Nitro
 FAMILY_CUT = 0.35  # folder means: about 11 families of 269 artists, loose (BENCHMARKS.md)
 
 
@@ -107,6 +108,22 @@ def cmd_map(a: argparse.Namespace) -> int:
             "用瀏覽器開啟（雙擊檔案）；在頁面上按 ? 看說明",
         )
     )
+    mb = path.stat().st_size / 1e6
+    log(
+        tr(
+            f"file size {mb:.1f} MB (the thumbnails are inside)",
+            f"檔案大小 {mb:.1f} MB（縮圖都在檔案裡）",
+        )
+    )
+    if mb > LARGE_SHARE_MB:
+        log(
+            tr(
+                f"over {LARGE_SHARE_MB} MB: some chat apps refuse it (Discord's free limit is "
+                "10 MB); --thumb 64 makes it smaller",
+                f"超過 {LARGE_SHARE_MB} MB：有些聊天軟體傳不了（Discord 免費帳號上限 10 MB）；"
+                "加 --thumb 64 可以變小",
+            )
+        )
     print(path)
     return 0
 

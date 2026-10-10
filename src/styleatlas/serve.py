@@ -324,7 +324,8 @@ class StyleAtlasApp(GroupEdits):
             atlas, clustering, out, title=self.title, time_source=self.time_source, layout=layout
         )
         payload["names"] = names
-        return {"file": str(write_payload(payload, out))}
+        path = write_payload(payload, out)
+        return {"file": str(path), "mb": round(path.stat().st_size / 1e6, 1)}
 
     def copy_hits(self, body: dict) -> dict:
         """Copy images ("items", e.g. search results) with their captions into a new

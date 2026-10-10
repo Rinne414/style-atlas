@@ -607,6 +607,8 @@ function setupExport() {
   });
 }
 
+const LARGE_SHARE_MB = 10;  // Discord's upload limit without Nitro
+
 function setupSaves() {  // PNG, report and shareable map under "More..."
   $("savePng").addEventListener("click", () => { snapPending = true; });
   $("saveReport").addEventListener("click", async () => {
@@ -621,7 +623,8 @@ function setupSaves() {  // PNG, report and shareable map under "More..."
     setStatus(t("savingMap"));
     try {
       const r = await post("api/save_map", "{}", "application/json");
-      setStatus(t("savedMap").replace("{f}", r.file));
+      const big = r.mb > LARGE_SHARE_MB ? " " + t("bigMap").replace("{m}", LARGE_SHARE_MB) : "";
+      setStatus(t("savedMap").replace("{f}", r.file).replace("{mb}", r.mb) + big);
       addOpenFolder();
     } catch (e) { setStatus(String(e.message || e)); }
   });
