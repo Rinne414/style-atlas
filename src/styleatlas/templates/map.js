@@ -475,7 +475,7 @@ function bucketLine(buckets) {  // kohya's aspect-ratio buckets
 function issueBlock(k, list) {  // one kind of problem: its count, and the images unless nearly all
   const sub = document.createElement("div"); sub.className = "meta";
   const many = list.length > 0.9 * N;  // e.g. a folder without any captions: say so, no grid
-  sub.textContent = `${t("chk_" + k).replace("{n}", CHECK.min_side).replace("{q}", CHECK.low_jpeg)}: ${many ? t("checkAll").replace("{n}", list.length) : list.length}`;
+  sub.textContent = `${t("chk_" + k).replace("{n}", CHECK.min_side).replace("{q}", CHECK.low_jpeg)}${lang === "zh" ? "：" : ": "}${many ? t("checkAll").replace("{n}", list.length) : list.length}`;
   if (many) return [sub];
   const pick = document.createElement("button"); pick.textContent = t("selectThese");
   pick.style.cssText = "margin:2px 0 4px";
