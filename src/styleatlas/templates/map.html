@@ -36,17 +36,25 @@
       <input id="periods" type="number" min="2" max="8" step="1" hidden>
       <button id="regroup"></button>
       <button id="undo" hidden></button>
-      <select id="expLayout"><option value="plain"></option><option value="kohya">kohya</option></select>
-      <input id="expName" type="text">
-      <input id="expMax" type="number" min="1" step="1">
-      <input id="expStrip" type="text">
-      <label id="expTrigWrap" class="chip"><input id="expTrig" type="checkbox"> <span></span></label>
-      <button id="export"></button>
+      <span class="sep"></span>
+      <button id="exportOpen"></button>
       <button id="saveMap"></button>
-      <label id="neutralWrap" class="chip"><input id="neutral" type="checkbox"> <span></span></label>
-      <input id="refPath" type="text">
-      <button id="refLoad"></button>
+      <button id="moreOpen"></button>
       <span id="status"></span>
+      <div id="exportPanel" class="panel" hidden>
+        <b id="exportTitle"></b>
+        <select id="expLayout"><option value="plain"></option><option value="kohya">kohya</option></select>
+        <input id="expName" type="text">
+        <input id="expMax" type="number" min="1" step="1">
+        <input id="expStrip" type="text">
+        <label id="expTrigWrap" class="chip"><input id="expTrig" type="checkbox"> <span></span></label>
+        <button id="export" class="primary"></button>
+      </div>
+      <div id="morePanel" class="panel" hidden>
+        <label id="neutralWrap" class="chip"><input id="neutral" type="checkbox"> <span></span></label>
+        <input id="refPath" type="text">
+        <button id="refLoad"></button>
+      </div>
     </div>
     <div id="drop"></div>
     <div id="tip"><img alt=""><div class="cap"></div></div>

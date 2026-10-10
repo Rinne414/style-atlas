@@ -107,7 +107,7 @@ function nameSprite(full, color) {
   const cv = document.createElement("canvas"); const g = cv.getContext("2d");
   const font = "600 30px system-ui, sans-serif"; g.font = font;
   cv.width = Math.ceil(g.measureText(text).width) + 24; cv.height = 46;
-  g.font = font; g.fillStyle = "rgba(12,14,18,0.72)"; g.fillRect(0, 0, cv.width, cv.height);
+  g.font = font; g.fillStyle = "rgba(12,14,18,0.86)"; g.fillRect(0, 0, cv.width, cv.height);
   g.fillStyle = color; g.fillText(text, 12, 33);
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), depthTest: false, transparent: true }));
   const h = 0.11; sp.scale.set(h * cv.width / cv.height, h, 1); sp.renderOrder = 10;

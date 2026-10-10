@@ -105,12 +105,12 @@ dataset_config.toml   ← kohya sd-scripts 的資料集設定（`--dataset_confi
 ```
 
 - 每群的 repeats 會讓「張數 × repeats」接近 100。也可以用 `--repeats 10` 固定。
-- 某群圖太多時，加 `--max-per-group 40`（網頁：匯出列的「每群上限」）只保留 40 張，會挑能涵蓋整群變化的那些（從最典型的一張開始，每次挑和已選的最不像的一張），其餘放到 `_trimmed\`。repeats 會依保留的張數重算。
+- 某群圖太多時，加 `--max-per-group 40`（網頁：「匯出資料夾…」裡的「每群最多幾張」）只保留 40 張，會挑能涵蓋整群變化的那些（從最典型的一張開始，每次挑和已選的最不像的一張），其餘放到 `_trimmed\`。repeats 會依保留的張數重算。
 - 想在同一個 LoRA 裡用不同觸發詞叫出不同畫風，可以加 `--trigger-captions`：
   - 匯出的標註開頭會自動加上該群名稱，例如 `artistX_style01, `；
   - 原始標註不會被改。
   - 完整流程見 [docs/LORA_GUIDE.md](docs/LORA_GUIDE.md)。
-- 想把描述畫風本身的標籤（例如 `sketch`、`monochrome`）從匯出的標註拿掉，讓觸發詞去學這個畫風：加 `--strip-tags "sketch, monochrome"`（網頁：匯出列的「移除標籤」）。只比對完整標籤，原本的標註不會被改。
+- 想把描述畫風本身的標籤（例如 `sketch`、`monochrome`）從匯出的標註拿掉，讓觸發詞去學這個畫風：加 `--strip-tags "sketch, monochrome"`（網頁：「匯出資料夾…」裡的「要移除的標籤」）。只比對完整標籤，原本的標註不會被改。
 
   ```bat
   style-atlas cluster "D:\lora\artistX" --layout kohya --name artistX --dedupe --drop-outliers 5 --export copy --trigger-captions
@@ -166,7 +166,7 @@ style-atlas taste train --like "D:\喜歡的圖" --dislike "D:\不喜歡的圖" 
 style-atlas taste score "D:\new_batch" --model "D:\my_taste.npz"
 ```
 
-**同樣的角色出現在很多種畫風裡**時（例如用固定角色測試不同畫師組合），請加 `--ignore-characters`，或在網頁介面勾選「忽略角色軸」。畫風特徵會被角色外觀（髮色、服裝）強烈拉走，不修正時，最接近的圖常常是「同角色、別的畫風」。
+**同樣的角色出現在很多種畫風裡**時（例如用固定角色測試不同畫師組合），請加 `--ignore-characters`，或在網頁介面的「進階…」勾選「忽略角色軸」。畫風特徵會被角色外觀（髮色、服裝）強烈拉走，不修正時，最接近的圖常常是「同角色、別的畫風」。
 - 它會自動從圖裡找出角色（不需要標註），再拿掉角色造成的差異。角色越多越有用：4 個角色時，以圖找圖找對畫風的比例是 70%，舊方法 `--neutralize 1` 是 58%。
 - 這主要改善**以圖找圖**。同一個模型、固定角色的算圖，畫風差異通常很小，自動分群多半只會得到一群；這類資料夾請以「以圖找圖」為主，或用 `--k` 直接指定群數。
 - **混了不同畫師時不要開**：那時角色差異和畫風差異分不開，分群會壞掉。
@@ -184,7 +184,7 @@ style-atlas taste score "D:\new_batch" --model "D:\my_taste.npz"
 - 「檢查」分頁：按「開始檢查」會列出太小的圖、極端長寬比、混在彩色圖裡的黑白圖、沒有標註或標註是空的圖、動圖（和 `audit` 指令相同，不用打指令）；下面是最不合群的圖。「重複」分頁列出近重複圖組。
 - 右上角可以把「版面」從「畫風相似」切到「量化軸」。切換後，三個軸可以各自選一種指標，縮圖會移動到對應位置。可選的指標有：
   - 口味分數：用網頁介面評過分之後才有。
-  - 離參考集距離（原創度）：要先指定已知畫風的資料夾（例如畫師作品或論壇配方）。在網頁左下第二排填路徑、按「載入參考」即可（第一次會嵌入裡面的圖），或啟動時加 `--reference 資料夾`。
+  - 離參考集距離（原創度）：要先指定已知畫風的資料夾（例如畫師作品或論壇配方）。在網頁的「進階…」填路徑、按「載入參考」即可（第一次會嵌入裡面的圖），或啟動時加 `--reference 資料夾`。
   - 時間。
   - 離群度。
   - 外觀量測：亮度、對比、鮮豔度、冷暖、線條量、平塗度（見下一節）。例如 X 選冷暖、Y 選線條量、Z 選鮮豔度，就能看到整個資料夾在這三個面向上怎麼分布。
@@ -196,7 +196,7 @@ style-atlas taste score "D:\new_batch" --model "D:\my_taste.npz"
   - 拖一張圖進畫面就能以圖搜尋。一次拖多張同一種畫風的圖，會當成同一種畫風一起搜尋（3 張以上時用它們訓練的小模型排序）。
   - 一次拖多張時，還會告訴你這批圖有幾張「落在這個資料夾某一群的範圍內」，例如拿 LoRA 算出來的圖檢查像不像訓練集，或新找到的圖該不該加進來。請看整批的比例：實測同一畫師沒用到的作品有 69% 落在範圍內，其他畫師只有 15%。
   - 畫風漸變：選一張圖按「畫風漸變：從這張開始」，再選另一張按「畫風漸變：到這張」，會列出在畫風上從前一張漸變到後一張的一串圖。適合找兩種畫風之間的過渡風格。
-  - 調門檻後重新分群、一鍵匯出資料夾。匯出時可以選一般資料夾或 kohya 格式、填概念名稱、勾選「標註加觸發詞」。
+  - 調門檻後重新分群。按「匯出資料夾…」會在下方打開匯出選項：一般資料夾或 kohya 格式、LoRA 名稱、每群最多幾張、要移除的標籤、「標註加觸發詞」，再按「開始匯出」。「忽略角色軸」和參考資料夾放在「進階…」裡。
   - 按「匯出時排除」（鍵盤 X）手動剔除不要的圖，清單會存檔，匯出時放到 `_excluded\`。
   - 一次處理很多張：按住 Shift 點圖（地圖或清單裡都可以），或按住 Shift 在地圖上拖一個框，選好後用上方的「全部排除」或「移到其他群…」一次完成；移動算一步，可以復原。Esc 清除選取。
   - 資料夾裡混了別的畫師的圖時：先把看到的兩三張按 X 排除，再到「檢查」分頁的排除清單按「找更多像這些的」，其餘的通常都會排在最前面（實測：3 張當範例時，前 30 名找回 98%）。
@@ -399,7 +399,7 @@ The output goes to `DIR_style_atlas/folders/`, next to the dataset and never ins
   folder and its repeats; set the resolution and batch size for your model.
 - `_duplicates/`, `_outliers/`, `_unassigned/` and `_excluded/` (images you excluded with X in
   the web app). Kohya skips these because they lack a number prefix.
-- With `--max-per-group N` (web: "max per style"), a larger style keeps N images that cover
+- With `--max-per-group N` (web: "Export folders…", "max per style"), a larger style keeps N images that cover
   it (farthest-point sampling from its most central image); the rest go to `_trimmed/`, and
   repeats follow the kept count.
 - `clusters.json`, which lists each group's characteristic caption tags.
@@ -442,7 +442,7 @@ Common options:
   originality measure, the distance from each image to its closest reference. The map's
   "measures" layout can then put taste, originality, time and atypicality on the X / Y / Z axes,
   along with the six look measures (see "Look measures" below). In the web app the reference
-  folder can also be loaded (or cleared) from the box at the bottom left.
+  folder can also be loaded (or cleared) under "More…" at the bottom.
 - `--ignore-characters` (cluster, map, serve, search): use it when the same characters appear in
   many styles. It finds the characters from the CSD content vectors (no labels needed) and moves
   each character's style vectors to a shared centre. On 16 Anima recipes x 4 characters,

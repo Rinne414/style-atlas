@@ -429,8 +429,11 @@ function checkSection() {
     sub.textContent = `${t("chk_" + k).replace("{n}", CHECK.min_side)}: ${many ? t("checkAll").replace("{n}", list.length) : list.length}`;
     box.append(sub);
     if (!many) {
+      const pick = document.createElement("button"); pick.textContent = t("selectThese");
+      pick.style.cssText = "margin:2px 0 4px";
+      pick.addEventListener("click", () => { MARKED = new Set(list); showMarks(); });  // then exclude at once
       const g = document.createElement("div"); g.className = "grid"; list.slice(0, 60).forEach((i) => g.append(thumb(i)));
-      box.append(g);
+      box.append(pick, g);
     }
   });
   return box;
@@ -497,7 +500,7 @@ function applyText() {
   $("find").placeholder = t(DATA.live ? "findLive" : "find");
   $("mode").textContent = mode === "thumbs" ? t("dots") : t("thumbs");
   $("spin").textContent = t("spin"); $("home").textContent = t("home"); $("names").textContent = t("names");
-  $("mode").title = t("tipMode"); $("names").title = t("tipNames"); $("home").title = t("tipHome");
+  $("theme").title = t("tipTheme"); $("mode").title = t("tipMode"); $("names").title = t("tipNames"); $("home").title = t("tipHome");
   if (!recordingNow) $("rec").textContent = t("rec");
   $("rec").title = t("tipRec");
   $("layoutSel").title = t("tipLayoutSel");

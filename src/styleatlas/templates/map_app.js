@@ -144,9 +144,11 @@ function showMarks() {
   const items = () => [...MARKED];
   const button = (key, fn) => { const b = document.createElement("button"); b.textContent = t(key); b.addEventListener("click", fn); return b; };
   const count = document.createElement("span"); count.textContent = t("marked").replace("{n}", MARKED.size);
-  bar.replaceChildren(count,
-    button("markExclude", () => batchExclude(items(), true)),
-    button("markInclude", () => batchExclude(items(), false)),
+  const ex = button("markExclude", () => batchExclude(items(), true));
+  const inc = button("markInclude", () => batchExclude(items(), false));
+  ex.textContent = t("markExclude").replace("{n}", MARKED.size);
+  inc.textContent = t("markInclude").replace("{n}", MARKED.size);
+  bar.replaceChildren(count, ex, inc,
     groupSelect(t("moveTo"), null, true, (to) => editPost("api/move", { items: items(), to })),
     button("markClear", () => { MARKED = new Set(); showMarks(); }));
 }
@@ -369,8 +371,23 @@ function setupReference() {
   }
 }
 
+function setupPanels() {  // export options and the advanced switches open above the bar
+  const pairs = [["exportOpen", "exportPanel"], ["moreOpen", "morePanel"]];
+  pairs.forEach(([button, panel]) => {
+    $(button).addEventListener("click", () => {
+      const open = $(panel).hidden;
+      pairs.forEach(([b, p]) => { $(p).hidden = true; $(b).classList.remove("on"); });
+      $(panel).hidden = !open; $(button).classList.toggle("on", open);
+    });
+  });
+  if ((DATA.live.space || "plain") !== "plain" || DATA.reference) {  // a switch is on: show it
+    $("morePanel").hidden = false; $("moreOpen").classList.add("on");
+  }
+}
+
 function setupLive() {
   setupUndo();
+  setupPanels();
   setupMarking();
   setupReference();
   $("neutral").checked = (DATA.live.space || "plain") !== "plain";
@@ -441,7 +458,9 @@ function setupLive() {
 function liveText() {
   if (!DATA.live) return;
   $("pickBtn").textContent = t("searchImg"); $("regroup").textContent = t("regroup");
-  $("export").textContent = t("export"); $("drop").textContent = t("drop");
+  $("export").textContent = t("exportGo"); $("exportOpen").textContent = t("exportOpen");
+  $("exportTitle").textContent = t("exportTitle"); $("moreOpen").textContent = t("moreOpen");
+  $("drop").textContent = t("drop");
   $("saveMap").textContent = t("saveMap");
   $("undo").textContent = t("undo");
   $("expLayout").options[0].textContent = t("plainFolders");
@@ -464,7 +483,7 @@ function liveText() {
   $("gran").value = cur && cur !== "custom" ? cur : initial;
   $("periods").title = t("periods");
   showPeriods($("gran").value === "period");
-  const tips = { expMax: "tipMax", expStrip: "tipStrip", pickBtn: "tipSearch", gran: "tipGran", thr: "tipThr", regroup: "tipRegroup", undo: "tipUndo",
+  const tips = { exportOpen: "tipExport", moreOpen: "tipMore", expMax: "tipMax", expStrip: "tipStrip", pickBtn: "tipSearch", gran: "tipGran", thr: "tipThr", regroup: "tipRegroup", undo: "tipUndo",
     expLayout: "tipLayout", expName: "tipName", expTrigWrap: "tipTrig", export: "tipExport",
     saveMap: "tipSaveMap", neutralWrap: "tipNeutral" };
   Object.entries(tips).forEach(([id, key]) => { $(id).title = t(key); });

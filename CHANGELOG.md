@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- **A calmer bottom bar** (a Sonnet review of screenshots at 1366x768): one row with search,
+  grouping, "Export folders…", "Save shareable map" and "More…". The export options open in a
+  panel above it, ending in "Export now"; the character-axis switch and the reference folder
+  are under "More…" (shown open when one of them is on).
+- Each finding in the Check tab has "Select these", so the images can be excluded or moved at
+  once; the selection bar now says "Exclude these N" / "Restore these N".
+- Clearer export labels ("LoRA name (folder name)", "max per style", "tags to remove"), more
+  solid group-name labels on the map, a backdrop behind the title, a tooltip on the theme button.
+
 ## 0.18.0 - 2026-10-10
 
 - Fixes from a Sonnet review of this release:
