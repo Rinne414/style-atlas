@@ -244,3 +244,17 @@ def test_a_broken_image_is_listed_as_failed_and_the_rest_keep_their_order(lib, t
     kept, style, _, failed = embed_paths(paths, opts)
     assert [p.name for p, _ in failed] == ["broken.png"] and "cannot open" in failed[0][1]
     assert kept == [p for p in paths if p.name != "broken.png"] and len(style) == len(kept)
+
+
+def test_vectors_are_saved_when_the_last_batch_fails_entirely(lib, tmp_path):
+    from styleatlas.atlas import EncodeOptions, embed_paths
+    from styleatlas.images import find_images
+
+    (lib / "zzz").mkdir()
+    (lib / "zzz" / "broken.png").write_bytes(b"not a png")
+    paths = find_images(lib)
+    assert paths[-1].name == "broken.png"
+    opts = EncodeOptions(device="cpu", batch_size=1, db_path=tmp_path / "v.sqlite")
+    kept, _, _, failed = embed_paths(paths, opts)
+    again = embed_paths(paths, opts)  # everything that worked was saved
+    assert len(kept) == len(paths) - 1 and again[0] == kept and len(again[3]) == 1

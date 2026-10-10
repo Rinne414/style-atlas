@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 from collections.abc import Callable, Iterator
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import closing
 from dataclasses import dataclass, field, replace
 from functools import partial
 from pathlib import Path
@@ -171,23 +172,24 @@ def _embed_missing(
     looks: dict[str, np.ndarray] = {}  # measured while each image is open anyway
     done = seen = 0
     load = partial(_prepare, encoder)
-    for batch, loaded in _ahead(todo, opts.batch_size, load, LOADERS):
-        ok = [(p, r) for p, r in zip(batch, loaded, strict=True) if not isinstance(r, str)]
-        failed += [(p, r) for p, r in zip(batch, loaded, strict=True) if isinstance(r, str)]
-        if ok:
-            emb = encoder.encode_prepared([inputs for _, (inputs, _) in ok])
-            for i, (p, (_, look)) in enumerate(ok):
-                pending[keys[p]] = (emb.style[i], emb.content[i])
-                looks[keys[p]] = look
-        done += len(ok)
-        seen += len(batch)
-        if len(pending) >= opts.save_every or seen == len(todo):
-            store.put(pending, encoder.signature)
-            store.put_looks(looks, LOOK_VERSION)
-            looks = {}
-            have.update(pending)
-            pending = {}
-            progress(f"embedded {done}/{len(todo)}")
+    with closing(_ahead(todo, opts.batch_size, load, LOADERS)) as batches:  # Ctrl+C stops loading
+        for batch, loaded in batches:
+            ok = [(p, r) for p, r in zip(batch, loaded, strict=True) if not isinstance(r, str)]
+            failed += [(p, r) for p, r in zip(batch, loaded, strict=True) if isinstance(r, str)]
+            if ok:
+                emb = encoder.encode_prepared([inputs for _, (inputs, _) in ok])
+                for i, (p, (_, look)) in enumerate(ok):
+                    pending[keys[p]] = (emb.style[i], emb.content[i])
+                    looks[keys[p]] = look
+            done += len(ok)
+            seen += len(batch)
+            if len(pending) >= opts.save_every or seen == len(todo):
+                store.put(pending, encoder.signature)
+                store.put_looks(looks, LOOK_VERSION)
+                looks = {}
+                have.update(pending)
+                pending = {}
+                progress(f"embedded {done}/{len(todo)}")
     return failed
 
 
@@ -202,7 +204,8 @@ def _prepare(encoder: CSDEncoder, path: Path) -> tuple[list, np.ndarray] | str:
 
 def _ahead(items: list, size: int, load: Callable, workers: int) -> Iterator[tuple[list, list]]:
     """(batch, load(x) for x in batch) in order, in batches of `size`. The next batch is loaded
-    on `workers` threads while the caller works on this one, so at most two are in memory."""
+    on `workers` threads while the caller works on this one. At most `workers` images are open
+    at full size at once (loading keeps only the small model inputs)."""
     pool = ThreadPoolExecutor(workers)
     try:
         ahead = [pool.submit(load, x) for x in items[:size]]
