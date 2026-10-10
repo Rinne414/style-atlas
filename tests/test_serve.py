@@ -422,6 +422,8 @@ def test_several_dropped_images_search_as_one_style(tmp_path, monkeypatch):
     assert got["folders"] == []  # no sub-folders to rank
     assert [c["q"] for c in got["copies"]] == [0, 1, 2]  # the examples are the folder's own
     assert all(c["i"] == c["q"] and c["score"] > 0.99 for c in got["copies"])
+    inside = app.search_set({"images": [png(0)], "only": [9, 10, 11]})["hits"]
+    assert {h["i"] for h in inside} <= {9, 10, 11} and inside  # e.g. the images with a #tag
     for bad in ({"images": []}, {"images": ["not base64!"]}, {"images": [png(0)] * 33}):
         with pytest.raises(ValueError):
             app.search_set(bad)

@@ -87,7 +87,7 @@ All of these are in `docs/BENCHMARKS.md`.
     artists.
 
 - **From the v0.24 product critique, not done yet**:
-  - Style search combined with a caption tag (`#1girl`), and negative examples.
+  - Negative examples in search ("not like this"). Search inside a caption tag is done (0.26).
   - Caption checks against the image, for example `monochrome` on a colourful picture.
   - Comparing any two selections on the map, not only two named groups.
   - An aspect-ratio bucket report as the trainer will see it.

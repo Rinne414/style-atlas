@@ -174,6 +174,7 @@ addEventListener("resize", resize);
 /* ---------- interaction ---------- */
 let focusCluster = null, selected = null, filter = "", searchHits = null;
 let folderFilter = null;  // a sub-folder picked from a search's closest folders
+let tagOnly = null;  // {tag, hits}: the images a #tag filter found; searches stay inside them
 let flyTo = null;
 
 function recolor() {
@@ -549,7 +550,7 @@ let tagTimer = null;
 $("find").addEventListener("input", (e) => {
   const text = e.target.value.trim();
   clearTimeout(tagTimer);
-  folderFilter = null;
+  folderFilter = null; tagOnly = null;
   if (DATA.live && text.startsWith("#")) {  // a caption tag: the server reads the captions
     filter = "";
     if (text.length < 2) { searchHits = null; recolor(); return; }
@@ -563,7 +564,7 @@ async function findTag(tag) {
   try {
     const r = await post("api/tagged", JSON.stringify({ tag }), "application/json");
     if ($("find").value.trim() !== "#" + tag) return;  // the box changed while the captions were read
-    selected = null; searchHits = new Set(r.hits); recolor();
+    selected = null; searchHits = new Set(r.hits); recolor(); tagOnly = { tag, hits: r.hits };
     setStatus(t("tagHits").replace("{n}", r.hits.length).replace("{t}", tag));
   } catch (e) { setStatus(String(e.message || e)); }
 }
@@ -577,7 +578,7 @@ $("spin").addEventListener("click", () => {
   controls.autoRotate = !controls.autoRotate; $("spin").classList.toggle("on", controls.autoRotate);
 });
 $("home").addEventListener("click", () => {
-  focusCluster = null; selected = null; searchHits = null; filter = ""; folderFilter = null;
+  focusCluster = null; selected = null; searchHits = null; filter = ""; folderFilter = null; tagOnly = null;
   $("find").value = ""; recolor();
   flyTo = { target: new THREE.Vector3(), cam: homeView(), k: 0 };
   document.querySelectorAll(".cl").forEach((r) => r.classList.remove("on"));

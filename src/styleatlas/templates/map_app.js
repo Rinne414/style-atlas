@@ -37,10 +37,12 @@ async function searchFiles(fileList) {
   if (!files.length) return;
   setStatus(t("searching"));
   try {
-    const r = files.length === 1
+    const within = tagOnly && tagOnly.hits.length ? tagOnly : null;  // a #tag filter is on
+    const r = files.length === 1 && !within
       ? await post("api/search", files[0], files[0].type)  // {hits}: one image is no batch
-      : await post("api/search_set", JSON.stringify({ images: await Promise.all(files.map(toBase64)) }), "application/json");
-    setStatus("");
+      : await post("api/search_set", JSON.stringify({ images: await Promise.all(files.map(toBase64)),
+        ...(within ? { only: within.hits } : {}) }), "application/json");
+    setStatus(within ? t("withinTag").replace("{t}", within.tag).replace("{n}", within.hits.length) : "");
     showSearch(files, r.hits, r.fit, r.folders, r.copies, r.folded);
   } catch (e) { setStatus(String(e.message || e)); }
 }
@@ -67,7 +69,7 @@ function folderList(folders) {  // which sub-folder (an artist, a style) the que
     a.title = `${t("folderTip")} · ${f.score.toFixed(3)}`;
     a.addEventListener("click", (e) => {
       e.preventDefault();
-      filter = ""; searchHits = null; folderFilter = f.folder; $("find").value = f.folder + "/";
+      filter = ""; searchHits = null; tagOnly = null; folderFilter = f.folder; $("find").value = f.folder + "/";
       recolor(); focusOn([f.best]);
     });
     box.append(...(k ? [" · "] : []), a);

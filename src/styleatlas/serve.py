@@ -397,7 +397,8 @@ class StyleAtlasApp(GroupEdits):
         return out
 
     def search_set(self, body: dict) -> dict:
-        """Several dropped images searched as one style (as `search --combine`)."""
+        """Several dropped images searched as one style (as `search --combine`); with "only"
+        (image indices, e.g. those with a caption tag) the other images are left out."""
         images = body.get("images")
         if (
             not isinstance(images, list)
@@ -406,7 +407,11 @@ class StyleAtlasApp(GroupEdits):
         ):
             raise ValueError(f"images must be a list of 1 to {MAX_QUERY_IMAGES} base64 strings")
         query, raw = self._embed([base64.b64decode(s, validate=True) for s in images])
-        found = search(query, self.atlas.style, top=2 * SEARCH_TOP, combine=True)[0]
+        only = body.get("only")
+        skip = None
+        if only is not None:
+            skip = set(range(len(self.atlas))) - set(self._indices({"items": only}))
+        found = search(query, self.atlas.style, top=2 * SEARCH_TOP, combine=True, exclude=skip)[0]
         hits, folded = fold_hits(found, self.raw.style, self.raw.content, SEARCH_TOP)
         return {
             "hits": [{"i": h.index, "cos": round(h.cosine, 4)} for h in hits],

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Search inside a caption tag.** With `#tag` in the filter box, a search by image only looks at
+  the images whose captions have that tag (for example `#solo`); clearing the box searches all.
 - After a kohya-layout export, the web page and `cluster` say how many steps one epoch takes at
   batch size 1 (images x repeats over the style folders).
 - Larger axis names in the measures layout, starting at the end of each axis; the tool row
