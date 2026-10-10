@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.14.0 - 2026-10-10
 
 - **`--ignore-characters`** (cluster, map, serve, search): finds the characters from the CSD
   content vectors and compares styles as if all were drawn on the same character. On 16 Anima
