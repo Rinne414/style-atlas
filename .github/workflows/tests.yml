@@ -1,20 +1,21 @@
 name: tests
 
+# Pushes to main run one quick job. The full matrix (the oldest supported Python, the main one,
+# and Windows, where the friends are; Windows jobs bill at twice the minutes) runs on pull
+# requests, release tags and by hand before a release: gh workflow run tests.yml --ref main
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   pull_request:
+  workflow_dispatch:
 
 jobs:
   test:
     strategy:
       fail-fast: false
       matrix:
-        include:  # the oldest supported Python, the main one, and Windows (where the friends are)
-          - { os: ubuntu-latest, python: "3.10" }
-          - { os: ubuntu-latest, python: "3.12" }
-          - { os: windows-latest, python: "3.13" }
-          - { os: windows-latest, python: "3.14" }  # what python.org offers first now
+        include: ${{ fromJSON(github.event_name == 'push' && github.ref_type == 'branch' && '[{"os":"ubuntu-latest","python":"3.12"}]' || '[{"os":"ubuntu-latest","python":"3.10"},{"os":"ubuntu-latest","python":"3.12"},{"os":"windows-latest","python":"3.13"},{"os":"windows-latest","python":"3.14"}]') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     steps:

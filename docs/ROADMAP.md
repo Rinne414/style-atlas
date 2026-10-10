@@ -30,6 +30,13 @@
    but no embedding has run on the GPU: the machine has hard-reset under load before, so a short
    GPU test (speed, fp16) waits for the owner's go-ahead.
 
+8. **GitHub Actions billing.** Since 2026-10-10 CI jobs do not start: GitHub reports failed
+   payments or a spending limit that needs raising (private repositories have a monthly quota of
+   Actions minutes, and Windows minutes count twice). Until the owner sorts this out, changes are
+   checked with the local test run only and no new release is tagged (0.44.0 waits in the
+   changelog). The workflow now runs one quick Linux job per push and the full matrix only for
+   pull requests, tags and by hand, to use fewer minutes.
+
 ## Known limits, measured
 
 All of these are in `docs/BENCHMARKS.md`.
