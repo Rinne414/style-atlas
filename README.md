@@ -9,7 +9,7 @@ Measure, cluster, search and map illustration art styles, entirely on your machi
 
 ## 繁體中文
 
-style-atlas 會用 CSD 風格嵌入模型，把每張圖轉成一個「畫風向量」。這個模型學的是「怎麼畫」，不是「畫了什麼」。有了這些向量，可以做下面幾件事：
+style-atlas 會看每張圖「怎麼畫」（不是畫了什麼），自動把畫風相近的圖分在一起。它用 CSD 這個畫風辨識模型，把每張圖轉成一組「畫風特徵」，再拿這些特徵做下面幾件事：
 
 | 你想做的事 | 怎麼做 |
 |---|---|
@@ -29,7 +29,9 @@ style-atlas 會用 CSD 風格嵌入模型，把每張圖轉成一個「畫風向
 
 1. 安裝 [Python 3.10 以上](https://www.python.org/downloads/)，安裝時勾選「Add python.exe to PATH」。
 2. 下載本專案：登入 GitHub 後，在專案頁面按 **Code → Download ZIP** 再解壓縮（本專案目前是私人專案，要先請作者給你存取權），會用 git 的話也可以 `git clone`。然後雙擊 `scripts\setup.bat`。它會在專案資料夾裡建立 `.venv`，偵測到 NVIDIA 顯卡就裝 CUDA 版的 torch（下載約 2.5 GB），沒有就裝 CPU 版（約 200 MB），再安裝本工具。
-3. 把圖片資料夾**拖到 `scripts\StyleAtlas.bat` 上**，瀏覽器會打開網頁介面。
+3. 把圖片資料夾**拖到 `scripts\StyleAtlas.bat` 上**，瀏覽器會打開網頁介面。第一次會先下載 2.4 GB 的模型，黑色視窗看起來停住很久是正常的。
+
+Windows 跳出「Windows 已保護您的電腦」時，按「其他資訊」→「仍要執行」。
 
 想先試試看：在 `scripts\StyleAtlas-console.bat` 開的視窗裡執行 `python scripts\make_demo_images.py demo_styles`，會產生 72 張四種風格的範例圖；再把 `demo_styles` 資料夾拖到 `StyleAtlas.bat` 上。
 
@@ -47,36 +49,47 @@ style-atlas 會用 CSD 風格嵌入模型，把每張圖轉成一個「畫風向
 - **repeats**：每個 epoch 裡這個資料夾的圖要重複幾次。張數少的群 repeats 高一點，各群的份量就會接近。
 - **觸發詞（trigger word）**：寫在標註最前面的詞，訓練後在提示詞裡寫它就能叫出這種畫風。
 
-**第一次分析前**，程式會從 Hugging Face 下載 CSD 模型。下載量 2.4 GB，之後另存成 1.2 GB 的精簡檔，存在 `%USERPROFILE%\.cache\style-atlas`，只會下載一次。同一個資料夾也存放向量與縮圖快取（每張圖約幾 KB），刪掉不影響原始檔案，之後會重新產生。下載時畫面可能停很久，這是正常的。
+**第一次分析前**，程式會從 Hugging Face 下載 CSD 模型。下載量 2.4 GB，之後另存成 1.2 GB 的精簡檔，存在 `%USERPROFILE%\.cache\style-atlas`，只會下載一次。C 槽空間不夠時，可以先設定環境變數 `STYLE_ATLAS_CACHE`（例如 `D:\style-atlas-cache`）改存到別處。同一個資料夾也存放向量與縮圖快取（每張圖約幾 KB），刪掉不影響原始檔案，之後會重新產生。下載時畫面可能停很久，這是正常的。
 
 速度參考：只用 CPU 時，8 執行緒約每秒 4 張，1,000 張約 4 分鐘（實測）。有 NVIDIA 顯卡通常會快很多，但這點沒有實測過。每張圖的向量都會快取，第二次開同一個資料夾就不用重算向量。
 
 ### 手動安裝
 
-```bash
+有 NVIDIA 顯卡時，請先依 pytorch.org 的說明裝好 CUDA 版 torch。最後一行是選用的（地圖改用 UMAP 版面）。
+
+```bat
 git clone https://github.com/Rinne414/style-atlas
 cd style-atlas
-pip install -e .            # 有 NVIDIA 顯卡時，請先依 pytorch.org 裝好 CUDA 版 torch
-pip install -e ".[umap]"    # 選用：地圖改用 UMAP 版面
+pip install -e .
+pip install -e ".[umap]"
 ```
 
 ### 訓 LoRA 前的建議流程
 
-以下的 `style-atlas ...` 指令都在 `scripts\StyleAtlas-console.bat` 開的視窗裡輸入。
+以下的 `style-atlas ...` 指令都在 `scripts\StyleAtlas-console.bat` 開的視窗裡輸入（一次貼一行）。
 
-```bash
-# 1. 檢查：太小的圖、極端長寬比、動圖、缺標註或標註是空的、混在彩色圖裡的黑白圖
+**1. 檢查**：太小的圖、極端長寬比、動圖、缺標註或標註是空的、混在彩色圖裡的黑白圖。
+
+```bat
 style-atlas audit "D:\lora\artistX" --min-side 768
+```
 
-# 2. 在網頁介面先看一遍：哪些是重複圖（「重複」分頁）、哪些離群（「離群」分頁），分群是否合理
+**2. 在網頁介面先看一遍**：哪些是重複圖（「重複」分頁）、哪些不合群（「離群」分頁）、分群是否合理。不要的圖按 X 排除。
+
+```bat
 style-atlas serve "D:\lora\artistX" --time name
+```
 
-# 3. 匯出成 kohya 資料夾。步驟依序是：
-#    先排除重複圖（每組留解析度最高、有標註的那張）
-#    再分群，並另外放出最不合群的 5 張
-#    最後依每群張數自動算 repeats
+網頁開著時這個視窗會一直被占用。看完後在視窗裡按 Ctrl+C 停掉，或另外再開一個 `StyleAtlas-console.bat` 視窗做下一步。
+
+**3. 匯出成 kohya 資料夾**。程式會先排除重複圖（每組留解析度最高、有標註的那張），再分群，另外放出最不合群的 5 張，最後依每群張數自動算 repeats。
+
+```bat
 style-atlas cluster "D:\lora\artistX" --layout kohya --name artistX --dedupe --drop-outliers 5 --export copy
 ```
+
+- 步驟 2 按 X 排除的圖，這裡也會放進 `_excluded\`。
+- 步驟 2 在網頁上做的**移動、合併、拆群、取名**，這個指令不會用到（它會重新分群）。想保留這些手動修正，請直接在網頁按「匯出資料夾」（選 kohya 格式），效果和這一步相同。
 
 匯出結果在資料集旁邊的 `D:\lora\artistX_style_atlas\folders\`，不會寫進原本的資料夾：
 
@@ -95,6 +108,10 @@ dataset_config.toml   ← kohya sd-scripts 的資料集設定（`--dataset_confi
   - 匯出的標註開頭會自動加上該群名稱，例如 `artistX_style01, `；
   - 原始標註不會被改。
   - 完整流程見 [docs/LORA_GUIDE.md](docs/LORA_GUIDE.md)。
+
+  ```bat
+  style-atlas cluster "D:\lora\artistX" --layout kohya --name artistX --dedupe --drop-outliers 5 --export copy --trigger-captions
+  ```
 - `clusters.json` 會列出每群最常見的標註 tag，以及 tag 在這群裡比整體多出幾倍。例如某群特別多 `monochrome`、`sketch`，大概就是草稿那一群。
 - 原始檔案永遠不會被移動或刪除。每次匯出都寫到新的資料夾（`folders`、`folders_2` …），不會和上一次混在一起。
 - `--export link` 改用硬連結，不佔額外空間，但連結檔和原檔是**同一個檔案**，在匯出資料夾裡改標註，原本的也會一起改。不確定的話就用 `copy`。
@@ -108,37 +125,49 @@ dataset_config.toml   ← kohya sd-scripts 的資料集設定（`--dataset_confi
 **其他分群方式**：
 - 預設是 `auto`，依圖片自動挑門檻（最多到 medium 的 0.47）。畫師越多，最佳門檻越低。50～300 位畫師混在一起時，auto 的 ARI 比固定的 medium 高 0.16～0.21，代價是未分群的圖從 1～2% 增加到 5～9%。少數畫師、或資料夾裡有大量近似圖時，兩者差不多。
 - 單一畫師、風格變化很大時，auto 可能切出很多小群，這時改用 `--granularity medium` 或 `period`。
-- `fine`／`medium`／`coarse` 是固定門檻；`--k 3` 直接指定群數；`--threshold 0.35` 是舊版 period 用的門檻。
+- `fine`／`medium`／`coarse` 是固定門檻；`--k 3` 直接指定群數；`--threshold 0.35` 自己指定切分距離（進階，一般不用）。
 - 網頁介面也能選「自動」或調門檻，再按「重新分群」。
 
 ### 其他用法
 
-```bash
-style-atlas search ref1.png ref2.png --combine --in "D:\gallery" --top 30   # 以圖找圖
-style-atlas search "D:\examples" --combine --in "D:\gallery" --top 100 --copy-to "D:\lora\more"  # 擴充訓練集
-style-atlas map "D:\gallery" -o gallery_map.html     # 單一 HTML 3D 地圖，離線可開
-style-atlas duplicates "D:\gallery"                  # 近重複圖分組
-style-atlas outliers "D:\lora\artistX" --top 20      # 最不合群的圖
-style-atlas compare "D:\old_works" "D:\new_works"    # 兩組圖是否同一畫風（距離、p 值）
-style-atlas taste score "D:\new_batch" --model "D:\lora\artistX_style_atlas\taste_model.npz"
+**以圖找圖**：在圖庫 `D:\gallery` 裡找和兩張範例最像的 30 張。
+
+```bat
+style-atlas search ref1.png ref2.png --combine --in "D:\gallery" --top 30
 ```
 
-**用幾張範例圖找更多同風格的圖**（例如擴充 LoRA 訓練集）：把範例放進一個資料夾，用 `--combine` 搜尋，再用 `--copy-to` 把結果連同標註複製出來。範例有 3 張以上時，會用範例對圖庫訓練一個小模型來排序，比單純取範例的平均向量準：在 3,689 張的圖庫裡找 13 位畫師的其他作品，平均精確度在 3／5／10 張範例時分別高 0.055／0.066／0.116。
+**擴充訓練集**：把範例圖放進一個資料夾，找出 100 張最像的，連同標註複製到 `D:\lora\more\matches\`。範例有 3 張以上時，會用範例訓練一個小模型來排序，比只取範例的平均準（實測：3／5／10 張範例時，平均精確度分別高 0.055／0.066／0.116）。
 
-**同樣的角色出現在很多種畫風裡**時（例如用固定角色測試不同畫師組合），請加 `--ignore-characters`，或在網頁介面勾選「忽略角色軸」。CSD 的畫風向量仍會被角色外觀（髮色、服裝）強烈拉扯。在 96 種畫風 × 2 個角色的 NovelAI 算圖上：
-- 不加時，最接近的圖 89% 是「同角色、別的畫風」。
-- 加了之後，同畫風配對的 AUC 從 0.83 提高到 0.98。
+```bat
+style-atlas search "D:\examples" --combine --in "D:\gallery" --top 100 --copy-to "D:\lora\more"
+```
 
-`--ignore-characters` 會先從圖的內容向量自動找出角色（不需要標註），再把每個角色的畫風向量平移到同一個中心。角色越多越有用：16 種配方 × 4 個角色的 Anima 算圖上，以圖找圖找到同配方的比例從 58%（`--neutralize 1`）提高到 70%。舊的 `--neutralize N` 仍可用；查詢圖裡的角色不在資料夾中時，`--neutralize` 比較穩。不確定要不要開時，把圖按畫風（配方）分成子資料夾，執行 `style-atlas bench <資料夾>`，比較輸出裡 `hub`（不修正）、`neutralize-1` 和 `characters` 三組的 `top1`。
+**單一 HTML 的 3D 地圖**（離線也能開，可以傳給朋友）、**近重複圖分組**、**最不合群的 20 張**：
 
-這主要改善的是**以圖找圖**。同一個模型、固定角色的算圖，畫風差異通常比門檻還小，用門檻分群（自動、細、中、粗）多半只會得到一群，或按角色分。實測 16 種配方 × 8 張的 Anima 算圖時：
-- 以圖找圖找到同配方的比例是 56%，加 `--neutralize 2` 後是 62%，加 `--ignore-characters` 後是 70%。
-- 門檻分群全部失敗。
-- `--neutralize 2 --method kmeans --k 16`（直接指定群數）的 ARI 是 0.22。另一組 7 種配方的測試是 0.53。
+```bat
+style-atlas map "D:\gallery" -o gallery_map.html
+style-atlas duplicates "D:\gallery"
+style-atlas outliers "D:\lora\artistX" --top 20
+```
 
-這類資料夾請以「以圖找圖」為主，或指定群數。
+**兩組圖是否同一畫風、差在哪裡**：輸出畫風距離、差距是否明顯（z 值越大越不同），以及外觀差異（例如「B 偏冷、線條多」）。
 
-但**混合不同畫師時不要用**：那時最主要的差異就是畫風本身，移除後分群會壞掉。
+```bat
+style-atlas compare "D:\old_works" "D:\new_works"
+```
+
+**口味模型**：在網頁介面評過喜歡／不喜歡之後，模型會自動存成 `<資料夾>_style_atlas\taste_model.npz`，可以拿來替新的一批圖排序。也可以用兩個資料夾直接訓練：
+
+```bat
+style-atlas taste train --like "D:\喜歡的圖" --dislike "D:\不喜歡的圖" --model "D:\my_taste.npz"
+style-atlas taste score "D:\new_batch" --model "D:\my_taste.npz"
+```
+
+**同樣的角色出現在很多種畫風裡**時（例如用固定角色測試不同畫師組合），請加 `--ignore-characters`，或在網頁介面勾選「忽略角色軸」。畫風特徵會被角色外觀（髮色、服裝）強烈拉走，不修正時，最接近的圖常常是「同角色、別的畫風」。
+- 它會自動從圖裡找出角色（不需要標註），再拿掉角色造成的差異。角色越多越有用：4 個角色時，以圖找圖找對畫風的比例是 70%，舊方法 `--neutralize 1` 是 58%。
+- 這主要改善**以圖找圖**。同一個模型、固定角色的算圖，畫風差異通常很小，自動分群多半只會得到一群；這類資料夾請以「以圖找圖」為主，或用 `--k` 直接指定群數。
+- **混了不同畫師時不要開**：那時角色差異和畫風差異分不開，分群會壞掉。
+- 舊的 `--neutralize 1` 也還能用；查詢圖裡的角色不在資料夾中時，它比較穩。詳細數字見 [docs/BENCHMARKS.md](docs/BENCHMARKS.md)。
 
 `--time name` 會從檔名裡的 Pixiv／Danbooru 作品編號推出先後順序（編號會隨上傳時間遞增），`--time mtime` 則用檔案修改時間。開了之後，每個畫風群旁都會畫出時間分佈，可以看出哪種畫風是早期、哪種是近期。
 
@@ -178,22 +207,24 @@ style-atlas taste score "D:\new_batch" --model "D:\lora\artistX_style_atlas\tast
 
 ### 外觀量測：畫風「哪裡不同」
 
-CSD 向量只告訴你兩種畫風差多遠，沒說差在哪裡。所以每張圖另外算 6 個看得懂的影像統計（縮到長邊 256 px 後計算）：
+在網頁介面，每個畫風群的卡片下方會有一句外觀描述（例如「偏冷、線條多」）；把右上角的「版面」切到「量化軸」，可以用下面六項當 X／Y／Z 軸。
+
+畫風特徵只告訴你兩種畫風差多遠，沒說差在哪裡，所以每張圖另外算 6 個看得懂的影像統計（縮到長邊 256 px 後計算）：
 
 | 量測 | 意思 |
 |---|---|
 | 亮度 | 整體明暗（0 全黑到 1 全白） |
 | 對比 | 明暗差異的大小 |
-| 鮮豔度 | 色彩飽和程度（Hasler & Süsstrunk 2003）；0 是黑白，約 0.4 是霓虹色 |
-| 冷暖 | 紅減藍的平均；負的偏冷、正的偏暖 |
-| 線條量 | 落在明顯明暗邊緣上的像素比例（線稿、排線、細紋理） |
-| 平塗度 | 落在平坦區域的像素比例（賽璐璐平塗、素色背景） |
+| 鮮豔度 | 0 是黑白，越大越鮮豔，約 0.4 是霓虹色 |
+| 冷暖 | 負的偏冷（藍）、正的偏暖（紅橙） |
+| 線條量 | 線條多寡：線稿、排線、細紋理越多越高 |
+| 平塗度 | 平塗面積多寡：賽璐璐平塗、素色背景越多越高 |
 
 - 用在哪裡：網頁的群卡片文字和「量化軸」、`clusters.csv`（每張圖一欄一個量測）、`clusters.json`（每群和整個資料夾相比的差異與文字）、`compare`（B 減 A，單位是兩組合併的標準差）。
 - 每張圖只算一次，結果存在快取裡；之後新嵌入的圖在嵌入時順便算，不必再讀一次檔。舊版就嵌入過的圖，第一次會花一點時間補算。
 - 單張圖的數值雜訊大，請比較**群的平均**。在 306 位畫師、3,259 張 Danbooru 作品上，各量測有 13～40% 的差異來自「畫師不同」（線條量 0.40、平塗度 0.37、鮮豔度 0.32、亮度 0.32、對比 0.26、冷暖 0.13），其餘來自同一畫師的不同作品（場景、構圖）。冷暖最受場景影響。
 - 這些是影像統計，不是美感分數：「線條多」不代表比較好。
-- 長邊小於 256 px 的小圖，線條量會偏高、平塗度偏低（192 px 時約 +0.4 / -0.6 個標準差），比較時請用尺寸差不多的圖。大圖縮小則幾乎沒有影響。
+- 長邊小於 256 px 的小圖會被誤判成「線條多、平塗少」，比較時請用尺寸差不多的圖。大圖之間的尺寸差異則幾乎沒有影響。
 
 ### ComfyUI 節點
 
@@ -313,18 +344,29 @@ Speed:
 
 Manual install:
 
-```bash
-git clone https://github.com/Rinne414/style-atlas && cd style-atlas
-pip install -e .          # install the CUDA build of torch first for GPU use; ".[umap]" adds UMAP
+For GPU use, install the CUDA build of torch first; `pip install -e ".[umap]"` adds UMAP.
+
+```bat
+git clone https://github.com/Rinne414/style-atlas
+cd style-atlas
+pip install -e .
 ```
 
 ### LoRA workflow
 
-```bash
-style-atlas audit DIR --min-side 768        # small / extreme / animated / stray greyscale images, captions
-style-atlas serve DIR --time name           # review duplicates, outliers and groups in the browser
+Check for small, extreme, animated and stray greyscale images and for missing captions; then
+review duplicates, outliers and groups in the browser (exclude images with X); then export.
+`serve` keeps its console busy until you press Ctrl+C, so run the export in a second console.
+
+```bat
+style-atlas audit DIR --min-side 768
+style-atlas serve DIR --time name
 style-atlas cluster DIR --layout kohya --name artistX --dedupe --drop-outliers 5 --export copy
 ```
+
+`cluster` also sends the images you excluded in the web app to `_excluded/`, but it groups
+afresh: moves, merges, splits and names made in the web app are kept only by the web app's own
+Export button.
 
 The output goes to `DIR_style_atlas/folders/`, next to the dataset and never inside it:
 
@@ -346,7 +388,9 @@ original.
 
 ### Commands
 
-```bash
+Square brackets mark optional parts; `#` starts a note, not part of the command.
+
+```text
 style-atlas cluster DIR [--granularity auto|period|fine|medium|coarse | --threshold T | --k N]
                         [--layout plain|kohya --name X --repeats auto|N]
                         [--dedupe] [--drop-outliers N] [--export copy|link] [-o OUT]
@@ -428,7 +472,7 @@ Common options:
   - lines (share of pixels on a strong luma edge);
   - flatness (share of pixels in flat areas).
 
-  Each image is measured once and cached; images embedded from 0.15 on are measured while they
+  Each image is measured once and cached; images analysed by 0.15 or later are measured while they
   are open for embedding. They appear as words on each group card ("cooler, more line work"),
   as axes of the map's "measures" layout, as columns in `clusters.csv`, as a per-group profile
   in `clusters.json`, and as B minus A in `compare`. A single image is noisy: on 3,259 Danbooru

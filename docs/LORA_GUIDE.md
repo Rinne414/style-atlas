@@ -2,11 +2,11 @@
 
 這是一份實務流程。工具會做的事附上指令。一般建議附上來源，這些來源是 2026-10 查的，請自行判斷是否適用你的模型。
 
-下面的指令請在 `scripts\StyleAtlas-console.bat` 開出的視窗裡輸入（或把資料夾拖到 `scripts\StyleAtlas.bat` 上直接開網頁介面）。
+下面的指令請在 `scripts\StyleAtlas-console.bat` 開出的視窗裡輸入，一次貼一行。步驟 2 也可以改成把資料夾拖到 `scripts\StyleAtlas.bat` 上直接開網頁介面；步驟 1、3 的指令則一定要在 console 視窗裡打。
 
 ## 1. 先檢查
 
-```bash
+```bat
 style-atlas audit "D:\lora\artistX" --min-side 768
 ```
 
@@ -21,7 +21,7 @@ style-atlas audit "D:\lora\artistX" --min-side 768
 
 ## 2. 看一遍，再決定怎麼分
 
-```bash
+```bat
 style-atlas serve "D:\lora\artistX" --time name
 ```
 
@@ -37,13 +37,15 @@ style-atlas serve "D:\lora\artistX" --time name
 - **擴充資料集**（選用）：手上只有十幾張某種畫風的圖時，可以用 `style-atlas search 範例資料夾 --combine --in 大圖庫 --top 100 --copy-to 輸出資料夾` 從大圖庫裡找出更多同風格的圖。
 - **口味**（選用）：在評分模式下一直按 L／D，評約 10 張就能得到粗略的偏好排序。
 
+網頁開著時，這個 console 視窗會一直被占用。看完後按 Ctrl+C 停掉，或另開一個 `StyleAtlas-console.bat` 視窗做步驟 3。
+
 ## 3. 匯出成 kohya 資料夾
 
-```bash
+```bat
 style-atlas cluster "D:\lora\artistX" --layout kohya --name artistX --dedupe --drop-outliers 5 --export copy
 ```
 
-- 也可以直接在網頁介面按「匯出資料夾」：選 kohya、填概念名稱，必要時勾「標註加觸發詞」。網頁上的手動修正、排除和名稱都會反映在匯出結果。
+- **在網頁上做過移動、合併、拆群或取名時，請改用網頁的「匯出資料夾」**（選 kohya、填概念名稱，必要時勾「標註加觸發詞」）：只有它會用到這些手動修正。上面的 `cluster` 指令會重新分群，只沿用你按 X 排除的圖（放進 `_excluded\`）。
 - 每群會匯出成 `<repeats>_artistX_styleNN\` 資料夾（取過名的群用名字），標註檔一起複製。
 - 要按時期拆就加 `--granularity period --time name`。指令會在每群後面印出它在作品時間軸上的位置，例如 `when 9% [3%-28%]` 表示這群的中位數落在最早的 9%（中間一半落在 3%～28%），一看就知道哪群是早期、哪群是近期。
 - repeats 會自動調成「張數 × repeats ≈ 100」，也可以用 `--repeats N` 指定。
