@@ -264,9 +264,11 @@ def _families_line(result: Clustering, min_size: int) -> str:
     )
 
 
-def export_notes(done, folders: list[str], layout: str, trigger: bool) -> None:
-    """After an export: photos written upright, and the trigger words in the captions (with a
-    warning when one is not plain ASCII)."""
+def export_notes(
+    done, folders: list[str], layout: str, trigger: bool, respell: dict | None = None
+) -> None:
+    """After an export: small training images, photos written upright, respelt tags, and the
+    trigger words in the captions (with a warning when one is not plain ASCII)."""
     from styleatlas.export import SMALL_FOR_TRAINING, trigger_of
 
     if done.small_training:
@@ -287,6 +289,11 @@ def export_notes(done, folders: list[str], layout: str, trigger: bool) -> None:
                 f"{done.upright} 張只靠 EXIF 轉正的照片已轉正後存出（kohya 會把它們橫著訓練）；"
                 "原檔沒有改動",
             )
+        )
+    if respell:
+        log(
+            tr("tags respelt in the copies: ", "複本中統一寫法的標籤：")
+            + ", ".join(f"{tag} -> {spelt}" for tag, spelt in sorted(respell.items()))
         )
     if not trigger:
         return

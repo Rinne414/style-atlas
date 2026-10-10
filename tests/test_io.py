@@ -456,3 +456,23 @@ def test_an_unknown_language_setting_falls_back_to_the_system(monkeypatch):
     for value, chinese in (("auto", True), ("zh-TW", True), ("en", False), ("", True)):
         monkeypatch.setenv("STYLE_ATLAS_LANG", value)
         assert lang.chinese() is chinese, value
+
+
+def test_export_respells_tags_only_in_the_copies(tmp_path):
+    src = tmp_path / "src"
+    src.mkdir()
+    image = src / "a.png"
+    Image.new("RGB", (16, 16)).save(image)
+    image.with_suffix(".txt").write_text("1girl, long_hair, Smile", encoding="utf-8")
+    x = np.eye(1, 4, dtype=np.float32)
+    done = export_folders(
+        Atlas(src, [image], x, x, "sig"),
+        ["style_01"],
+        tmp_path / "out",
+        respell={"long hair": "long hair"},
+    )
+    assert done.placed == 1
+    assert (tmp_path / "out" / "style_01" / "a.txt").read_text(
+        encoding="utf-8"
+    ) == "1girl, long hair, Smile"
+    assert image.with_suffix(".txt").read_text(encoding="utf-8") == "1girl, long_hair, Smile"

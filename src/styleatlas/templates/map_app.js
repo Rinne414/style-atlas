@@ -531,7 +531,8 @@ const EXPORT_FIELDS = ["expLayout", "expName", "expMax", "expStrip"];
 
 function saveExportOptions() {
   const options = Object.fromEntries(EXPORT_FIELDS.map((id) => [id, $(id).value]));
-  options.expTrig = $("expTrig").checked; options.open = !$("exportPanel").hidden;
+  options.expTrig = $("expTrig").checked; options.expSpell = $("expSpell").checked;
+  options.open = !$("exportPanel").hidden;
   try { sessionStorage.setItem(EXPORT_KEY, JSON.stringify(options)); } catch (e) { /* storage off */ }
 }
 
@@ -540,12 +541,12 @@ function restoreExportOptions() {  // an edit reloads the page: the bar comes ba
   try { options = JSON.parse(sessionStorage.getItem(EXPORT_KEY) || "null"); } catch (e) { return; }
   if (!options) return;
   EXPORT_FIELDS.forEach((id) => { if (typeof options[id] === "string") $(id).value = options[id]; });
-  $("expTrig").checked = Boolean(options.expTrig);
+  $("expTrig").checked = Boolean(options.expTrig); $("expSpell").checked = Boolean(options.expSpell);
   if (options.open && $("exportPanel").hidden) $("exportOpen").click();
 }
 
 function setupExport() {
-  [...EXPORT_FIELDS, "expTrig"].forEach((id) => {
+  [...EXPORT_FIELDS, "expTrig", "expSpell"].forEach((id) => {
     $(id).addEventListener("change", saveExportOptions); $(id).addEventListener("input", saveExportOptions);
   });
   $("exportOpen").addEventListener("click", saveExportOptions);  // after setupPanels toggled it
@@ -554,7 +555,7 @@ function setupExport() {
     try {
       const cap = parseInt($("expMax").value, 10);
       const body = { mode: "copy", layout: $("expLayout").value, name: $("expName").value.trim(),
-        trigger: $("expTrig").checked, max_per_group: cap > 0 ? cap : null,
+        trigger: $("expTrig").checked, fix_spelling: $("expSpell").checked, max_per_group: cap > 0 ? cap : null,
         strip_tags: $("expStrip").value.trim() };
       const r = await post("api/export", JSON.stringify(body), "application/json");
       const groups = (r.small_ids || []).map(clusterName).join(lang === "zh" ? "、" : ", ");
@@ -565,9 +566,10 @@ function setupExport() {
       const tiny = r.small_training ? " " + t("smallTraining").replace("{n}", r.small_training) : "";
       const done = t("exported").replace("{n}", r.placed).replace("{f}", r.folder).replace("{k}", r.training);
       const upright = r.upright ? " " + t("uprightNote").replace("{n}", r.upright) : "";
+      const respelt = r.respelt && r.respelt.length ? " " + t("respeltNote").replace("{w}", r.respelt.join(", ")) : "";
       const words = r.triggers && r.triggers.length ? " " + t("triggersNote").replace("{w}", r.triggers.join(", ")) : "";
       const ascii = (r.triggers || []).some((w) => /[^\x00-\x7f]/.test(w)) ? " " + t("nonAsciiTrigger") : "";
-      setStatus(done + small + trimmed + steps + tiny + upright + words + ascii + config);
+      setStatus(done + small + trimmed + steps + tiny + upright + respelt + words + ascii + config);
       addOpenFolder();
     } catch (e) { setStatus(String(e.message || e)); }
   });
@@ -621,6 +623,7 @@ function liveText() {
   $("expNameLbl").textContent = t("lblName"); $("expMaxLbl").textContent = t("lblMax");
   $("expStripLbl").textContent = t("lblStrip");
   $("expTrigWrap").querySelector("span").textContent = t("triggerCaptions");
+  $("expSpellWrap").querySelector("span").textContent = t("fixSpelling");
   $("neutralWrap").querySelector("span").textContent = t("neutral");
   $("refPath").placeholder = DATA.reference ? DATA.reference : t("refPath");
   $("refLoad").textContent = DATA.reference && !$("refPath").value.trim() ? t("refClear") : t("refLoad");
@@ -638,7 +641,7 @@ function liveText() {
   $("periods").title = t("periods");
   showPeriods($("gran").value === "period");
   const tips = { exportOpen: "tipExport", moreOpen: "tipMore", expMax: "tipMax", expStrip: "tipStrip", pickBtn: "tipSearch", gran: "tipGran", thr: "tipThr", regroup: "tipRegroup", undo: "tipUndo",
-    expLayout: "tipLayout", expName: "tipName", expTrigWrap: "tipTrig", export: "tipExport",
+    expLayout: "tipLayout", expName: "tipName", expTrigWrap: "tipTrig", expSpellWrap: "tipSpell", export: "tipExport",
     saveMap: "tipSaveMap", neutralWrap: "tipNeutral", saveReport: "tipSaveReport" };
   Object.entries(tips).forEach(([id, key]) => { $(id).title = t(key); });
 }

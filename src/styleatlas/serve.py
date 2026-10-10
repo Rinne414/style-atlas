@@ -44,6 +44,7 @@ from styleatlas.dataset import (
     norm_tag,
     plan_folders,
     read_tags,
+    spelling_fixes,
     tag_summary,
 )
 from styleatlas.duplicates import copies_of
@@ -638,7 +639,11 @@ class StyleAtlasApp(GroupEdits):
     def export(self, body: dict) -> dict:
         mode = body.get("mode", "copy")
         layout, trigger, name, strip, cap = self._export_options(body)
+        fix = body.get("fix_spelling", False)
+        if not isinstance(fix, bool):
+            raise ValueError("fix_spelling must be true or false")
         out = self.out_dir
+        respell = spelling_fixes(self.atlas.paths) if fix else None  # reads captions: no lock
         with self._lock:
             folders = plan_folders(
                 self.atlas.paths,
@@ -661,6 +666,7 @@ class StyleAtlasApp(GroupEdits):
                 trigger_captions=trigger,
                 layout=layout,
                 strip_tags=parse_tags(strip),
+                respell=respell,
             )
             trimmed = sum(f == SET_ASIDE["trimmed"] for f in folders)
             labels = self.clustering.labels
@@ -676,6 +682,7 @@ class StyleAtlasApp(GroupEdits):
             # the rest go to the set-aside folders (_duplicates, _excluded, unassigned ...)
             "training": sum(not (f.startswith("_") or is_unassigned(f)) for f in folders),
             "upright": result.upright,
+            "respelt": sorted(respell.values()) if respell else [],
             "small_training": result.small_training,
             "triggers": sorted(
                 {t for f in folders if trigger and (t := trigger_of(f, layout)) is not None}

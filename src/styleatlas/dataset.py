@@ -440,18 +440,33 @@ def mixed_spellings(paths: list[Path]) -> tuple[list[str], list[str]]:
     encoder reads the two as different words, so the tag's meaning is split between them.
     Which way is more common is counted over all such tags together. Also returns those
     tags (written with spaces)."""
-    forms: dict[str, dict[str, set[int]]] = {}  # tag -> "_" or " " -> captions using it
+    split, rare = _two_spellings(paths)
+    if not split:
+        return [], []
+    files = [str(paths[i]) for i in sorted(set().union(*(f[rare] for f in split.values())))]
+    return files, sorted(split)
+
+
+def spelling_fixes(paths: list[Path]) -> dict[str, str]:
+    """For each tag the captions write both ways, the spelling the dataset uses more (normalised
+    tag -> "long hair" or "long_hair"), to respell the exported captions with."""
+    split, rare = _two_spellings(paths)
+    common = " " if rare == "_" else "_"
+    return {tag: tag.replace(" ", common) for tag in split}
+
+
+def _two_spellings(paths: list[Path]) -> tuple[dict[str, dict[str, set[int]]], str]:
+    """Tags written with underscores in some captions and with spaces in others (normalised tag
+    -> "_" or " " -> the captions using it), and the less common way over all of them."""
+    forms: dict[str, dict[str, set[int]]] = {}
     for i, p in enumerate(paths):
         for t in read_tags(p):
             if ("_" in t) != (" " in t):  # one way or the other, not both
                 forms.setdefault(norm_tag(t), {}).setdefault("_" if "_" in t else " ", set()).add(i)
     split = {tag: f for tag, f in forms.items() if len(f) == 2}
-    if not split:
-        return [], []
     under = sum(len(f["_"]) for f in split.values())
     rare = "_" if under <= sum(len(f[" "]) for f in split.values()) else " "
-    files = [str(paths[i]) for i in sorted(set().union(*(f[rare] for f in split.values())))]
-    return files, sorted(split)
+    return split, rare
 
 
 def _colour_problems(paths: list[Path], colour: np.ndarray) -> dict[str, list[str]]:

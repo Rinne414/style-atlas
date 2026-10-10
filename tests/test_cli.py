@@ -637,3 +637,8 @@ def test_wrap_keeps_curly_quotes_and_brackets_with_their_text():
     lines = wrap("ab “中文中文” …… 中文，中文。", 6)
     assert not any(line[0] in "”…，。" for line in lines)
     assert not any(line[-1] == "“" for line in lines)
+
+
+def test_fixing_tag_spelling_needs_an_export(lib, capsys):
+    assert main(["cluster", str(lib), "--fix-tag-spelling", "--device", "cpu"]) == 1
+    assert "--fix-tag-spelling" in capsys.readouterr().err

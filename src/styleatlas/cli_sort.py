@@ -27,7 +27,7 @@ from styleatlas.cluster import (
     fit_to_groups,
     from_labels,
 )
-from styleatlas.dataset import auto_repeats, group_labels, is_unassigned
+from styleatlas.dataset import auto_repeats, group_labels, is_unassigned, spelling_fixes
 from styleatlas.duplicates import copies_of
 from styleatlas.export import export_folders, output_dir, parse_tags, write_csv
 from styleatlas.images import labels_from_folders
@@ -79,7 +79,7 @@ def cmd_sort(a: argparse.Namespace) -> int:
     if a.by_folder:
         _repeats_notes(clustering, labels, folders)
     if a.export:
-        _place(a, new, folders, labels, out)
+        _place(a, new, folders, labels, out, dataset)
     log(tr("table of every new image:", "每張新圖的結果表："))
     print(table)
     return 0
@@ -96,11 +96,13 @@ def _both_sides(a: argparse.Namespace, out: Path) -> tuple[Atlas, Atlas]:
                 "新圖和資料集是同一個資料夾",
             )
         )
-    if (a.trigger_captions or a.strip_tags) and not a.export:
+    if (a.trigger_captions or a.strip_tags or a.fix_tag_spelling) and not a.export:
         raise ValueError(
             tr(
-                "--trigger-captions and --strip-tags only apply with --export copy|link",
-                "--trigger-captions 和 --strip-tags 只在 --export copy|link 時有用",
+                "--trigger-captions, --strip-tags and --fix-tag-spelling only apply with "
+                "--export copy|link",
+                "--trigger-captions、--strip-tags 和 --fix-tag-spelling 只在 --export copy|link "
+                "時有用",
             )
         )
     if any(root.is_relative_to(out.resolve()) for root in (new_root, data_root)):
@@ -116,7 +118,9 @@ def _both_sides(a: argparse.Namespace, out: Path) -> tuple[Atlas, Atlas]:
     return dataset, _atlas(a, a.folder, exclude=[out, *_nested(data_root, new_root)])
 
 
-def _place(a: argparse.Namespace, new: Atlas, folders: list, labels: dict, out: Path) -> None:
+def _place(
+    a: argparse.Namespace, new: Atlas, folders: list, labels: dict, out: Path, dataset: Atlas
+) -> None:
     """--export: the new images (and captions) into <out>/sorted/<group>."""
     matches = [bool(KOHYA_FOLDER.match(name)) for name in labels.values()]
     kohya = all(matches)
@@ -129,6 +133,8 @@ def _place(a: argparse.Namespace, new: Atlas, folders: list, labels: dict, out: 
                 "注意：只有部分資料夾是 <repeats>_<名稱> 的格式；觸發詞會用各資料夾的完整名稱",
             )
         )
+    # the new captions follow the spelling the dataset and the new images use more
+    respell = spelling_fixes([*dataset.paths, *new.paths]) if a.fix_tag_spelling else None
     done = export_folders(
         new,
         folders,
@@ -137,6 +143,7 @@ def _place(a: argparse.Namespace, new: Atlas, folders: list, labels: dict, out: 
         trigger_captions=a.trigger_captions,
         layout="kohya" if kohya else "plain",
         strip_tags=parse_tags(a.strip_tags or ""),
+        respell=respell,
     )
     log(
         tr(
@@ -144,7 +151,7 @@ def _place(a: argparse.Namespace, new: Atlas, folders: list, labels: dict, out: 
             f"已放 {done.placed} 張到 {done.folder}",
         )
     )
-    export_notes(done, folders, "kohya" if kohya else "plain", a.trigger_captions)
+    export_notes(done, folders, "kohya" if kohya else "plain", a.trigger_captions, respell)
     for p, why in done.failed:
         log(tr(f"not placed {p}: {why}", f"沒有放入 {p}：{why}"))
 
@@ -333,5 +340,15 @@ def sort_args(p: argparse.ArgumentParser) -> None:
         help=tr(
             "remove these comma-separated tags from the placed captions, as `cluster` does",
             "從放進去的標註中移除這些以逗號分隔的標籤，做法同 `cluster`",
+        ),
+    )
+    p.add_argument(
+        "--fix-tag-spelling",
+        action="store_true",
+        help=tr(
+            "in the exported copies, write each tag the dataset spells two ways "
+            "(long_hair / long hair) "
+            "the way most captions do",
+            "匯出的複本中，資料集有兩種寫法的標籤（long_hair／long hair）統一成多數標註的寫法",
         ),
     )

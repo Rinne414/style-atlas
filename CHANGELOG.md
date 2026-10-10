@@ -59,6 +59,9 @@ New:
   kohya sd-scripts reads the pixels as stored and ignores the EXIF orientation (checked in
   its `library/utils.py`), so a phone photo trains sideways; ai-toolkit and OneTrainer turn
   it upright.
+- **Same tag spelling on export**: `cluster`/`sort --export ... --fix-tag-spelling` (web: 「統一標籤寫法」)
+  writes each tag the folder spells two ways the way most captions do, in the exported copies
+  only, and lists the tags it respelt.
 - **One tag spelt two ways** (`tag_spelling_mixed` in `audit` and the Check tab): when the
   captions write the same tag both as `long_hair` and as `long hair`, the captions using the
   less common way are listed; the text encoder reads the two as different words.

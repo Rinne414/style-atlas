@@ -344,3 +344,18 @@ def test_audit_accepts_one_spelling_throughout(tmp_path):
     for name, text in {"a": "long_hair, blue_eyes", "b": "long_hair, ^_^"}.items():
         _img(tmp_path / f"{name}.png", (768, 768)).with_suffix(".txt").write_text(text)
     assert audit(sorted(tmp_path.glob("*.png")))["files"]["tag_spelling_mixed"] == []
+
+
+def test_spelling_fixes_follow_the_more_common_spelling(tmp_path):
+    from styleatlas.dataset import spelling_fixes
+
+    for name, text in {
+        "a": "long hair, blue eyes",
+        "b": "long hair",
+        "c": "long_hair, blue_eyes",
+    }.items():
+        _img(tmp_path / f"{name}.png").with_suffix(".txt").write_text(text, encoding="utf-8")
+    paths = sorted(tmp_path.glob("*.png"))
+    assert spelling_fixes(paths) == {"long hair": "long hair", "blue eyes": "blue eyes"}
+    (tmp_path / "a.txt").write_text("long_hair, blue_eyes", encoding="utf-8")
+    assert spelling_fixes(paths) == {"long hair": "long_hair"}  # blue_eyes is now one way only

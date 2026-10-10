@@ -90,6 +90,16 @@ def _lora_args(p: argparse.ArgumentParser) -> None:
         ),
     )
     g.add_argument(
+        "--fix-tag-spelling",
+        action="store_true",
+        help=tr(
+            "in the exported copies, write each tag the dataset spells two ways "
+            "(long_hair / long hair) "
+            "the way most captions do",
+            "匯出的複本中，資料集有兩種寫法的標籤（long_hair／long hair）統一成多數標註的寫法",
+        ),
+    )
+    g.add_argument(
         "--max-per-group",
         type=_positive_int,
         metavar="N",
@@ -104,11 +114,11 @@ def cmd_cluster(a: argparse.Namespace) -> int:
     from styleatlas.dataset import parse_repeats
 
     parse_repeats(a.repeats)
-    if a.trigger_captions and not a.export:
+    if (a.trigger_captions or a.fix_tag_spelling) and not a.export:
         raise ValueError(
             tr(
-                "--trigger-captions only applies with --export copy|link",
-                "--trigger-captions 只在 --export copy|link 時有用",
+                "--trigger-captions and --fix-tag-spelling only apply with --export copy|link",
+                "--trigger-captions 和 --fix-tag-spelling 只在 --export copy|link 時有用",
             )
         )
     from styleatlas.export import output_dir, write_table
@@ -173,8 +183,10 @@ def _group(a: argparse.Namespace, atlas: Atlas):
 
 
 def _export(a: argparse.Namespace, atlas: Atlas, folders: list[str], out: Path) -> None:
+    from styleatlas.dataset import spelling_fixes
     from styleatlas.export import export_folders, parse_tags
 
+    respell = spelling_fixes(atlas.paths) if a.fix_tag_spelling else None
     done = export_folders(
         atlas,
         folders,
@@ -183,6 +195,7 @@ def _export(a: argparse.Namespace, atlas: Atlas, folders: list[str], out: Path) 
         trigger_captions=a.trigger_captions,
         layout=a.layout,
         strip_tags=parse_tags(a.strip_tags or ""),
+        respell=respell,
     )
     verb = "已複製" if a.export == "copy" else "已連結"
     log(
@@ -191,7 +204,7 @@ def _export(a: argparse.Namespace, atlas: Atlas, folders: list[str], out: Path) 
             f"{verb} {done.placed} 張到 {done.folder}",
         )
     )
-    export_notes(done, folders, a.layout, a.trigger_captions)
+    export_notes(done, folders, a.layout, a.trigger_captions, respell)
     if a.layout == "kohya":
         from styleatlas.export import steps_per_epoch
 
