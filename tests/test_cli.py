@@ -53,12 +53,15 @@ def lib(tmp_path, monkeypatch):
 
 def test_cluster_exports_kohya_folders_with_triggers(lib, tmp_path, capsys):
     out = tmp_path / "out"
+    web = tmp_path / "lib_style_atlas"  # where the web app keeps its exclusions
+    web.mkdir()
+    (web / "excluded.json").write_text(json.dumps({"red/red__100003.png": True}), "utf-8")
     code = main(
         ["cluster", str(lib), "--device", "cpu", "--layout", "kohya", "--name", "art",
          "--export", "copy", "--trigger-captions", "--no-map", "--time", "name", "-o", str(out)]
     )  # fmt: skip
     assert code == 0
-    folders = sorted(p.name for p in (out / "folders").iterdir() if p.is_dir())
+    folders = sorted(p.name for p in (out / "folders").iterdir() if p.is_dir() and p.name[0] != "_")
     assert len(folders) == 3 and all(f.split("_", 1)[1].startswith("art_style") for f in folders)
     caption = next((out / "folders" / folders[0]).glob("*.txt")).read_text(encoding="utf-8")
     assert caption.startswith(folders[0].split("_", 1)[1] + ", 1girl")
@@ -72,7 +75,8 @@ def test_cluster_exports_kohya_folders_with_triggers(lib, tmp_path, capsys):
     assert sorted(Path(s["image_dir"]).name for s in subsets) == folders
     assert all(s["num_repeats"] == int(Path(s["image_dir"]).name.split("_")[0]) for s in subsets)
     assert config["general"]["keep_tokens"] == 1  # the trigger stays first
-    assert "when" in capsys.readouterr().err
+    assert [p.name for p in (out / "folders" / "_excluded").glob("*.png")] == ["red__100003.png"]
+    assert "1 image(s) you excluded in the web app" in capsys.readouterr().err
 
 
 def test_period_split_and_refused_flag_mix(lib, tmp_path, capsys):

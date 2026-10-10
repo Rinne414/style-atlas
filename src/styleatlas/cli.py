@@ -216,10 +216,31 @@ def _plan(
         outliers = [int(i) for i in np.argsort(-outlier_scores(atlas.style))[: a.drop_outliers]]
     name = a.name or Path(a.folder).resolve().name
     safe = "".join(ch if ch.isalnum() or ch in " -_." else "_" for ch in name).strip() or "style"
+    excluded = _web_exclusions(atlas, Path(a.folder))
     folders = plan_folders(
-        atlas.paths, result, a.layout, safe, a.repeats, dups, outliers, min_size=a.min_size
+        atlas.paths,
+        result,
+        a.layout,
+        safe,
+        a.repeats,
+        dups,
+        outliers,
+        min_size=a.min_size,
+        excluded=excluded,
     )
     return folders, tag_summary(atlas.paths, result)
+
+
+def _web_exclusions(atlas: Atlas, folder: Path) -> list[int]:
+    """Images excluded by hand (X) in the web app: they go to _excluded here too."""
+    from styleatlas.export import output_dir
+    from styleatlas.persist import RelPathMap
+
+    marks = RelPathMap(output_dir(folder) / "excluded.json", atlas).values
+    excluded = sorted(i for i, v in marks.items() if v is True)
+    if excluded:
+        log(f"{len(excluded)} image(s) you excluded in the web app go to _excluded")
+    return excluded
 
 
 def _timeline(atlas: Atlas, source: str) -> np.ndarray | None:
