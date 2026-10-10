@@ -1,5 +1,8 @@
 # Changelog
 
+## Unreleased
+
+- A folder with a single image lays out without a warning.
 ## 0.30.0 - 2026-10-10
 
 - **Style report from the web app**: "Save style report" in the "Advanced…" panel writes the

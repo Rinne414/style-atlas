@@ -311,3 +311,16 @@ def test_fold_hits_counts_every_folded_hit():
     assert [h.index for h in shown] == [0, 2] and folded == 1
     shown, folded = fold_hits(hits, x, x, top=1)
     assert [h.index for h in shown] == [0] and folded == 0  # hit 1 lies past the cut
+
+
+def test_a_map_of_one_or_two_images_lays_out_without_warnings():
+    import warnings
+
+    from styleatlas.project import project_3d
+
+    x, _ = make_blobs([2])
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        one, how = project_3d(x[:1])
+        two, _ = project_3d(x)
+    assert one.shape == (1, 3) and how == "none" and np.isfinite(two).all()

@@ -22,8 +22,8 @@ def has_umap() -> bool:
 def project_3d(x: np.ndarray, method: str = "auto", seed: int = 0) -> tuple[np.ndarray, str]:
     """(n, 3) coordinates scaled into [-1, 1], plus the method actually used."""
     n = len(x)
-    if n == 0:
-        return np.zeros((0, 3), np.float32), "none"
+    if n < 2:  # nothing to spread out (PCA of one point divides by zero)
+        return np.zeros((n, 3), np.float32), "none"
     if n < 5:
         method = "pca"
     elif method == "auto":
