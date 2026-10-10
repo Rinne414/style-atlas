@@ -25,6 +25,8 @@ style-atlas 會看每張圖「怎麼畫」（不是畫了什麼），自動把�
 
 （截圖裡的圖片是 `scripts\make_demo_images.py` 程式產生的四種抽象風格，不是任何人的作品。）
 
+**第一次用網頁介面？** 請看圖解：[docs/WEB_GUIDE.md](docs/WEB_GUIDE.md)（檢查資料 → 整理畫風群 → 匯出）。
+
 ### Windows：三步開始
 
 1. 安裝 [Python 3.10 以上](https://www.python.org/downloads/)，安裝時勾選「Add python.exe to PATH」。也可以在命令提示字元執行 `winget install -e --id Python.Python.3.12`。

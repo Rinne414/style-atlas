@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **Illustrated web guide** in Traditional Chinese, `docs/WEB_GUIDE.md`: the three steps (check, sort
+  the styles, export) and the other tools, with screenshots. All screenshots were retaken with the
+  corrected colours.
 - **Fix: true colours on the 3D map.** The thumbnails were decoded from sRGB but never encoded
   back for the screen, so every image on the map looked darker and more saturated than the file
   (the demo's yellow 255,183,3 showed as orange 255,121,0; group-colour dots likewise). Group
