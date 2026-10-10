@@ -33,6 +33,7 @@ from styleatlas.cli_sort import cmd_sort, sort_args
 from styleatlas.cluster import ARTISTS, GRANULARITY, METHODS, PERIODS, outlier_scores
 from styleatlas.encoder import CROP_MODES, RESOLUTIONS
 from styleatlas.images import TIME_SOURCES, find_images, labels_from_folders
+from styleatlas.lang import tr
 from styleatlas.look import LOOK_NAMES, describe, difference
 from styleatlas.metrics import (
     PLAIN,
@@ -602,7 +603,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         return args.fn(args)
     except (FileNotFoundError, ValueError, ModelDownloadError) as e:
-        log(f"error: {e}")
+        log(tr("error: ", "錯誤：") + str(e))
         return 1
 
 
