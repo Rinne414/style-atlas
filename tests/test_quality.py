@@ -56,11 +56,14 @@ def test_flat_or_tiny_images_are_not_judged():
     assert softness(_drawing(100)) is None
 
 
-def test_softness_is_measured_at_full_size_on_the_centre(tmp_path):
-    big = _enlarged(_drawing(2048, seed=1), 2)  # larger than the window: still caught
-    path = tmp_path / "big.png"
-    big.save(path)
-    assert softness_of_file(path) < SOFT
+def test_softness_is_judged_at_training_size(tmp_path):
+    sharp = _drawing(2048, seed=1)
+    # enlarged 2x from 1024 px: a trainer shrinks it back to about 1024 px, so it is fine
+    _enlarged(sharp, 2).save(tmp_path / "fine.png")
+    assert softness_of_file(tmp_path / "fine.png") > SOFT
+    # enlarged 4x from 512 px: still enlarged 2x at training size
+    _enlarged(sharp, 4).save(tmp_path / "soft.jpg", quality=95)  # JPEG: decoded at reduced scale
+    assert softness_of_file(tmp_path / "soft.jpg") < SOFT
     assert softness_of_file(tmp_path / "missing.png") is None
 
 

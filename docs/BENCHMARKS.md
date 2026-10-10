@@ -604,21 +604,36 @@ CSD looks at 224 px, so an image enlarged from a quarter of its pixels sits on t
 original on the map. Grouping and outlier scores cannot find these images; only a separate check
 can. Heavy JPEG compression does move the vector: by a third of a seed difference at quality 60.
 
-**Softness**: the finest octave's detail over the detail two octaves coarser, measured at full
-size on the centre (at most 1024 px). Shrinking first would hide an enlargement. The copies were
-shrunk with Lanczos and enlarged back with bicubic. Share flagged at a softness below **0.10**:
+**Softness**: the finest octave's detail over the detail two octaves coarser, at the size a
+trainer uses. Images larger than about 1024 x 1024 pixels are first shrunk to that area, as
+trainers do, and the centre (at most 1024 px) is measured. The copies were made relative to that
+size: shrunk with Lanczos to 1/1.5, 1/2 or 1/3 of it, then enlarged back to the file's own size
+with bicubic. Share flagged at a softness below **0.10**:
 
-| Set (images) | Originals | x1.5 | x2 | x3 | JPEG q40 |
-|---|---|---|---|---|---|
-| NAI renders, 832 px (192) | 0% | 1.0% | 100% | 100% | 0% |
-| Anima renders, 1024 px (156) | 0% | 0% | 100% | 100% | 0% |
-| Danbooru, 5 artists, ~384 px (800) | 0% | 1.6% | 97.2% | 100% | 0.1% |
-| Danbooru, 300 artists, ~366 px (800) | 0% | 1.2% | 94.2% | 100% | 0% |
+| Set (images) | Originals | x1.5 | x2 | x3 |
+|---|---|---|---|---|
+| NAI renders, 832 x 1216 (192) | 0% | 1.0% | 100% | 100% |
+| Anima renders, 1024 x 1536 (156) | 0% | 0% | 100% | 100% |
+| Danbooru, 5 artists, ~384 px (800) | 0% | 1.6% | 97.3% | 100% |
+| Danbooru, 300 artists, ~366 px (800) | 0% | 1.3% | 94.4% | 100% |
+| Danbooru originals, >= 2000 px wide, median long side 3,414 px (147) | 0% | 10.9% | 91.8% | 100% |
 
-The lowest original scored 0.105 (an old Danbooru work at 384 px); most originals sit at
-0.3-0.9. On the whole 3,259-image Danbooru set, one image was flagged, and on inspection it is an
-enlarged anime frame with soft lines. Enlargement by 1.5x mostly passes. So do enlargements by
-an AI upscaler, which adds detail of its own; the measure was not tested on those.
+JPEG quality 40 copies of the four smaller sets were flagged at most 0.1% of the time (first run).
+
+- **Why at training size**: measured at full size, 11 of the 147 large Danbooru originals
+  (7.5%) were flagged. Some of them were enlarged; others were painted with a soft brush on a
+  canvas of 3,000 px or more. After the trainer shrinks them to about 1024 px, the softness is
+  gone and so is the harm, so the check now ignores it. Conversely, a 4,000 px image enlarged
+  from 800 px is still enlarged at training size and is flagged.
+- **Margin**: the lowest original scored 0.105 (a 384 px Danbooru work from 2013); the lowest
+  large original scored 0.148; most sit at 0.3-0.9. On the whole 3,259-image Danbooru set, one
+  image was flagged, and on inspection it is an enlarged anime frame with soft lines.
+- **Limits**: enlargement by 1.5x mostly passes. So do enlargements by an AI upscaler, which
+  adds detail of its own; the measure was not tested on those. For SD 1.5 (512 px training) the
+  check is stricter than needed, because it judges at 1024 px.
+- **A pitfall found on the way**: the measuring window must start on a multiple of 16 pixels
+  from the corner. An odd offset misaligns it with the pixel grid of an exact 2x enlargement and
+  cut the 2x detection on the small Danbooru sets to about 80%.
 
 **JPEG quality** is read from the file's quantisation table, without decoding. It matched the
 saved quality exactly for Pillow (libjpeg) files at quality 40, 60, 69 and 90. Other encoders use
@@ -626,7 +641,8 @@ other tables, so for them it is an estimate. Images under quality **70** are fla
 above: quality 60 already moves the style vector by a third of a seed difference.
 
 **Cost**: the softness check decodes every image (8 threads, cached while the file is
-unchanged). 3,259 images of about 400 px took 5.5 s the first time and 1.4 s after.
+unchanged; JPEGs are decoded at a reduced scale that is still at least the training size).
+3,259 images of about 400 px took 4.6 s; the 150 large originals took 2.1 s.
 
 ## Pixiv: followed AI-illustration accounts (2026-10-09)
 

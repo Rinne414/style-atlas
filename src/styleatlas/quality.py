@@ -2,13 +2,16 @@
 were set: docs/BENCHMARKS.md, "Low-quality images").
 
 - JPEG quality, estimated from the file's quantisation table, without decoding the pixels.
-- Softness: the detail in the finest octave relative to the octave two steps coarser. An image
-  enlarged 2x or more from a smaller one has almost nothing in its finest octave, whatever it
-  shows; sharp originals keep a ratio of 0.2 or more.
+- Softness: the detail in the finest octave relative to the octave two steps coarser, at the
+  size a trainer uses. An image enlarged 2x or more from a smaller one has almost nothing in its
+  finest octave, whatever it shows; sharp originals keep a ratio of 0.2 or more. Larger images
+  are first shrunk to about 1024 x 1024 pixels, as trainers do, so softness that shrinking
+  removes (a soft brush on a 4,000 px canvas) does not count.
 """
 
 from __future__ import annotations
 
+import math
 import os
 from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
@@ -40,10 +43,11 @@ TABLE_SUMS = TABLES.sum(axis=1)
 
 LOW_JPEG = 70  # below this, a JPEG is flagged
 SOFT = 0.10  # below this softness ratio, an image looks enlarged or blurred
-WINDOW = 1024  # measured on the centre at full size: shrinking first would hide an enlargement
+TRAIN_PIXELS = 1024 * 1024  # trainers shrink to about this area (SDXL, Illustrious, Anima)
+WINDOW = 1024  # the centre, at training size
 MIN_WINDOW = 128  # smaller images are not judged
 FLAT = 1.0  # coarse-octave detail below this (grey levels squared): nothing to judge
-MAX_PIXELS = 25_000_000  # larger images are not judged: each is decoded whole, 8 at a time
+MAX_PIXELS = 25_000_000  # larger decoded images are not judged (8 are decoded at a time)
 STANDARD_FIT = 0.05  # a table further than this (mean relative difference) is not libjpeg's
 
 
@@ -69,18 +73,28 @@ def _octave(grey: Image.Image, step: int) -> float:
     return float(np.mean((np.asarray(level, dtype=np.float32) - rebuilt) ** 2))
 
 
+def training_size(width: int, height: int) -> tuple[int, int]:
+    """The size a trainer shrinks an image to (about TRAIN_PIXELS); smaller images keep theirs."""
+    scale = min(1.0, math.sqrt(TRAIN_PIXELS / max(1, width * height)))
+    return max(1, round(width * scale)), max(1, round(height * scale))
+
+
 def softness(image: Image.Image) -> float | None:
-    """Finest-octave detail over the detail two octaves coarser, on the centre window at full
-    size. None when the image is too small or too flat to judge."""
-    w, h = image.size
-    if w * h > MAX_PIXELS:
+    """Finest-octave detail over the detail two octaves coarser, on the centre window at
+    training size. None when the image is too small, too large or too flat to judge."""
+    if image.width * image.height > MAX_PIXELS:
         return None
+    size = training_size(*image.size)
+    grey = image.convert("L")
+    if grey.size != size:
+        grey = grey.resize(size, Image.Resampling.LANCZOS, reducing_gap=3.0)
+    w, h = size
     cw, ch = min(w, WINDOW), min(h, WINDOW)
     cw, ch = cw - cw % 16, ch - ch % 16  # whole pixels at every level
     if min(cw, ch) < MIN_WINDOW:
         return None
-    left, top = (w - cw) // 2, (h - ch) // 2
-    grey = image.crop((left, top, left + cw, top + ch)).convert("L")
+    left, top = (w - cw) // 32 * 16, (h - ch) // 32 * 16  # on the grid of a 2x or 4x enlargement
+    grey = grey.crop((left, top, left + cw, top + ch))
     coarse = _octave(grey, 2)
     if coarse < FLAT:
         return None
@@ -93,6 +107,8 @@ def _softness_of(path: str, stamp: tuple[int, int]) -> float | None:
     with Image.open(path) as im:
         if getattr(im, "is_animated", False):
             im.seek(0)
+        if im.format == "JPEG":  # decode at a reduced scale that is still >= the training size
+            im.draft("L", training_size(*im.size))
         return softness(im)
 
 
