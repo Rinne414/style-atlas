@@ -663,6 +663,9 @@ class StyleAtlasApp(GroupEdits):
             "failed": len(result.failed),
             "folder": str(result.folder),
             "small_groups": len(small),  # left with < EXPORT_MIN_GROUP images: in unassigned
+            "small_ids": sorted(small),
+            # the rest go to the set-aside folders (_duplicates, _excluded, unassigned ...)
+            "training": sum(not (f.startswith("_") or is_unassigned(f)) for f in folders),
             "trimmed": trimmed,
             "config": (result.folder / KOHYA_CONFIG).exists(),
             "steps": steps_per_epoch(folders) if layout == "kohya" else None,

@@ -146,6 +146,8 @@ async function showSimilar(group) {  // a group id, or "excluded": the images ex
 
 const VERDICT_KEYS = { "same style": "v_same", related: "v_related", "clearly different": "v_different" };
 
+const COMPARE_THUMBS = 6;  // a sample of each side under a comparison
+
 async function showCompare(a, b, items, itemsB) {  // picked images in place of group a / group b
   setStatus(t("searching"));
   try {
@@ -166,6 +168,9 @@ async function showCompare(a, b, items, itemsB) {  // picked images in place of 
     const zh = lang === "zh";
     const line = (k, v) => { const d = document.createElement("div"); d.textContent = `${k}${zh ? "：" : ": "}${v}`; kv.append(d); };
     const verdict = t(VERDICT_KEYS[r.verdict] || "v_related");
+    const head = document.createElement("div"); head.className = "verdict";
+    const strong = document.createElement("b"); strong.textContent = verdict; head.append(strong);
+    kv.append(head);  // the answer first, the numbers below it
     line(t("cmpDistance"), `${r.distance.toFixed(3)}${zh ? `（z ${r.z}，${verdict}）` : ` (z ${r.z}, ${verdict})`}`);
     line(t("cmpP"), r.p < 0.01 ? "< 0.01" : r.p.toFixed(2));
     if (r.look) {
@@ -175,9 +180,10 @@ async function showCompare(a, b, items, itemsB) {  // picked images in place of 
     const note = document.createElement("div"); note.className = "meta"; note.textContent = t("cmpNote");
     const strips = [sideA, sideB].map((members, side) => {
       const grid = document.createElement("div"); grid.className = "grid";
-      members.slice(0, 6).forEach((i) => grid.append(thumb(i)));
+      members.slice(0, COMPARE_THUMBS).forEach((i) => grid.append(thumb(i)));
       const cap = document.createElement("div"); cap.className = "meta";
-      cap.textContent = side === 0 ? nameA : nameB;
+      const shown = t("showingOf").replace("{k}", Math.min(COMPARE_THUMBS, members.length)).replace("{n}", members.length);
+      cap.textContent = `${side === 0 ? nameA : nameB} · ${shown}`;
       return [cap, grid];
     }).flat();
     pane.append(h, kv, ...strips, note);
@@ -295,10 +301,10 @@ function groupSelect(title, current, withUnassigned, onPick) {
   return sel;
 }
 
-async function editPost(url, body) {
+async function editPost(url, body, note = "") {  // note: shown after the page reloads
   try {
     await post(url, JSON.stringify({ ...body, rev: DATA.live.revision }), "application/json");
-    reloadKeepingView();
+    reloadKeepingView(note);
   }
   catch (e) { setStatus(String(e.message || e)); }
 }
@@ -528,11 +534,13 @@ function setupExport() {
         trigger: $("expTrig").checked, max_per_group: cap > 0 ? cap : null,
         strip_tags: $("expStrip").value.trim() };
       const r = await post("api/export", JSON.stringify(body), "application/json");
-      const small = r.small_groups ? " " + t("smallGroups").replace("{n}", r.small_groups) : "";
+      const groups = (r.small_ids || []).map(clusterName).join(lang === "zh" ? "、" : ", ");
+      const small = r.small_groups ? " " + t("smallGroups").replace("{n}", r.small_groups).replace("{g}", groups) : "";
       const config = r.config ? " " + t("configWritten") : "";
       const trimmed = r.trimmed ? " " + t("trimmedNote").replace("{n}", r.trimmed) : "";
       const steps = r.steps ? " " + t("stepsNote").replace("{n}", r.steps) : "";
-      setStatus(t("exported").replace("{n}", r.placed).replace("{f}", r.folder) + small + trimmed + steps + config);
+      const done = t("exported").replace("{n}", r.placed).replace("{f}", r.folder).replace("{k}", r.training);
+      setStatus(done + small + trimmed + steps + config);
       addOpenFolder();
     } catch (e) { setStatus(String(e.message || e)); }
   });
@@ -616,8 +624,8 @@ function showPeriods(on) {
 }
 
 const VIEW_KEY = "styleAtlasView";  // the camera, carried over the reload after an edit
-function reloadKeepingView() {
-  const view = { cam: camera.position.toArray(), target: controls.target.toArray() };
+function reloadKeepingView(note = "") {
+  const view = { cam: camera.position.toArray(), target: controls.target.toArray(), note };
   try { sessionStorage.setItem(VIEW_KEY, JSON.stringify(view)); } catch (e) { /* storage off */ }
   location.reload();
 }
@@ -630,6 +638,7 @@ function restoreView() {
   } catch (e) { return; }
   if (!view || !Array.isArray(view.cam) || !Array.isArray(view.target)) return;
   camera.position.fromArray(view.cam); controls.target.fromArray(view.target); controls.update();
+  if (typeof view.note === "string" && view.note) setTimeout(() => setStatus(view.note), 0);
 }
 
 // start-up

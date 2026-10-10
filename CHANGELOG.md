@@ -73,6 +73,12 @@ Clearer output (from three first-time-user tests: English, Chinese, and searchin
   header; the outlier list shows the least typical tenth (5 to 60) instead of up to 60; a check
   that flags every image says why that may be; the image details say 離群度 instead of
   "outlier".
+- Web app, continued: picking a group in "merge into" shows a confirm button instead of merging
+  at once (arrow keys on the list used to merge), and the page then says Undo takes it back; a
+  comparison opens with its verdict and says how many images each strip shows; the export
+  message says how many images go to training and names the groups that fell under 3 images
+  after duplicates and exclusions; the duplicates tab says that the export keeps one per group
+  by itself.
 - Each style group says which sub-folders its images come from ("來自：dayama 9"), in the report
   and on the web map, when the folder has several: a gallery sorted by artist shows which group
   is which artist.

@@ -110,7 +110,11 @@ def test_web_export_reports_groups_too_small_to_keep(tmp_path):
     app.regroup({"threshold": 0.5})
     for i in app.clustering.clusters[1].members[2:]:  # leave 2 images in the smaller group
         app.move({"i": i, "to": -1, "rev": app.revision})
-    assert app.export({"mode": "copy"})["small_groups"] == 1
+    small = app.clustering.clusters[1].id
+    done = app.export({"mode": "copy"})
+    assert done["small_groups"] == 1 and done["small_ids"] == [small]
+    kept = sum(c.size for c in app.clustering.clusters if c.size >= 3)  # no duplicates here
+    assert done["training"] == kept < len(app.atlas)
 
 
 def test_several_images_are_excluded_or_moved_at_once(tmp_path):

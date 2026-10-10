@@ -425,7 +425,12 @@ function groupBar(c) {  // live app only: the edits for a group, or placing the 
     bar.append(place);
     return bar;
   }
-  bar.append(groupSelect(t("mergeInto"), c.id, false, (into) => editPost("api/merge", { from: c.id, into })));
+  const confirmMerge = document.createElement("span");  // a merge waits for its own button
+  bar.append(groupSelect(t("mergeInto"), c.id, false, (into) => {
+    const go = button(t("mergeConfirm").replace("{a}", clusterName(c.id)).replace("{b}", clusterName(into)),
+      () => editPost("api/merge", { from: c.id, into }, t("mergedNote")));
+    go.classList.add("on"); confirmMerge.replaceChildren(go);
+  }), confirmMerge);
   if (DATA.clusters.length >= 2) bar.append(groupSelect(t("compareWith"), c.id, false, (other) => showCompare(c.id, other)));
   const nameBox = document.createElement("input"); nameBox.name = "groupName"; nameBox.setAttribute("aria-label", t("nameGroup"));
   nameBox.placeholder = t("nameGroup"); nameBox.value = (DATA.live.names || {})[String(c.id)] || "";
