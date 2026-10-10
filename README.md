@@ -125,12 +125,14 @@ style-atlas taste score "D:\new_batch" --model "D:\lora\artistX_style_atlas\tast
 
 **用幾張範例圖找更多同風格的圖**（例如擴充 LoRA 訓練集）：把範例放進一個資料夾，用 `--combine` 搜尋，再用 `--copy-to` 把結果連同標註複製出來。範例有 3 張以上時，會用範例對圖庫訓練一個小模型來排序，比單純取範例的平均向量準：在 3,689 張的圖庫裡找 13 位畫師的其他作品，平均精確度在 3／5／10 張範例時分別高 0.055／0.066／0.116。
 
-**同樣的角色出現在很多種畫風裡**時（例如用固定角色測試不同畫師組合），請加 `--neutralize 1`，或在網頁介面勾選「忽略角色軸」。CSD 的畫風向量仍會被角色外觀（髮色、服裝）強烈拉扯。在 96 種畫風 × 2 個角色的 NovelAI 算圖上：
+**同樣的角色出現在很多種畫風裡**時（例如用固定角色測試不同畫師組合），請加 `--ignore-characters`，或在網頁介面勾選「忽略角色軸」。CSD 的畫風向量仍會被角色外觀（髮色、服裝）強烈拉扯。在 96 種畫風 × 2 個角色的 NovelAI 算圖上：
 - 不加時，最接近的圖 89% 是「同角色、別的畫風」。
 - 加了之後，同畫風配對的 AUC 從 0.83 提高到 0.98。
 
+`--ignore-characters` 會先從圖的內容向量自動找出角色（不需要標註），再把每個角色的畫風向量平移到同一個中心。角色越多越有用：16 種配方 × 4 個角色的 Anima 算圖上，以圖找圖找到同配方的比例從 58%（`--neutralize 1`）提高到 70%。舊的 `--neutralize N` 仍可用；查詢圖裡的角色不在資料夾中時，`--neutralize` 比較穩。
+
 這主要改善的是**以圖找圖**。同一個模型、固定角色的算圖，畫風差異通常比門檻還小，用門檻分群（自動、細、中、粗）多半只會得到一群，或按角色分。實測 16 種配方 × 8 張的 Anima 算圖時：
-- 以圖找圖找到同配方的比例是 56%，加 `--neutralize 2` 後是 62%。
+- 以圖找圖找到同配方的比例是 56%，加 `--neutralize 2` 後是 62%，加 `--ignore-characters` 後是 70%。
 - 門檻分群全部失敗。
 - `--neutralize 2 --method kmeans --k 16`（直接指定群數）的 ARI 是 0.22。另一組 7 種配方的測試是 0.53。
 
@@ -347,13 +349,20 @@ Common options:
 - `--reference DIR` (cluster, map, serve): a folder of styles you already know. It adds an
   originality measure, the distance from each image to its closest reference. The map's
   "measures" layout can then put taste, originality, time and atypicality on the X / Y / Z axes.
-- `--neutralize 1` (cluster, map, serve, search): use it when the same characters appear in many
-  styles. On 96 NovelAI styles x 2 characters it raised same-style AUC from 0.83 to 0.98. Do not
-  use it on a mix of different artists, where it removes the style difference itself.
+- `--ignore-characters` (cluster, map, serve, search): use it when the same characters appear in
+  many styles. It finds the characters from the CSD content vectors (no labels needed) and moves
+  each character's style vectors to a shared centre. On 16 Anima recipes x 4 characters,
+  same-recipe search rose from 58% (`--neutralize 1`) to 70%. The web app's "Ignore the
+  character axis" switch uses it. Do not use it on a mix of different artists.
+- `--neutralize N` (cluster, map, serve, search): the older correction, which removes the N
+  strongest directions of variation. On 96 NovelAI styles x 2 characters it raised same-style AUC
+  from 0.83 to 0.98 (centring: 0.98 too). It learns no characters, so it is the safer choice when
+  queries show characters the folder does not. Do not use it on a mix of different artists,
+  where it removes the style difference itself.
   - It helps search much more than grouping. AI renders from one model with fixed characters
     differ by less than any threshold cut. On 16 Anima recipes x 8 renders, every cut gave one
     group or a split by character, and search found the same recipe 56% of the time (62% with
-    `--neutralize 2`).
+    `--neutralize 2`, 70% with `--ignore-characters`).
   - `--neutralize 2 --method kmeans --k 16`, which sets the number of groups, reached ARI 0.22
     there (0.53 on another set of 7 recipes).
 - `--crop center|tiles`

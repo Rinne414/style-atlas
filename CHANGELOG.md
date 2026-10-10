@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **`--ignore-characters`** (cluster, map, serve, search): finds the characters from the CSD
+  content vectors and compares styles as if all were drawn on the same character. On 16 Anima
+  recipes x 4 characters, same-recipe search rose from 58% (`--neutralize 1`) to 70% and
+  recipe-pair AUC from 0.75 to 0.89; with 2 characters the two corrections are about equal.
+  Not for mixed artists. `--neutralize N` stays.
+- The web app's **Ignore the character axis** switch uses it. The page now posts to `api/space`
+  (`{"space": "plain" | "characters" | "neutralize-N"}`) instead of `api/neutralize`, and
+  `groups.json` keeps a `space` name; files with the old `neutralize` count still load.
 - **`dataset_config.toml`** is written with every kohya export (CLI and web app): a kohya
   sd-scripts dataset config listing each style folder with its repeats, with `keep_tokens = 1`
   when trigger captions are on. Resolution and batch size are starting points.

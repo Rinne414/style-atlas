@@ -16,13 +16,27 @@ from styleatlas.atlas import Atlas, EncodeOptions, build_atlas, embed_paths
 from styleatlas.cluster import GRANULARITY, METHODS, PERIODS, cluster_styles, outlier_scores
 from styleatlas.encoder import CROP_MODES, RESOLUTIONS
 from styleatlas.images import TIME_SOURCES, find_images, labels_from_folders
-from styleatlas.metrics import StyleScale, group_difference, split_half_noise, unit
+from styleatlas.metrics import (
+    CHARACTERS,
+    MAX_NEUTRALIZE,
+    PLAIN,
+    StyleScale,
+    SubjectCentring,
+    group_difference,
+    split_half_noise,
+    unit,
+)
 from styleatlas.project import PROJECTIONS
 
 SOFT_PERIODS = 100  # below this, k-means periods changed with the seed (agreement ARI 0.3-0.7)
 NEUTRALIZE_HELP = (
     "ignore the N strongest directions of variation (try 1) when the same characters appear in "
-    "many styles; do not use it on a mix of different artists"
+    "many styles (--ignore-characters usually does better); not for a mix of different artists"
+)
+CHARACTERS_HELP = (
+    "when the same characters appear in many styles: find the characters from the picture "
+    "content and compare styles as if all were drawn on the same character; not for a mix of "
+    "different artists"
 )
 
 
@@ -53,22 +67,42 @@ def _atlas(a: argparse.Namespace, folder: str, exclude: list[Path] | None = None
     atlas = build_atlas(Path(folder), _opts(a), log, recursive=not a.no_recursive, exclude=exclude)
     for p, why in atlas.failed:
         log(f"skipped {p}: {why}")
-    if getattr(a, "neutralize", 0):
-        atlas, a.neutralizer = atlas.neutralized(a.neutralize)  # reused for --reference
-        log(f"ignoring the {a.neutralize} strongest direction(s) of variation (subject axis)")
+    space = _space(a)
+    if space != PLAIN:
+        atlas, a.fitted_space = atlas.in_space(space)  # reused for --reference
+        _log_space(a.fitted_space.transform)
     return atlas
 
 
-def _reference(a: argparse.Namespace, neutral=None) -> Atlas | None:
+def _space(a: argparse.Namespace) -> str:
+    """The vector space chosen on the command line (see metrics.StyleSpace)."""
+    if getattr(a, "ignore_characters", False):
+        return CHARACTERS
+    n = getattr(a, "neutralize", 0)
+    if not 0 <= n <= MAX_NEUTRALIZE:
+        raise ValueError(f"--neutralize takes 0 to {MAX_NEUTRALIZE}")
+    return f"neutralize-{n}" if n else PLAIN
+
+
+def _log_space(transform: object) -> None:
+    if isinstance(transform, SubjectCentring):
+        n = len(transform.centres)
+        log(f"comparing styles per character: {n} subjects found in the picture content")
+    else:
+        k = len(getattr(transform, "axes", []))
+        log(f"ignoring the {k} strongest direction(s) of variation (subject axis)")
+
+
+def _reference(a: argparse.Namespace) -> Atlas | None:
     """The --reference folder (styles you already know), embedded the same way."""
     if not getattr(a, "reference", None):
         return None
     ref = build_atlas(Path(a.reference), _opts(a), log, recursive=True)
     for p, why in ref.failed:
         log(f"reference skipped {p}: {why}")
-    neutral = neutral or getattr(a, "neutralizer", None)  # same space as the folder
-    if neutral is not None:
-        ref = replace(ref, style=neutral.apply(ref.style))
+    space = getattr(a, "fitted_space", None)  # same space as the folder
+    if space is not None:
+        ref = replace(ref, style=space.apply(ref.style, ref.content))
     log(f"reference: {len(ref)} images from {a.reference}")
     return ref
 
@@ -275,14 +309,15 @@ def cmd_search(a: argparse.Namespace) -> int:
 
     opts = _opts(a)
     qpaths = [p for q in a.query for p in find_images(Path(q))]
-    qkept, qstyle, _, failed = embed_paths(qpaths, opts, log)
+    qkept, qstyle, qcontent, failed = embed_paths(qpaths, opts, log)
     if not qkept:
         log("no readable query images")
         return 1
     atlas = build_atlas(Path(a.within), opts, log, recursive=not a.no_recursive)
-    if a.neutralize:
-        atlas, neutral = atlas.neutralized(a.neutralize)
-        qstyle = neutral.apply(qstyle)
+    space = _space(a)
+    if space != PLAIN:
+        atlas, fitted = atlas.in_space(space)
+        qstyle = fitted.apply(qstyle, qcontent)
     query_files = {q.resolve() for q in qkept}
     same = {i for i, p in enumerate(atlas.paths) if p.resolve() in query_files}
     results = search(qstyle, atlas.style, top=a.top, combine=a.combine, exclude=same)
@@ -446,7 +481,8 @@ def cmd_serve(a: argparse.Namespace) -> int:
     from styleatlas.serve import StyleAtlasApp
     from styleatlas.webserver import serve
 
-    k, a.neutralize = a.neutralize, 0  # the app keeps raw vectors and applies k itself
+    space = _space(a)
+    a.neutralize, a.ignore_characters = 0, False  # the app applies the space itself
     app = StyleAtlasApp(
         _atlas(a, a.folder),
         _opts(a),
@@ -454,7 +490,7 @@ def cmd_serve(a: argparse.Namespace) -> int:
         a.title,
         progress=log,
         time_source=a.time,
-        neutralize=k,
+        space=space,
         reference=_reference(a),
     )
     serve(app, port=a.port, open_browser=not a.no_browser)
@@ -496,7 +532,7 @@ def _cluster_args(p: argparse.ArgumentParser) -> None:
         choices=TIME_SOURCES,
         help="show when each style was made: file-name id (Pixiv/Danbooru) or mtime",
     )
-    g.add_argument("--neutralize", type=int, default=0, metavar="N", help=NEUTRALIZE_HELP)
+    _space_args(g)
     g.add_argument("--reference", metavar="DIR", help=REFERENCE_HELP)
     g.add_argument("--thumb", type=int, help="thumbnail px in the map (default 128, 72 above 2k)")
 
@@ -560,9 +596,15 @@ def _add_folder_commands(add: Adder) -> None:
     p.add_argument("--title")
     p.add_argument("--projection", default="auto", choices=PROJECTIONS)
     p.add_argument("--time", default="none", choices=TIME_SOURCES)
-    p.add_argument("--neutralize", type=int, default=0, metavar="N", help=NEUTRALIZE_HELP)
+    _space_args(p)
     p.add_argument("--reference", metavar="DIR", help=REFERENCE_HELP)
     p.add_argument("--no-browser", action="store_true")
+
+
+def _space_args(p) -> None:
+    x = p.add_mutually_exclusive_group()
+    x.add_argument("--ignore-characters", action="store_true", help=CHARACTERS_HELP)
+    x.add_argument("--neutralize", type=int, default=0, metavar="N", help=NEUTRALIZE_HELP)
 
 
 def _add_inspect_commands(add: Adder) -> None:
@@ -578,7 +620,7 @@ def _add_inspect_commands(add: Adder) -> None:
     p.add_argument(
         "--copy-to", metavar="DIR", help="copy the matches (with captions) into a new folder here"
     )
-    p.add_argument("--neutralize", type=int, default=0, metavar="N", help=NEUTRALIZE_HELP)
+    _space_args(p)
     p.add_argument("--json", action="store_true")
     p = add("outliers", cmd_outliers, "images least like the rest of a folder")
     p.add_argument("folder")

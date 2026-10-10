@@ -11,7 +11,7 @@ from PIL import Image
 
 from styleatlas.encoder import CSDEncoder, cache_dir, encoder_signature
 from styleatlas.images import find_images, load_rgb
-from styleatlas.metrics import Neutralizer
+from styleatlas.metrics import StyleSpace
 from styleatlas.store import VectorStore
 
 Progress = Callable[[str], None]
@@ -48,10 +48,10 @@ class Atlas:
             self._rels = [_relative(p, self.root) for p in self.paths]
         return self._rels[i]
 
-    def neutralized(self, k: int) -> tuple[Atlas, Neutralizer]:
-        """A copy whose style vectors ignore the k strongest directions of variation."""
-        n = Neutralizer.fit(self.style, k)
-        return replace(self, style=n.apply(self.style)), n
+    def in_space(self, name: str) -> tuple[Atlas, StyleSpace]:
+        """A copy whose style vectors are in the named space (see metrics.StyleSpace)."""
+        space = StyleSpace.fit(name, self.style, self.content)
+        return replace(self, style=space.apply(self.style, self.content)), space
 
     def subset(self, idx: np.ndarray | list[int]) -> Atlas:
         idx = list(idx)

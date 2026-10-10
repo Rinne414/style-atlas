@@ -225,11 +225,12 @@ function setupUndo() {
 
 function setupLive() {
   setupUndo();
-  $("neutral").checked = (DATA.live.neutralize || 0) > 0;
+  $("neutral").checked = (DATA.live.space || "plain") !== "plain";
   $("neutral").addEventListener("change", async (e) => {
     setStatus(t("neutralBusy"));
     try {
-      await post("api/neutralize", JSON.stringify({ k: e.target.checked ? 1 : 0 }), "application/json");
+      const space = e.target.checked ? "characters" : "plain";
+      await post("api/space", JSON.stringify({ space }), "application/json");
       location.reload();
     } catch (err) { setStatus(String(err.message || err)); }
   });

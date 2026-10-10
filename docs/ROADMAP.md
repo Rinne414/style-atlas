@@ -37,8 +37,9 @@ All of these are in `docs/BENCHMARKS.md`.
 - **Periods within one artist**: style drift is significant for 12 of 13 artists;
   `--granularity period` (k-means, 3 groups) follows posting time beyond chance for 11 of 13, but
   the alignment is weak (AMI about 0.12) and unstable for artists with about 50 works.
-- **Subject pull**: CSD style vectors are pulled by character looks. `--neutralize 1` fixes this
-  for collections where the same characters recur, but must not be used on mixed artists.
+- **Subject pull**: CSD style vectors are pulled by character looks. `--ignore-characters`
+  (or `--neutralize 1`) fixes much of this for collections where the same characters recur, but
+  must not be used on mixed artists. A character the folder never showed gets a wrong offset.
 - **Taste model**: it separates like from dislike (AUC about 0.77 on one person's votes). It does
   not rank degrees of liking, and it may fail on a new generator.
 

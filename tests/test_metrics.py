@@ -120,11 +120,71 @@ def test_cli_reference_uses_the_folders_neutralizer(monkeypatch, tmp_path):
     }
     monkeypatch.setattr(cli, "build_atlas", lambda root, *a, **k: fake[Path(root).name])
     monkeypatch.setattr(cli, "_opts", lambda a: None)
-    args = argparse.Namespace(neutralize=1, reference="ref", no_recursive=False)
-    atlas = cli._atlas(args, "folder")
-    got = cli._reference(args)
-    assert np.allclose(got.style, args.neutralizer.apply(ref))
-    assert not np.allclose(atlas.style, folder)
+    for flags in ({"neutralize": 1}, {"ignore_characters": True}):
+        args = argparse.Namespace(**flags, reference="ref", no_recursive=False)
+        atlas = cli._atlas(args, "folder")
+        got = cli._reference(args)
+        assert np.allclose(got.style, args.fitted_space.apply(ref, ref))
+        assert not np.allclose(atlas.style, folder)
+
+
+def _characters_in_styles(n_styles: int = 12, n_subjects: int = 3, seed: int = 0):
+    """Every style drawn on every subject: the subject pulls the style vector hard, and the
+    content vector is mostly the subject."""
+    rng = np.random.default_rng(seed)
+    styles = unit(rng.normal(size=(n_styles, 768)))
+    subjects = unit(rng.normal(size=(n_subjects, 768)))
+    style_id = np.tile(np.arange(n_styles), n_subjects)
+    subject_id = np.repeat(np.arange(n_subjects), n_styles)
+    noise = rng.normal(0, 0.05, size=(len(style_id), 768))
+    style = unit(styles[style_id] + 1.5 * subjects[subject_id] + noise)
+    content = unit(subjects[subject_id] + 0.3 * styles[style_id] + noise)
+    return style, content, style_id, subject_id
+
+
+def _twin_rate(v: np.ndarray, label: np.ndarray) -> float:
+    s = v @ v.T
+    np.fill_diagonal(s, -np.inf)
+    return float(np.mean(label[s.argmax(1)] == label))
+
+
+def test_subject_centring_finds_the_characters_and_compares_styles_across_them():
+    from styleatlas.metrics import SubjectCentring
+
+    style, content, style_id, subject_id = _characters_in_styles()
+    assert _twin_rate(style, style_id) < 0.1  # nearest neighbour: same subject, other style
+    centring = SubjectCentring.fit(style, content)
+    assert len(centring.centres) == 3
+    found = centring.subjects(content)
+    assert all(len(set(found[subject_id == s])) == 1 for s in range(3))
+    moved = centring.apply(style, content)
+    assert _twin_rate(moved, style_id) > 0.9
+    assert np.allclose(np.linalg.norm(moved, axis=1), 1.0, atol=1e-5)
+
+
+def test_subject_centring_leaves_tiny_sets_alone():
+    from styleatlas.metrics import SubjectCentring
+
+    style, content, *_ = _characters_in_styles(n_styles=2, n_subjects=2)
+    centring = SubjectCentring.fit(style[:5], content[:5])
+    assert len(centring.centres) == 0
+    assert centring.apply(style, content) is style
+
+
+def test_space_names():
+    from styleatlas.metrics import StyleSpace, space_name
+
+    assert [space_name(v) for v in ("plain", "characters", "neutralize-3")] == [
+        "plain",
+        "characters",
+        "neutralize-3",
+    ]
+    for bad in ("neutralize-0", "neutralize-9", "neutralize-03", "neutralize-x", 3, None, ""):
+        assert space_name(bad) is None
+    style, content, *_ = _characters_in_styles()
+    assert StyleSpace.fit("plain", style, content).apply(style, content) is style
+    with pytest.raises(ValueError):
+        StyleSpace.fit("loose", style, content)
 
 
 def test_neighbor_density_reuses_only_the_same_arrays():

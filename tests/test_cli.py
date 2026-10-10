@@ -119,3 +119,13 @@ def test_map_and_bench(lib, tmp_path, capsys):
     assert main(["bench", str(lib), "--trials", "2", "--device", "cpu"]) == 0
     report = json.loads(capsys.readouterr().out)
     assert report["whitened"]["top1"] == 1.0 and report["labels"] == 3
+
+
+def test_ignore_characters_and_neutralize_are_alternatives(lib, tmp_path, capsys):
+    out = tmp_path / "out"
+    base = ["cluster", str(lib), "--device", "cpu", "--no-map", "-o", str(out)]
+    assert main([*base, "--ignore-characters"]) == 0
+    assert "subjects found in the picture content" in capsys.readouterr().err
+    with pytest.raises(SystemExit):  # argparse: not allowed together
+        main([*base, "--ignore-characters", "--neutralize", "1"])
+    assert main([*base, "--neutralize", "9"]) == 1

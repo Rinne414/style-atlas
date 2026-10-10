@@ -89,6 +89,110 @@ class Neutralizer:
         return unit(x - ((x - self.mean) @ self.axes.T) @ self.axes)
 
 
+SUBJECT_KMAX = 8
+SUBJECT_SAMPLE = 3000  # subjects are found on at most this many images, then assigned to all
+
+
+@dataclass(frozen=True)
+class SubjectCentring:
+    """Moves each style vector by its subject's offset from the overall mean, so one style drawn
+    on different characters lands in one place.
+
+    Subjects are k-means groups of the CSD *content* vectors, k from 2 to 8 by silhouette. On AI
+    renders of 2-4 fixed characters in many styles this found the characters exactly (ARI 0.98 to
+    1.0), and with 4 characters same-style top-1 rose from 58% (neutralize 1) to 70%. On a mix of
+    different artists the "subjects" are mostly the artists, and centring wrecked grouping (ARI
+    0.42 to 0.00 with 2 artists), so this is opt-in, like the Neutralizer."""
+
+    centres: np.ndarray  # (s, d) content centroids
+    offsets: np.ndarray  # (s, d) each subject's mean style minus the overall mean style
+
+    @classmethod
+    def fit(cls, style: np.ndarray, content: np.ndarray) -> SubjectCentring:
+        centres = _subject_centres(content)
+        if centres is None:
+            empty = np.zeros((0, style.shape[1]), np.float32)
+            return cls(empty, empty)
+        cut = cls(centres, np.zeros((len(centres), style.shape[1]), np.float32))
+        labels = cut.subjects(content)
+        means = np.stack([style[labels == s].mean(axis=0) for s in range(len(centres))])
+        return cls(centres, (means - style.mean(axis=0)).astype(np.float32))
+
+    def subjects(self, content: np.ndarray) -> np.ndarray:
+        """Nearest subject of each content vector."""
+        d = (self.centres**2).sum(axis=1)[None, :] - 2 * content @ self.centres.T
+        return d.argmin(axis=1)
+
+    def apply(self, style: np.ndarray, content: np.ndarray) -> np.ndarray:
+        if not len(self.centres):
+            return style
+        return unit(style - self.offsets[self.subjects(content)])
+
+
+def _subject_centres(content: np.ndarray) -> np.ndarray | None:
+    """k-means centres of the content vectors at the best-silhouette k (None: too few images)."""
+    from sklearn.cluster import KMeans
+    from sklearn.metrics import silhouette_score
+
+    if len(content) < 6:
+        return None
+    rng = np.random.default_rng(0)
+    sample = content
+    if len(content) > SUBJECT_SAMPLE:
+        sample = content[rng.choice(len(content), SUBJECT_SAMPLE, replace=False)]
+    best, centres = -1.0, None
+    for k in range(2, min(SUBJECT_KMAX, len(sample) - 1) + 1):
+        km = KMeans(k, n_init=4, random_state=0).fit(sample)
+        labels = np.asarray(km.labels_)
+        if len(np.unique(labels)) < 2:  # duplicate images can leave a single group
+            continue
+        s = silhouette_score(sample, labels)
+        if s > best:
+            best, centres = s, km.cluster_centers_.astype(np.float32)
+    return centres
+
+
+MAX_NEUTRALIZE = 8
+PLAIN, CHARACTERS = "plain", "characters"
+
+
+def space_name(value: object) -> str | None:
+    """The space name if `value` is a valid one: plain, characters or neutralize-N (N 1..8)."""
+    if value in (PLAIN, CHARACTERS):
+        return value
+    if isinstance(value, str) and value.startswith("neutralize-"):
+        n = value.removeprefix("neutralize-")
+        if n.isdigit() and 1 <= int(n) <= MAX_NEUTRALIZE and n == str(int(n)):
+            return value
+    return None
+
+
+@dataclass(frozen=True)
+class StyleSpace:
+    """The space grouping, layout and search work in: `plain` (vectors as embedded),
+    `characters` (SubjectCentring) or `neutralize-N` (Neutralizer with N directions)."""
+
+    name: str
+    transform: Neutralizer | SubjectCentring | None = None
+
+    @classmethod
+    def fit(cls, name: str, style: np.ndarray, content: np.ndarray) -> StyleSpace:
+        if space_name(name) is None:
+            raise ValueError(f"unknown space {name!r}")
+        if name == PLAIN:
+            return cls(name)
+        if name == CHARACTERS:
+            return cls(name, SubjectCentring.fit(style, content))
+        return cls(name, Neutralizer.fit(style, int(name.removeprefix("neutralize-"))))
+
+    def apply(self, style: np.ndarray, content: np.ndarray) -> np.ndarray:
+        if isinstance(self.transform, SubjectCentring):
+            return self.transform.apply(style, content)
+        if isinstance(self.transform, Neutralizer):
+            return self.transform.apply(style)
+        return style
+
+
 def cosine_distance(x: np.ndarray) -> np.ndarray:
     d = 1.0 - x @ x.T
     d = np.maximum(d, 0.0)

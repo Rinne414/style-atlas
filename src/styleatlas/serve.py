@@ -43,7 +43,7 @@ from styleatlas.dataset import (
 from styleatlas.export import KOHYA_CONFIG, export_folders, output_dir, write_table
 from styleatlas.groupfile import GROUPS_FILE, SavedGroups, carry_names, load_groups, save_groups
 from styleatlas.images import cached_thumbnail, load_rgb
-from styleatlas.metrics import Neutralizer
+from styleatlas.metrics import CHARACTERS, MAX_NEUTRALIZE, PLAIN, StyleSpace, space_name
 from styleatlas.persist import RelPathMap
 from styleatlas.report import (
     build_payload,
@@ -58,7 +58,6 @@ from styleatlas.taste_session import TasteSession
 
 SEARCH_TOP = 48
 MAX_QUERY_IMAGES = 32
-MAX_NEUTRALIZE = 3
 UNDO_STEPS = 30
 EXPORT_MIN_GROUP = 3  # groups left smaller after set-asides go to _unassigned (as in the CLI)
 MAX_SPLIT = 4000  # splitting runs under the lock; larger groups would stall every request
@@ -75,13 +74,13 @@ class StyleAtlasApp:
         title: str | None = None,
         progress: Callable[[str], None] = lambda _: None,
         time_source: str = "none",
-        neutralize: int = 0,
+        space: str = PLAIN,
         reference: Atlas | None = None,
     ):
         self.opts = opts
         self.title = title
         self.time_source = time_source
-        self.raw = atlas  # vectors as embedded; `atlas` is the (optionally neutralized) view
+        self.raw = atlas  # vectors as embedded; `atlas` is the view in the current space
         self.raw_reference = reference
         self.projection = projection
         self.progress = progress
@@ -95,9 +94,9 @@ class StyleAtlasApp:
         self.group_names: dict[int, str] = {}  # group id -> name, carried across regroupings
         self._history: list[tuple] = []  # earlier (clustering, settings, names, space) for undo
         saved = load_groups(self._groups_path, atlas)
-        if saved and saved.neutralize is not None and 0 <= saved.neutralize <= MAX_NEUTRALIZE:
-            neutralize = saved.neutralize  # the switch as it was left in the page
-        self._apply_space(neutralize)
+        if saved and saved.space is not None:
+            space = saved.space  # the switch as it was left in the page
+        self._apply_space(space)
         self.restored = saved is not None
         if saved:
             self._restore(saved)
@@ -105,14 +104,14 @@ class StyleAtlasApp:
         self._excluded = RelPathMap(self.out_dir / "excluded.json", atlas)
         self.excluded: set[int] = {i for i, v in self._excluded.values.items() if v is True}
 
-    def _apply_space(self, k: int) -> None:
-        """(Re)build everything that depends on the vector space: --neutralize k."""
-        self.neutral = Neutralizer.fit(self.raw.style, k)
-        self.neutralize = k
-        self.atlas = replace(self.raw, style=self.neutral.apply(self.raw.style))
+    def _apply_space(self, name: str) -> None:
+        """(Re)build everything that depends on the vector space (see metrics.StyleSpace)."""
+        raw = self.raw
+        self.space = StyleSpace.fit(name, raw.style, raw.content)
+        self.atlas = replace(raw, style=self.space.apply(raw.style, raw.content))
         ref = self.raw_reference
         if ref is not None:
-            ref = replace(ref, style=self.neutral.apply(ref.style))
+            ref = replace(ref, style=self.space.apply(ref.style, ref.content))
         self.layout = compute_layout(self.atlas, self.projection, self.progress, ref)
         s = self.settings
         self.clustering = cluster_styles(
@@ -126,22 +125,22 @@ class StyleAtlasApp:
             self.taste.atlas = self.atlas
             self.taste._refit()
 
-    def set_neutralize(self, body: dict) -> dict:
+    def set_space(self, body: dict) -> dict:
         """Switch the vector space. Groups are rebuilt in it (names follow their images); Undo
         returns to the old space with its groups and hand edits."""
-        k = body.get("k")
-        if type(k) is not int or not 0 <= k <= MAX_NEUTRALIZE:
-            raise ValueError(f"k must be a whole number from 0 to {MAX_NEUTRALIZE}")
+        name = space_name(body.get("space"))
+        if name is None:
+            choices = f"{PLAIN}, {CHARACTERS} or neutralize-1 to neutralize-{MAX_NEUTRALIZE}"
+            raise ValueError(f"space must be {choices}")
         with self._lock:
-            if k == self.neutralize:
-                return {"neutralize": k, "clusters": self.clustering.n_clusters}
-            self._remember()
-            old, names = self.clustering.labels, self.group_names
-            self._apply_space(k)
-            self.group_names = carry_names(old, self.clustering.labels, names)
-            self.revision += 1
-            self._save_groups()
-            return {"neutralize": k, "clusters": self.clustering.n_clusters}
+            if name != self.space.name:
+                self._remember()
+                old, names = self.clustering.labels, self.group_names
+                self._apply_space(name)
+                self.group_names = carry_names(old, self.clustering.labels, names)
+                self.revision += 1
+                self._save_groups()
+            return {"space": name, "clusters": self.clustering.n_clusters}
 
     @property
     def out_dir(self) -> Path:
@@ -167,7 +166,7 @@ class StyleAtlasApp:
                 "taste": self.taste.state(),
                 "excluded": sorted(self.excluded),
                 "revision": self.revision,
-                "neutralize": self.neutralize,
+                "space": self.space.name,
                 "names": {str(k): v for k, v in self.names_by_group().items()},
                 "restored": self.restored,
                 "can_undo": bool(self._history),
@@ -270,18 +269,21 @@ class StyleAtlasApp:
         return {"hits": [{"i": h.index, "cos": round(h.cosine, 4)} for h in hits]}
 
     def _embed(self, datas: list[bytes]):
-        """Style vectors of uploaded images, decoded one at a time (each can be large)."""
-        rows = []
+        """Style vectors of uploaded images, decoded one at a time (each can be large), in the
+        current space (the content vectors place them with a character)."""
+        styles, contents = [], []
         for d in datas:
             try:
                 image = load_rgb(io.BytesIO(d))
             except LOAD_ERRORS as e:
                 raise ValueError(f"not a readable image: {e}") from e
             with self._lock:
-                rows.append(get_encoder(self.opts).encode([image]).style[0])
+                emb = get_encoder(self.opts).encode([image])
+            styles.append(emb.style[0])
+            contents.append(emb.content[0])
             del image
         with self._lock:
-            return self.neutral.apply(np.stack(rows))
+            return self.space.apply(np.stack(styles), np.stack(contents))
 
     def similar(self, body: dict) -> dict:
         """Images outside a group that look most like it (a model learned from the group, as in
@@ -309,7 +311,7 @@ class StyleAtlasApp:
             raise ValueError("the groups changed in another tab or edit; reload the page")
 
     def _remember(self) -> None:
-        state = (self.clustering, dict(self.settings), dict(self.group_names), self.neutralize)
+        state = (self.clustering, dict(self.settings), dict(self.group_names), self.space.name)
         self._history.append(state)
         del self._history[:-UNDO_STEPS]
 
@@ -324,9 +326,9 @@ class StyleAtlasApp:
             self._check_revision(body)
             if not self._history:
                 raise ValueError("nothing to undo")
-            clustering, settings, names, k = self._history.pop()
-            if k != self.neutralize:
-                self._apply_space(k)
+            clustering, settings, names, space = self._history.pop()
+            if space != self.space.name:
+                self._apply_space(space)
             self.clustering, self.settings, self.group_names = clustering, settings, names
             self.revision += 1
             self._save_groups()
@@ -352,7 +354,7 @@ class StyleAtlasApp:
                 self.atlas,
                 self.clustering,
                 self.settings,
-                self.neutralize,
+                self.space.name,
                 self.group_names,
             )
         except OSError as e:  # the edit itself worked; only the copy on disk is behind

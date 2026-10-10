@@ -171,16 +171,18 @@ def test_split_cuts_a_group_in_two(server):
     assert request(port, "POST", "/api/split", json.dumps(bad), hdr)[0] == 400
 
 
-def test_neutralize_can_be_switched_live(server):
+def test_the_space_can_be_switched_live(server):
     port, _ = server
     hdr = {"X-Style-Atlas": "1", "Content-Type": "application/json"}
-    status, data = request(port, "POST", "/api/neutralize", json.dumps({"k": 1}), hdr)
-    assert status == 200 and json.loads(data)["neutralize"] == 1
+    body = json.dumps({"space": "characters"})
+    status, data = request(port, "POST", "/api/space", body, hdr)
+    assert status == 200 and json.loads(data)["space"] == "characters"
     status, html = request(port, "GET", "/")
-    assert b'"neutralize":1' in html
-    assert request(port, "POST", "/api/neutralize", json.dumps({"k": 9}), hdr)[0] == 400
-    status, data = request(port, "POST", "/api/neutralize", json.dumps({"k": 0}), hdr)
-    assert json.loads(data)["neutralize"] == 0
+    assert b'"space":"characters"' in html
+    for bad in ("neutralize-9", "neutralize-01", "Plain", 1, None):
+        assert request(port, "POST", "/api/space", json.dumps({"space": bad}), hdr)[0] == 400
+    status, data = request(port, "POST", "/api/space", json.dumps({"space": "plain"}), hdr)
+    assert json.loads(data)["space"] == "plain"
 
 
 def test_group_names_follow_the_group_and_name_the_export(server):
@@ -285,10 +287,22 @@ def test_undo_restores_names_and_the_space_after_a_switch(tmp_path):
     app.undo({"rev": app.revision})
     assert app.names_by_group() == {0: "first"}
     app.merge({"from": 1, "into": 0, "rev": app.revision})
-    app.set_neutralize({"k": 1})
+    app.set_space({"space": "characters"})
     app.undo({"rev": app.revision})  # back to the old space, hand edit and name included
-    assert app.neutralize == 0 and app.clustering.n_clusters == 1
+    assert app.space.name == "plain" and app.clustering.n_clusters == 1
     assert app.names_by_group() == {0: "first"}
+
+
+def test_a_groups_file_from_before_spaces_keeps_its_neutralize_count(tmp_path):
+    app, atlas = _app(tmp_path)
+    app.regroup({"threshold": 0.5})
+    path = app._groups_path
+    data = json.loads(path.read_text(encoding="utf-8"))
+    del data["space"]
+    for k, expected in ((1, "neutralize-1"), (0, "plain"), (99, "plain")):
+        path.write_text(json.dumps({**data, "neutralize": k}), encoding="utf-8")
+        again = StyleAtlasApp(atlas, EncodeOptions(device="cpu"), "pca")
+        assert again.restored and again.space.name == expected  # 99: invalid, the default
 
 
 def test_names_follow_their_images_through_edits(tmp_path):
@@ -341,9 +355,9 @@ def test_the_saved_space_and_names_come_back(tmp_path):
     app, atlas = _app(tmp_path)
     app.regroup({"threshold": 0.5})
     app.rename({"group": 1, "name": "second", "rev": app.revision})
-    app.set_neutralize({"k": 1})
+    app.set_space({"space": "neutralize-1"})
     again = StyleAtlasApp(atlas, EncodeOptions(device="cpu"), "pca")
-    assert again.restored and again.neutralize == 1
+    assert again.restored and again.space.name == "neutralize-1"
     assert again.names_by_group() == app.names_by_group()
     assert (again.clustering.labels == app.clustering.labels).all()
 
@@ -381,7 +395,7 @@ def test_several_dropped_images_search_as_one_style(tmp_path, monkeypatch):
     class FakeEncoder:  # the images' red channel picks the stored vector they stand for
         def encode(self, images):
             rows = [atlas.style[np.asarray(im)[0, 0, 0]] for im in images]
-            return type("E", (), {"style": np.stack(rows)})
+            return type("E", (), {"style": np.stack(rows), "content": np.stack(rows)})
 
     monkeypatch.setattr("styleatlas.serve.get_encoder", lambda opts: FakeEncoder())
 

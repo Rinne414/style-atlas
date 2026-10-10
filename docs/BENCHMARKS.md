@@ -456,6 +456,37 @@ computes the direction from the collection itself, so it carries over:
 | `--neutralize 1` | 31% | 70% | **0.967** |
 | `--neutralize 2` | 40% | 59% | 0.967 |
 
+### Centring per character, without labels: `--ignore-characters` (2026-10-10)
+
+The table above shows that centring each character separately did best, but it needed
+character labels. CSD also returns a *content* vector, and k-means on it (k from 2 to 8, picked
+by silhouette) finds the characters by itself: agreement with the true characters was ARI 0.98,
+0.98 and 1.0 on the three sets below. Each image's style vector is then moved by its
+character's offset from the overall mean (`metrics.SubjectCentring`).
+
+Three sets of renders, labels = recipes. Top-1 is plain cosine; k-means ARI uses k = the number
+of recipes.
+
+| Set | Correction | Recipe-pair AUC | Same-recipe top-1 | k-means ARI |
+|---|---|---|---|---|
+| NovelAI, 96 recipes x 2 characters (192) | `--neutralize 1` | **0.980** | 48% | **0.29** |
+| | `--ignore-characters` | 0.977 | **52%** | 0.28 |
+| Anima, 16 recipes x 4 characters (128) | `--neutralize 1` | 0.754 | 58% | 0.08 |
+| | `--ignore-characters` | **0.893** | **70%** | **0.36** |
+| Anima, 7 recipes x 2 characters (28) | `--neutralize 1` | 0.857 | 75% | 0.35 |
+| | `--ignore-characters` | **0.859** | **79%** | **0.40** |
+
+- With two characters the two are about equal: the strongest direction *is* the line between the
+  two characters. With four, one direction cannot hold them all, and centring is far better.
+- Centring and then neutralizing gave no further gain.
+- On mixed Danbooru artists centring is as harmful as neutralizing: the "characters" it finds are
+  mostly the artists. k-means ARI fell from 0.42 to 0.00 with 2 artists and from 0.50 to 0.07
+  with 5; with 20 it was unchanged. So it is opt-in too.
+- The web app's 「忽略角色軸」 switch uses it since 0.14.0.
+- A new image (a search query or a `--reference` image) is moved by the offset of its nearest
+  character. A character the collection never showed gets a wrong offset; `--neutralize`, which
+  learns no characters, is the safer choice there (see the second check above).
+
 ## Near-duplicate threshold (2026-10-09)
 
 Pairs were checked by eye at each score of min(style cos, content cos):

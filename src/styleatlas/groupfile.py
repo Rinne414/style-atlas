@@ -15,6 +15,7 @@ import numpy as np
 from styleatlas.atlas import Atlas
 from styleatlas.cluster import METHODS, UNASSIGNED, Clustering
 from styleatlas.dataset import clean_group_name
+from styleatlas.metrics import PLAIN, space_name
 
 GROUPS_FILE = "groups.json"
 MIN_KNOWN = 0.5  # restore only when the file covers at least this share of the current images
@@ -25,7 +26,7 @@ class SavedGroups:
     labels: np.ndarray  # saved group id per current image (UNASSIGNED for new images)
     names: dict[int, str]  # saved group id -> name
     settings: dict
-    neutralize: int | None
+    space: str | None  # metrics.StyleSpace name; None: not saved
 
 
 def save_groups(
@@ -33,12 +34,12 @@ def save_groups(
     atlas: Atlas,
     clustering: Clustering,
     settings: dict,
-    neutralize: int,
+    space: str,
     names: dict[int, str],
 ) -> None:
     data = {
         "settings": settings,
-        "neutralize": neutralize,
+        "space": space,
         "labels": {atlas.rel(i): int(c) for i, c in enumerate(clustering.labels)},
         "group_names": {str(g): n for g, n in names.items()},
     }
@@ -79,10 +80,17 @@ def _parse(data: dict, atlas: Atlas) -> SavedGroups | None:
                 names[int(g)] = clean_group_name(n)
             except ValueError:
                 continue
+    return SavedGroups(labels, names, _settings(data.get("settings"), len(atlas)), _space(data))
+
+
+def _space(data: dict) -> str | None:
+    """The saved space; files from before 0.14 kept a "neutralize" count instead."""
+    if "space" in data:
+        return space_name(data["space"])
     k = data.get("neutralize")
-    return SavedGroups(
-        labels, names, _settings(data.get("settings"), len(atlas)), k if type(k) is int else None
-    )
+    if type(k) is int and k >= 0:
+        return space_name(f"neutralize-{k}" if k else PLAIN)
+    return None
 
 
 def _settings(raw: object, n: int) -> dict:
