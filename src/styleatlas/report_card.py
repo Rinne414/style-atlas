@@ -23,7 +23,7 @@ from styleatlas.consistency import consistency
 from styleatlas.dataset import distinctive_tags, tag_summary
 from styleatlas.images import cached_thumbnail, timeline, timeline_span
 from styleatlas.lang import tr
-from styleatlas.look import LOOK_NAMES, NOTABLE, WORDS_ZH, profile
+from styleatlas.look import LOOK_NAMES, NOTABLE, THAN_ZH, WORDS_ZH, profile
 from styleatlas.metrics import centroid
 from styleatlas.render_check import RenderCheck, check_renders
 
@@ -41,9 +41,9 @@ TEXT = {
         "tight": "很一致",
         "like one artist": "在一位畫師的正常範圍內（兩三位畫師混在一起也常落在這裡）",
         "mixed": "多半混了不同畫風或時期",
-        "spread": "比 {p}% 的單一畫師分散（和 114 位 Danbooru 畫師比較）",
+        "spread": "比 {p}% 的單一畫師分散（和 114 位 Danbooru 畫師比較，每位抽 10 張）",
         "few": "圖太少（少於 10 張），不判斷一致性。",
-        "looks": "外觀（和 278 位 Danbooru 畫師的平均比較）",
+        "looks": "外觀（和 278 位 Danbooru 畫師各自的平均外觀比較）",
         "than": "比 {p}% 的畫師{w}",
         "artists": "最像的畫師（參考圖庫）",
         "groups": "畫風群",
@@ -60,9 +60,9 @@ TEXT = {
         "tight": "very consistent",
         "like one artist": "in the range of one artist (a mix of two or three often is too)",
         "mixed": "probably a mix of styles or periods",
-        "spread": "more spread than {p}% of single artists (114 Danbooru artists)",
+        "spread": "more spread than {p}% of single artists (114 Danbooru artists, 10 works each)",
         "few": "Too few images (under 10) to judge consistency.",
-        "looks": "Look (next to the means of 278 Danbooru artists)",
+        "looks": "Look (next to the mean look of each of 278 Danbooru artists)",
         "than": "{w} than {p}% of artists",
         "artists": "Closest artists (reference library)",
         "groups": "Style groups",
@@ -124,14 +124,7 @@ RENDER_TEXT = {
     },
 }
 LOOK_WORDS = {  # next to the reference artists: (above the middle, below it)
-    "zh": {
-        "brightness": ("亮", "暗"),
-        "contrast": ("對比強", "對比弱"),
-        "colourfulness": ("鮮豔", "淡"),
-        "warmth": ("暖", "冷"),
-        "lines": ("線條多", "線條少"),
-        "flatness": ("色塊平", "質感多"),
-    },
+    "zh": THAN_ZH,  # "比 67% 的畫師色彩更淡"
     "en": {
         "brightness": ("brighter", "darker"),
         "contrast": ("more contrast", "less contrast"),
@@ -258,9 +251,10 @@ def _renders_section(check: RenderCheck, train: Atlas, lang: str) -> str:
 
 
 def _look_change(z: np.ndarray, lang: str) -> str:
+    """The renders next to the training set: "更亮、線條更少" (a comparison, so the 更 form)."""
     picked = [j for j in np.argsort(-np.abs(z)) if abs(z[j]) >= NOTABLE]
     sep = "、" if lang == "zh" else ", "
-    return sep.join(GROUP_WORDS[lang][LOOK_NAMES[j]][0 if z[j] > 0 else 1] for j in picked)
+    return sep.join(LOOK_WORDS[lang][LOOK_NAMES[j]][0 if z[j] > 0 else 1] for j in picked)
 
 
 def _imgs(paths) -> str:

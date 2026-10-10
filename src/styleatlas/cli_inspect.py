@@ -201,7 +201,7 @@ def _print_compare(a, sizes, dist, p, scale, look, copies, files) -> None:
             f"畫風距離 {dist:.3f}（z {z:.1f}，{VERDICT_ZH.get(verdict, verdict)}；p {pv}）",
         )
     )
-    words = describe(look, "zh" if chinese() else "en")
+    words = describe(look, "zh" if chinese() else "en", than=True)
     print(
         tr(
             f"look: B is {words}" if words else "look: no clear difference",
