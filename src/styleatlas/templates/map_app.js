@@ -41,7 +41,7 @@ async function searchFiles(fileList) {
       ? await post("api/search", files[0], files[0].type)  // {hits}: one image is no batch
       : await post("api/search_set", JSON.stringify({ images: await Promise.all(files.map(toBase64)) }), "application/json");
     setStatus("");
-    showSearch(files, r.hits, r.fit);
+    showSearch(files, r.hits, r.fit, r.folders);
   } catch (e) { setStatus(String(e.message || e)); }
 }
 
@@ -58,7 +58,24 @@ function fitSummary(fit) {  // a batch's verdict: the share that falls inside a 
   return [box, note];
 }
 
-function showSearch(files, hits, fit) {
+function folderList(folders) {  // which sub-folder (an artist, a style) the query looks like
+  const h = document.createElement("h3"); h.textContent = t("closestFolders");
+  const box = document.createElement("div"); box.className = "meta near";
+  folders.forEach((f, k) => {
+    const a = document.createElement("a"); a.href = "#";
+    a.textContent = `${f.folder || t("topLevel")} (${f.size})`;
+    a.title = `${t("folderTip")} · ${f.score.toFixed(3)}`;
+    a.addEventListener("click", (e) => {
+      e.preventDefault();
+      $("find").value = f.folder ? f.folder + "/" : ""; $("find").dispatchEvent(new Event("input"));
+      focusOn([f.best]);
+    });
+    box.append(...(k ? [" · "] : []), a);
+  });
+  return [h, box];
+}
+
+function showSearch(files, hits, fit, folders) {
   selected = null; focusCluster = null; searchHits = new Set(hits.map((h) => h.i)); recolor();
   if (hits.length) focusOn(hits.slice(0, 8).map((h) => h.i));
   const pane = $("pane-selected"); pane.replaceChildren();
@@ -74,7 +91,8 @@ function showSearch(files, hits, fit) {
   const h2 = document.createElement("h3"); h2.textContent = t("nearest");
   const g = document.createElement("div"); g.className = "grid";
   hits.forEach((x) => { const im = thumb(x.i); im.title = `${PTS[x.i].n} · cos ${x.cos.toFixed(3)}`; g.append(im); });
-  pane.append(h, qs, ...(fit && fit.length ? fitSummary(fit) : []), h2, g);
+  pane.append(h, qs, ...(fit && fit.length ? fitSummary(fit) : []),
+    ...(folders && folders.length ? folderList(folders) : []), h2, g);
   showPane("selected");
 }
 

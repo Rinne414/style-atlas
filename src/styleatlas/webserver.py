@@ -141,7 +141,7 @@ class StyleAtlasHandler(BaseHTTPRequestHandler):
         route = self.path.split("?")[0].strip("/")
         try:
             if route == "api/search":
-                self._json(200, {"hits": self.app.search_image(body)})
+                self._json(200, self.app.search_image(body))
             elif route in JSON_ROUTES:
                 payload = json.loads(body)
                 if not isinstance(payload, dict):

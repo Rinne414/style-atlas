@@ -93,8 +93,8 @@
   .cl img { width: 54px; height: 54px; object-fit: cover; border-radius: 8px; border: 3px solid; }
   .cl .name { font-weight: 600; }
   .cl .meta { color: var(--muted); font-size: 12px; }
-  .cl .near a { color: var(--accent); text-decoration: none; }
-  .cl .near a:hover, .cl .near a:focus-visible { text-decoration: underline; }
+  .near a { color: var(--accent); text-decoration: none; }
+  .near a:hover, .near a:focus-visible { text-decoration: underline; }
   .cl .when { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 11px; margin-top: 3px; }
   .cl canvas { display: block; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 6px; }

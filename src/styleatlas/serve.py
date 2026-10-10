@@ -49,7 +49,7 @@ from styleatlas.export import (
     write_table,
 )
 from styleatlas.groupfile import carry_names, load_groups
-from styleatlas.images import cached_thumbnail, load_rgb
+from styleatlas.images import cached_thumbnail, labels_from_folders, load_rgb
 from styleatlas.look import LOOK_NAMES, difference
 from styleatlas.metrics import (
     CHARACTERS,
@@ -72,11 +72,12 @@ from styleatlas.report import (
     with_reference,
     write_payload,
 )
-from styleatlas.search import search, style_path
+from styleatlas.search import rank_folders, search, style_path
 from styleatlas.serve_edits import GroupEdits
 from styleatlas.taste_session import TasteSession
 
 SEARCH_TOP = 48
+FOLDER_TOP = 5  # closest sub-folders listed with a search
 MAX_QUERY_IMAGES = 32
 EXPORT_MIN_GROUP = 3  # groups left smaller after set-asides go to _unassigned (as in the CLI)
 COMPARE_ROUNDS = 199  # permutations for a group comparison's p-value (resolution 0.005)
@@ -133,6 +134,7 @@ class StyleAtlasApp(GroupEdits):
         self.thumb_px = default_thumb_px(len(atlas))
         self._thumbs: dict[int, bytes] = {}
         self._tag_sets: list[set[str]] | None = None
+        self.folders = labels_from_folders(atlas.paths, atlas.root)  # first sub-folder
         self._lock = threading.Lock()
         self._model_lock = threading.Lock()  # one embedding at a time (uploads, a reference)
         self.taste: TasteSession | None = None
@@ -322,9 +324,24 @@ class StyleAtlasApp(GroupEdits):
             self._save_groups()
         return {"clusters": self.clustering.n_clusters, "unassigned": self.clustering.n_unassigned}
 
-    def search_image(self, data: bytes, top: int = SEARCH_TOP) -> list[dict]:
-        hits = search(self._embed([data]), self.atlas.style, top=top)[0]
-        return [{"i": h.index, "cos": round(h.cosine, 4)} for h in hits]
+    def search_image(self, data: bytes, top: int = SEARCH_TOP) -> dict:
+        query = self._embed([data])
+        hits = search(query, self.atlas.style, top=top)[0]
+        return {
+            "hits": [{"i": h.index, "cos": round(h.cosine, 4)} for h in hits],
+            "folders": self.closest_folders(query),
+        }
+
+    def closest_folders(self, query: np.ndarray, combine: bool = False) -> list[dict]:
+        """The opened folder's sub-folders ranked by style, as `search --by-folder` (the first
+        query's, or all queries' as one style); empty unless there are two or more."""
+        if len(set(self.folders)) < 2:
+            return []
+        hits = rank_folders(query, self.atlas.style, self.folders, FOLDER_TOP, combine)[0]
+        return [
+            {"folder": h.folder, "score": round(h.score, 3), "size": h.size, "best": h.best}
+            for h in hits
+        ]
 
     def fit(self, query: np.ndarray) -> list[dict]:
         """Where each new image would go: its closest group (by centre) and whether it is as close
@@ -361,6 +378,7 @@ class StyleAtlasApp(GroupEdits):
         return {
             "hits": [{"i": h.index, "cos": round(h.cosine, 4)} for h in hits],
             "fit": self.fit(query),
+            "folders": self.closest_folders(query, combine=True),
         }
 
     def _embed(self, datas: list[bytes]):

@@ -407,11 +407,37 @@ def test_several_dropped_images_search_as_one_style(tmp_path, monkeypatch):
         Image.new("RGB", (16, 16), (i, 0, 0)).save(buf, "PNG")
         return base64.b64encode(buf.getvalue()).decode()
 
-    hits = app.search_set({"images": [png(0), png(1), png(2)]})["hits"]
-    assert {h["i"] for h in hits[:8]} == set(range(8))  # the first blob, examples included
+    got = app.search_set({"images": [png(0), png(1), png(2)]})
+    assert {h["i"] for h in got["hits"][:8]} == set(range(8))  # the first blob, examples included
+    assert got["folders"] == []  # no sub-folders to rank
     for bad in ({"images": []}, {"images": ["not base64!"]}, {"images": [png(0)] * 33}):
         with pytest.raises(ValueError):
             app.search_set(bad)
+
+
+def test_a_search_names_the_closest_sub_folder(tmp_path, monkeypatch):
+    import io
+
+    x, labels = make_blobs([8, 7])
+    paths = []
+    for i, k in enumerate(labels):
+        p = tmp_path / ("early" if k == 0 else "late") / f"img{i}.png"
+        p.parent.mkdir(exist_ok=True)
+        Image.new("RGB", (16, 16), (i, 0, 0)).save(p)
+        paths.append(p)
+    app = StyleAtlasApp(Atlas(tmp_path, paths, x, x, "sig"), EncodeOptions(device="cpu"), "pca")
+
+    class FakeEncoder:
+        def encode(self, images):
+            rows = [x[np.asarray(im)[0, 0, 0]] for im in images]
+            return type("E", (), {"style": np.stack(rows), "content": np.stack(rows)})
+
+    monkeypatch.setattr("styleatlas.serve.get_encoder", lambda opts: FakeEncoder())
+    buf = io.BytesIO()
+    Image.new("RGB", (16, 16), (10, 0, 0)).save(buf, "PNG")  # stands for image 10, a "late" one
+    folders = app.search_image(buf.getvalue())["folders"]
+    assert [f["folder"] for f in folders] == ["late", "early"]
+    assert folders[0]["size"] == 7 and labels[folders[0]["best"]] == 1
 
 
 def test_the_page_script_parses(tmp_path):
