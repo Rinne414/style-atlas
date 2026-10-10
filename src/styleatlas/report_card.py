@@ -9,6 +9,7 @@ import base64
 import html
 import json
 import re
+from collections import Counter
 from collections.abc import Collection
 from datetime import date
 from functools import lru_cache
@@ -21,7 +22,7 @@ from styleatlas.atlas import LOAD_ERRORS, Atlas
 from styleatlas.cluster import Clustering, batch_verdict, keep_rows
 from styleatlas.consistency import consistency
 from styleatlas.dataset import distinctive_tags, tag_summary
-from styleatlas.images import cached_thumbnail, timeline, timeline_span
+from styleatlas.images import cached_thumbnail, labels_from_folders, timeline, timeline_span
 from styleatlas.lang import tr
 from styleatlas.look import LOOK_NAMES, NOTABLE, THAN_ZH, WORDS_ZH, profile
 from styleatlas.metrics import centroid
@@ -48,6 +49,7 @@ TEXT = {
         "artists": "最像的畫師（參考圖庫）",
         "groups": "畫風群",
         "group": "畫風",
+        "from": "來自：",
         "when": "時間位置：中位數在作品時間軸的 {m}%（中間一半 {a}%–{b}%；0% 最早）",
         "note": "畫風向量：CSD ViT-L（Somepalli 等，2024，CC-BY-4.0）。外觀數字是 256 px "
         "縮圖上的影像統計，描述畫風怎麼不同，不評好壞。",
@@ -67,6 +69,7 @@ TEXT = {
         "artists": "Closest artists (reference library)",
         "groups": "Style groups",
         "group": "Style",
+        "from": "From: ",
         "when": "When: median at {m}% of the timeline (middle half {a}-{b}%; 0% oldest)",
         "note": "Style vectors: CSD ViT-L (Somepalli et al. 2024, CC-BY-4.0). Look numbers are "
         "image statistics on 256 px copies; they describe how styles differ, not which is better.",
@@ -180,6 +183,8 @@ def group_cards(
     """One card per group, largest first: name, size, look words, typical tags, where it sits in
     the timeline (given positions `pos`), thumbnails of its most typical images."""
     tags = distinctive_tags(tag_summary(atlas.paths, clustering))
+    folders = labels_from_folders(atlas.paths, atlas.root)
+    several = len(set(folders)) > 1  # images directly in the root count as ""
     cards = []
     for c in sorted(clustering.clusters, key=lambda c: -c.size):
         members = np.asarray(c.members)
@@ -191,10 +196,20 @@ def group_cards(
                 "words": _words(atlas.looks, members, lang) if atlas.looks is not None else "",
                 "tags": tags.get(c.id, []),
                 "when": timeline_span(pos, members),
+                "from": folder_mix([folders[i] for i in members]) if several else [],
                 "thumbs": [s for s in (_thumb(atlas.paths[i]) for i in typical[:THUMBS]) if s],
             }
         )
     return cards
+
+
+FOLDERS_SHOWN = 3  # sub-folders named per group, most images first
+
+
+def folder_mix(folders: list[str]) -> list[tuple[str, int]]:
+    """(sub-folder, images) for a group's images, most first, at most FOLDERS_SHOWN; images
+    directly in the root show as "."."""
+    return [(f or ".", n) for f, n in Counter(folders).most_common(FOLDERS_SHOWN)]
 
 
 def _bar(percent: float) -> str:
@@ -276,9 +291,13 @@ def _group_section(cards: list, t: dict) -> str:
             q1, med, q3 = card["when"]
             text = t["when"].format(m=round(100 * med), a=round(100 * q1), b=round(100 * q3))
             when = f'<p class="sub">{e(text)}</p>'
+        source = ""
+        if card.get("from"):
+            mix = " · ".join(f"{f} {n}" for f, n in card["from"])
+            source = f'<p class="sub">{e(t["from"])}{e(mix)}</p>'
         out.append(
             f'<div class="card"><h3>{e(card["name"])} {size}</h3><p>{e(card["words"])}</p>'
-            f'<p class="sub">{e(", ".join(card["tags"]))}</p>{when}'
+            f'{source}<p class="sub">{e(", ".join(card["tags"]))}</p>{when}'
             f'<div class="thumbs">{imgs}</div></div>'
         )
     return "".join(out) + "</section>"

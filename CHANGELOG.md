@@ -67,6 +67,11 @@ Clearer output (from three first-time-user tests: English, Chinese, and searchin
 - `compare` lists at most 10 near-copy pairs (`--json` has all) and says that `calibrate`
   measures the z scale on your own folders.
 - Every option has a `--help` line.
+- Each style group says which sub-folders its images come from ("來自：dayama 9"), in the report
+  and on the web map, when the folder has several: a gallery sorted by artist shows which group
+  is which artist.
+- Chinese look words after 比 use the comparative form ("B 比 A 更亮、線條更多", "比 67% 的畫師
+  色彩更淡"), and the report says what its two reference sets of Danbooru artists are.
 - `search` prints each query once and says the list is ranked in the search space while the
   number shown is the plain cosine (so it is not always in order); `--by-folder` explains its
   score.

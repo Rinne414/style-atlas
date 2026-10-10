@@ -367,6 +367,10 @@ function clusterText(c, pane) {  // name, size, typical tags, closest groups, lo
     const tg = document.createElement("div"); tg.className = "meta tags"; tg.textContent = c.tags.join(", ");
     txt.append(tg);
   }
+  const mix = folderMix(c.members);
+  if (mix) {
+    const fm = document.createElement("div"); fm.className = "meta"; fm.textContent = mix; txt.append(fm);
+  }
   if (c.near && c.near.length) txt.append(nearLinks(c, pane));
   const look = lookWords(c.members);
   if (look) {
@@ -376,6 +380,17 @@ function clusterText(c, pane) {  // name, size, typical tags, closest groups, lo
   const strip = timeStrip(c.members, colorOf(c.id));
   if (strip) txt.append(strip);
   return txt;
+}
+
+const folderOf = (i) => { const n = PTS[i].n; const k = n.indexOf("/"); return k < 0 ? "." : n.slice(0, k); };
+const SEVERAL_FOLDERS = new Set(PTS.map((_, i) => folderOf(i))).size > 1;
+
+function folderMix(members) {  // which sub-folders a group's images come from, most first
+  if (!SEVERAL_FOLDERS) return "";
+  const counts = new Map();
+  members.forEach((i) => counts.set(folderOf(i), (counts.get(folderOf(i)) || 0) + 1));
+  const top = [...counts].sort((a, b) => b[1] - a[1]);
+  return `${t("fromFolders")}${top.slice(0, 3).map(([f, n]) => `${f} ${n}`).join(" · ")}${top.length > 3 ? " …" : ""}`;
 }
 
 function nearLinks(c, pane) {  // the closest groups, each a link that opens it

@@ -225,8 +225,15 @@ def test_report_sums_up_a_folder(lib, tmp_path, capsys):
     page = out.read_text(encoding="utf-8")
     assert "畫風一致性" in page and "最像的畫師" in page and page.count('<div class="card">') >= 3
     assert "data:image/webp;base64," in page  # thumbnails inside, so the file can be sent alone
+    assert "來自：red 6" in page or "來自：green 6" in page  # each group's sub-folders
     assert main(["report", str(lib), "-o", str(out), "--lang", "en", "--device", "cpu"]) == 0
     assert "Style consistency" in out.read_text(encoding="utf-8")
+
+
+def test_folder_mix_names_the_largest_sub_folders_first():
+    from styleatlas.report_card import folder_mix
+
+    assert folder_mix(["b", "a", "b", "", "c", "d", "b"]) == [("b", 3), ("a", 1), (".", 1)]
 
 
 def test_report_leaves_out_images_excluded_in_the_web_app(lib, tmp_path, capsys):
