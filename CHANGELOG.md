@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.43.0 - 2026-10-10
 
 - **Group by artist, for galleries of many artists.** `--granularity artists` (web: "by artist")
   groups in the search whitening's space at a fixed cut. On mixtures of held-out Danbooru
