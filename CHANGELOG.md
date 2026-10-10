@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+- **`style-atlas sort`: add new images to a sorted dataset.** Each new image goes to the dataset
+  group it is closest to (a sub-folder with `--by-folder`, e.g. an exported kohya dataset; else
+  the style groups, as saved by the web app). It goes to `_unsure` when it is less alike than
+  90% of that group's own images, and to `_already_in_dataset` when it is a near-copy of a dataset
+  image. `sorted.csv` lists every image; `--export copy|link` places the files. Placement uses the
+  search whitening: on 19 artists the tool never saw, with 10 as sub-folders, 91.5% of new works
+  went to the right folder and 6% of other artists' works were let in (plain CSD: 85.7% and
+  47%). BENCHMARKS.md has the tables.
+- The web app's drop check no longer counts excluded images as members of their group.
+
 ## 0.36.0 - 2026-10-10
 
 - **Faster embedding**: the next images are opened, measured and scaled on 4 threads while the

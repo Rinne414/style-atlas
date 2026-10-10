@@ -29,6 +29,7 @@ from styleatlas.cli_common import (  # noqa: F401 (re-exported for tests and cal
 )
 from styleatlas.cli_lora import FEW_FOR_LORA, _lora_args, cmd_cluster  # noqa: F401
 from styleatlas.cli_report import cmd_report, report_args
+from styleatlas.cli_sort import cmd_sort, sort_args
 from styleatlas.cluster import GRANULARITY, METHODS, PERIODS, outlier_scores
 from styleatlas.encoder import CROP_MODES, RESOLUTIONS
 from styleatlas.images import TIME_SOURCES, find_images, labels_from_folders
@@ -378,6 +379,20 @@ def _common(p: argparse.ArgumentParser) -> None:
 
 
 def _cluster_args(p: argparse.ArgumentParser) -> None:
+    g = _grouping_args(p)
+    g.add_argument("--projection", default="auto", choices=PROJECTIONS)
+    g.add_argument(
+        "--time",
+        default="none",
+        choices=TIME_SOURCES,
+        help="show when each style was made: file-name id (Pixiv/Danbooru) or mtime",
+    )
+    _space_args(g)
+    g.add_argument("--reference", metavar="DIR", help=REFERENCE_HELP)
+    g.add_argument("--thumb", type=int, help="thumbnail px in the map (default 128, 72 above 2k)")
+
+
+def _grouping_args(p: argparse.ArgumentParser) -> argparse._ArgumentGroup:
     g = p.add_argument_group("clustering")
     g.add_argument(
         "--granularity",
@@ -392,16 +407,7 @@ def _cluster_args(p: argparse.ArgumentParser) -> None:
     g.add_argument("--k", type=int, help="force this many styles (with period: periods)")
     g.add_argument("--method", default="agglomerative", choices=METHODS)
     g.add_argument("--min-size", type=int, default=3, help="smaller groups become 'unassigned'")
-    g.add_argument("--projection", default="auto", choices=PROJECTIONS)
-    g.add_argument(
-        "--time",
-        default="none",
-        choices=TIME_SOURCES,
-        help="show when each style was made: file-name id (Pixiv/Danbooru) or mtime",
-    )
-    _space_args(g)
-    g.add_argument("--reference", metavar="DIR", help=REFERENCE_HELP)
-    g.add_argument("--thumb", type=int, help="thumbnail px in the map (default 128, 72 above 2k)")
+    return g
 
 
 Adder = Callable[..., argparse.ArgumentParser]
@@ -420,6 +426,9 @@ def _add_folder_commands(add: Adder) -> None:
     p = add("report", cmd_report, "one HTML page that sums up a folder's style (to keep or send)")
     report_args(p)
     _cluster_args(p)
+    p = add("sort", cmd_sort, "place new images into the style groups of a sorted dataset")
+    sort_args(p)
+    _grouping_args(p)
     p = add("map", cmd_map, "write the interactive 3D style map (one HTML file)")
     p.add_argument("folder")
     p.add_argument("-o", "--out")

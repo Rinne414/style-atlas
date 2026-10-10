@@ -27,6 +27,7 @@ from styleatlas.cluster import (
     METHODS,
     PERIODS,
     cluster_styles,
+    fit_to_groups,
 )
 from styleatlas.consistency import consistency
 from styleatlas.dataset import (
@@ -60,7 +61,6 @@ from styleatlas.metrics import (
     PLAIN,
     StyleScale,
     StyleSpace,
-    centroid,
     group_difference,
     space_name,
 )
@@ -84,7 +84,6 @@ FOLDER_TOP = 5  # closest sub-folders listed with a search
 MAX_QUERY_IMAGES = 32
 EXPORT_MIN_GROUP = 3  # groups left smaller after set-asides go to _unassigned (as in the CLI)
 COMPARE_ROUNDS = 199  # permutations for a group comparison's p-value (resolution 0.005)
-FIT_PERCENTILE = 90  # a new image fits a group when it is as close as this share of its members
 MIN_SIDE_RANGE = (64, 8192)  # the check tab's smallest-side setting
 MAX_PATH_TEXT = 1000  # longest folder path accepted from the page
 MAX_TAG_TEXT = 200
@@ -401,25 +400,14 @@ class StyleAtlasApp(GroupEdits):
         ]
 
     def fit(self, query: np.ndarray) -> list[dict]:
-        """Where each new image would go: its closest group (by centre) and whether it is as close
-        as FIT_PERCENTILE% of that group's own images are. One artist's held-out works fitted 69%
-        of the time, other artists' 15%: judge a batch by its share, not one image."""
+        """Where each new image would go (cluster.fit_to_groups); excluded images do not count
+        as members of their group."""
         with self._lock:
-            groups = [c for c in self.clustering.clusters if c.size >= 2]
-            x = self.atlas.style
-        if not groups:
-            return []
-        cents = np.stack([centroid(x[c.members]) for c in groups])
-        limits = [
-            float(np.percentile(1.0 - x[c.members] @ cents[k], FIT_PERCENTILE))
-            for k, c in enumerate(groups)
+            x, clustering, skip = self.atlas.style, self.clustering, set(self.excluded)
+        return [
+            {"group": f.group, "dist": round(f.dist, 3), "fits": f.fits}
+            for f in fit_to_groups(x, clustering, query, skip)
         ]
-        out = []
-        for row in query @ cents.T:
-            k = int(np.argmax(row))
-            dist = 1.0 - float(row[k])
-            out.append({"group": groups[k].id, "dist": round(dist, 3), "fits": dist <= limits[k]})
-        return out
 
     def search_set(self, body: dict) -> dict:
         """Several dropped images searched as one style (as `search --combine`); with "only"

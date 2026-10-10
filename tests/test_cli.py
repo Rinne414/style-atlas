@@ -270,3 +270,67 @@ def test_report_refuses_a_folder_whose_images_are_all_excluded(lib, tmp_path, ca
     out = tmp_path / "report.html"
     assert main(["report", str(lib), "-o", str(out), "--device", "cpu"]) == 1
     assert "every image is excluded" in capsys.readouterr().err and not out.exists()
+
+
+def _new_images(lib, tmp_path):
+    """3 new red images, one already in the dataset, one grey that is like no group."""
+    import shutil
+
+    new = tmp_path / "new"
+    new.mkdir()
+    for i in range(3):
+        im = Image.new("RGB", (64, 64), COLOURS["red"])
+        ImageDraw.Draw(im).rectangle([i * 9, 40, i * 9 + 12, 52], fill=(255, 255, 255))
+        im.save(new / f"red_new_{i}.png")
+    shutil.copy(sorted((lib / "red").glob("*.png"))[0], new / "again.png")
+    Image.new("RGB", (64, 64), (128, 128, 128)).save(new / "grey.png")
+    return new
+
+
+def _sorted_rows(out):
+    import csv
+
+    with open(out / "sorted.csv", encoding="utf-8-sig", newline="") as f:
+        return {r["path"]: r for r in csv.DictReader(f)}
+
+
+def test_sort_places_new_images_into_the_dataset_sub_folders(lib, tmp_path, capsys):
+    new, out = _new_images(lib, tmp_path), tmp_path / "out"
+    args = ["sort", str(new), "--into", str(lib), "-o", str(out), "--by-folder"]
+    assert main([*args, "--export", "copy", "--device", "cpu"]) == 0
+    rows = _sorted_rows(out)
+    assert rows["again.png"]["folder"] == "_already_in_dataset"
+    assert rows["again.png"]["copy_of"].startswith("red/")
+    assert all(rows[f"red_new_{i}.png"]["closest_group"] == "red" for i in range(3))
+    assert rows["grey.png"]["fits"] == "no" and rows["grey.png"]["folder"] == "_unsure"
+    placed = {p.name for p in (out / "sorted").rglob("*.png")}
+    assert placed == set(rows) and (out / "sorted" / "_unsure" / "grey.png").is_file()
+    err = capsys.readouterr().err
+    assert "near-copies of images the dataset already holds" in err and "fit their group" in err
+
+
+def test_sort_uses_the_dataset_style_groups_without_sub_folders(lib, tmp_path):
+    new, out = _new_images(lib, tmp_path), tmp_path / "out"
+    assert main(["sort", str(new), "--into", str(lib), "-o", str(out), "--device", "cpu"]) == 0
+    rows = _sorted_rows(out)
+    groups = {rows[f"red_new_{i}.png"]["closest_group"] for i in range(3)}
+    assert len(groups) == 1 and groups.pop().startswith("style_")
+    assert not (out / "sorted").exists()  # nothing placed without --export
+
+
+def test_sort_needs_groups_to_sort_into(lib, tmp_path, capsys):
+    flat = tmp_path / "flat"
+    flat.mkdir()
+    for p in sorted((lib / "red").glob("*.png"))[:3]:
+        (flat / p.name).write_bytes(p.read_bytes())
+    new = _new_images(lib, tmp_path)
+    assert main(["sort", str(new), "--into", str(flat), "--by-folder", "--device", "cpu"]) == 1
+    assert "no sub-folders" in capsys.readouterr().err
+
+
+def test_sort_of_images_the_dataset_already_holds_gives_no_verdict(lib, tmp_path, capsys):
+    out = tmp_path / "out"
+    args = ["sort", str(lib / "red"), "--into", str(lib), "-o", str(out), "--by-folder"]
+    assert main([*args, "--device", "cpu"]) == 0
+    assert {r["folder"] for r in _sorted_rows(out).values()} == {"_already_in_dataset"}
+    assert "fit their group" not in capsys.readouterr().err

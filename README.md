@@ -19,6 +19,7 @@ style-atlas 會看每張圖「怎麼畫」（不是畫了什麼），自動把�
 | **3D 畫風地圖**：縮圖浮在 3D 空間，可轉動，點一下就看最接近的畫風；也可以每位畫師一個點，看誰和誰畫風相近 | `map`（畫師地圖加 `--by-folder`），或網頁介面的「存成分享用地圖」（單一 HTML 檔，可直接傳給朋友）；按 P 存成圖片 |
 | **檢查資料集**：解析度、小圖放大、壓縮太重、極端比例、缺標註、近重複，以及整個資料夾的畫風一致性（像一位畫師，還是混了好幾種） | `audit`、`duplicates` |
 | **量化畫風與口味**：兩組圖是否同一畫風、差在哪裡（亮度、鮮豔度、線條量等）、個人喜好模型 | `compare`、`taste`、網頁介面的外觀描述與「喜歡／不喜歡」 |
+| **補新圖進已分好的資料集**：一批新圖各自該放哪一群、哪些和資料集裡的圖重複、哪些哪群都不像（放進 `_unsure` 讓你看） | `sort` |
 | **一頁畫風報告**：一致性、外觀和 278 位畫師比的位置、最像的畫師、各畫風群的代表圖，存成一個 HTML 檔，方便保存或傳給朋友 | `report` |
 
 ![網頁介面：72 張圖自動分成 4 個畫風群，右側是群組清單、名稱和外觀描述（例如「對比弱、線條少、色塊平」）](docs/images/map.jpg)
@@ -146,6 +147,16 @@ ai_toolkit_datasets.yaml    ← ai-toolkit 的 datasets 段落（貼進訓練設
 - 網頁介面也能選「自動」或調門檻，再按「重新分群」。
 
 ### 其他用法
+
+**把新圖分進已經分好的資料集**：資料集已經分好畫風群（例如之前匯出的 kohya 資料夾），又收集到一批新圖 `D:\new`：
+
+```bat
+style-atlas sort "D:\new" --into "D:\lora\artistX_style_atlas\folders" --by-folder --export copy
+```
+
+- 每張新圖會放進最像的子資料夾。和那群自己的圖比，不夠像的（比不上九成群內圖的距離）放進 `_unsure`；和資料集裡某張幾乎一樣的放進 `_already_in_dataset`。結果在 `D:\new_style_atlas\sorted`，`sorted.csv` 列出每張的最近群、距離和重複的對象。
+- 不加 `--by-folder` 時，改用資料集的畫風群（網頁存過的分群和名稱，沒有就重新自動分群）。
+- 實測（工具沒看過的畫師，資料集是 10 位畫師各一個子資料夾）：新作品放對資料夾 91.5%；被判「符合」的 72%，其中 98% 放對；其他畫師的圖只有 6% 被判符合。所以 `_unsure` 裡約有四分之一其實是同一位畫師的圖，值得看一眼。
 
 **以圖找圖**：在圖庫 `D:\gallery` 裡找和兩張範例最像的 30 張。
 
@@ -453,6 +464,15 @@ Source files are never moved or deleted. Each export goes to a fresh folder.
 With `--export link` the files are hard links, so editing an exported caption also edits the
 original.
 
+**Adding new images to a sorted dataset.** `style-atlas sort NEW --into DATASET --by-folder
+--export copy` places each new image in the dataset sub-folder it is closest to. It goes to
+`_unsure` instead when it is less alike than 90% of that folder's own images, and to
+`_already_in_dataset` when it is a near-copy of a dataset image. `sorted.csv` lists the closest
+group, the distance and the copy for every image. Without `--by-folder` the dataset's style
+groups are used: those saved by the web app, else a fresh grouping. On artists the tool never
+saw, with 10 of them as sub-folders, 91.5% of their new works went to the right folder, and 6% of
+other artists' works were let in (docs/BENCHMARKS.md).
+
 ### Commands
 
 Square brackets mark optional parts; `#` starts a note, not part of the command.
@@ -462,8 +482,9 @@ style-atlas cluster DIR [--granularity auto|period|fine|medium|coarse | --thresh
                         [--layout plain|kohya --name X --repeats auto|N] [--dedupe]
                         [--drop-outliers N] [--max-per-group N] [--strip-tags TAGS]
                         [--trigger-captions] [--export copy|link] [--no-map] [--no-recursive]
-                        [--layout plain|kohya --name X --repeats auto|N]
-                        [--dedupe] [--drop-outliers N] [--export copy|link] [-o OUT]
+                        [-o OUT]
+style-atlas sort NEW --into DATASET [--by-folder] [--export copy|link] [-o OUT]
+style-atlas report DIR [-o style_report.html] [--artists DIR] [--lang zh|en]
 style-atlas doctor                 # check Python, torch, GPU, model download, disk space
 style-atlas serve DIR [--port 8770] [--no-browser] [--time none|name|mtime]
 style-atlas map DIR [-o map.html] [--projection auto|umap|tsne|pca] [--time ...]

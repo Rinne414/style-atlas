@@ -59,6 +59,18 @@ def _write_atomic(path: Path, text: str, encoding: str = "utf-8") -> None:
     os.replace(tmp, path)
 
 
+def write_csv(path: Path, rows: list[dict]) -> Path:
+    """Rows as a CSV that spreadsheet apps open safely: UTF-8 with a BOM, file names never run
+    as formulas."""
+    buf = io.StringIO(newline="")
+    w = csv.DictWriter(buf, fieldnames=list(rows[0].keys()) if rows else ["path"])
+    w.writeheader()
+    w.writerows({k: _safe_cell(v) for k, v in r.items()} for r in rows)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    _write_atomic(path, buf.getvalue(), encoding="utf-8-sig")
+    return path
+
+
 def write_table(
     atlas: Atlas,
     clustering: Clustering,
@@ -72,12 +84,7 @@ def write_table(
     folders = folders or plan_folders(atlas.paths, clustering)
     for r, f in zip(rows, folders, strict=True):
         r["folder"] = f
-    buf = io.StringIO(newline="")
-    w = csv.DictWriter(buf, fieldnames=list(rows[0].keys()) if rows else ["path"])
-    w.writeheader()
-    w.writerows({k: _safe_cell(v) for k, v in r.items()} for r in rows)
-    csv_path = out_dir / "clusters.csv"
-    _write_atomic(csv_path, buf.getvalue(), encoding="utf-8-sig")
+    csv_path = write_csv(out_dir / "clusters.csv", rows)
     summary = {
         "images": len(atlas),
         "method": clustering.method,

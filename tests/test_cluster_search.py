@@ -341,3 +341,18 @@ def test_auto_projection_falls_back_to_tsne_without_umap(monkeypatch):
     assert project.project_3d(x, "auto")[1] == "pca"  # too many for t-SNE
     with pytest.raises(ValueError):
         project.project_3d(x, "mds")
+
+
+def test_new_images_fit_their_own_group_and_strays_are_left_out():
+    from styleatlas.cluster import fit_to_groups, from_labels
+
+    x, labels = make_blobs([10, 10, 1])
+    groups = from_labels(x[:20], labels[:20], "test")
+    near = x[:20][labels[:20] == 1].mean(axis=0, keepdims=True)
+    near /= np.linalg.norm(near)
+    fits = fit_to_groups(x[:20], groups, np.vstack([near, x[20:]]))
+    home = groups.labels[np.flatnonzero(labels[:20] == 1)[0]]
+    assert fits[0].group == home and fits[0].fits
+    assert not fits[1].fits  # the third style is like neither group
+    alone = fit_to_groups(x[:20], groups, near, skip=set(range(1, 20)))  # every group under 2
+    assert alone == []

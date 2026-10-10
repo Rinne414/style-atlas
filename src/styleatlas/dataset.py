@@ -236,11 +236,13 @@ def is_unassigned(folder: str) -> bool:
     return folder in ("unassigned", SET_ASIDE["unassigned"])
 
 
-def _group_labels(
-    n_groups: int, layout: str, width: int, group_names: dict[int, str] | None
+def group_labels(
+    clustering: Clustering, layout: str = "plain", group_names: dict[int, str] | None = None
 ) -> dict[int, str]:
     """Folder label per group: its name, else style_01 (plain) / style01 (kohya). Labels are made
     unique ignoring case (Windows folders are case-insensitive); names are placed first."""
+    n_groups = clustering.n_clusters
+    width = max(2, len(str(n_groups)))
     names = group_names or {}
     taken = {"unassigned"}
     out: dict[int, str] = {}
@@ -291,8 +293,7 @@ def plan_folders(
     if max_per_group is not None and style is not None:
         aside.update(_trimmed(clustering, style, aside, max_per_group))
     sizes = Counter(int(c) for i, c in enumerate(clustering.labels) if i not in aside)
-    width = max(2, len(str(clustering.n_clusters)))
-    labels = _group_labels(clustering.n_clusters, layout, width, group_names)
+    labels = group_labels(clustering, layout, group_names)
     folders = []
     for i, cid in enumerate(int(c) for c in clustering.labels):
         if i in aside:

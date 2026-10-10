@@ -9,7 +9,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from styleatlas.atlas import Atlas, EncodeOptions, build_atlas
-from styleatlas.cluster import GRANULARITY, PERIODS, cluster_styles
+from styleatlas.cluster import GRANULARITY, PERIODS, Clustering, cluster_styles, edit_groups
 from styleatlas.metrics import (
     CHARACTERS,
     MAX_NEUTRALIZE,
@@ -133,6 +133,23 @@ def _cluster(a: argparse.Namespace, atlas: Atlas):
     if "note" in result.params:
         log("note: " + result.params["note"])
     return result
+
+
+def saved_groups(
+    a: argparse.Namespace, atlas: Atlas, folder: Path
+) -> tuple[Clustering, dict[int, str]]:
+    """The groups as left in the web app for `folder` (hand edits and names), else a fresh
+    grouping."""
+    from styleatlas.export import output_dir
+    from styleatlas.groupfile import GROUPS_FILE, carry_names, load_groups
+
+    clustering = _cluster(a, atlas)
+    saved = load_groups(output_dir(folder) / GROUPS_FILE, atlas)
+    if saved is None:
+        return clustering, {}
+    log("using the groups and names saved by the web app")
+    edited = edit_groups(atlas.style, clustering, dict(enumerate(saved.labels.tolist())))
+    return edited, carry_names(saved.labels, edited.labels, saved.names)
 
 
 def web_exclusions(atlas: Atlas, folder: Path) -> list[int]:

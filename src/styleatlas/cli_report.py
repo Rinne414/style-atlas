@@ -6,10 +6,8 @@ import argparse
 from pathlib import Path
 
 from styleatlas.atlas import Atlas, build_atlas
-from styleatlas.cli_common import _atlas, _cluster, _opts, log, web_exclusions
-from styleatlas.cluster import Clustering, edit_groups
+from styleatlas.cli_common import _atlas, _opts, log, saved_groups, web_exclusions
 from styleatlas.export import output_dir
-from styleatlas.groupfile import GROUPS_FILE, carry_names, load_groups
 from styleatlas.images import labels_from_folders
 
 CLOSEST = 5  # reference artists listed
@@ -28,7 +26,7 @@ def cmd_report(a: argparse.Namespace) -> int:
         return 1
     if excluded:
         log(f"{len(excluded)} image(s) you excluded in the web app are left out")
-    clustering, names = _groups(a, atlas)
+    clustering, names = saved_groups(a, atlas, Path(a.folder))
     closest = None
     if a.artists:
         skip = set(excluded)
@@ -47,17 +45,6 @@ def cmd_report(a: argparse.Namespace) -> int:
     )
     print(path)
     return 0
-
-
-def _groups(a: argparse.Namespace, atlas: Atlas) -> tuple[Clustering, dict[int, str]]:
-    """The groups as left in the web app (hand edits and names), else a fresh grouping."""
-    clustering = _cluster(a, atlas)
-    saved = load_groups(output_dir(Path(a.folder)) / GROUPS_FILE, atlas)
-    if saved is None:
-        return clustering, {}
-    log("using the groups and names saved by the web app")
-    edited = edit_groups(atlas.style, clustering, dict(enumerate(saved.labels.tolist())))
-    return edited, carry_names(saved.labels, edited.labels, saved.names)
 
 
 def _closest_artists(a: argparse.Namespace, atlas: Atlas) -> list[tuple[str, float]] | None:

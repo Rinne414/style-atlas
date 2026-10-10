@@ -40,6 +40,7 @@ MAX_DENSE = 8000  # the n x n float64 distance matrix (+ sklearn's copy) above t
 KMEANS_SEED = 0
 _TREE_CACHE: dict = {}  # last large set: (micro-group per image, linkage tree)
 UNASSIGNED = -1
+FIT_PERCENTILE = 90  # a new image fits a group when it is as close as this share of its members
 
 
 @dataclass
@@ -236,6 +237,49 @@ def _info(x: np.ndarray, cid: int, members: np.ndarray) -> ClusterInfo:
         cohesion=float(d.mean()),
         members=members.tolist(),
     )
+
+
+def from_labels(x: np.ndarray, labels: np.ndarray, method: str) -> Clustering:
+    """Groups given as integer labels (e.g. sub-folders; UNASSIGNED left out), renumbered by
+    size with their medoids and spreads."""
+    return _finish(x, np.asarray(labels, dtype=int), method, {}, min_size=1)
+
+
+@dataclass(frozen=True)
+class Fit:
+    group: int  # id of the closest group (by centre)
+    dist: float  # cosine distance to that centre
+    fits: bool  # as close as FIT_PERCENTILE% of the group's own images
+
+
+def fit_to_groups(
+    x: np.ndarray,
+    clustering: Clustering,
+    query: np.ndarray,
+    skip: set[int] | frozenset[int] = frozenset(),
+    percentile: float = FIT_PERCENTILE,
+) -> list[Fit]:
+    """Where each query row would go: its closest group of 2 or more images (rows in `skip`,
+    e.g. excluded by hand, left out of the groups), and whether it is as close as `percentile`%
+    of that group's own images. On held-out works, 69% of an artist's own fitted against 15% of
+    another artist's (docs/BENCHMARKS.md): judge a batch by its share, not one image."""
+    groups = []
+    for c in clustering.clusters:
+        members = np.array([m for m in c.members if m not in skip], dtype=int)
+        if len(members) >= 2:
+            groups.append((c.id, members))
+    if not groups or not len(query):
+        return []
+    cents = np.stack([centroid(x[m]) for _, m in groups])
+    limits = [
+        float(np.percentile(1.0 - x[m] @ cents[k], percentile)) for k, (_, m) in enumerate(groups)
+    ]
+    out = []
+    for row in query @ cents.T:
+        k = int(np.argmax(row))
+        dist = 1.0 - float(row[k])
+        out.append(Fit(groups[k][0], dist, dist <= limits[k]))
+    return out
 
 
 def keep_rows(x: np.ndarray, clustering: Clustering, kept: np.ndarray | list[int]) -> Clustering:

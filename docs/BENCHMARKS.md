@@ -841,6 +841,37 @@ and 20 works of another artist.
 Single images are noisy, so the page reports the share of a batch. More than half inside reads
 as "mostly this folder's style", and a quarter or less as "mostly unlike it".
 
+## Sorting new images into a dataset: `sort` (2026-10-10)
+
+19 artists the search whitening never saw (`unseen_big`, 20-40 works each), 20 random draws.
+"Fits" uses the same rule as the web app: as close to the group's centre as 90% of its own
+images.
+
+**Sub-folders as the groups** (`--by-folder`). 10 artists, 80% of each one's works as its
+sub-folder. New images: the other 20%, and 10 works each of 5 artists not in the dataset.
+
+| Space | Right folder | Own works that fit | ... of those, right folder | Other artists that fit |
+|---|---|---|---|---|
+| plain CSD | 85.7% | 81.8% | 89.6% | 47.1% |
+| **whitened (used)** | **91.5%** | **72.1%** | **98.2%** | **6.3%** |
+
+**The product's own groups.** The same 10 artists mixed in one folder and grouped with the
+default automatic cut. "Right" means the group's majority artist is the image's artist.
+
+| Space | Right group | Own works that fit | ... of those, right group | Other artists that fit |
+|---|---|---|---|---|
+| plain CSD | 62.9% | 69.9% | 64.4% | 38.4% |
+| **whitened (used)** | **67.0%** | **60.7%** | **71.6%** | **14.7%** |
+
+**One artist** (the web app's case in the section above). 80% of one artist, grouped; new
+images: its other 20% and 20 works of another artist. Plain CSD: 45.9% of the artist's own fit,
+2.2% of the other's. Whitened: 34.7% and 0.0%.
+
+With several groups, plain CSD let in far too many other artists, because a stranger only has
+to come close to one of ten groups. `sort` therefore places images in the whitened space: about
+as many right placements, far fewer wrong ones. The web app's drop check stays in plain space,
+where its single-folder case was measured and both spaces separate the two kinds well.
+
 ## Embedding speed: loading images ahead (2026-10-10)
 
 64 Danbooru works of 8.7 megapixels on average, CPU only (8 threads, below-normal priority),
