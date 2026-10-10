@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.34.0 - 2026-10-10
 
 - **Held-out re-check of search with several examples**: the learned model's gain over the
   examples' mean vector (+0.055 / +0.066 / +0.116 AP) had been measured on artists the search
