@@ -219,7 +219,7 @@ style-atlas taste score "D:\new_batch" --model "D:\my_taste.npz"
 - **混了不同畫師時不要開**：那時角色差異和畫風差異分不開，分群會壞掉。
 - 舊的 `--neutralize 1` 也還能用；查詢圖裡的角色不在資料夾中時，它比較穩。詳細數字見 [docs/BENCHMARKS.md](docs/BENCHMARKS.md)。
 
-`--time name` 會從檔名裡的 Pixiv／Danbooru 作品編號推出先後順序（編號會隨上傳時間遞增），`--time mtime` 則用檔案修改時間。開了之後，每個畫風群旁都會畫出時間分佈，可以看出哪種畫風是早期、哪種是近期。
+`--time name` 會從檔名推出先後順序：Pixiv、Danbooru 作品編號和推文編號（都會隨上傳時間遞增），或檔名裡的日期（`20230512`、`2023-05-12`）；`--time mtime` 則用檔案修改時間（複製或解壓縮後常會變掉）。同一個資料夾裡的檔名格式要一致，順序才有意義。開了之後，每個畫風群旁都會畫出時間分佈，可以看出哪種畫風是早期、哪種是近期。
 
 支援 png、jpg、jfif、webp、bmp、gif；avif 需要 Pillow 本身支援。動圖只看第一格。CPU 預設最多用 8 個執行緒並降低優先權，不會拖垮整台電腦；`--threads 0` 可取消限制。
 

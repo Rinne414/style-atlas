@@ -141,17 +141,24 @@ def thumbnail_data_url(path: Path, size: int = 96, quality: int = 70) -> str:
 
 TIME_SOURCES = ("none", "name", "mtime")
 _DIGITS = re.compile(r"\d{5,}")
+# a date written with separators (2023-05-12, 2023_05_12, 2023.05.12), read as 20230512 so it
+# sorts with names that already carry 20230512
+_DATE = re.compile(r"(?<!\d)((?:19|20)\d\d)[-_.](0[1-9]|1[0-2])[-_.](0[1-9]|[12]\d|3[01])(?!\d)")
 
 
 def file_time(path: Path, source: str) -> float | None:
-    """A sortable time for `path`: the file's modified time, or the largest run of 5+ digits in
-    its name (Pixiv and Danbooru ids grow with upload date). None when unavailable."""
+    """A sortable time for `path`: the file's modified time, or from its name a date written
+    with separators (as YYYYMMDD) or else the largest run of 5+ digits (Pixiv, Danbooru and
+    tweet ids grow with upload date; 20230512 is a date already). None when unavailable."""
     if source == "mtime":
         try:
             return Path(path).stat().st_mtime
         except OSError:
             return None
     if source == "name":
+        date = _DATE.search(Path(path).stem)
+        if date:
+            return float("".join(date.groups()))
         runs = _DIGITS.findall(Path(path).stem)
         return float(max(int(r) for r in runs)) if runs else None
     return None

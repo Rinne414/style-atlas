@@ -476,3 +476,13 @@ def test_export_respells_tags_only_in_the_copies(tmp_path):
         encoding="utf-8"
     ) == "1girl, long hair, Smile"
     assert image.with_suffix(".txt").read_text(encoding="utf-8") == "1girl, long_hair, Smile"
+
+
+def test_file_names_with_dates_sort_by_date():
+    from styleatlas.images import file_time
+
+    names = ["2023-05-12 art.png", "IMG_2023_05_12.jpg", "20230601_1530.jpg", "2022.12.31.png"]
+    times = [file_time(Path(n), "name") for n in names]
+    assert times == [20230512.0, 20230512.0, 20230601.0, 20221231.0]
+    assert file_time(Path("2023-13-40.png"), "name") is None  # not a date, too few digits
+    assert file_time(Path("12345678_p0.png"), "name") == 12345678.0  # ids as before

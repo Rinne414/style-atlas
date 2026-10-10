@@ -59,6 +59,8 @@ New:
   kohya sd-scripts reads the pixels as stored and ignores the EXIF orientation (checked in
   its `library/utils.py`), so a phone photo trains sideways; ai-toolkit and OneTrainer turn
   it upright.
+- `--time name` also reads dates written with separators in file names (`2023-05-12`, `2023_05_12`)
+  as `20230512`, so they sort with undashed dates; tweet ids already sorted by time.
 - Shareable maps (`map`, the web app's 「存成分享用地圖」) say their file size, and above 10 MB (Discord's
   free limit) suggest `--thumb 64`.
 - **Export preview** (web: 「預覽」 next to 開始匯出): the folders, image counts and repeats an export

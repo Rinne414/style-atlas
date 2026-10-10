@@ -492,8 +492,10 @@ def _cluster_args(p: argparse.ArgumentParser) -> None:
         default="none",
         choices=TIME_SOURCES,
         help=tr(
-            "show when each style was made: file-name id (Pixiv/Danbooru) or mtime",
-            "顯示各畫風是什麼時候畫的：用檔名裡的編號（Pixiv/Danbooru）或 mtime",
+            "show when each style was made: name = id or date in the file name (Pixiv, Danbooru, "
+            "tweet ids; 2023-05-12), or mtime",
+            "顯示各畫風是什麼時候畫的：name = 檔名裡的編號或日期"
+            "（Pixiv、Danbooru、推文編號；2023-05-12），或 mtime",
         ),
     )
     _space_args(g)
@@ -665,8 +667,10 @@ def _add_folder_commands(add: Adder) -> None:
         default="none",
         choices=TIME_SOURCES,
         help=tr(
-            "show when each style was made: file-name id (Pixiv/Danbooru) or mtime",
-            "顯示各畫風是什麼時候畫的：用檔名裡的編號（Pixiv/Danbooru）或 mtime",
+            "show when each style was made: name = id or date in the file name (Pixiv, Danbooru, "
+            "tweet ids; 2023-05-12), or mtime",
+            "顯示各畫風是什麼時候畫的：name = 檔名裡的編號或日期"
+            "（Pixiv、Danbooru、推文編號；2023-05-12），或 mtime",
         ),
     )
     _space_args(p)
