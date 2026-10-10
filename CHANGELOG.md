@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.32.0 - 2026-10-10
 
 - **Compare two selections**: pick images on the map, "Remember as A", pick another batch, then
   "Compare with A" (style distance, z, p-value and how they look different). Images in both
