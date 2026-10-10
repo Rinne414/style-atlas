@@ -19,6 +19,13 @@
 - **先排除重複圖再分群**，也就是加 `--dedupe`。否則同一張圖的多個版本會自成一群。近重複的門檻刻意設得保守（0.95）：在 0.92～0.95 之間，常常是同一角色換了姿勢的不同圖，對 LoRA 來說那是有效的訓練圖。
 - `compare` 的 z 值門檻（z ≥ 2.3 為「明顯不同」、z < 1.5 為「同一畫風」）來自一位使用者在固定內容的 NovelAI 算圖上的人眼校準，不是通用標準。換了資料，最好先用 `calibrate` 重新校準。
 
+### 資料集檢查準不準？
+
+- **放大過的圖**：放大 2 倍以上的圖，各組測試抓到 92～100%；原圖都沒有被誤判。整組 3,259 張 Danbooru 圖只標出 1 張，確認是放大過的動畫截圖。放大 1.5 倍的圖和 AI 放大的圖多半抓不到。
+- **JPEG 壓縮**：品質是直接從檔案的量化表讀的。Pillow 存的檔完全準，其他軟體存的檔是估計值。品質 60 就會讓畫風向量偏移約三分之一個「同配方換種子」的差距，所以門檻定在 70。
+- **近重複圖**：分數 0.97 以上是重新上色、裁切或同一張圖的不同格；0.95～0.965 大多是變體。預設 0.95 偏保守，不會刪掉有效的訓練圖。
+- **黑白標籤**：Danbooru 的 226 張黑白圖裡，有 35 張（15%）`monochrome`、`greyscale` 都沒標，抽看的都確實是黑白圖。標了 `greyscale` 但色彩度在 0.08 以上的 6 張，都有明顯的顏色。
+
 ## 從研究得到的幾個結論
 
 這個工具整理自一段長時間的畫風研究。以下是會影響使用方式的發現：
@@ -103,3 +110,18 @@ Style drift is gradual, so treat groups as a first pass and review them in the m
 
 The `compare` z thresholds come from one person's calibration on fixed-content NovelAI renders.
 Re-run `calibrate` on your own data.
+
+### Dataset checks
+
+- **Enlarged images**: 2x and larger enlargements were caught in 92-100% of each test set, with
+  no original flagged; on all 3,259 Danbooru works one image was flagged, an enlarged anime
+  frame. 1.5x enlargements and AI upscales mostly pass.
+- **JPEG compression**: the quality is read from the file's quantisation table, exact for Pillow
+  files and an estimate for other encoders. Quality 60 already moves the style vector by a third
+  of a seed difference, hence the cut at 70.
+- **Near-duplicates**: scores of 0.97 and up are recolours, crops and frames of one picture;
+  0.95-0.965 are mostly variants. The default of 0.95 is conservative and keeps valid training
+  images.
+- **Greyscale tags**: 35 of 226 greyscale Danbooru works (15%) carry neither `monochrome` nor
+  `greyscale`, and the ones looked at were plainly greyscale. All 6 works tagged `greyscale` at
+  a colourfulness of 0.08 or more had clear colour.
