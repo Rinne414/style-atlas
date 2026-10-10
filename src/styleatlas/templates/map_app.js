@@ -322,12 +322,14 @@ function setupLive() {
   });
   $("export").addEventListener("click", async () => {
     try {
+      const cap = parseInt($("expMax").value, 10);
       const body = { mode: "copy", layout: $("expLayout").value, name: $("expName").value.trim(),
-        trigger: $("expTrig").checked };
+        trigger: $("expTrig").checked, max_per_group: cap > 0 ? cap : null };
       const r = await post("api/export", JSON.stringify(body), "application/json");
       const small = r.small_groups ? " " + t("smallGroups").replace("{n}", r.small_groups) : "";
       const config = r.config ? " " + t("configWritten") : "";
-      setStatus(t("exported").replace("{n}", r.placed).replace("{f}", r.folder) + small + config);
+      const trimmed = r.trimmed ? " " + t("trimmedNote").replace("{n}", r.trimmed) : "";
+      setStatus(t("exported").replace("{n}", r.placed).replace("{f}", r.folder) + small + trimmed + config);
       addOpenFolder();
     } catch (e) { setStatus(String(e.message || e)); }
   });
@@ -357,6 +359,7 @@ function liveText() {
   $("undo").textContent = t("undo");
   $("expLayout").options[0].textContent = t("plainFolders");
   $("expName").placeholder = t("conceptName");
+  $("expMax").placeholder = t("maxPerGroup");
   $("expTrigWrap").querySelector("span").textContent = t("triggerCaptions");
   $("neutralWrap").querySelector("span").textContent = t("neutral");
   $("refPath").placeholder = DATA.reference ? DATA.reference : t("refPath");
@@ -373,7 +376,7 @@ function liveText() {
   $("gran").value = cur && cur !== "custom" ? cur : initial;
   $("periods").title = t("periods");
   showPeriods($("gran").value === "period");
-  const tips = { pickBtn: "tipSearch", gran: "tipGran", thr: "tipThr", regroup: "tipRegroup", undo: "tipUndo",
+  const tips = { expMax: "tipMax", pickBtn: "tipSearch", gran: "tipGran", thr: "tipThr", regroup: "tipRegroup", undo: "tipUndo",
     expLayout: "tipLayout", expName: "tipName", expTrigWrap: "tipTrig", export: "tipExport",
     saveMap: "tipSaveMap", neutralWrap: "tipNeutral" };
   Object.entries(tips).forEach(([id, key]) => { $(id).title = t(key); });

@@ -229,7 +229,12 @@ def _plan(
         outliers,
         min_size=a.min_size,
         excluded=excluded,
+        max_per_group=a.max_per_group,
+        style=atlas.style,
     )
+    trimmed = sum(f == "_trimmed" for f in folders)
+    if trimmed:
+        log(f"{trimmed} image(s) beyond {a.max_per_group} per group go to _trimmed")
     return folders, tag_summary(atlas.paths, result)
 
 
@@ -617,6 +622,12 @@ def _lora_args(p: argparse.ArgumentParser) -> None:
         default=0,
         metavar="N",
         help="move N least typical to _outliers",
+    )
+    g.add_argument(
+        "--max-per-group",
+        type=int,
+        metavar="N",
+        help="keep at most N images per style, chosen to cover it; the rest go to _trimmed",
     )
 
 

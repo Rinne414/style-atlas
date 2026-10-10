@@ -192,3 +192,33 @@ def test_distinctive_tags_name_what_sets_a_group_apart():
         1: [{"tag": "1girl", "share": 1.0, "lift": 1.0}],
     }
     assert distinctive_tags(summary) == {0: ["sketch"], 1: []}
+
+
+def test_diverse_subset_covers_a_group_better_than_chance():
+    from styleatlas.dataset import diverse_subset
+    from styleatlas.metrics import unit
+
+    rng = np.random.default_rng(0)
+    centres = unit(rng.normal(size=(6, 64)))  # six sub-styles inside one group, uneven sizes
+    rows = np.repeat(np.arange(6), [30, 12, 8, 5, 3, 2])
+    x = unit(centres[rows] * 3 + rng.normal(0, 0.3, size=(len(rows), 64)))
+
+    def coverage(picked):  # mean distance from each image to its nearest kept image
+        return float(np.mean(1 - (x @ x[picked].T).max(axis=1)))
+
+    picked = diverse_subset(x, 8)
+    assert len(set(picked)) == 8 and len({int(rows[i]) for i in picked}) == 6  # every sub-style
+    randoms = [coverage(rng.choice(len(x), 8, replace=False)) for _ in range(200)]
+    assert coverage(picked) < np.percentile(randoms, 5)
+    assert diverse_subset(x[:3], 8) == [0, 1, 2]
+
+
+def test_a_cap_per_group_trims_the_rest_and_sets_repeats_by_what_is_kept(tmp_path):
+    x, y = make_blobs([10, 7])
+    paths = [_img(tmp_path / f"i{i}.png") for i in range(len(x))]
+    result = cluster_styles(x, min_size=3)
+    folders = plan_folders(paths, result, "kohya", "a", "auto", max_per_group=4, style=x)
+    kept = [f for f in folders if not f.startswith("_")]
+    assert folders.count("_trimmed") == (10 - 4) + (7 - 4)
+    assert all(kept.count(f) == 4 for f in set(kept))
+    assert all(f.split("_")[0] == str(auto_repeats(4)) for f in kept)

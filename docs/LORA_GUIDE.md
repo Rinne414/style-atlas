@@ -52,6 +52,7 @@ style-atlas cluster "D:\lora\artistX" --layout kohya --name artistX --dedupe --d
 - 每群會匯出成 `<repeats>_artistX_styleNN\` 資料夾（取過名的群用名字），標註檔一起複製。
 - 要按時期拆就加 `--granularity period --time name`。指令會在每群後面印出它在作品時間軸上的位置，例如 `when 9% [3%-28%]` 表示這群的中位數落在最早的 9%（中間一半落在 3%～28%），一看就知道哪群是早期、哪群是近期。
 - repeats 會自動調成「張數 × repeats ≈ 100」，也可以用 `--repeats N` 指定。
+- 某群太多張（例如 300 張）時，加 `--max-per-group 40`（網頁：「每群上限」）只保留 40 張能涵蓋整群變化的圖，其餘放到 `_trimmed\`。
 - 匯出資料夾裡會一起寫一份 `dataset_config.toml`（kohya sd-scripts 用 `--dataset_config` 指定），列出每群的資料夾路徑與 repeats；有勾觸發詞時會設 `keep_tokens = 1`，讓觸發詞在打亂標籤時固定在最前面。解析度與 batch size 請依模型自行調整（SDXL／Illustrious 用 1024）。
 - 被排除的圖放在 `_duplicates\`、`_outliers\`、`_unassigned\`、`_excluded\` 這幾個資料夾。它們沒有數字前綴，所以 kohya 不會拿來訓練。
 - 想**一群訓一個 LoRA**（例如早期、近期畫風分開）：把那一群的資料夾單獨當 train_data_dir。

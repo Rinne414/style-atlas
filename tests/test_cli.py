@@ -149,3 +149,11 @@ def test_ignore_characters_and_neutralize_are_alternatives(lib, tmp_path, capsys
     for bad in (["--ignore-characters", "--neutralize", "1"], ["--neutralize", "9"]):
         with pytest.raises(SystemExit):  # refused by argparse, before any image is read
             main([*base, *bad])
+
+
+def test_cluster_can_cap_each_group(lib, tmp_path, capsys):
+    out = tmp_path / "out"
+    args = ["cluster", str(lib), "--device", "cpu", "--no-map", "--export", "copy", "-o", str(out)]
+    assert main([*args, "--max-per-group", "4"]) == 0
+    assert "6 image(s) beyond 4 per group go to _trimmed" in capsys.readouterr().err
+    assert len(list((out / "folders" / "_trimmed").glob("*.png"))) == 6  # 2 of each colour

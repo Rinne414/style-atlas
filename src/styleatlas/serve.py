@@ -33,6 +33,8 @@ from styleatlas.cluster import (
 )
 from styleatlas.dataset import (
     LAYOUTS,
+    MAX_PER_GROUP_RANGE,
+    SET_ASIDE,
     audit,
     clean_group_name,
     distinctive_tags,
@@ -588,6 +590,10 @@ class StyleAtlasApp:
         if layout not in LAYOUTS or not isinstance(trigger, bool):
             raise ValueError(f"layout must be one of {LAYOUTS}; trigger must be true or false")
         name = clean_group_name(body.get("name") or self.atlas.root.name or "style")
+        cap = body.get("max_per_group")
+        low, high = MAX_PER_GROUP_RANGE
+        if cap is not None and (type(cap) is not int or not low <= cap <= high):
+            raise ValueError(f"max_per_group must be empty or a whole number from {low} to {high}")
         out = self.out_dir
         with self._lock:
             folders = plan_folders(
@@ -599,6 +605,8 @@ class StyleAtlasApp:
                 excluded=sorted(self.excluded),
                 group_names=self.names_by_group(),
                 min_size=EXPORT_MIN_GROUP,
+                max_per_group=cap,
+                style=self.atlas.style,
             )
             write_table(self.atlas, self.clustering, out, folders)
             result = export_folders(
@@ -609,6 +617,7 @@ class StyleAtlasApp:
                 trigger_captions=trigger,
                 layout=layout,
             )
+            trimmed = sum(f == SET_ASIDE["trimmed"] for f in folders)
             labels = self.clustering.labels
             small = {
                 int(labels[i]) for i, f in enumerate(folders) if labels[i] >= 0 and is_unassigned(f)
@@ -618,6 +627,7 @@ class StyleAtlasApp:
             "failed": len(result.failed),
             "folder": str(result.folder),
             "small_groups": len(small),  # left with < EXPORT_MIN_GROUP images: in unassigned
+            "trimmed": trimmed,
             "config": (result.folder / KOHYA_CONFIG).exists(),
         }
 

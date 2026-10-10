@@ -654,3 +654,17 @@ def test_each_group_lists_its_closest_groups(tmp_path):
         assert gid not in [r[0] for r in rows] and {r[0] for r in rows} <= ids
         assert [r[1] for r in rows] == sorted(r[1] for r in rows)
     assert '"near":[[' in app.page()
+
+
+def test_the_web_export_can_cap_each_group(tmp_path):
+    from pathlib import Path
+
+    app, _ = _app(tmp_path, (10, 7))
+    app.regroup({"threshold": 0.5})
+    out = app.export({"mode": "copy", "layout": "plain", "max_per_group": 4})
+    root = Path(out["folder"])
+    assert out["trimmed"] == (10 - 4) + (7 - 4)
+    assert len(list((root / "_trimmed").glob("*.png"))) == out["trimmed"]
+    for bad in (0, "4", 1.5, True):
+        with pytest.raises(ValueError):
+            app.export({"mode": "copy", "max_per_group": bad})

@@ -27,7 +27,24 @@ SET_ASIDE = {
     "outlier": "_outliers",
     "unassigned": "_unassigned",
     "excluded": "_excluded",
+    "trimmed": "_trimmed",
 }
+MAX_PER_GROUP_RANGE = (1, 100_000)
+
+
+def diverse_subset(x: np.ndarray, n: int) -> list[int]:
+    """n rows of `x` (unit vectors) that cover the set: the most central one first, then each
+    time the row farthest from everything picked so far (farthest-point sampling)."""
+    if n >= len(x):
+        return list(range(len(x)))
+    centre = x.mean(axis=0)
+    picked = [int(np.argmax(x @ centre))]
+    nearest = 1.0 - x @ x[picked[0]]  # distance from each row to its closest pick
+    while len(picked) < n:
+        i = int(np.argmax(nearest))
+        picked.append(i)
+        nearest = np.minimum(nearest, 1.0 - x @ x[i])
+    return picked
 
 
 def caption_of(image: Path) -> Path | None:
@@ -223,9 +240,13 @@ def plan_folders(
     min_size: int = 1,
     excluded: list[int] | None = None,
     group_names: dict[int, str] | None = None,
+    max_per_group: int | None = None,
+    style: np.ndarray | None = None,
 ) -> list[str]:
     """Destination folder name for every image. A style group left with fewer than `min_size`
-    images after duplicates and outliers are set aside counts as unassigned."""
+    images after duplicates and outliers are set aside counts as unassigned. With
+    max_per_group (and the style vectors), a larger group keeps that many images that cover it
+    (see diverse_subset); the rest go to _trimmed."""
     if layout not in LAYOUTS:
         raise ValueError(f"layout must be one of {LAYOUTS}")
     fixed = parse_repeats(repeats)
@@ -235,6 +256,8 @@ def plan_folders(
         local = {k for k, i in enumerate(group) if i in aside}
         keep = group[best_in_group([paths[i] for i in group], local)]
         aside.update({i: SET_ASIDE["duplicate"] for i in group if i != keep and i not in aside})
+    if max_per_group is not None and style is not None:
+        aside.update(_trimmed(clustering, style, aside, max_per_group))
     sizes = Counter(int(c) for i, c in enumerate(clustering.labels) if i not in aside)
     width = max(2, len(str(clustering.n_clusters)))
     labels = _group_labels(clustering.n_clusters, layout, width, group_names)
@@ -250,6 +273,17 @@ def plan_folders(
             n = auto_repeats(sizes[cid]) if fixed is None else fixed
             folders.append(f"{n}_{name}_{labels[cid]}")
     return folders
+
+
+def _trimmed(clustering: Clustering, style: np.ndarray, aside: dict, cap: int) -> dict:
+    """Images beyond `cap` in each group (after other set-asides), by diverse_subset."""
+    out = {}
+    for c in clustering.clusters:
+        left = [i for i in c.members if i not in aside]
+        if len(left) > cap:
+            keep = {left[k] for k in diverse_subset(style[left], cap)}
+            out.update({i: SET_ASIDE["trimmed"] for i in left if i not in keep})
+    return out
 
 
 def audit(

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **Cap per style** (`--max-per-group N`; web: "max per style" in the export row): a larger
+  group keeps N images that cover it, picked by farthest-point sampling from its most central
+  image; the rest go to `_trimmed/`, after duplicates, outliers and exclusions, and repeats
+  follow the kept count. On a group made of six sub-styles, 8 picks covered all six and beat
+  95% of random picks. Suggested by a Sonnet product review.
 - Double-clicking `scripts\StyleAtlas.bat` without dragging a folder onto it opens a folder
   picker (`scripts\pick_folder.ps1`) instead of an error. Paths with spaces and Chinese
   characters pass through intact (checked with a stand-in path), and the dialog was seen

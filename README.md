@@ -100,10 +100,12 @@ _duplicates\          ← 沒有數字前綴，kohya 會忽略
 _outliers\
 _unassigned\
 _excluded\            ← 在網頁介面按 X 排除的圖
+_trimmed\             ← 超過每群上限的圖（有用 --max-per-group 時）
 dataset_config.toml   ← kohya sd-scripts 的資料集設定（`--dataset_config`），列出每群的資料夾與 repeats
 ```
 
 - 每群的 repeats 會讓「張數 × repeats」接近 100。也可以用 `--repeats 10` 固定。
+- 某群圖太多時，加 `--max-per-group 40`（網頁：匯出列的「每群上限」）只保留 40 張，會挑能涵蓋整群變化的那些（從最典型的一張開始，每次挑和已選的最不像的一張），其餘放到 `_trimmed\`。repeats 會依保留的張數重算。
 - 想在同一個 LoRA 裡用不同觸發詞叫出不同畫風，可以加 `--trigger-captions`：
   - 匯出的標註開頭會自動加上該群名稱，例如 `artistX_style01, `；
   - 原始標註不會被改。
@@ -386,6 +388,9 @@ The output goes to `DIR_style_atlas/folders/`, next to the dataset and never ins
   folder and its repeats; set the resolution and batch size for your model.
 - `_duplicates/`, `_outliers/`, `_unassigned/` and `_excluded/` (images you excluded with X in
   the web app). Kohya skips these because they lack a number prefix.
+- With `--max-per-group N` (web: "max per style"), a larger style keeps N images that cover
+  it (farthest-point sampling from its most central image); the rest go to `_trimmed/`, and
+  repeats follow the kept count.
 - `clusters.json`, which lists each group's characteristic caption tags.
 - With `--trigger-captions`, every exported caption starts with its group's trigger
   (`artistX_style01, ...`). Images without a caption get one, and source captions are never
