@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.33.0 - 2026-10-10
 
 - **Held-out re-check.** Style consistency and the which-artist ranking had been measured on
   artists the search whitening was fitted on. On 114 artists it never saw: consistency flags 51%
