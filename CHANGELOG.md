@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- **Compare two selections**: pick images on the map, "Remember as A", pick another batch, then
+  "Compare with A" (style distance, z, p-value and how they look different). Images in both
+  batches count for A only.
 ## 0.31.0 - 2026-10-10
 
 - **Save the 3D view as a PNG**: press P (in the web app and in a saved map), or "Save view as

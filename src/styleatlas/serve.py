@@ -529,23 +529,34 @@ class StyleAtlasApp(GroupEdits):
             else {"spread": tight.spread, "percentile": tight.percentile, "verdict": tight.verdict},
         }
 
+    def _compare_sides(self, body: dict) -> tuple[list[int], list[int]]:
+        """Members of side a and side b: two groups, a selection and a group (the selection
+        against the rest of it), or two selections (b without what a already holds)."""
+        if "items" in body:
+            ma = self._indices({"items": body.get("items")})
+            if "items_b" in body:
+                mb = self._indices({"items": body.get("items_b")})
+            else:
+                b = self._group(body.get("b"), allow_unassigned=False)
+                mb = list(self.clustering.clusters[b].members)
+            mb = [m for m in mb if m not in set(ma)]
+        else:
+            a = self._group(body.get("a"), allow_unassigned=False)
+            b = self._group(body.get("b"), allow_unassigned=False)
+            if a == b:
+                raise ValueError("pick two different groups")
+            ma = list(self.clustering.clusters[a].members)
+            mb = list(self.clustering.clusters[b].members)
+        if len(ma) < 2 or len(mb) < 2:
+            raise ValueError("each side needs at least 2 images that the other does not have")
+        return ma, mb
+
     def compare(self, body: dict) -> dict:
         """Two groups side by side, as `style-atlas compare`: centroid distance, its z and verdict
         on the default scale, a permutation p-value, and how group b looks next to group a.
-        "items" (images picked on the map) can stand in for group a."""
+        "items" (images picked on the map) can stand in for group a, and "items_b" for b."""
         with self._lock:
-            b = self._group(body.get("b"), allow_unassigned=False)
-            mb = list(self.clustering.clusters[b].members)
-            if "items" in body:
-                ma = self._indices({"items": body.get("items")})
-                mb = [m for m in mb if m not in set(ma)]  # the picked images against the rest
-                if len(ma) < 2 or len(mb) < 2:
-                    raise ValueError("pick at least 2 images, and leave at least 2 in the group")
-            else:
-                a = self._group(body.get("a"), allow_unassigned=False)
-                if a == b:
-                    raise ValueError("pick two different groups")
-                ma = list(self.clustering.clusters[a].members)
+            ma, mb = self._compare_sides(body)
             x, looks = self.atlas.style, self.atlas.looks
         dist, p = group_difference(x[ma], x[mb], rounds=COMPARE_ROUNDS)
         scale = StyleScale()

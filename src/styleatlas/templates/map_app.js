@@ -143,15 +143,17 @@ async function showSimilar(group) {  // a group id, or "excluded": the images ex
 
 const VERDICT_KEYS = { "same style": "v_same", related: "v_related", "clearly different": "v_different" };
 
-async function showCompare(a, b, items) {  // items: images picked on the map, in place of group a
+async function showCompare(a, b, items, itemsB) {  // picked images in place of group a / group b
   setStatus(t("searching"));
   try {
-    const r = await post("api/compare", JSON.stringify(items ? { items, b } : { a, b }), "application/json");
+    const body = itemsB ? { items, items_b: itemsB } : items ? { items, b } : { a, b };
+    const r = await post("api/compare", JSON.stringify(body), "application/json");
     setStatus("");
     const pane = $("pane-selected"); pane.replaceChildren();
     const nameA = items ? t("marked").replace("{n}", items.length) : clusterName(a);
+    const nameB = itemsB ? t("markedA").replace("{n}", itemsB.length) : clusterName(b);
     const h = document.createElement("h3");
-    h.textContent = t("compareTitle").replace("{a}", nameA).replace("{b}", clusterName(b));
+    h.textContent = t("compareTitle").replace("{a}", nameA).replace("{b}", nameB);
     const kv = document.createElement("div"); kv.className = "kv";
     const zh = lang === "zh";
     const line = (k, v) => { const d = document.createElement("div"); d.textContent = `${k}${zh ? "：" : ": "}${v}`; kv.append(d); };
@@ -160,15 +162,16 @@ async function showCompare(a, b, items) {  // items: images picked on the map, i
     line(t("cmpP"), r.p < 0.01 ? "< 0.01" : r.p.toFixed(2));
     if (r.look) {
       const z = LOOKS.map((k) => r.look[k] || 0);
-      line(t("cmpLook").replace("{a}", nameA).replace("{b}", clusterName(b)), wordsFor(z) || t("cmpLookSame"));
+      line(t("cmpLook").replace("{a}", nameA).replace("{b}", nameB), wordsFor(z) || t("cmpLookSame"));
     }
     const note = document.createElement("div"); note.className = "meta"; note.textContent = t("cmpNote");
     const strips = [a, b].map((g, side) => {
       const grid = document.createElement("div"); grid.className = "grid";
-      const members = side === 0 && items ? items : [...PTS.keys()].filter((i) => PTS[i].c === g);
+      const picked = side === 0 ? items : itemsB;
+      const members = picked || [...PTS.keys()].filter((i) => PTS[i].c === g);
       members.slice(0, 6).forEach((i) => grid.append(thumb(i)));
       const cap = document.createElement("div"); cap.className = "meta";
-      cap.textContent = side === 0 ? nameA : clusterName(g);
+      cap.textContent = side === 0 ? nameA : nameB;
       return [cap, grid];
     }).flat();
     pane.append(h, kv, ...strips, note);
@@ -178,6 +181,7 @@ async function showCompare(a, b, items) {  // items: images picked on the map, i
 
 /* ---------- several images at once: Shift+click, Shift+drag a box ---------- */
 let MARKED = new Set();
+let MARKED_A = null;  // an earlier selection kept to compare the next one with
 
 function toggleMark(i) {
   if (MARKED.has(i)) MARKED.delete(i); else MARKED.add(i);
@@ -199,6 +203,11 @@ function showMarks() {
   bar.replaceChildren(count, ex, inc,
     groupSelect(t("moveTo"), null, true, (to) => editPost("api/move", { items: items(), to })),
     ...(MARKED.size >= 2 ? [groupSelect(t("compareWith"), null, false, (b) => showCompare(null, b, items()))] : []),
+    ...(MARKED.size >= 2 ? [button("rememberA", () => {
+      MARKED_A = items(); MARKED = new Set(); showMarks();
+      setStatus(t("rememberedA").replace("{n}", MARKED_A.length));
+    })] : []),
+    ...(MARKED.size >= 2 && MARKED_A ? [button("compareA", () => showCompare(null, null, items(), MARKED_A))] : []),
     button("markClear", () => { MARKED = new Set(); showMarks(); }));
 }
 

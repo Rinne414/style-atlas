@@ -659,6 +659,11 @@ def test_two_groups_compared(server, tmp_path):
     mine = app.compare({"items": picked, "b": b})
     assert mine["sizes"] == [4, 10] and mine["verdict"] == "clearly different"
     same = app.compare({"items": picked, "b": a})  # part of the same group: no real difference
+    others = [int(i) for i in np.flatnonzero(labels == b)[:5]]
+    two = app.compare({"items": picked, "items_b": others})  # two free selections
+    assert two["sizes"] == [4, 5] and two["verdict"] == "clearly different"
+    with pytest.raises(ValueError):  # b would be left with nothing of its own
+        app.compare({"items": picked, "items_b": picked[:3]})
     assert same["distance"] < mine["distance"]
     for bad in ({"items": picked[:1], "b": b}, {"items": [], "b": b}):
         with pytest.raises(ValueError):

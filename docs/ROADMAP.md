@@ -90,7 +90,7 @@ All of these are in `docs/BENCHMARKS.md`.
   - Search inside a caption tag is done (0.26). Negative examples were measured and dropped
     (BENCHMARKS.md, "Tried and rejected").
   - Caption checks against the image, for example `monochrome` on a colourful picture.
-  - Comparing two free selections (a selection against a group is done, 0.27).
+  - Comparing selections is done (against a group 0.27, two selections 0.32).
   - An aspect-ratio bucket report as the trainer will see it.
   - A one-page report for a folder (consistency, looks, nearest artists, originality).
   - Rejected: hiding the taste model. Quantifying taste is one of the owner's goals.
