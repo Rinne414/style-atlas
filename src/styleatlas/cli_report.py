@@ -6,9 +6,10 @@ import argparse
 from pathlib import Path
 
 from styleatlas.atlas import Atlas, build_atlas
-from styleatlas.cli_common import _atlas, _opts, log, saved_groups, web_exclusions
+from styleatlas.cli_common import _atlas, _opts, _space, log, saved_groups, web_exclusions
 from styleatlas.export import output_dir
 from styleatlas.images import labels_from_folders
+from styleatlas.metrics import PLAIN
 
 CLOSEST = 5  # reference artists listed
 
@@ -16,6 +17,10 @@ CLOSEST = 5  # reference artists listed
 def cmd_report(a: argparse.Namespace) -> int:
     from styleatlas.report_card import write_report
 
+    if a.renders and _space(a) != PLAIN:
+        raise ValueError(
+            "--renders compares plain style vectors: leave out --neutralize and --ignore-characters"
+        )
     atlas = _atlas(a, a.folder).with_looks(_opts(a), log)
     if len(atlas) == 0:
         log(f"no readable images in {a.folder}")
@@ -32,6 +37,10 @@ def cmd_report(a: argparse.Namespace) -> int:
         skip = set(excluded)
         closest = _closest_artists(a, atlas.subset([i for i in range(len(atlas)) if i not in skip]))
     out = Path(a.out or output_dir(Path(a.folder)) / "style_report.html")
+    renders = None
+    if a.renders:
+        renders = _atlas(a, a.renders).with_looks(_opts(a), log)
+        log(f"checking {len(renders)} renders from {a.renders} against this training set")
     title = a.title or Path(a.folder).resolve().name
     path = write_report(
         atlas,
@@ -42,6 +51,7 @@ def cmd_report(a: argparse.Namespace) -> int:
         closest=closest,
         lang=a.lang,
         excluded=excluded,
+        renders=renders,
     )
     print(path)
     return 0
@@ -71,6 +81,11 @@ def report_args(p: argparse.ArgumentParser) -> None:
         "--fresh",
         action="store_true",
         help="group afresh instead of using the groups the web app saved",
+    )
+    p.add_argument(
+        "--renders",
+        metavar="DIR",
+        help="a LoRA's test images: check them against this folder as its training set",
     )
     p.add_argument(
         "--artists",

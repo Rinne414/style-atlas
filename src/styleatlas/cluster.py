@@ -42,6 +42,7 @@ _TREE_CACHE: dict = {}  # last large set: (micro-group per image, linkage tree)
 UNASSIGNED = -1
 FIT_PERCENTILE = 70  # a new image fits a group when it is as close as this share of its members
 FIT_MIN = 3  # smallest group a new image can be placed in
+BATCH_MIN, BATCH_IN, BATCH_OUT = 8, 0.5, 0.25  # reading a batch's share that fits
 ARTISTS = "artists"  # the grouping that follows artists in a gallery of many
 ARTISTS_CUT = 0.90  # its cut in the search whitening's space (docs/BENCHMARKS.md)
 
@@ -304,6 +305,17 @@ def _left_out_distances(rows: np.ndarray) -> np.ndarray:
     rest = rows.sum(axis=0)[None] - rows
     rest /= np.maximum(np.linalg.norm(rest, axis=1, keepdims=True), 1e-12)
     return 1.0 - (rows * rest).sum(axis=1)
+
+
+def batch_verdict(share: float, n: int) -> str:
+    """How to read the share of a batch of `n` new images that fits: "few" (under BATCH_MIN
+    images, too noisy to say), "in" (mostly the folder's styles), "some" or "out" (mostly
+    unlike them). docs/BENCHMARKS.md, "Sorting new images into a dataset"."""
+    if n < BATCH_MIN:
+        return "few"
+    if share > BATCH_IN:
+        return "in"
+    return "out" if share <= BATCH_OUT else "some"
 
 
 def keep_rows(x: np.ndarray, clustering: Clustering, kept: np.ndarray | list[int]) -> Clustering:

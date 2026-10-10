@@ -445,3 +445,23 @@ def test_duplicate_groups_show_how_alike_they_are(lib, tmp_path, capsys):
     shutil.copy(one, lib / "red" / "again.png")
     assert main(["duplicates", str(lib), "--device", "cpu"]) == 0
     assert "(similarity 1.000+)" in capsys.readouterr().out
+
+
+def test_report_checks_lora_renders_against_the_training_set(lib, tmp_path, capsys):
+    renders = tmp_path / "renders"
+    renders.mkdir()
+    for p in sorted((lib / "red").glob("*.png"))[:3]:  # memorised training images
+        (renders / f"copy_{p.name}").write_bytes(p.read_bytes())
+    for i in range(5):
+        Image.new("RGB", (64, 64), (90 + 20 * i,) * 3).save(renders / f"grey{i}.png")
+    out = tmp_path / "r.html"
+    base = ["report", str(lib), "-o", str(out), "--renders", str(renders), "--device", "cpu"]
+    assert main([*base, "--lang", "en"]) == 0
+    page = out.read_text(encoding="utf-8")
+    assert "LoRA renders (8, against the training set above)" in page
+    assert "Possibly memorised: 3 renders" in page and "least like the training set first" in page
+    assert page.count('<div class="pair">') == 3  # render and training image side by side
+    assert "of 8 fall inside a style group of the training set" in page
+    assert main(base) == 0 and "LoRA 算圖檢查" in out.read_text(encoding="utf-8")
+    assert main([*base, "--neutralize", "1"]) == 1
+    assert "--renders compares plain style vectors" in capsys.readouterr().err

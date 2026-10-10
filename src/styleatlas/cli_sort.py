@@ -17,7 +17,15 @@ import numpy as np
 
 from styleatlas.atlas import Atlas
 from styleatlas.cli_common import _atlas, log, saved_groups, web_exclusions
-from styleatlas.cluster import UNASSIGNED, Clustering, Fit, fit_to_groups, from_labels
+from styleatlas.cluster import (
+    BATCH_MIN,
+    UNASSIGNED,
+    Clustering,
+    Fit,
+    batch_verdict,
+    fit_to_groups,
+    from_labels,
+)
 from styleatlas.dataset import auto_repeats, group_labels, is_unassigned
 from styleatlas.duplicates import copies_of
 from styleatlas.export import export_folders, output_dir, write_csv
@@ -27,8 +35,12 @@ from styleatlas.whiten import whiten
 UNSURE = "_unsure"  # closest group, but farther from it than 70% of its own images
 ALREADY = "_already_in_dataset"  # a near-copy of an image the dataset already holds
 RESERVED = {UNSURE.casefold(), ALREADY.casefold()}
-MOSTLY_IN, MOSTLY_OUT = 0.5, 0.25  # share of a batch that fits (docs/BENCHMARKS.md)
-MIN_BATCH = 8  # below this many new images the share says little: no verdict on the batch
+VERDICTS = {
+    "few": f"too few images to judge the batch (under {BATCH_MIN})",
+    "in": "mostly the dataset's styles",
+    "some": "partly the dataset's styles",
+    "out": "mostly unlike the dataset's styles",
+}
 KOHYA_FOLDER = re.compile(r"^(\d+)_(.+)$")  # <repeats>_<name>, as `cluster --layout kohya` writes
 
 
@@ -148,14 +160,7 @@ def _summary(fits: list[Fit], labels: dict[int, str], folders: list[str]) -> Non
     for name, n in sorted(placed.items(), key=lambda t: -t[1]):
         log(f"  {name:30s} {n:5d}  ({fitting[name]} fit)")
     share = sum(fitting.values()) / len(rest)
-    if len(rest) < MIN_BATCH:
-        verdict = f"too few images to judge the batch (under {MIN_BATCH})"
-    elif share > MOSTLY_IN:
-        verdict = "mostly the dataset's styles"
-    elif share <= MOSTLY_OUT:
-        verdict = "mostly unlike the dataset's styles"
-    else:
-        verdict = "partly the dataset's styles"
+    verdict = VERDICTS[batch_verdict(share, len(rest))]
     log(f"{share:.0%} fit their group: {verdict}; the rest go to {UNSURE} for a look")
 
 

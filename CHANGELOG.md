@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **LoRA render check in the report.** `style-atlas report TRAIN --renders RENDERS` adds a section
+  that checks a LoRA's test images against its training set: the style distance and verdict (as
+  `compare`), how many renders fall inside a training style group (the rule `sort` uses, with
+  the same batch reading), how the look changed, renders that nearly repeat a training image
+  (shown side by side: a sign of memorisation), and the renders least like the training set.
+  Chinese and English; one HTML file to keep or send. `cluster.batch_verdict` now holds the batch
+  reading for `sort` and the report.
 - Fix: a caption saved with a UTF-8 byte order mark (Windows Notepad) hid its first tag from
   the watermark check, tag search and the per-group tags.
 - `.jfif` files (what Chrome on Windows often saves JPEGs from X/Twitter as) are now found.

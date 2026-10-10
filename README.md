@@ -230,7 +230,7 @@ style-atlas taste score "D:\new_batch" --model "D:\my_taste.npz"
 | `style-atlas serve 資料夾` | 打開網頁介面（`StyleAtlas.bat` 做的就是這個） |
 | `style-atlas cluster 資料夾 [--layout kohya --name X] [--dedupe] [--export copy]` | 分畫風群，寫出 CSV／JSON 和地圖，可匯出成資料夾 |
 | `style-atlas sort 新圖資料夾 --into 資料集 [--by-folder] [--export copy]` | 把新圖分進已經分好的資料集 |
-| `style-atlas report 資料夾 [--artists 圖庫]` | 一頁畫風報告（HTML） |
+| `style-atlas report 資料夾 [--artists 圖庫] [--renders 算圖資料夾]` | 一頁畫風報告（HTML）；`--renders` 加上 LoRA 算圖檢查 |
 | `style-atlas search 範例圖 --in 圖庫 [--combine] [--by-folder] [--copy-to 資料夾]` | 以圖找圖；`--by-folder` 列出最像的子資料夾（畫師） |
 | `style-atlas map 資料夾 [--by-folder]` | 3D 畫風地圖（單一 HTML 檔）；`--by-folder` 每位畫師一個點 |
 | `style-atlas audit 資料夾` | 檢查資料集：尺寸、比例、壓縮、放大、標註、浮水印 |
@@ -512,7 +512,7 @@ style-atlas cluster DIR [--granularity auto|period|artists|fine|medium|coarse | 
                         [-o OUT]
 style-atlas embed DIR             # embed and cache only
 style-atlas sort NEW --into DATASET [--by-folder] [--export copy|link] [-o OUT]
-style-atlas report DIR [-o style_report.html] [--artists DIR] [--lang zh|en]
+style-atlas report DIR [-o style_report.html] [--artists DIR] [--renders DIR] [--lang zh|en]
 style-atlas doctor                 # check Python, torch, GPU, model download, disk space
 style-atlas serve DIR [--port 8770] [--no-browser] [--time none|name|mtime]
 style-atlas map DIR [-o map.html] [--projection auto|umap|tsne|pca] [--time ...] [--by-folder]

@@ -18,14 +18,16 @@ from pathlib import Path
 import numpy as np
 
 from styleatlas.atlas import LOAD_ERRORS, Atlas
-from styleatlas.cluster import Clustering, keep_rows
+from styleatlas.cluster import Clustering, batch_verdict, keep_rows
 from styleatlas.consistency import consistency
 from styleatlas.dataset import distinctive_tags, tag_summary
 from styleatlas.images import cached_thumbnail
 from styleatlas.look import LOOK_NAMES, NOTABLE, profile
 from styleatlas.metrics import centroid
+from styleatlas.render_check import RenderCheck, check_renders
 
 THUMBS = 6  # most typical images shown per group
+RENDER_THUMBS = 12  # renders least like the training set, and memorised pairs, shown
 THUMB_PX = 160
 PLACEHOLDER = re.compile(r"\{(title|lang|body)\}")
 
@@ -65,6 +67,54 @@ TEXT = {
         "group": "Style",
         "note": "Style vectors: CSD ViT-L (Somepalli et al. 2024, CC-BY-4.0). Look numbers are "
         "image statistics on 256 px copies; they describe how styles differ, not which is better.",
+    },
+}
+RENDER_TEXT = {
+    "zh": {
+        "title": "LoRA 算圖檢查（{n} 張算圖，和上面的訓練集比）",
+        "distance": "畫風距離 {d:.3f}（z {z:.1f}，{v}；p {p}）",
+        "verdict": {"same style": "同一畫風", "related": "相關", "clearly different": "明顯不同"},
+        "fit": "{k} / {n} 張落在訓練集某一群的範圍內：{v}",
+        "batch": {
+            "few": "張數太少，不判斷整批（請用 8 張以上）",
+            "in": "大致是訓練集的畫風",
+            "some": "部分像訓練集",
+            "out": "大多不像訓練集",
+        },
+        "fit_note": "實測：同一畫師沒用到的作品約 61% 落在範圍內，其他畫師約 1%。",
+        "look": "外觀（算圖和訓練集比）：{w}",
+        "look_same": "沒有明顯差異",
+        "copies": "可能背下的訓練圖：{n} 張算圖和某張訓練圖幾乎一樣"
+        "（每組左邊是算圖，右邊是訓練圖）",
+        "no_copies": "沒有算圖和訓練圖幾乎一樣。",
+        "far": "算圖（最不像訓練集的排前面）",
+        "z_note": "z 的尺度來自一位使用者在 NovelAI 算圖上的校準；同一畫風的兩半約為 1。",
+    },
+    "en": {
+        "title": "LoRA renders ({n}, against the training set above)",
+        "distance": "Style distance {d:.3f} (z {z:.1f}, {v}; p {p})",
+        "verdict": {
+            "same style": "same style",
+            "related": "related",
+            "clearly different": "clearly different",
+        },
+        "fit": "{k} of {n} fall inside a style group of the training set: {v}",
+        "batch": {
+            "few": "too few to judge the batch (use 8 or more)",
+            "in": "mostly the training set's style",
+            "some": "partly the training set's style",
+            "out": "mostly unlike the training set",
+        },
+        "fit_note": "Measured: 61% of an artist's unused works fall inside, 1% of another "
+        "artist's.",
+        "look": "Look (renders against the training set): {w}",
+        "look_same": "no clear difference",
+        "copies": "Possibly memorised: {n} renders nearly repeat a training image (render left, "
+        "training image right)",
+        "no_copies": "No render repeats a training image.",
+        "far": "Renders, least like the training set first",
+        "z_note": "The z scale comes from one person's calibration on NovelAI renders; two "
+        "halves of one style are about 1 apart.",
     },
 }
 LOOK_WORDS = {  # next to the reference artists: (above the middle, below it)
@@ -173,6 +223,48 @@ def _looks_section(looks: np.ndarray, t: dict, lang: str) -> str:
     return f"<section><h2>{t['looks']}</h2><table>{''.join(rows)}</table></section>"
 
 
+def _renders_section(check: RenderCheck, train: Atlas, lang: str) -> str:
+    """The LoRA render check: distance, fit share, look change, memorised pairs, the farthest."""
+    r, e = RENDER_TEXT[lang], html.escape
+    n = len(check.fits)
+    p = "< 0.01" if check.p < 0.01 else f"{check.p:.2f}"
+    verdict = r["verdict"].get(check.verdict, check.verdict)
+    lines = [
+        r["distance"].format(d=check.distance, z=check.z, v=verdict, p=p),
+        r["fit"].format(k=check.fitting, n=n, v=r["batch"][batch_verdict(check.fitting / n, n)]),
+    ]
+    if check.look is not None:
+        lines.append(r["look"].format(w=_look_change(check.look, lang) or r["look_same"]))
+    out = [f"<section><h2>{e(r['title'].format(n=n))}</h2>"]
+    out += [f"<p>{e(line)}</p>" for line in lines]
+    out.append(f'<p class="sub">{e(r["fit_note"])} {e(r["z_note"])}</p>')
+    if check.copies:
+        out.append(f"<h3>{e(r['copies'].format(n=len(check.copies)))}</h3>")
+        pairs = [(check.renders.paths[i], train.paths[j]) for i, j, _ in check.copies]
+        cells = "".join(f'<div class="pair">{_imgs(pair)}</div>' for pair in pairs[:RENDER_THUMBS])
+        out.append(f'<div class="thumbs">{cells}</div>')
+    else:
+        out.append(f"<p>{e(r['no_copies'])}</p>")
+    farthest = np.argsort([-f.dist for f in check.fits])[:RENDER_THUMBS]
+    out.append(f"<h3>{e(r['far'])}</h3>")
+    out.append(_thumb_grid([check.renders.paths[i] for i in farthest]))
+    return "".join(out) + "</section>"
+
+
+def _look_change(z: np.ndarray, lang: str) -> str:
+    picked = [j for j in np.argsort(-np.abs(z)) if abs(z[j]) >= NOTABLE]
+    sep = "、" if lang == "zh" else ", "
+    return sep.join(GROUP_WORDS[lang][LOOK_NAMES[j]][0 if z[j] > 0 else 1] for j in picked)
+
+
+def _imgs(paths) -> str:
+    return "".join(f'<img src="{s}" alt="">' for s in (_thumb(p) for p in paths) if s)
+
+
+def _thumb_grid(paths: list) -> str:
+    return f'<div class="thumbs">{_imgs(paths)}</div>'
+
+
 def _group_section(cards: list, t: dict) -> str:
     e = html.escape
     out = [f"<section><h2>{t['groups']}</h2>"]
@@ -194,9 +286,11 @@ def render(
     closest: list[tuple[str, float]] | None = None,
     lang: str = "zh",
     excluded: Collection[int] = (),
+    renders: Atlas | None = None,
 ) -> str:
     """The report page; `closest` is (folder, score) of the nearest reference artists.
-    `excluded` images (excluded by hand in the web app) are left out of every number."""
+    `excluded` images (excluded by hand in the web app) are left out of every number. With
+    `renders` (e.g. a LoRA's test images), a section checks them against this training set."""
     t, e = TEXT[lang], html.escape
     skip = set(excluded)
     if skip:
@@ -215,6 +309,8 @@ def render(
     ]
     if atlas.looks is not None:
         parts.append(_looks_section(atlas.looks, t, lang))
+    if renders is not None:
+        parts.append(_renders_section(check_renders(atlas, clustering, renders), atlas, lang))
     if closest:
         rows = "".join(f'<li>{e(n)} <span class="sub">{s:.3f}</span></li>' for n, s in closest)
         parts.append(f"<section><h2>{t['artists']}</h2><ol>{rows}</ol></section>")
@@ -265,6 +361,8 @@ PAGE = """<!doctype html>
     gap: 6px; margin-top: 8px; }
   .thumbs img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 6px;
     background: var(--line); }
+  .pair { grid-column: span 2; display: grid; grid-template-columns: 1fr 1fr; gap: 3px;
+    padding: 3px; border: 1px solid var(--line); border-radius: 8px; }
   .note { margin-top: 32px; }
 </style></head>
 <body><main>
