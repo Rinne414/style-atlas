@@ -178,7 +178,7 @@ style-atlas outliers "D:\lora\artistX" --top 20
 **一頁畫風報告**：把一個資料夾的畫風整理成一頁：一致性、外觀（例如「比 89% 的畫師亮」）、最像的畫師（給 `--artists` 參考圖庫時）、每個畫風群的代表圖。網頁上整理過的群組和名稱會直接沿用。
 
 ```bat
-style-atlas report "D:\lorartistX" --artists "D:rtists"
+style-atlas report "D:\lora\artistX" --artists "D:\artists"
 ```
 
 **畫師地圖**：圖庫按畫師（或畫風）分資料夾時，`--by-folder` 讓每個資料夾變成地圖上的一個點：位置是那個資料夾的平均畫風，縮圖是它最典型的一張。靠得近的就是畫風相近的畫師。顏色是大致的「畫風家族」，只能當參考：同一位畫師的作品分兩半各畫一次，兩次分出的家族吻合度只有 ARI 0.32。
