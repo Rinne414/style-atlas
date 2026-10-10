@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.39.0 - 2026-10-10
 
 - **A fairer "fits" rule, now the same in `sort` and the web app.** A new image fits a group
   when it is as close to the centre as 70% of the group's own images, each measured against the
