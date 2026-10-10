@@ -200,7 +200,7 @@ style-atlas report "D:\lora\artistX" --artists "D:\artists"
 style-atlas map "D:\artists" --by-folder -o artists_map.html
 ```
 
-**兩組圖是否同一畫風、差在哪裡**：輸出畫風距離、差距是否明顯（z 值是「差距是同一畫風內部雜訊的幾倍」，越大越不同），以及外觀差異（例如「B 偏冷、線條多」）。B 裡有和 A 某張幾乎一樣的圖時（例如 LoRA 算圖重現了訓練圖），會列在 `b_copies_of_a`。
+**兩組圖是否同一畫風、差在哪裡**：輸出畫風距離、差距是否明顯（z 值是「差距是同一畫風內部雜訊的幾倍」，越大越不同），以及外觀差異（例如「B 偏冷、線條多」）。B 裡有和 A 某張幾乎一樣的圖時（例如 LoRA 算圖重現了訓練圖），會逐一列出。加 `--json` 會輸出全部數字（重複的圖在 `b_copies_of_a`）。
 
 ```bat
 style-atlas compare "D:\old_works" "D:\new_works"
@@ -345,7 +345,8 @@ how a picture is drawn rather than what it shows. On top of those vectors it can
   pictures) and the web app says how many fall inside one of the folder's style groups. On
   held-out works, 61% of an artist's own landed inside, 1% of another artist's. Dropped images
   that are near-duplicates of a folder image are listed first: for LoRA renders, a sign that the
-  LoRA repeats a training image (`compare A B` reports them as `b_copies_of_a`).
+  LoRA repeats a training image (`compare A B` lists them; with `--json` they are in
+  `b_copies_of_a`).
 - **Find images in a similar style**: drop one image, or several of one style, into the web app,
   or use `search` (`--combine` learns from several examples, `--copy-to` gathers the matches). A
   "style path" lists the images that lead from one picked style to another.
@@ -523,7 +524,7 @@ style-atlas search QUERY... --in DIR [--top 20] [--combine] [--copy-to DIR] [--b
 style-atlas audit DIR [--min-side 512] [--max-ratio 2.5] [--json]
 style-atlas duplicates DIR [--threshold 0.95] [--json]
 style-atlas outliers DIR [--top 30]
-style-atlas compare DIR_A DIR_B [--noise-floor X]
+style-atlas compare DIR_A DIR_B [--noise-floor X] [--json]
 style-atlas calibrate DIR          # sub-folders = groups known to share one style
 style-atlas bench DIR              # sub-folders = labels (e.g. one artist each)
 style-atlas taste train --like DIR --dislike DIR [--model taste_model.npz]
