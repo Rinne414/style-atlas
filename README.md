@@ -30,7 +30,7 @@ style-atlas 會看每張圖「怎麼畫」（不是畫了什麼），自動把�
 
 ### Windows：三步開始
 
-1. 安裝 [Python 3.10 以上](https://www.python.org/downloads/)，安裝時勾選「Add python.exe to PATH」。也可以在命令提示字元執行 `winget install -e --id Python.Python.3.12`。
+1. 安裝 [Python 3.10 以上](https://www.python.org/downloads/)（3.10～3.14 都有自動測試），安裝時勾選「Add python.exe to PATH」。也可以在命令提示字元執行 `winget install -e --id Python.Python.3.12`。
 2. 下載本專案：登入 GitHub 後，在專案頁面按 **Code → Download ZIP** 再解壓縮（本專案目前是私人專案，要先請作者給你存取權），會用 git 的話也可以 `git clone`。然後雙擊 `scripts\setup.bat`。它會在專案資料夾裡建立 `.venv`，偵測到 NVIDIA 顯卡就裝 CUDA 版的 torch（下載約 2.5 GB），沒有就裝 CPU 版（約 200 MB），再安裝本工具。
 3. 把圖片資料夾**拖到 `scripts\StyleAtlas.bat` 上**（或直接雙擊它，再從跳出的視窗選資料夾），瀏覽器會打開網頁介面。第一次會先下載 2.4 GB 的模型，黑色視窗看起來停住很久是正常的。
 
@@ -375,7 +375,7 @@ artwork. Run it to get a folder you can try the tool on.)
 
 ### Windows quick start
 
-1. Install Python 3.10+ and tick "Add python.exe to PATH".
+1. Install Python 3.10+ (3.10 to 3.14 are tested) and tick "Add python.exe to PATH".
 2. Get the project (sign in to GitHub, then **Code -> Download ZIP** and unzip, or `git clone`;
    the repository is private, so ask the author for access). Double-click `scripts\setup.bat`. It creates `.venv`,
    installs CUDA torch when an NVIDIA GPU is present (about a 2.5 GB download; otherwise CPU
