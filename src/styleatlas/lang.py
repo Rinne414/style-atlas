@@ -7,6 +7,7 @@ from __future__ import annotations
 import locale
 import os
 import sys
+import unicodedata
 from functools import lru_cache
 
 LANG_CHINESE = 0x04  # Windows primary language id
@@ -31,6 +32,13 @@ def _system_is_chinese() -> bool:
         return name.lower().startswith("zh")
     except (OSError, ValueError, AttributeError):
         return False
+
+
+def pad(text: str, width: int) -> str:
+    """`text` padded to `width` terminal columns: a Chinese character takes two, so plain
+    format widths would misalign Chinese group names."""
+    shown = sum(2 if unicodedata.east_asian_width(ch) in "WF" else 1 for ch in text)
+    return text + " " * max(1, width - shown)
 
 
 def tr(en: str, zh: str) -> str:

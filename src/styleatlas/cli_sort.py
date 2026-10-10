@@ -31,7 +31,7 @@ from styleatlas.dataset import auto_repeats, group_labels, is_unassigned
 from styleatlas.duplicates import copies_of
 from styleatlas.export import export_folders, output_dir, write_csv
 from styleatlas.images import labels_from_folders
-from styleatlas.lang import tr
+from styleatlas.lang import pad, tr
 
 UNSURE = "_unsure"  # closest group, but farther from it than 70% of its own images
 ALREADY = "_already_in_dataset"  # a near-copy of an image the dataset already holds
@@ -186,7 +186,8 @@ def _summary(fits: list[Fit], labels: dict[int, str], folders: list[str]) -> Non
         tr(f"{len(rest)} new images, closest group of each:", f"{len(rest)} 張新圖，各自最像的群：")
     )
     for name, n in sorted(placed.items(), key=lambda t: -t[1]):
-        log(f"  {name:30s} {n:5d}  " + tr(f"({fitting[name]} fit)", f"（{fitting[name]} 張符合）"))
+        k = fitting[name]
+        log(f"  {pad(name, 30)}{n:5d}  " + tr(f"({k} fit)", f"（{k} 張符合）"))
     share = sum(fitting.values()) / len(rest)
     reading = batch_verdict(share, len(rest))
     log(

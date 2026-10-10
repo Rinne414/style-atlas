@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-import unicodedata
 from collections.abc import Callable
 from pathlib import Path
 
@@ -34,7 +33,7 @@ from styleatlas.cli_sort import cmd_sort, sort_args
 from styleatlas.cluster import ARTISTS, GRANULARITY, METHODS, PERIODS, outlier_scores
 from styleatlas.encoder import CROP_MODES, RESOLUTIONS
 from styleatlas.images import TIME_SOURCES, find_images, labels_from_folders
-from styleatlas.lang import chinese, tr
+from styleatlas.lang import chinese, pad, tr
 from styleatlas.look import LOOK_NAMES, describe, difference
 from styleatlas.metrics import (
     PLAIN,
@@ -65,7 +64,7 @@ def cmd_audit(a: argparse.Namespace) -> int:
     for key, value in report["summary"].items():
         if key == "buckets":
             value = " · ".join(f"{b} {n}" for b, n in value.items())
-        print(f"{_pad(_audit_label(key), 34)} {value}")
+        print(f"{pad(_audit_label(key), 34)} {value}")
     for key, files in report["files"].items():
         for f in files[: a.show]:
             print(f"  [{key}] {_short(f, root)}")
@@ -98,12 +97,6 @@ AUDIT_ZH = {
     "short_side_median": "短邊中位數",
     "short_side_p10": "短邊第 10 百分位",
 }
-
-
-def _pad(text: str, width: int) -> str:
-    """`text` padded to `width` terminal columns (a Chinese character takes two)."""
-    shown = sum(2 if unicodedata.east_asian_width(ch) in "WF" else 1 for ch in text)
-    return text + " " * max(1, width - shown)
 
 
 def _audit_label(key: str) -> str:

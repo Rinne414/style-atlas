@@ -19,7 +19,7 @@ from styleatlas.cli_common import (
     web_exclusions,
 )
 from styleatlas.cluster import outlier_scores
-from styleatlas.lang import chinese, tr
+from styleatlas.lang import chinese, pad, tr
 from styleatlas.look import describe, profile
 
 FEW_FOR_LORA = 8  # style-LoRA guides suggest starting at 8-15 images (docs/LORA_GUIDE.md)
@@ -306,7 +306,7 @@ def _print_groups(
     for folder, n in sorted(Counter(folders).items(), key=by_style):
         members = [i for i, f in enumerate(folders) if f == folder]
         if folder.startswith("_"):
-            log(f"  {folder:28s} {n:5d}")
+            log(f"  {pad(folder, 28)}{n:5d}")
             continue
         cid = int(result.labels[members[0]])
         top = ", ".join(r["tag"] for r in tags.get(cid, [])[:5]) if cid >= 0 else ""
@@ -315,7 +315,7 @@ def _print_groups(
         if atlas.looks is not None:
             words = describe(profile(atlas.looks, members), "zh" if chinese() else "en")
             look = f"  [{words or tr('average look', '外觀平均')}]"
-        log(f"  {folder:28s} {n:5d}{few}{_when(pos, members)}{look}  {top}")
+        log(f"  {pad(folder, 28)}{n:5d}{few}{_when(pos, members)}{look}  {top}")
     small = [f for f, n in Counter(folders).items() if not f.startswith("_") and n < FEW_FOR_LORA]
     if small:
         log(

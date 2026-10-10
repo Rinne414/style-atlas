@@ -328,3 +328,10 @@ def test_mac_zip_leftovers_are_not_images(tmp_path):
     (tmp_path / "__MACOSX").mkdir()
     (tmp_path / "__MACOSX" / "._a.png").write_bytes(b"\x00\x05\x16\x07")
     assert [p.name for p in find_images(tmp_path)] == ["a.png"]
+
+
+def test_pad_counts_chinese_characters_as_two_columns():
+    from styleatlas.lang import pad
+
+    assert pad("style_01", 12) == "style_01    " and pad("早期畫風", 12) == "早期畫風    "
+    assert pad("a_very_long_group_name", 4).endswith(" ")  # always one space after
