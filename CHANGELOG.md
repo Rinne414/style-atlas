@@ -1,7 +1,9 @@
 # Changelog
 
-## Unreleased
+## 0.42.0 - 2026-10-10
 
+- Internal: every Python and page function is under 50 lines and every test file under 800
+  (no change in behaviour).
 - Docs: the number of groups is not a sign of a mix (two thirds of single artists split into 2+
   groups; consistency flags 7%). BENCHMARKS.md and the LoRA guide say so.
 
