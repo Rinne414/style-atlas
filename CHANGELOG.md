@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Windows scripts (`setup.bat`, `StyleAtlas.bat`, `StyleAtlas-console.bat`) speak Chinese and
+  English; checked with dry runs of every branch they reach.
 - `cluster` without `--export` says the folder names are a plan and how to write them.
 - LoRA guide: a table that explains the English command output in Chinese.
 - **Clearer command output** (from a first-time-user test):
