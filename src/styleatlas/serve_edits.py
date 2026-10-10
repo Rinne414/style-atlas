@@ -22,7 +22,6 @@ from styleatlas.dataset import clean_group_name
 from styleatlas.groupfile import GROUPS_FILE, SavedGroups, carry_names, save_groups
 from styleatlas.metrics import StyleSpace
 from styleatlas.persist import RelPathMap
-from styleatlas.whiten import whiten
 
 UNDO_STEPS = 30
 MAX_SPLIT = 4000  # splitting runs under the lock; larger groups would stall every request
@@ -149,8 +148,8 @@ class GroupEdits:
             ]
             if not rows:
                 raise ValueError("no unassigned images")
-            x = whiten(self.raw.style)
-            fits = fit_to_groups(x, self.clustering, x[rows], set(self.excluded))
+            raw = self.raw.style
+            fits = fit_to_groups(raw, self.clustering, raw[rows], set(self.excluded))
             moves = {i: f.group for i, f in zip(rows, fits, strict=False) if f.fits}
             if not moves:
                 return {"moved": 0, "left": len(rows), "revision": self.revision}

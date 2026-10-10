@@ -271,7 +271,7 @@ class Fit:
 
 
 def fit_to_groups(
-    x: np.ndarray,
+    style: np.ndarray,
     clustering: Clustering,
     query: np.ndarray,
     skip: set[int] | frozenset[int] = frozenset(),
@@ -281,8 +281,12 @@ def fit_to_groups(
     `skip`, e.g. excluded by hand, left out of the groups), and whether it is as close to the
     centre as `percentile`% of the group's own images are to the centre of the others. Leaving
     each member out keeps the limit fair for small groups: measured against the full centre, a
-    group of 5 let only 11% of its artist's new works fit. Callers pass whitened vectors
-    (docs/BENCHMARKS.md, "Sorting new images into a dataset"); judge a batch by its share."""
+    group of 5 let only 11% of its artist's new works fit. Plain CSD in (`style` the grouped
+    rows, `query` the new ones); placed in the search whitening's space (docs/BENCHMARKS.md,
+    "Sorting new images into a dataset"). Judge a batch by its share."""
+    from styleatlas.whiten import whiten
+
+    x, query = whiten(style), whiten(query, keep=False)
     groups = []
     for c in clustering.clusters:
         members = np.array([m for m in c.members if m not in skip], dtype=int)

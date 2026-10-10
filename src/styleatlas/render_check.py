@@ -15,7 +15,6 @@ from styleatlas.cluster import Clustering, Fit, fit_to_groups
 from styleatlas.duplicates import copies_of
 from styleatlas.look import difference
 from styleatlas.metrics import StyleScale, group_difference
-from styleatlas.whiten import whiten
 
 ROUNDS = 199  # permutations for the p-value (resolution 0.005), as in the web app
 
@@ -42,9 +41,7 @@ def check_renders(train: Atlas, clustering: Clustering, renders: Atlas) -> Rende
         raise ValueError("the training set and the renders need at least 2 readable images each")
     distance, p = group_difference(train.style, renders.style, rounds=ROUNDS)
     scale = StyleScale()
-    fits = fit_to_groups(
-        whiten(train.style, keep=False), clustering, whiten(renders.style, keep=False)
-    )
+    fits = fit_to_groups(train.style, clustering, renders.style)
     look = None
     if train.looks is not None and renders.looks is not None:
         look = difference(train.looks, renders.looks)

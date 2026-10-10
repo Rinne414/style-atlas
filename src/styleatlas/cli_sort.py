@@ -31,7 +31,6 @@ from styleatlas.duplicates import copies_of
 from styleatlas.export import export_folders, output_dir, write_csv
 from styleatlas.images import labels_from_folders
 from styleatlas.lang import tr
-from styleatlas.whiten import whiten
 
 UNSURE = "_unsure"  # closest group, but farther from it than 70% of its own images
 ALREADY = "_already_in_dataset"  # a near-copy of an image the dataset already holds
@@ -67,9 +66,7 @@ def cmd_sort(a: argparse.Namespace) -> int:
     clustering, labels = _dataset_groups(a, dataset)
     skip = set(web_exclusions(dataset, Path(a.into)))
     _note_small_groups(clustering, labels, skip)
-    fits = fit_to_groups(
-        whiten(dataset.style, keep=False), clustering, whiten(new.style, keep=False), skip
-    )
+    fits = fit_to_groups(dataset.style, clustering, new.style, skip)
     if not fits:
         log(
             tr(

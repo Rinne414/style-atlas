@@ -80,7 +80,6 @@ from styleatlas.report import (
 from styleatlas.search import fold_hits, rank_folders, search, style_path, warm
 from styleatlas.serve_edits import GroupEdits
 from styleatlas.taste_session import TasteSession
-from styleatlas.whiten import whiten
 
 SEARCH_TOP = 48
 FOLDER_TOP = 5  # closest sub-folders listed with a search
@@ -406,10 +405,10 @@ class StyleAtlasApp(GroupEdits):
 
     def fit(self, style: np.ndarray) -> list[dict]:
         """Where each new image (plain CSD `style`) would go, by the rule `sort` uses
-        (cluster.fit_to_groups on whitened vectors); excluded images do not count as members."""
+        (cluster.fit_to_groups); excluded images do not count as members."""
         with self._lock:
             raw, clustering, skip = self.raw.style, self.clustering, set(self.excluded)
-        fits = fit_to_groups(whiten(raw), clustering, whiten(style, keep=False), skip)
+        fits = fit_to_groups(raw, clustering, style, skip)
         return [{"group": f.group, "dist": round(f.dist, 3), "fits": f.fits} for f in fits]
 
     def search_set(self, body: dict) -> dict:
