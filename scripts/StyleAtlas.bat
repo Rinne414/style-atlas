@@ -1,9 +1,11 @@
 @echo off
-rem Drag an image folder onto this file to open its style map in the browser.
-rem Run scripts\setup.bat once first (or install style-atlas yourself).
+rem Drag an image folder onto this file, or double-click it and pick one, to open the
+rem folder's style map in the browser. Run scripts\setup.bat once first.
 chcp 65001 >nul
-if "%~1"=="" (
-  echo Drag an image folder onto this file, or run:  style-atlas serve "D:\your\folder"
+set "FOLDER=%~1"
+if not defined FOLDER call :pick
+if not defined FOLDER (
+  echo No folder chosen. Drag an image folder onto this file, or run:  style-atlas serve "D:\your\folder"
   pause
   exit /b 1
 )
@@ -17,5 +19,10 @@ if "%SA%"=="style-atlas" (
     exit /b 1
   )
 )
-"%SA%" serve "%~1" --time name
+"%SA%" serve "%FOLDER%" --time name
 if errorlevel 1 pause
+exit /b
+
+:pick
+for /f "usebackq delims=" %%F in (`powershell -NoProfile -STA -ExecutionPolicy Bypass -File "%~dp0pick_folder.ps1"`) do set "FOLDER=%%F"
+exit /b

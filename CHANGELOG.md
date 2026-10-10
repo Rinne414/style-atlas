@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Double-clicking `scripts\StyleAtlas.bat` without dragging a folder onto it opens a folder
+  picker (`scripts\pick_folder.ps1`) instead of an error. Paths with spaces and Chinese
+  characters pass through intact (checked with a stand-in path), and the dialog was seen
+  opening on top of other windows.
 - Each group card lists its 3 closest groups (style distance between the groups' centres),
   linked: handy for deciding what to merge, and for seeing which styles are related.
 - When "auto" cuts a folder into many small groups (more than 12, and more than one per 8
