@@ -255,6 +255,17 @@ ONETRAINER_CONCEPTS = "onetrainer_concepts.json"
 AI_TOOLKIT_DATASETS = "ai_toolkit_datasets.yaml"
 
 
+def steps_per_epoch(folders: list[str]) -> int:
+    """Training steps in one epoch at batch size 1 for a kohya-layout plan: an image in an
+    `N_name` folder is seen N times; set-aside folders are not trained."""
+    total = 0
+    for name in folders:
+        head, _, rest = name.partition("_")
+        if not name.startswith("_") and head.isdigit() and rest:
+            total += int(head)
+    return total
+
+
 def _style_folders(root: Path, folders: list[str]) -> list[tuple[str, Path, int]]:
     """(name, absolute path, repeats) of every `N_name` style folder; set-aside folders
     (`_duplicates` and the like) are left out."""

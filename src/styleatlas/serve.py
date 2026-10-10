@@ -48,6 +48,7 @@ from styleatlas.export import (
     export_folders,
     output_dir,
     parse_tags,
+    steps_per_epoch,
     write_table,
 )
 from styleatlas.groupfile import carry_names, load_groups
@@ -600,6 +601,7 @@ class StyleAtlasApp(GroupEdits):
             "small_groups": len(small),  # left with < EXPORT_MIN_GROUP images: in unassigned
             "trimmed": trimmed,
             "config": (result.folder / KOHYA_CONFIG).exists(),
+            "steps": steps_per_epoch(folders) if layout == "kohya" else None,
         }
 
 

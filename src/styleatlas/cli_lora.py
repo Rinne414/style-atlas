@@ -120,6 +120,10 @@ def _export(a: argparse.Namespace, atlas: Atlas, folders: list[str], out: Path) 
         strip_tags=parse_tags(a.strip_tags or ""),
     )
     log(f"{a.export}: {done.placed} images into {done.folder}")
+    if a.layout == "kohya":
+        from styleatlas.export import steps_per_epoch
+
+        log(f"one epoch = {steps_per_epoch(folders)} steps at batch size 1 (images x repeats)")
     for p, why in done.failed:
         log(f"not exported {p}: {why}")
 

@@ -487,7 +487,8 @@ function setupLive() {
       const small = r.small_groups ? " " + t("smallGroups").replace("{n}", r.small_groups) : "";
       const config = r.config ? " " + t("configWritten") : "";
       const trimmed = r.trimmed ? " " + t("trimmedNote").replace("{n}", r.trimmed) : "";
-      setStatus(t("exported").replace("{n}", r.placed).replace("{f}", r.folder) + small + trimmed + config);
+      const steps = r.steps ? " " + t("stepsNote").replace("{n}", r.steps) : "";
+      setStatus(t("exported").replace("{n}", r.placed).replace("{f}", r.folder) + small + trimmed + steps + config);
       addOpenFolder();
     } catch (e) { setStatus(String(e.message || e)); }
   });

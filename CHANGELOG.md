@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- After a kohya-layout export, the web page and `cluster` say how many steps one epoch takes at
+  batch size 1 (images x repeats over the style folders).
 - Larger axis names in the measures layout, starting at the end of each axis; the tool row
   stays on one line at 1280 px.
 
