@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Web page: the map area is the page's main landmark and the page has a description
+  (Lighthouse accessibility, best practices and SEO all at 100).
 - Web app: a batch of fewer than 8 dropped images gets its count but no verdict ("too few
   images to judge the batch"), as `sort` does.
 

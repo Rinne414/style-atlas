@@ -4,13 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Style Atlas</title>
+<meta name="description" content="Style Atlas: an interactive 3D map of image styles, with style groups, search and dataset checks.">
 <style>
 /*__MAP_CSS__*/
 </style>
 </head>
 <body>
 <div id="app">
-  <div id="stage">
+  <main id="stage">
     <canvas id="gl"></canvas>
     <div id="hud">
       <div id="title"><h1></h1><div class="sub"></div></div>
@@ -63,7 +64,7 @@
     <div id="tip"><img alt=""><div class="cap"></div></div>
     <div id="loading">…</div>
     <div id="help" hidden></div>
-  </div>
+  </main>
   <aside>
     <div id="steps" hidden><button data-step="check"></button><span>→</span><button data-step="groups"></button><span>→</span><button data-step="export"></button></div>
     <div class="tabs">
