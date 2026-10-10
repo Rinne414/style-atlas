@@ -154,9 +154,9 @@ ai_toolkit_datasets.yaml    ← ai-toolkit 的 datasets 段落（貼進訓練設
 style-atlas sort "D:\new" --into "D:\lora\artistX_style_atlas\folders" --by-folder --export copy
 ```
 
-- 每張新圖會放進最像的子資料夾。和那群自己的圖比，不夠像的（比不上九成群內圖的距離）放進 `_unsure`；和資料集裡某張幾乎一樣的放進 `_already_in_dataset`。結果在 `D:\new_style_atlas\sorted`，`sorted.csv` 列出每張的最近群、距離和重複的對象。
+- 每張新圖會放進最像的子資料夾。不夠像的放進 `_unsure`：到群中心的距離，要不超過那群七成的圖（每張圖量的是到「其他圖」中心的距離）；和資料集裡某張幾乎一樣的放進 `_already_in_dataset`。結果在 `D:\new_style_atlas\sorted`，`sorted.csv` 列出每張的最近群、距離和重複的對象。
 - 不加 `--by-folder` 時，改用資料集的畫風群（網頁存過的分群和名稱，沒有就重新自動分群）。
-- 實測（工具沒看過的畫師，資料集是 10 位畫師各一個子資料夾）：新作品放對資料夾 91.5%；被判「符合」的 72%，其中 98% 放對；其他畫師的圖只有 6% 被判符合。所以 `_unsure` 裡約有四分之一其實是同一位畫師的圖，值得看一眼。
+- 實測（工具沒看過的畫師，資料集是 10 位畫師各一個子資料夾）：新作品放對資料夾 91.5%；被判「符合」的約 69%，其中 99% 放對；其他畫師的圖約 9% 被判符合（每群只有 10 張時 14%）。所以 `_unsure` 裡約有三成其實是同一位畫師的圖，值得看一眼。
 
 **以圖找圖**：在圖庫 `D:\gallery` 裡找和兩張範例最像的 30 張。
 
@@ -240,11 +240,11 @@ style-atlas taste score "D:\new_batch" --model "D:\my_taste.npz"
 - 打開一群後，用「和…比較」選另一群，會列出兩群的畫風距離、差異是否明顯，以及外觀差在哪裡（和 `compare` 指令相同）。
 - 只有網頁介面才有的功能：
   - 拖一張圖進畫面就能以圖搜尋。一次拖多張同一種畫風的圖，會當成同一種畫風一起搜尋（3 張以上時用它們訓練的小模型排序）。
-  - 一次拖多張時，還會告訴你這批圖有幾張「和這個資料夾裡某一群的畫風夠接近」，例如拿 LoRA 算出來的圖檢查像不像訓練集，或新找到的圖該不該加進來。請看整批的比例：實測同一畫師沒用到的作品有 69% 落在範圍內，其他畫師只有 15%。
+  - 一次拖多張時，還會告訴你這批圖有幾張「和這個資料夾裡某一群的畫風夠接近」，例如拿 LoRA 算出來的圖檢查像不像訓練集，或新找到的圖該不該加進來。請看整批的比例：實測同一畫師沒用到的作品約 61% 落在範圍內，其他畫師約 1%。
   - 畫風漸變：選一張圖按「畫風漸變：從這張開始」，再選另一張按「畫風漸變：到這張」，會列出在畫風上從前一張漸變到後一張的一串圖。適合找兩種畫風之間的過渡風格。
   - 調門檻後重新分群。按「匯出資料夾…」會在下方打開匯出選項：一般資料夾或 kohya 格式、LoRA 名稱、每群最多幾張、要移除的標籤、「標註加觸發詞」，再按「開始匯出」。「忽略角色軸」和參考資料夾放在「進階…」裡。
   - 按「匯出時排除」（鍵盤 X）手動剔除不要的圖，清單會存檔，匯出時放到 `_excluded\`。
-  - 一次處理很多張：按住 Shift 點圖（地圖或清單裡都可以），或按住 Shift 在地圖上拖一個框，選好後用上方的「全部排除」或「移到其他群…」一次完成；移動算一步，可以復原。Esc 清除選取。
+  - 一次處理很多張：按住 Shift 點圖（地圖或清單裡都可以），或按住 Shift 在地圖上拖一個框，選好後用上方的「排除這 N 張」或「移到其他群…」一次完成；移動算一步，可以復原。Esc 清除選取。
   - 資料夾裡混了別的畫師的圖時：先把看到的兩三張按 X 排除，再到「檢查」分頁的排除清單按「找更多像這些的」，其餘的通常都會排在最前面（實測：3 張當範例時，前 30 名找回 98%）。
   - 手動修正分群，修正會反映在之後的匯出：
     - 選取一張圖，用「移到其他群…」把它改放到別群；
@@ -320,7 +320,7 @@ how a picture is drawn rather than what it shows. On top of those vectors it can
   (`cluster --layout kohya --dedupe`), with group names as folder and trigger names.
 - **Check a batch against the folder**: drop several images (LoRA test renders, newly found
   pictures) and the web app says how many fall inside one of the folder's style groups. On
-  held-out works, 69% of an artist's own landed inside, 15% of other artists'. Dropped images
+  held-out works, 61% of an artist's own landed inside, 1% of another artist's. Dropped images
   that are near-duplicates of a folder image are listed first: for LoRA renders, a sign that the
   LoRA repeats a training image (`compare A B` reports them as `b_copies_of_a`).
 - **Find images in a similar style**: drop one image, or several of one style, into the web app,
@@ -466,12 +466,14 @@ original.
 
 **Adding new images to a sorted dataset.** `style-atlas sort NEW --into DATASET --by-folder
 --export copy` places each new image in the dataset sub-folder it is closest to. It goes to
-`_unsure` instead when it is less alike than 90% of that folder's own images, and to
+`_unsure` instead when it is farther from the centre than 70% of that folder's own images
+(each measured against the centre of the others), and to
 `_already_in_dataset` when it is a near-copy of a dataset image. `sorted.csv` lists the closest
 group, the distance and the copy for every image. Without `--by-folder` the dataset's style
 groups are used: those saved by the web app, else a fresh grouping. On artists the tool never
-saw, with 10 of them as sub-folders, 91.5% of their new works went to the right folder, and 6% of
-other artists' works were let in (docs/BENCHMARKS.md). In the web app, new images added to the
+saw, with 10 of them as sub-folders, 91.5% of their new works went to the right folder, 69%
+fitted (99% of those in the right folder), and 9% of other artists' works were let in (14% when
+each folder held only 10 images; docs/BENCHMARKS.md). In the web app, new images added to the
 folder start as "Unassigned"; open that row and press "Put each in its closest style" to apply
 the same rule (one undo step).
 
@@ -485,11 +487,12 @@ style-atlas cluster DIR [--granularity auto|period|fine|medium|coarse | --thresh
                         [--drop-outliers N] [--max-per-group N] [--strip-tags TAGS]
                         [--trigger-captions] [--export copy|link] [--no-map] [--no-recursive]
                         [-o OUT]
+style-atlas embed DIR             # embed and cache only
 style-atlas sort NEW --into DATASET [--by-folder] [--export copy|link] [-o OUT]
 style-atlas report DIR [-o style_report.html] [--artists DIR] [--lang zh|en]
 style-atlas doctor                 # check Python, torch, GPU, model download, disk space
 style-atlas serve DIR [--port 8770] [--no-browser] [--time none|name|mtime]
-style-atlas map DIR [-o map.html] [--projection auto|umap|tsne|pca] [--time ...]
+style-atlas map DIR [-o map.html] [--projection auto|umap|tsne|pca] [--time ...] [--by-folder]
 style-atlas search QUERY... --in DIR [--top 20] [--combine] [--copy-to DIR] [--by-folder]
                    [--keep-duplicates] [--json]
 style-atlas audit DIR [--min-side 512] [--max-ratio 2.5] [--json]

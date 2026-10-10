@@ -585,6 +585,11 @@ the taste model stays CSD-only, and the measures describe styles; they do not ra
 scene, lighting, composition). Group means are what the product shows: the group cards, the
 `clusters.json` profile and `compare` all compare means.
 
+**Reference for the report.** `src/styleatlas/data/look_reference.json` holds the mean look of
+278 Danbooru artists with 5 or more works each (measured on 256 px copies), at percentiles 0, 5,
+..., 100. `style-atlas report` places a folder's mean look among them ("brighter than 89% of
+artists"). It describes where a folder sits, not how good it is.
+
 ## Near-duplicate threshold (2026-10-09)
 
 Pairs were checked by eye at each score of min(style cos, content cos):
@@ -825,52 +830,69 @@ trains from 5 ratings of each kind, down from 8.
 
 ## Does a new image fit the folder? (2026-10-10)
 
-When several images are dropped into the web app, each is placed in its closest group (by
-centre) and called *inside* when it is as close as p% of that group's own images. This was
-measured on the 20 ordered pairs of the 5 big Danbooru artists. The dataset was 80% of one
-artist, grouped as the product groups it. The queries were the other 20% of that artist
-and 20 works of another artist.
+*Replaced in 0.39 by the rule in the next section; kept for the record.* When several images are
+dropped into the web app, each is placed in its closest group (by centre) and called *inside*
+when it is as close as p% of that group's own images. This was measured on the 20 ordered pairs
+of the 5 big Danbooru artists. The dataset was 80% of one artist, grouped as the product groups
+it. The queries were the other 20% of that artist and 20 works of another artist.
 
 | Cut | Held-out works of the artist inside | Other artist inside |
 |---|---|---|
 | p80 | 59% | 7% |
-| **p90 (used)** | **69%** | **15%** |
+| p90 (used until 0.38) | 69% | 15% |
 | p95 | 76% | 23% |
 | p100 (the farthest member) | 81% | 55% |
 
 Single images are noisy, so the page reports the share of a batch. More than half inside reads
 as "mostly this folder's style", and a quarter or less as "mostly unlike it".
 
-## Sorting new images into a dataset: `sort` (2026-10-10)
+## Sorting new images into a dataset: `sort` and the web app (2026-10-10)
 
-19 artists the search whitening never saw (`unseen_big`, 20-40 works each), 20 random draws.
-"Fits" uses the same rule as the web app: as close to the group's centre as 90% of its own
-images.
+19 artists the search whitening never saw (`unseen_big`, 20-40 works each), 20 random draws per
+setup.
 
-**Sub-folders as the groups** (`--by-folder`). 10 artists, 80% of each one's works as its
-sub-folder. New images: the other 20%, and 10 works each of 5 artists not in the dataset.
+**Which space.** First measured with the rule above (p90 of members' distances to the full
+centre). With 10 artists, 80% of each one's works as its sub-folder, and new images = the other
+20% plus 10 works each of 5 artists not in the dataset:
 
 | Space | Right folder | Own works that fit | ... of those, right folder | Other artists that fit |
 |---|---|---|---|---|
 | plain CSD | 85.7% | 81.8% | 89.6% | 47.1% |
-| **whitened (used)** | **91.5%** | **72.1%** | **98.2%** | **6.3%** |
-
-**The product's own groups.** The same 10 artists mixed in one folder and grouped with the
-default automatic cut. "Right" means the group's majority artist is the image's artist.
-
-| Space | Right group | Own works that fit | ... of those, right group | Other artists that fit |
-|---|---|---|---|---|
-| plain CSD | 62.9% | 69.9% | 64.4% | 38.4% |
-| **whitened (used)** | **67.0%** | **60.7%** | **71.6%** | **14.7%** |
-
-**One artist** (the web app's case in the section above). 80% of one artist, grouped; new
-images: its other 20% and 20 works of another artist. Plain CSD: 45.9% of the artist's own fit,
-2.2% of the other's. Whitened: 34.7% and 0.0%.
+| whitened | 91.5% | 72.1% | 98.2% | 6.3% |
 
 With several groups, plain CSD let in far too many other artists, because a stranger only has
-to come close to one of ten groups. `sort` therefore places images in the whitened space: about
-as many right placements, far fewer wrong ones. The web app's drop check stays in plain space,
-where its single-folder case was measured and both spaces separate the two kinds well.
+to come close to one of ten groups. Placement is done in the whitened space.
+
+**Which limit.** Measured against the full centre, members look closer than they are, because
+each one pulls the centre towards itself; the smaller the group, the stronger the pull. With 5
+works per sub-folder only 11% of the artists' own new works fitted. Since 0.39 each member's
+distance is measured to the centre of the *other* members (leave one out), the limit is the
+70th percentile of those, and only groups of 3 or more take images (with 2, the limit would be
+the pair's whole distance). Old rule (whitened, p90 to the full centre) against the new one:
+
+| Setup | Rule | Right group | Own works that fit | ... right | Other artists that fit |
+|---|---|---|---|---|---|
+| 10 sub-folders, ~25 works each | old | 91.5% | 72.1% | 98.2% | 6.3% |
+| | **new** | 91.5% | **69.0%** | **98.8%** | **8.8%** |
+| 10 sub-folders, 10 works each | old | 85.9% | 30.7% | 99.0% | 0.4% |
+| | **new** | 85.9% | **66.8%** | **96.3%** | **14.3%** |
+| 10 sub-folders, 5 works each | old | 81.8% | 10.8% | 100% | 0.0% |
+| | **new** | 81.8% | **67.8%** | **92.6%** | **24.3%** |
+| 10 artists mixed, the product's groups | old | 71.1% | 62.5% | 76.6% | 11.1% |
+| | **new** | 71.1% | **63.4%** | **76.5%** | **11.4%** |
+| one artist, the product's groups (the web app's case) | old | - | 36.9% | - | 0.0% |
+| | **new** | - | **61.2%** | - | **0.8%** |
+
+(In the mixed setup "right" means the group's majority artist is the image's artist. In the
+one-artist setup the other artist is a single one with 20 works; in plain CSD the old rule gave
+45.9% and 2.2%.) The new rule lets about two thirds of an artist's own new works in whatever
+the group size; small groups let in more strangers, since their centres are less certain.
+
+**Batch verdict.** The share of a batch that fits is read as "mostly the dataset's styles" above
+50% and "mostly unlike" at 25% or less. With the new rule, an artist's own held-out batch read
+"mostly" in 100% of the draws with sub-folders or mixed groups and 70% in the one-artist case; a
+batch of other artists read "mostly unlike" in 100% (25 works per folder), 80% (10) and 45% (5)
+of the draws. Lower cut-offs (40% / 20%, 35% / 15%) caught fewer stranger batches.
 
 ## Embedding speed: loading images ahead (2026-10-10)
 

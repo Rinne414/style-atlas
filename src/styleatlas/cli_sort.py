@@ -3,8 +3,8 @@ e.g. a LoRA training set that grows (see cluster.fit_to_groups).
 
 Images are placed in the search whitening's space. On artists it never saw, with 10 artists'
 sub-folders as the groups, it picked the right folder for 91.5% of their new works (plain CSD
-85.7%) and let 6% of other artists' works fit (plain 47%); docs/BENCHMARKS.md, "Sorting new
-images into a dataset"."""
+85.7%); 69% fitted and 9% of other artists' works were let in (docs/BENCHMARKS.md, "Sorting new
+images into a dataset")."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ from styleatlas.export import export_folders, output_dir, write_csv
 from styleatlas.images import labels_from_folders
 from styleatlas.whiten import whiten
 
-UNSURE = "_unsure"  # closest group, but less alike than 90% of that group's own images
+UNSURE = "_unsure"  # closest group, but farther from it than 70% of its own images
 ALREADY = "_already_in_dataset"  # a near-copy of an image the dataset already holds
 RESERVED = {UNSURE.casefold(), ALREADY.casefold()}
 MOSTLY_IN, MOSTLY_OUT = 0.5, 0.25  # share of a batch that fits (docs/BENCHMARKS.md)
@@ -35,6 +35,8 @@ def cmd_sort(a: argparse.Namespace) -> int:
     if new_root == data_root:
         raise ValueError("the new images and the dataset are the same folder")
     out = Path(a.out) if a.out else output_dir(Path(a.folder))
+    if any(root.is_relative_to(out.resolve()) for root in (new_root, data_root)):
+        raise ValueError("the output folder must not hold the new images or the dataset")
     # neither side reads the other when one folder holds the other, nor earlier results
     dataset = _atlas(a, a.into, exclude=[out, *_nested(new_root, data_root)])
     new = _atlas(a, a.folder, exclude=[out, *_nested(data_root, new_root)])

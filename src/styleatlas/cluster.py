@@ -40,7 +40,8 @@ MAX_DENSE = 8000  # the n x n float64 distance matrix (+ sklearn's copy) above t
 KMEANS_SEED = 0
 _TREE_CACHE: dict = {}  # last large set: (micro-group per image, linkage tree)
 UNASSIGNED = -1
-FIT_PERCENTILE = 90  # a new image fits a group when it is as close as this share of its members
+FIT_PERCENTILE = 70  # a new image fits a group when it is as close as this share of its members
+FIT_MIN = 3  # smallest group a new image can be placed in
 
 
 @dataclass
@@ -249,7 +250,7 @@ def from_labels(x: np.ndarray, labels: np.ndarray, method: str) -> Clustering:
 class Fit:
     group: int  # id of the closest group (by centre)
     dist: float  # cosine distance to that centre
-    fits: bool  # as close as FIT_PERCENTILE% of the group's own images
+    fits: bool  # as close as FIT_PERCENTILE% of the group's own images (left out in turn)
 
 
 def fit_to_groups(
@@ -259,27 +260,34 @@ def fit_to_groups(
     skip: set[int] | frozenset[int] = frozenset(),
     percentile: float = FIT_PERCENTILE,
 ) -> list[Fit]:
-    """Where each query row would go: its closest group of 2 or more images (rows in `skip`,
-    e.g. excluded by hand, left out of the groups), and whether it is as close as `percentile`%
-    of that group's own images. On held-out works, 69% of an artist's own fitted against 15% of
-    another artist's (docs/BENCHMARKS.md): judge a batch by its share, not one image."""
+    """Where each query row would go: its closest group of FIT_MIN or more images (rows in
+    `skip`, e.g. excluded by hand, left out of the groups), and whether it is as close to the
+    centre as `percentile`% of the group's own images are to the centre of the others. Leaving
+    each member out keeps the limit fair for small groups: measured against the full centre, a
+    group of 5 let only 11% of its artist's new works fit. Callers pass whitened vectors
+    (docs/BENCHMARKS.md, "Sorting new images into a dataset"); judge a batch by its share."""
     groups = []
     for c in clustering.clusters:
         members = np.array([m for m in c.members if m not in skip], dtype=int)
-        if len(members) >= 2:
+        if len(members) >= FIT_MIN:
             groups.append((c.id, members))
     if not groups or not len(query):
         return []
     cents = np.stack([centroid(x[m]) for _, m in groups])
-    limits = [
-        float(np.percentile(1.0 - x[m] @ cents[k], percentile)) for k, (_, m) in enumerate(groups)
-    ]
+    limits = [float(np.percentile(_left_out_distances(x[m]), percentile)) for _, m in groups]
     out = []
     for row in query @ cents.T:
         k = int(np.argmax(row))
         dist = 1.0 - float(row[k])
         out.append(Fit(groups[k][0], dist, dist <= limits[k]))
     return out
+
+
+def _left_out_distances(rows: np.ndarray) -> np.ndarray:
+    """Each row's cosine distance to the centre of the other rows."""
+    rest = rows.sum(axis=0)[None] - rows
+    rest /= np.maximum(np.linalg.norm(rest, axis=1, keepdims=True), 1e-12)
+    return 1.0 - (rows * rest).sum(axis=1)
 
 
 def keep_rows(x: np.ndarray, clustering: Clustering, kept: np.ndarray | list[int]) -> Clustering:

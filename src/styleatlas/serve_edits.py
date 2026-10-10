@@ -125,8 +125,8 @@ class GroupEdits:
 
     def place_unassigned(self, body: dict) -> dict:
         """Hand edit, as one undo step: each unassigned image (not excluded) that fits its
-        closest group moves there, by the rule `style-atlas sort` uses (whitened CSD, as close as
-        90% of the group's own images); the others stay unassigned."""
+        closest group moves there, by the rule `style-atlas sort` uses (cluster.fit_to_groups on
+        whitened CSD); the others stay unassigned."""
         with self._lock:
             self._check_revision(body)
             rows = [

@@ -358,3 +358,15 @@ def test_new_images_fit_their_own_group_and_strays_are_left_out():
     assert not fits[1].fits  # the third style is like neither group
     alone = fit_to_groups(x[:20], groups, near, skip=set(range(1, 20)))  # every group under 2
     assert alone == []
+
+
+def test_groups_under_three_images_take_no_new_images():
+    from styleatlas.cluster import fit_to_groups, from_labels
+
+    x, labels = make_blobs([2, 2])
+    assert fit_to_groups(x, from_labels(x, labels, "test"), x[:1]) == []
+    x, labels = make_blobs([5, 5])
+    groups = from_labels(x, labels, "test")
+    held = x[:5].mean(axis=0, keepdims=True)
+    held /= np.linalg.norm(held)
+    assert fit_to_groups(x, groups, held)[0].fits  # a small group still takes its own style

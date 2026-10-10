@@ -372,3 +372,25 @@ def test_sort_names_small_groups_and_keeps_reserved_names_apart(lib, tmp_path, c
     args = ["sort", str(new), "--into", str(lib), "-o", str(tmp_path / "o"), "--by-folder"]
     assert main([*args, "--device", "cpu"]) == 0
     assert "too few images (under 2) to sort into: solo" in capsys.readouterr().err
+
+
+def test_sort_judges_a_batch_of_eight_or_more(lib, tmp_path, capsys):
+    from styleatlas.cli_sort import UNSURE, _summary
+    from styleatlas.cluster import Fit
+
+    greys = tmp_path / "greys"
+    greys.mkdir()
+    for i in range(9):
+        grey = 100 + i * 8
+        Image.new("RGB", (64, 64), (grey, grey, grey)).save(greys / f"g{i}.png")
+    args = ["sort", str(greys), "--into", str(lib), "-o", str(tmp_path / "out")]
+    assert main([*args, "--by-folder", "--device", "cpu"]) == 0
+    assert "mostly unlike" in capsys.readouterr().err
+    labels = {0: "a"}
+    for fitting, verdict in ((6, "mostly the dataset's styles"), (3, "partly")):
+        fits = [Fit(0, 0.1, i < fitting) for i in range(9)]
+        _summary(fits, labels, ["a" if f.fits else UNSURE for f in fits])
+        assert verdict in capsys.readouterr().err
+    args = ["sort", str(greys), "--into", str(lib), "-o", str(tmp_path)]
+    assert main([*args, "--device", "cpu"]) == 1
+    assert "must not hold the new images" in capsys.readouterr().err

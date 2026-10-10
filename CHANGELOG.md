@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+- **A fairer "fits" rule, now the same in `sort` and the web app.** A new image fits a group
+  when it is as close to the centre as 70% of the group's own images, each measured against the
+  centre of the *others*, in the whitened space; only groups of 3 or more take images. The old
+  rule (90% of members, measured against the full centre) let almost nothing into small groups:
+  with 5 works per sub-folder only 11% of an artist's own new works fitted, now 68%. On large
+  groups the two agree (69% own, 9% other artists, against 72% and 6%). In the web app's
+  one-folder case, own works fitting rose from 46% to 61% with 1% of another artist's. Small
+  groups let in more strangers (14% at 10 images, 24% at 5). BENCHMARKS.md has the tables.
+- Docs: the README's bulk-exclude button is named as on the page, and the command list includes
+  `embed` and `map --by-folder`. BENCHMARKS.md gives the source of the report's 278 artists.
+
 ## 0.38.0 - 2026-10-10
 
 - **Web app: put unassigned images in their closest style.** New images added to a folder start

@@ -53,9 +53,10 @@ All of these are in `docs/BENCHMARKS.md`.
   the time (three 85%, five 100%), with 11% false alarms on single artists. AI renders from one
   model with fixed characters always read "tight". A per-group version was rejected: no cut
   carries across folders.
-- **Sorting new images** (`sort`): with artists as sub-folders, about 28% of an artist's own new
-  works land in `_unsure` and 6% of other artists' works are let in; with the tool's own groups
-  of a mixed folder, 15% of other artists' works are let in. Look through `_unsure`.
+- **Sorting new images** (`sort`, and the web app's fit check): about 31-39% of an artist's own
+  new works land in `_unsure`. Other artists' works are let in 9% of the time with 25 images per
+  sub-folder, 14% with 10 and 24% with 5; with the tool's own groups of a mixed folder, 11%.
+  Look through `_unsure` and through what landed in small groups.
 - **Enlarged images**: 2x enlargements (relative to the training size) are caught 92-100% of the
   time, 1.5x mostly not. AI upscalers were not tested.
 - **Families of artists** (`map --by-folder`): loose, with a split-half ARI of 0.32 at the default
