@@ -9,6 +9,9 @@ Changed output (scripts that parse the text should use `--json`):
 - On a Chinese system `audit` adds the meaning to each item name (`no_caption（沒有標註檔）`).
 - `cluster.fit_to_groups` takes plain CSD vectors and whitens them itself: code that passed
   whitened vectors must pass the plain ones now (docs/API.md).
+- `map` writes `<folder>_style_atlas/style_atlas_map.html` by default (it wrote into the image
+  folder; every other command already kept out of it).
+- `compare A A` (the same folder twice) is refused.
 
 New:
 
@@ -53,8 +56,17 @@ New:
   captions write the same tag both as `long_hair` and as `long hair`, the captions using the
   less common way are listed; the text encoder reads the two as different words.
 
-Clearer output (from two first-time-user tests, in English and in Chinese):
+Clearer output (from three first-time-user tests: English, Chinese, and searching in Chinese):
 
+- `search` looks further down the ranking when near-copies are folded out, so each query gets
+  `--top` results (it could show fewer); a query that does not exist or cannot be read is
+  named; the folder ranking is in Chinese and says what a score of 0 or below means; the
+  "all queries" heading and the folded count say they cover all queries together.
+- `map --by-folder` speaks of families of sub-folders (it said "0 groups, 3 images
+  unassigned, cut 0.35 set" for three folders), and `map` says how to open the file.
+- `compare` lists at most 10 near-copy pairs (`--json` has all) and says that `calibrate`
+  measures the z scale on your own folders.
+- Every option has a `--help` line.
 - `search` prints each query once and says the list is ranked in the search space while the
   number shown is the plain cosine (so it is not always in order); `--by-folder` explains its
   score.

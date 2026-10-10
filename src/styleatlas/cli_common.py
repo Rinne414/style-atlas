@@ -187,7 +187,10 @@ def _cluster(a: argparse.Namespace, atlas: Atlas):
     how = f", cut {cut} ({'auto' if auto else 'set'})" if cut else ""
     how_zh = f"，切分距離 {cut}，{'自動選的' if auto else '指定的'}" if cut else ""
     method_zh = METHOD_ZH.get(result.method, result.method)
-    log(_groups_line(result, f"{result.method}{how}", f"{method_zh}{how_zh}"))
+    if getattr(a, "families", False):
+        log(_families_line(result, a.min_size))
+    else:
+        log(_groups_line(result, f"{result.method}{how}", f"{method_zh}{how_zh}"))
     if "note" in result.params:
         log(tr("note: ", "注意：") + result.params["note"])
     return result
@@ -248,6 +251,17 @@ METHOD_ZH = {"agglomerative": "階層式分群", "kmeans": "k-means 分段", "hd
 def _groups_line(result: Clustering, how: str, how_zh: str) -> str:
     n, u = result.n_clusters, result.n_unassigned
     return tr(f"{n} styles, {u} unassigned ({how})", f"分成 {n} 群，{u} 張未分群（{how_zh}）")
+
+
+def _families_line(result: Clustering, min_size: int) -> str:
+    """`map --by-folder`: the points are sub-folders, grouped into families of similar style."""
+    n, u, cut = result.n_clusters, result.n_unassigned, result.params.get("threshold")
+    return tr(
+        f"{n} families of similar sub-folders, {u} folders in none (cut {cut}; a family needs "
+        f"{min_size} folders or more)",
+        f"分成 {n} 個畫風相近的家族，{u} 個資料夾不屬於任何家族（切分距離 {cut}；"
+        f"一個家族至少要 {min_size} 個資料夾）",
+    )
 
 
 def web_exclusions(atlas: Atlas, folder: Path) -> list[int]:

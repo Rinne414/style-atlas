@@ -107,7 +107,9 @@ def report_args(p: argparse.ArgumentParser) -> None:
             "HTML 檔（預設：<資料夾>_style_atlas/style_report.html）",
         ),
     )
-    p.add_argument("--title")
+    p.add_argument(
+        "--title", help=tr("page title (default: the folder name)", "頁面標題（預設：資料夾名稱）")
+    )
     p.add_argument(
         "--lang",
         choices=["zh", "en"],

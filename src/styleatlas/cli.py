@@ -55,6 +55,7 @@ FAMILY_CUT = 0.35  # folder means: about 11 families of 269 artists, loose (BENC
 
 
 def cmd_map(a: argparse.Namespace) -> int:
+    from styleatlas.export import output_dir
     from styleatlas.report import write_map
 
     atlas = _atlas(a, a.folder).with_looks(_opts(a), log)
@@ -76,6 +77,7 @@ def cmd_map(a: argparse.Namespace) -> int:
                 f"{len(atlas)} 個子資料夾，每個用最有代表性的一張圖顯示",
             )
         )
+        a.families = True
         if a.granularity == "auto" and a.threshold is None and a.k is None:
             a.threshold = FAMILY_CUT  # the automatic cut lumps folder means into 1-2 groups
     if len(atlas) > LARGE_MAP:
@@ -87,7 +89,7 @@ def cmd_map(a: argparse.Namespace) -> int:
             )
         )
     result = _cluster(a, atlas)
-    out = Path(a.out or Path(a.folder) / "style_atlas_map.html")
+    out = Path(a.out or output_dir(Path(a.folder)) / "style_atlas_map.html")
     path = write_map(
         atlas,
         result,
@@ -98,6 +100,12 @@ def cmd_map(a: argparse.Namespace) -> int:
         progress=log,
         time_source=a.time,
         reference=_reference(a),
+    )
+    log(
+        tr(
+            "open it in a browser (double-click); press ? on the page for help",
+            "用瀏覽器開啟（雙擊檔案）；在頁面上按 ? 看說明",
+        )
     )
     print(path)
     return 0
@@ -394,15 +402,37 @@ def cmd_serve(a: argparse.Namespace) -> int:
 
 
 def _common(p: argparse.ArgumentParser) -> None:
-    g = p.add_argument_group("embedding")
+    g = p.add_argument_group(tr("embedding", "畫風向量"))
     g.add_argument(
         "--device",
         default="auto",
         help=tr("auto, cpu or cuda (default auto)", "auto、cpu 或 cuda（預設 auto）"),
     )
-    g.add_argument("--crop", default="center", choices=CROP_MODES)
-    g.add_argument("--resolution", type=int, default=224, choices=RESOLUTIONS)
-    g.add_argument("--batch", type=int, default=8)
+    g.add_argument(
+        "--crop",
+        default="center",
+        choices=CROP_MODES,
+        help=tr(
+            "center: the middle square; tiles: squares along the long side, averaged",
+            "center：取中間的正方形；tiles：沿長邊取幾塊正方形再平均",
+        ),
+    )
+    g.add_argument(
+        "--resolution",
+        type=int,
+        default=224,
+        choices=RESOLUTIONS,
+        help=tr(
+            "model input size; 336 sees finer detail, slower",
+            "模型輸入大小；336 看得到較細的細節，較慢",
+        ),
+    )
+    g.add_argument(
+        "--batch",
+        type=int,
+        default=8,
+        help=tr("images per model batch", "每批送進模型的張數"),
+    )
     g.add_argument(
         "--threads",
         type=int,
@@ -425,7 +455,15 @@ def _common(p: argparse.ArgumentParser) -> None:
 
 def _cluster_args(p: argparse.ArgumentParser) -> None:
     g = _grouping_args(p)
-    g.add_argument("--projection", default="auto", choices=PROJECTIONS)
+    g.add_argument(
+        "--projection",
+        default="auto",
+        choices=PROJECTIONS,
+        help=tr(
+            "how the 3D map is laid out (auto picks umap or t-SNE)",
+            "3D 地圖的排版方式（auto 會自動選 umap 或 t-SNE）",
+        ),
+    )
     g.add_argument(
         "--time",
         default="none",
@@ -448,7 +486,7 @@ def _cluster_args(p: argparse.ArgumentParser) -> None:
 
 
 def _grouping_args(p: argparse.ArgumentParser) -> argparse._ArgumentGroup:
-    g = p.add_argument_group("clustering")
+    g = p.add_argument_group(tr("clustering", "分群"))
     g.add_argument(
         "--granularity",
         default="auto",
@@ -478,7 +516,15 @@ def _grouping_args(p: argparse.ArgumentParser) -> argparse._ArgumentGroup:
             "指定分成幾群（搭配 period 時是幾個時期）",
         ),
     )
-    g.add_argument("--method", default="agglomerative", choices=METHODS)
+    g.add_argument(
+        "--method",
+        default="agglomerative",
+        choices=METHODS,
+        help=tr(
+            "grouping algorithm (agglomerative measured best)",
+            "分群演算法（agglomerative 量起來最好）",
+        ),
+    )
     g.add_argument(
         "--min-size",
         type=int,
@@ -504,8 +550,15 @@ def _add_folder_commands(add: Adder) -> None:
         ),
     )
     p.add_argument("folder")
-    p.add_argument("-o", "--out")
-    p.add_argument("--no-map", action="store_true")
+    p.add_argument(
+        "-o",
+        "--out",
+        help=tr(
+            "output folder (default: <folder>_style_atlas)",
+            "輸出資料夾（預設：<資料夾>_style_atlas）",
+        ),
+    )
+    p.add_argument("--no-map", action="store_true", help=tr("skip the HTML map", "不寫 HTML 地圖"))
     _lora_args(p)
     _cluster_args(p)
     p = add(
@@ -537,8 +590,17 @@ def _add_folder_commands(add: Adder) -> None:
         ),
     )
     p.add_argument("folder")
-    p.add_argument("-o", "--out")
-    p.add_argument("--title")
+    p.add_argument(
+        "-o",
+        "--out",
+        help=tr(
+            "HTML file (default: <folder>_style_atlas/style_atlas_map.html)",
+            "HTML 檔（預設：<資料夾>_style_atlas/style_atlas_map.html）",
+        ),
+    )
+    p.add_argument(
+        "--title", help=tr("page title (default: the folder name)", "頁面標題（預設：資料夾名稱）")
+    )
     p.add_argument(
         "--by-folder",
         action="store_true",
@@ -557,13 +619,40 @@ def _add_folder_commands(add: Adder) -> None:
         ),
     )
     p.add_argument("folder")
-    p.add_argument("--port", type=int, default=8770)
-    p.add_argument("--title")
-    p.add_argument("--projection", default="auto", choices=PROJECTIONS)
-    p.add_argument("--time", default="none", choices=TIME_SOURCES)
+    p.add_argument(
+        "--port",
+        type=int,
+        default=8770,
+        help=tr("local port of the web app", "網頁介面用的本機連接埠"),
+    )
+    p.add_argument(
+        "--title", help=tr("page title (default: the folder name)", "頁面標題（預設：資料夾名稱）")
+    )
+    p.add_argument(
+        "--projection",
+        default="auto",
+        choices=PROJECTIONS,
+        help=tr(
+            "how the 3D map is laid out (auto picks umap or t-SNE)",
+            "3D 地圖的排版方式（auto 會自動選 umap 或 t-SNE）",
+        ),
+    )
+    p.add_argument(
+        "--time",
+        default="none",
+        choices=TIME_SOURCES,
+        help=tr(
+            "show when each style was made: file-name id (Pixiv/Danbooru) or mtime",
+            "顯示各畫風是什麼時候畫的：用檔名裡的編號（Pixiv/Danbooru）或 mtime",
+        ),
+    )
     _space_args(p)
     p.add_argument("--reference", metavar="DIR", help=reference_help())
-    p.add_argument("--no-browser", action="store_true")
+    p.add_argument(
+        "--no-browser",
+        action="store_true",
+        help=tr("do not open a browser tab", "不要自動開瀏覽器"),
+    )
 
 
 def _space_args(p) -> None:
@@ -592,7 +681,9 @@ def _add_inspect_commands(add: Adder) -> None:
         required=True,
         help=tr("folder to search", "要搜尋的資料夾"),
     )
-    p.add_argument("--top", type=int, default=20)
+    p.add_argument(
+        "--top", type=int, default=20, help=tr("results per query", "每張查詢圖列出幾個結果")
+    )
     p.add_argument(
         "--combine",
         action="store_true",
@@ -626,14 +717,16 @@ def _add_inspect_commands(add: Adder) -> None:
         ),
     )
     _space_args(p)
-    p.add_argument("--json", action="store_true")
+    p.add_argument(
+        "--json", action="store_true", help=tr("print JSON instead of text", "改用 JSON 輸出")
+    )
     p = add(
         "outliers",
         cmd_outliers,
         tr("images least like the rest of a folder", "資料夾裡最不合群的圖"),
     )
     p.add_argument("folder")
-    p.add_argument("--top", type=int, default=30)
+    p.add_argument("--top", type=int, default=30, help=tr("how many to list", "列出幾張"))
     p = add(
         "audit",
         cmd_audit,
@@ -649,14 +742,23 @@ def _add_inspect_commands(add: Adder) -> None:
         default=512,
         help=tr("training resolution to check against", "用來對照的訓練解析度"),
     )
-    p.add_argument("--max-ratio", type=float, default=2.5)
+    p.add_argument(
+        "--max-ratio",
+        type=float,
+        default=2.5,
+        help=tr(
+            "long side / short side above which an image is extreme", "長邊／短邊超過多少算極端"
+        ),
+    )
     p.add_argument(
         "--show",
         type=int,
         default=10,
         help=tr("files to list per problem", "每種問題列出幾個檔案"),
     )
-    p.add_argument("--json", action="store_true")
+    p.add_argument(
+        "--json", action="store_true", help=tr("print JSON instead of text", "改用 JSON 輸出")
+    )
     p = add(
         "duplicates",
         cmd_duplicates,
@@ -675,7 +777,9 @@ def _add_inspect_commands(add: Adder) -> None:
             "min(畫風, 內容) 的餘弦相似度；0.92 較寬鬆",
         ),
     )
-    p.add_argument("--json", action="store_true")
+    p.add_argument(
+        "--json", action="store_true", help=tr("print JSON instead of text", "改用 JSON 輸出")
+    )
 
 
 def _add_measure_commands(add: Adder) -> None:
@@ -687,9 +791,14 @@ def _add_measure_commands(add: Adder) -> None:
             "兩個資料夾的畫風不同嗎？輸出距離、z 值、p 值",
         ),
     )
-    p.add_argument("a")
-    p.add_argument("b")
-    p.add_argument("--rounds", type=int, default=999)
+    p.add_argument("a", help=tr("first folder (A)", "第一個資料夾（A）"))
+    p.add_argument("b", help=tr("second folder (B)", "第二個資料夾（B）"))
+    p.add_argument(
+        "--rounds",
+        type=int,
+        default=999,
+        help=tr("random shuffles for the p-value", "算 p 值用的隨機重排次數"),
+    )
     p.add_argument(
         "--noise-floor",
         type=float,
@@ -723,8 +832,15 @@ def _add_measure_commands(add: Adder) -> None:
             "算好的畫風向量；標籤 = --sep 之前的鍵名前綴",
         ),
     )
-    p.add_argument("--labels", choices=["folder", "prefix"], default="folder")
-    p.add_argument("--sep", default="__")
+    p.add_argument(
+        "--labels",
+        choices=["folder", "prefix"],
+        default="folder",
+        help=tr("labels from sub-folders or from file-name prefixes", "標籤取自子資料夾或檔名前綴"),
+    )
+    p.add_argument(
+        "--sep", default="__", help=tr("file-name prefix separator", "檔名前綴的分隔符號")
+    )
     p.add_argument(
         "--keep-duplicates",
         action="store_true",
@@ -747,16 +863,26 @@ def _add_measure_commands(add: Adder) -> None:
         formatter_class=HelpFormatter,
         help=tr("learn from a liked and a disliked folder", "從一個喜歡、一個不喜歡的資料夾學習"),
     )
-    t1.add_argument("--like", required=True)
-    t1.add_argument("--dislike", required=True)
-    t1.add_argument("--model", default="taste_model.npz")
+    t1.add_argument(
+        "--like", required=True, help=tr("folder of pictures you like", "你喜歡的圖的資料夾")
+    )
+    t1.add_argument(
+        "--dislike",
+        required=True,
+        help=tr("folder of pictures you dislike", "你不喜歡的圖的資料夾"),
+    )
+    t1.add_argument(
+        "--model", default="taste_model.npz", help=tr("model file to write", "要存的模型檔")
+    )
     t2 = tsub.add_parser(
         "score",
         formatter_class=HelpFormatter,
         help=tr("rank a folder with a trained model", "用訓練好的模型替資料夾排序"),
     )
     t2.add_argument("folder")
-    t2.add_argument("--model", default="taste_model.npz")
+    t2.add_argument(
+        "--model", default="taste_model.npz", help=tr("trained model file", "訓練好的模型檔")
+    )
     for t in (t1, t2):
         _common(t)
 

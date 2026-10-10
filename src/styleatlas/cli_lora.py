@@ -27,7 +27,7 @@ FEW_FOR_LORA = 8  # style-LoRA guides suggest starting at 8-15 images (docs/LORA
 
 
 def _lora_args(p: argparse.ArgumentParser) -> None:
-    g = p.add_argument_group("training dataset")
+    g = p.add_argument_group(tr("training dataset", "訓練資料集"))
     g.add_argument(
         "--export",
         choices=["copy", "link"],

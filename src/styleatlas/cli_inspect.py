@@ -129,6 +129,8 @@ def cmd_duplicates(a: argparse.Namespace) -> int:
 def cmd_compare(a: argparse.Namespace) -> int:
     from styleatlas.duplicates import copies_of
 
+    if Path(a.a).resolve() == Path(a.b).resolve():
+        raise ValueError(tr("A and B are the same folder", "A 和 B 是同一個資料夾"))
     opts = _opts(a)
     groups, contents, files, looks = [], [], [], []
     for folder in (a.a, a.b):
@@ -179,6 +181,9 @@ def cmd_compare(a: argparse.Namespace) -> int:
 VERDICT_ZH = {"same style": "同一畫風", "related": "相關", "clearly different": "明顯不同"}
 
 
+COPIES_SHOWN = 10  # near-copy pairs listed; --json has them all
+
+
 def _print_compare(a, sizes, dist, p, scale, look, copies, files) -> None:
     """`compare` for a reader: the verdict, the look change and any near-copies."""
     na, nb = Path(a.a).name, Path(a.b).name
@@ -209,13 +214,23 @@ def _print_compare(a, sizes, dist, p, scale, look, copies, files) -> None:
             f"B 裡有 {len(copies)} 張和 A 的某張幾乎一樣",
         )
     )
-    for i, j, s in copies[:20]:
+    for i, j, s in copies[:COPIES_SHOWN]:
         print(f"  B {files[1][i].name}  ~  A {files[0][j].name}  ({s:.3f})")
+    if len(copies) > COPIES_SHOWN:
+        more = len(copies) - COPIES_SHOWN
+        print(
+            tr(
+                f"  ... and {more} more (--json lists all)",
+                f"  ……還有 {more} 組（--json 會全部列出）",
+            )
+        )
     log(
         tr(
-            "z: in units of the difference between two halves of one style (default calibration "
-            "from NovelAI renders); --json for every number",
-            "z：以「同一畫風的兩半」之間的差距為單位（預設校準來自 NovelAI 算圖）；"
+            "z: in units of the difference between two halves of one style (the default scale "
+            "was measured on AI renders; `calibrate` measures it on your own folders, then pass "
+            "--noise-floor); --json for every number",
+            "z：以「同一畫風的兩半」之間的差距為單位（預設尺度是在 AI 算圖上量的；"
+            "`calibrate` 可以用你自己的資料夾重新量，再用 --noise-floor 帶入）；"
             "--json 會列出全部數字",
         )
     )
