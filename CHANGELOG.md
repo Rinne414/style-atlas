@@ -45,6 +45,10 @@ New:
   LoRA would learn grey as part of the trigger; 15% of greyscale Danbooru works miss both
   tags), and captions tagged `greyscale` on a clearly coloured picture. Measured on 2,000
   Danbooru works (BENCHMARKS.md).
+- **Photos turned only by EXIF** are listed by `audit` and the Check tab (`exif_rotated`):
+  kohya sd-scripts reads the pixels as stored and ignores the EXIF orientation (checked in
+  its `library/utils.py`), so a phone photo trains sideways; ai-toolkit and OneTrainer turn
+  it upright.
 
 Clearer output (from two first-time-user tests, in English and in Chinese):
 

@@ -310,3 +310,14 @@ def test_audit_leaves_a_monochrome_artist_alone(tmp_path):
     looks = np.zeros((4, len(LOOK_NAMES)), np.float32)  # every picture greyscale
     files = audit(paths, looks=looks)["files"]
     assert files["greyscale_in_colour_set"] == [] and files["greyscale_untagged"] == []
+
+
+def test_audit_flags_pictures_turned_only_by_exif(tmp_path):
+    turned = tmp_path / "phone.jpg"
+    exif = Image.Exif()
+    exif[0x0112] = 6  # stored sideways, shown turned 90 degrees
+    Image.new("RGB", (800, 600), (200, 120, 90)).save(turned, exif=exif)
+    _img(tmp_path / "upright.png", (800, 600))
+    report = audit(sorted(tmp_path.iterdir()), min_side=512)
+    assert [Path(f).name for f in report["files"]["exif_rotated"]] == ["phone.jpg"]
+    assert report["summary"]["buckets"]  # sizes as stored, as kohya reads them

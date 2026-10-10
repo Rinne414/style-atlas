@@ -102,9 +102,11 @@ class ImageInfo:
     file_size: int
     truncated: bool = False
     jpeg_quality: int | None = None
+    orientation: int = 1  # EXIF orientation: 1 upright, 2-8 mirrored or turned
 
 
 END_MARKERS = {"JPEG": b"\xff\xd9", "PNG": b"IEND"}
+EXIF_ORIENTATION = 0x0112
 TAIL_BYTES = 64 * 1024  # camera / phone trailers and zero padding can follow the end marker
 
 
@@ -126,9 +128,19 @@ def image_info(path: Path) -> ImageInfo | None:
             frames = 2 if getattr(im, "is_animated", False) else 1
             cut = _looks_truncated(Path(path), im.format)
             size = Path(path).stat().st_size
-            return ImageInfo(im.width, im.height, frames, size, cut, jpeg_quality(im))
+            turn = _orientation(im)
+            return ImageInfo(im.width, im.height, frames, size, cut, jpeg_quality(im), turn)
     except (OSError, ValueError, SyntaxError, Image.DecompressionBombError):
         return None
+
+
+def _orientation(im: Image.Image) -> int:
+    """The EXIF orientation (1 when absent). A damaged EXIF block does not make the picture
+    unreadable, so any error while parsing it counts as upright."""
+    try:
+        return int(im.getexif().get(EXIF_ORIENTATION, 1))
+    except Exception:  # noqa: BLE001 - Pillow raises many kinds on malformed EXIF
+        return 1
 
 
 def best_in_group(paths: list[Path], blocked: set[int] | None = None) -> int:
@@ -368,6 +380,7 @@ AUDIT_KEYS = (
     "soft_or_enlarged",
     "low_jpeg_quality",
     "animated",
+    "exif_rotated",
     "no_caption",
     "empty_caption",
     "watermark_or_signature",
@@ -454,6 +467,9 @@ def _image_problems(info, min_side: int, max_ratio: float) -> list[str]:
         "smaller_than_min_side": short < min_side,
         "extreme_aspect_ratio": long / max(1, short) > max_ratio,
         "animated": info.frames > 1,
+        # kohya sd-scripts reads the pixels as stored, ignoring the EXIF rotation that viewers
+        # (and this tool) apply, so a phone photo trains sideways (ai-toolkit, OneTrainer turn it)
+        "exif_rotated": info.orientation in range(2, 9),
     }
     return [k for k, found in checks.items() if found]
 
