@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Larger axis names in the measures layout, starting at the end of each axis; the tool row
+  stays on one line at 1280 px.
+
 ## 0.25.0 - 2026-10-10
 
 - **Copy search results to a folder from the web page**: under the results, "Copy these to a

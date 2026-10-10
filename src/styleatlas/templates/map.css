@@ -18,6 +18,12 @@
   #title h1 { margin: 0; font-size: 17px; font-weight: 650; letter-spacing: .01em; }
   #title .sub { color: var(--muted); font-size: 12px; max-width: min(440px, calc(100vw - 900px)); min-width: 220px; }
   .tools { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  @media (max-width: 1400px) {  /* keep the tool row on one line next to the side panel */
+    .tools { gap: 4px; }
+    .tools button { padding: 6px 8px; }
+    .tools input[type=search] { width: 130px; }
+    #layoutSel, #axes select { max-width: 118px; }
+  }
   button, .chip { background: var(--panel); color: var(--ink); border: 1px solid var(--line);
     padding: 6px 10px; border-radius: 999px; cursor: pointer; font: inherit; font-size: 12px; }
   button.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }

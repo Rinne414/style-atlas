@@ -207,11 +207,12 @@ $("names").addEventListener("click", () => {
 
 function label(text, at) {
   const cv = document.createElement("canvas"); cv.width = 1024; cv.height = 64;
-  const g = cv.getContext("2d"); g.font = "28px system-ui, sans-serif";
+  const g = cv.getContext("2d"); g.font = "34px system-ui, sans-serif";
   g.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--accent");
   g.fillText(text, 8, 42);
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: srgbTexture(cv), depthTest: false }));
-  sp.position.copy(at); sp.scale.set(3.6, 0.225, 1);  // read from HOME_MEASURES
+  sp.position.copy(at); sp.scale.set(4.4, 0.275, 1);  // read from HOME_MEASURES
+  sp.center.set(0, 0.5);  // the text starts at the axis end instead of covering it
   return sp;
 }
 
