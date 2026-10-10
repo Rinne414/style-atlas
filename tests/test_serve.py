@@ -475,6 +475,15 @@ def test_search_results_can_be_copied_to_a_new_folder(tmp_path):
             app.copy_hits(bad)
 
 
+def test_the_style_report_can_be_saved_from_the_web_app(tmp_path):
+    app, _ = _app(tmp_path, (8, 7))
+    app.rename({"group": 0, "name": "early", "rev": app.revision})
+    page = Path(app.save_report({"lang": "zh"})["file"]).read_text(encoding="utf-8")
+    assert "畫風一致性" in page and "early" in page
+    with pytest.raises(ValueError):
+        app.save_report({"lang": "fr"})
+
+
 def test_the_page_script_parses(tmp_path):
     """`node --check` skips .js files that use import, so the check runs on an .mjs copy."""
     import shutil

@@ -5,7 +5,8 @@
 - **One-page style report.** `style-atlas report DIR` writes one HTML file: style consistency,
   the folder's look next to 278 Danbooru artists ("brighter than 89% of artists"), the closest
   artists of a reference library (`--artists LIB`), and each group's most typical images. It
-  uses the groups and names saved by the web app. `--lang en` for English.
+  uses the groups and names saved by the web app. `--lang en` for English. The web app's
+  "Advanced…" panel has "Save style report" too.
 
 ## 0.28.0 - 2026-10-10
 

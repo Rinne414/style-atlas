@@ -262,6 +262,22 @@ class StyleAtlasApp(GroupEdits):
         summary = tag_summary(self.atlas.paths, self.clustering, tags=self._tag_sets)
         return distinctive_tags(summary)
 
+    def save_report(self, body: dict) -> dict:
+        """Write the one-page style report (`style-atlas report`) for the groups and names as
+        they are now, next to the exports."""
+        from styleatlas.report_card import write_report
+
+        lang = body.get("lang", "zh")
+        if lang not in ("zh", "en"):
+            raise ValueError("lang must be zh or en")
+        with self._lock:
+            raw, clustering, names = self.raw, self.clustering, self.names_by_group()
+        title = self.title or self.raw.root.name or "style report"
+        out = write_report(
+            raw, clustering, self.out_dir / "style_report.html", title, names=names, lang=lang
+        )
+        return {"file": str(out)}
+
     def save_map(self, body: dict) -> dict:
         """Write the map as it is now (groups, hand edits, names) as one shareable HTML file with
         the thumbnails inside, next to the exports."""

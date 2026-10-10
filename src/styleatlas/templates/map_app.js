@@ -498,6 +498,14 @@ function setupLive() {
       addOpenFolder();
     } catch (e) { setStatus(String(e.message || e)); }
   });
+  $("saveReport").addEventListener("click", async () => {
+    setStatus(t("savingMap"));
+    try {
+      const r = await post("api/save_report", JSON.stringify({ lang }), "application/json");
+      setStatus(t("savedReport").replace("{f}", r.file));
+      addOpenFolder();
+    } catch (e) { setStatus(String(e.message || e)); }
+  });
   $("saveMap").addEventListener("click", async () => {
     setStatus(t("savingMap"));
     try {
@@ -523,7 +531,7 @@ function liveText() {
   $("exportTitle").textContent = t("exportTitle"); $("moreOpen").textContent = t("moreOpen");
   $("drop").textContent = t("drop");
   document.querySelectorAll("#steps button").forEach((b) => { b.textContent = t("step_" + b.dataset.step); });
-  $("saveMap").textContent = t("saveMap");
+  $("saveMap").textContent = t("saveMap"); $("saveReport").textContent = t("saveReport");
   $("undo").textContent = t("undo");
   $("expLayout").options[0].textContent = t("plainFolders");
   $("expName").placeholder = t("conceptName");
@@ -549,7 +557,7 @@ function liveText() {
   showPeriods($("gran").value === "period");
   const tips = { exportOpen: "tipExport", moreOpen: "tipMore", expMax: "tipMax", expStrip: "tipStrip", pickBtn: "tipSearch", gran: "tipGran", thr: "tipThr", regroup: "tipRegroup", undo: "tipUndo",
     expLayout: "tipLayout", expName: "tipName", expTrigWrap: "tipTrig", export: "tipExport",
-    saveMap: "tipSaveMap", neutralWrap: "tipNeutral" };
+    saveMap: "tipSaveMap", neutralWrap: "tipNeutral", saveReport: "tipSaveReport" };
   Object.entries(tips).forEach(([id, key]) => { $(id).title = t(key); });
 }
 
