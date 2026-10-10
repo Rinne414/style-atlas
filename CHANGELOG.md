@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Pillow 10.3 or newer is required (CVE-2024-28219 was fixed there; the images a folder holds
+  are untrusted input). torch stays at 2.4+: the CSD weights are loaded with `weights_only=True`
+  from a pinned Hugging Face revision, and newer torch would shut out older ComfyUI setups.
+
 ## 0.20.0 - 2026-10-10
 
 - **Illustrated web guide** in Traditional Chinese, `docs/WEB_GUIDE.md`: the three steps (check, sort

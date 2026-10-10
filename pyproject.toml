@@ -11,7 +11,7 @@ requires-python = ">=3.10"
 authors = [{ name = "Rinne414" }]
 dependencies = [
   "numpy>=1.26",
-  "pillow>=10.0",
+  "pillow>=10.3",  # CVE-2024-28219 (buffer overflow) fixed in 10.3; images here are untrusted
   "torch>=2.4",
   "torchvision>=0.19",
   "open_clip_torch>=2.24",
