@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.31.0 - 2026-10-10
 
 - **Save the 3D view as a PNG**: press P (in the web app and in a saved map), or "Save view as
   PNG" in the web app's "Advanced…" panel. The picture is the map as it is on screen.

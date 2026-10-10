@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "style-atlas"
-version = "0.30.0"
+version = "0.31.0"
 description = "Measure, cluster, search and map illustration art styles (CSD style embeddings with hubness correction)."
 readme = "README.md"
 requires-python = ">=3.10"
