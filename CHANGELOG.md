@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Group names float in the 3D map** at each group's centre (the 16 largest groups; the
+  "Names" button hides them). With one group in focus the other names fade.
 - **Find more like these** in the web app's excluded list: exclude two or three strays by
   another artist, and the rest are listed first. From three strays the top 30 held 98% of the
   others, while outlier scores found only half (BENCHMARKS.md).

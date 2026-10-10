@@ -6,7 +6,7 @@ const PTS = DATA.points;
 const N = PTS.length;
 const T = {
   en: { images: "images", clusters: "Styles", selected: "Selected", outliers: "Outliers",
-    find: "filter by file name", thumbs: "Thumbnails", dots: "Dots", spin: "Rotate", home: "Reset",
+    find: "filter by file name", thumbs: "Thumbnails", dots: "Dots", spin: "Rotate", home: "Reset", names: "Names",
     unassigned: "Unassigned", style: "Style", size: "images", cohesion: "spread",
     pick: "Click an image in the map to see its closest styles.", nearest: "Closest styles",
     members: "Members", cluster: "style", outlierHelp: "Images least like the rest of the set (candidates to drop from a LoRA dataset).",
@@ -52,7 +52,7 @@ const T = {
     tasteCount: "liked {a} · disliked {b}", tasteAuc: "cross-validated AUC {x} (0.5 = guessing). Treat it as a rough filter: it separates liked from disliked, not good from better.",
     tasteTop: "Most likely to like (unrated)", tasteBottom: "Least likely (unrated)", fine: "fine", medium: "medium", coarse: "coarse", auto: "auto (picked from the images)", foot: "Style vectors: CSD ViT-L (Somepalli et al. 2024, CC-BY-4.0). Map layout is for viewing only; groups are computed in the full space." },
   zh: { images: "張圖", clusters: "畫風群", selected: "選取", outliers: "離群",
-    find: "以檔名篩選", thumbs: "縮圖", dots: "圓點", spin: "旋轉", home: "重置",
+    find: "以檔名篩選", thumbs: "縮圖", dots: "圓點", spin: "旋轉", home: "重置", names: "群名",
     unassigned: "未歸類", style: "畫風", size: "張", cohesion: "分散度",
     pick: "在地圖上點一張圖，看最接近的畫風。", nearest: "最接近的畫風", members: "成員",
     cluster: "畫風群", outlierHelp: "和整組最不像的圖（訓 LoRA 前可考慮剔除）。",
@@ -277,6 +277,7 @@ function recolor() {
     alpha[i] = on ? 1 : 0.12;
   }
   pushAlpha();
+  fadeNames();
 }
 
 function centerOf(indices) {
@@ -524,7 +525,7 @@ function applyText() {
     (DATA.params && DATA.params.edited ? ` · ${t("edited")}` : "");
   $("find").placeholder = t("find");
   $("mode").textContent = mode === "thumbs" ? t("dots") : t("thumbs");
-  $("spin").textContent = t("spin"); $("home").textContent = t("home");
+  $("spin").textContent = t("spin"); $("home").textContent = t("home"); $("names").textContent = t("names");
   $("lang").textContent = lang === "zh" ? "EN" : "中";
   $("helpBtn").title = t("keys");
   if (!$("help").hidden) showHelp(true);
@@ -540,6 +541,7 @@ function applyText() {
   if (DATA.live && DATA.clusters.length <= 1 && N > 10) setStatus(t("oneGroup"));
   else if (DATA.live && DATA.live.restored && !$("status").textContent) setStatus(t("restored"));
   setupAxes(); if (layoutMode === "measures") drawAxes();
+  drawNames();
 }
 
 
@@ -684,8 +686,52 @@ function stepMorph() {
     a.needsUpdate = true;
     pg.geo.computeBoundingSphere();
   }
-  if (morph.k >= 1) morph = null;
+  if (morph.k >= 1) { morph = null; drawNames(); }
 }
+
+/* ---------- group names floating at each group's centre ---------- */
+const MAX_NAMES = 16;  // the largest groups only: more labels cover the map
+let nameSprites = null;
+let showNames = true;
+
+function nameSprite(text, color) {
+  const cv = document.createElement("canvas"); const g = cv.getContext("2d");
+  const font = "600 30px system-ui, sans-serif"; g.font = font;
+  cv.width = Math.ceil(g.measureText(text).width) + 24; cv.height = 46;
+  g.font = font; g.fillStyle = "rgba(12,14,18,0.72)"; g.fillRect(0, 0, cv.width, cv.height);
+  g.fillStyle = color; g.fillText(text, 12, 33);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), depthTest: false, transparent: true }));
+  const h = 0.11; sp.scale.set(h * cv.width / cv.height, h, 1); sp.renderOrder = 10;
+  return sp;
+}
+
+function drawNames() {
+  if (nameSprites) { scene.remove(nameSprites); disposeTree(nameSprites); nameSprites = null; }
+  if (!showNames) return;
+  const sums = new Map();
+  PTS.forEach((p, i) => {
+    if (p.c < 0) return;
+    const s = sums.get(p.c) || [0, 0, 0, 0];
+    s[0] += pos[i * 3]; s[1] += pos[i * 3 + 1]; s[2] += pos[i * 3 + 2]; s[3] += 1; sums.set(p.c, s);
+  });
+  nameSprites = new THREE.Group();
+  [...sums.entries()].sort((a, b) => b[1][3] - a[1][3]).slice(0, MAX_NAMES).forEach(([c, s]) => {
+    const sp = nameSprite(clusterName(c), colorOf(c));
+    sp.position.set(s[0] / s[3], s[1] / s[3] + 0.12, s[2] / s[3]); sp.userData.c = c;
+    nameSprites.add(sp);
+  });
+  scene.add(nameSprites);
+  fadeNames();
+}
+
+function fadeNames() {  // with one group in focus, the other names step back
+  if (!nameSprites) return;
+  nameSprites.children.forEach((sp) => { sp.material.opacity = focusCluster === null || sp.userData.c === focusCluster ? 1 : 0.15; });
+}
+
+$("names").addEventListener("click", () => {
+  showNames = !showNames; $("names").classList.toggle("on", showNames); drawNames();
+});
 
 function label(text, at) {
   const cv = document.createElement("canvas"); cv.width = 1024; cv.height = 64;

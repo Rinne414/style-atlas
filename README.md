@@ -175,7 +175,7 @@ style-atlas taste score "D:\new_batch" --model "D:\my_taste.npz"
 
 ### 網頁介面與 3D 地圖
 
-- 縮圖浮在 3D 空間中，外框顏色代表畫風群。可以拖曳旋轉、滾輪縮放，`+` / `-` 調整縮圖大小。按 `?`（或右上角的 ? 按鈕）會列出所有快捷鍵。
+- 縮圖浮在 3D 空間中，外框顏色代表畫風群，群名浮在每群中央（右上角「群名」可關掉；最多顯示最大的 16 群）。可以拖曳旋轉、滾輪縮放，`+` / `-` 調整縮圖大小。按 `?`（或右上角的 ? 按鈕）會列出所有快捷鍵。
 - 點右側的畫風群，鏡頭會飛過去並列出成員。點地圖上任一張圖，會列出最接近的 12 張。
 - 「離群」「重複」分頁分別列出最不合群的圖和近重複圖組。
 - 右上角可以把「版面」從「畫風相似」切到「量化軸」。切換後，三個軸可以各自選一種指標，縮圖會移動到對應位置。可選的指標有：
@@ -290,7 +290,8 @@ how a picture is drawn rather than what it shows. On top of those vectors it can
   or use `search` (`--combine` learns from several examples, `--copy-to` gathers the matches). A
   "style path" lists the images that lead from one picked style to another.
 - **Explore a 3D style map** (`map`, or "Save shareable map" in the web app): one HTML file you
-  can send to anyone. Groups show their characteristic caption tags.
+  can send to anyone. Group names float at each group's centre ("Names" hides them), and groups
+  show their characteristic caption tags.
 - **Check a dataset** (`audit`, `duplicates`): sizes, aspect ratios, captions, near-duplicates,
   greyscale images mixed into a colour set.
 - **Fix groups by hand** in the web app: "Find more like this" lists the images outside a group
