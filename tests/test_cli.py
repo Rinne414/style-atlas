@@ -580,3 +580,25 @@ def test_help_formats_in_both_languages(monkeypatch):
     assert any("kohya" in text and "重複次數" in text for text in zh)
     assert "group a folder by style" in "\n".join(en)
     assert not any("畫風" in text for text in en)
+
+
+def test_search_looks_further_down_when_near_copies_fold():
+    from types import SimpleNamespace
+
+    import styleatlas.cli as cli
+
+    rng = np.random.default_rng(0)
+    x = rng.normal(size=(40, 768)).astype(np.float32)
+    x[1:10] = x[0]  # ten copies of one picture
+    x /= np.linalg.norm(x, axis=1, keepdims=True)
+    gallery = type("Gallery", (), {"style": x, "content": x, "__len__": lambda self: 40})()
+    a = SimpleNamespace(top=5, combine=False)
+    hits = cli._search_folded(a, gallery, x[:1], x, set())
+    assert len(hits[0]) == 5  # one of the copies, then four other pictures
+
+
+def test_search_names_a_query_that_does_not_exist(lib, tmp_path, capsys):
+    missing = tmp_path / "nothere.png"
+    assert main(["search", str(missing), "--in", str(lib), "--device", "cpu"]) == 1
+    err = capsys.readouterr().err
+    assert "not found" in err and "nothere.png" in err

@@ -107,8 +107,13 @@ def cmd_search(a: argparse.Namespace) -> int:
     from styleatlas.search import search
 
     opts = _opts(a)
+    missing = [q for q in a.query if not Path(q).exists()]
+    if missing:
+        raise FileNotFoundError(tr("not found: ", "找不到：") + ", ".join(missing))
     qpaths = [p for q in a.query for p in find_images(Path(q))]
     qkept, qstyle, qcontent, failed = embed_paths(qpaths, opts, log)
+    for p, why in failed:
+        log(tr(f"query skipped {p}: {why}", f"略過查詢圖 {p}：{why}"))
     if not qkept:
         log(tr("no readable query images", "查詢的圖都讀不了"))
         return 1
@@ -120,13 +125,15 @@ def cmd_search(a: argparse.Namespace) -> int:
         qstyle = fitted.apply(qstyle, qcontent)
     query_files = {q.resolve() for q in qkept}
     same = {i for i, p in enumerate(atlas.paths) if p.resolve() in query_files}
-    names = ["(all queries)"] if a.combine else [str(p) for p in qkept]
+    names = (
+        [tr("(all queries)", "（全部查詢圖合在一起）")] if a.combine else [str(p) for p in qkept]
+    )
     if a.by_folder:
         return _search_folders(a, atlas, qstyle, names, same)
-    wide = a.top if a.keep_duplicates else 2 * a.top
-    results = search(qstyle, atlas.style, top=wide, combine=a.combine, exclude=same)
-    if not a.keep_duplicates:
-        results = _fold(results, plain, atlas.content, a.top)
+    if a.keep_duplicates:
+        results = search(qstyle, atlas.style, top=a.top, combine=a.combine, exclude=same)
+    else:
+        results = _search_folded(a, atlas, qstyle, plain, same)
     rows = [
         {
             "query": names[qi],
@@ -186,16 +193,20 @@ def _search_folders(a: argparse.Namespace, atlas, qstyle, names: list[str], same
     _print_by_query(
         rows,
         lambda r: (
-            f"{r['rank']:3d}  {r['score']:.3f}  {r['folder']} ({r['images']} images,"
-            f" closest {r['closest']})"
+            f"{r['rank']:3d}  {r['score']:.3f}  {r['folder']}"
+            + tr(
+                f" ({r['images']} images, closest {r['closest']})",
+                f"（{r['images']} 張，最像的是 {r['closest']}）",
+            )
         ),
     )
     log(
         tr(
             "score: cosine between the query and each folder's mean style, in the search space "
-            "(1 = same direction; it reads lower than the image search's numbers)",
+            "(1 = same direction, 0 or below = no closer than an average folder; it reads lower "
+            "than the image search's numbers, so compare the ranks)",
             "分數：查詢圖和每個資料夾平均畫風的相似度（在搜尋空間裡；1 表示完全同方向，"
-            "數值會比單張搜尋的低，看排名就好）",
+            "0 或負數表示不比一般的資料夾像；數值會比單張搜尋的低，看排名就好）",
         )
     )
     return 0
@@ -217,26 +228,32 @@ def _print_by_query(rows: list[dict], line: Callable[[dict], str]) -> None:
     for row in rows:
         if row["query"] != query:
             query = row["query"]
-            print(f"{query}:")
+            print(query + tr(":", "：") if query.startswith(("(", "（")) else f"{query}:")
         print(line(row))
 
 
-def _fold(results: list, plain: np.ndarray, content: np.ndarray, top: int) -> list:
-    from styleatlas.search import fold_hits
+def _search_folded(a: argparse.Namespace, atlas, qstyle, plain: np.ndarray, same: set) -> list:
+    """Each query's hits without near-copies of a better hit, looking further down the ranking
+    until every query has --top hits or the folder runs out."""
+    from styleatlas.search import fold_hits, search
 
-    shown, folded = [], 0
-    for hits in results:
-        kept, n = fold_hits(hits, plain, content, top)
-        shown.append(kept)
-        folded += n
-    if folded:
+    wide = 2 * a.top
+    while True:
+        results = search(qstyle, atlas.style, top=wide, combine=a.combine, exclude=same)
+        folded = [fold_hits(hits, plain, atlas.content, a.top) for hits in results]
+        if all(len(kept) >= a.top for kept, _ in folded) or wide >= len(atlas):
+            break
+        wide = min(2 * wide, len(atlas))
+    n = sum(left for _, left in folded)
+    if n:
+        total = tr(" (all queries together)", "（所有查詢圖合計）") if len(folded) > 1 else ""
         log(
             tr(
-                f"{folded} near-copies of a better match left out (--keep-duplicates lists them)",
-                f"略過 {folded} 張和更好結果幾乎一樣的圖（加 --keep-duplicates 會列出）",
+                f"{n} near-copies of a better match left out{total} (--keep-duplicates lists them)",
+                f"略過 {n} 張和更好結果幾乎一樣的圖{total}（加 --keep-duplicates 會列出）",
             )
         )
-    return shown
+    return [kept for kept, _ in folded]
 
 
 def _copy_matches(atlas, indices: list[int], dest: Path) -> None:
