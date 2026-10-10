@@ -3,8 +3,8 @@ something: "spread" is the mean distance of each image to the centre of the othe
 CSD), averaged over random 10-image samples because it shrinks as a set grows (0.76 at 5 images,
 0.71 at 10, 0.65 at all of the same artists' works). The reference is 250 Danbooru artists.
 
-On 40-image folders of other artists, 8% of single-artist folders were more spread than 90% of
-the reference, against 63% of two-artist mixes, 93% of three and 100% of five
+On 114 artists the whitening and the reference never saw, 13% of single artists were more
+spread than 90% of the reference, against 51% of two-artist mixes, 91% of three and 100% of five
 (docs/BENCHMARKS.md, "Style consistency")."""
 
 from __future__ import annotations

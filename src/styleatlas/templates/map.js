@@ -432,6 +432,15 @@ function checkSection() {
     line.textContent = t("consist_" + key).replace("{p}", Math.round(c.percentile));
     box.append(line);
   }
+  if (CHECK.buckets && Object.keys(CHECK.buckets).length) {  // kohya's aspect-ratio buckets
+    const entries = Object.entries(CHECK.buckets);
+    const sparse = entries.filter(([, n]) => n < 4).length;
+    const line = document.createElement("div"); line.className = "kv"; line.title = t("bucketTip");
+    line.textContent = t("bucketLine").replace("{k}", entries.length)
+      .replace("{top}", entries.slice(0, 3).map(([b, n]) => `${b.replace("x", "×")} ${n}`).join(" · "))
+      + (sparse ? " " + t("bucketSparse").replace("{s}", sparse) : "");
+    box.append(line);
+  }
   const found = CHECK_KEYS.filter((k) => (CHECK.issues[k] || []).length);
   if (found.length) {  // one line first: how much there is to look at
     const flagged = new Set(found.flatMap((k) => CHECK.issues[k]));

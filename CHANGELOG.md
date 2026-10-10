@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- **Held-out re-check.** Style consistency and the which-artist ranking had been measured on
+  artists the search whitening was fitted on. On 114 artists it never saw: consistency flags 51%
+  of two-artist mixes, 91% of three and 100% of five, with 13% false alarms on single artists
+  (was quoted as 63% / 93% / 100% and 8%); the folder mean names the right artist first for
+  70.7% against 63.4% for the closest image (was 74.8%). The docs and the page now quote these.
+  Plain CSD did worse on both, so the methods stay. BENCHMARKS.md has the tables.
+- **Training buckets in the Check tab and `audit`**: how the images split into kohya's
+  aspect-ratio buckets at 1024 (the same bucket list and nearest-ratio rule as sd-scripts), and
+  how many buckets hold fewer than 4 images, which makes short batches at batch size 2 and up.
 ## 0.32.0 - 2026-10-10
 
 - **Compare two selections**: pick images on the map, "Remember as A", pick another batch, then

@@ -50,7 +50,8 @@ All of these are in `docs/BENCHMARKS.md`.
   scores find them reliably (about half). From two or three that the user excludes, "Find more
   like these" lists the rest first (98% in the top 30).
 
-- **Style consistency**: two-artist mixes are caught 63% of the time (three or more: 93-100%),
+- **Style consistency**: on artists the whitening never saw, two-artist mixes are caught 51% of
+  the time (three or more: 91-100%), with 13% false alarms on single artists;
   with 8% false alarms on single artists. AI renders from one model with fixed characters always
   read "tight". A per-group version was rejected: no cut carries across folders.
 - **Enlarged images**: 2x enlargements (relative to the training size) are caught 92-100% of the

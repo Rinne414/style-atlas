@@ -176,7 +176,8 @@ def rank_folders(
 ) -> list[list[FolderHit]]:
     """Which sub-folder (an artist, a style) does the query look like? Folders are ranked by
     their mean style rather than by their single closest image: on 284 Danbooru artists this
-    named the right one first for 74.8% of held-out works, against 63.4% for the artist of the
+    named the right one first for 70.7% of held-out works by 114 artists the whitening never saw,
+    against 63.4% for the artist of the
     closest image (docs/BENCHMARKS.md). Images at the top level (folder "") are left out: loose
     files are no one style."""
     loose = {i for i, f in enumerate(folders) if not f}

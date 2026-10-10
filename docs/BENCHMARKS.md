@@ -656,6 +656,9 @@ works whose own artist came first or in the top 5, by the ranking method:
 | Danbooru, artists over time | 18, ~47 | **91.7%** / 98.6% | 91.2% / 98.3% | 86.8% / 97.6% | 82.3% / 96.1% |
 | Danbooru, 5 prolific artists | 5, ~255 | 96.3% / 100% | **97.0%** / 100% | 94.7% / 100% | 94.0% / 100% |
 
+- **Held out**: on 114 artists the search whitening never saw (10 or more works each), the
+  folder mean named the right artist first for 70.7%, the closest image 63.4%. In plain CSD the
+  folder mean lost its edge (58.0% against 59.9%), so the gain comes with the whitening.
 - The folder mean is the cosine between the query and the folder's mean vector, both whitened
   as in search. It wins or ties on the first two sets and is within a point on the third, so it
   is the method used. A kNN vote (10 neighbours) scored 66.9%, 89.9% and 97.3%.
@@ -692,6 +695,22 @@ The Check tab and `cluster` report how spread a folder's style is, next to singl
   (NAI set 8%, Anima set 7%) although they hold 96 different recipes. The reference is human
   artists, and CSD vectors of one model's renders sit close together; for such folders the
   groups and the map say more than this number.
+**Held out (2026-10-10).** The numbers above came from artists the search whitening had been
+fitted on (the 18 are among its 306). Re-measured on 114 Danbooru artists that neither the
+whitening nor the reference had seen (10 or more works each), 20-image folders:
+
+| Folder | More spread than 90% of the reference, whitened | AUC | Plain CSD | AUC |
+|---|---|---|---|---|
+| One artist | 13% | - | 10% | - |
+| Two artists | 51% | 0.830 | 29% | 0.759 |
+| Three artists | 91% | 0.945 | 38% | 0.835 |
+| Five artists | 100% | 0.991 | 48% | 0.892 |
+
+The whitened measure holds up, a little weaker than on the seen artists, and stays far ahead of
+plain CSD. The product quotes these held-out numbers. A limit seen on the way: 150 large
+originals by 148 different artists, all polished digital paintings, read as one artist's range
+(78th percentile). When many artists share one finished look, the measure cannot tell them apart.
+
 - **Per group, rejected**: after automatic grouping, a group's percentile ranks impure groups
   (under 80% one artist) well within a folder: AUC 0.978 on the 300-artist set, 0.964 on the
   18 artists over time. But no fixed cut works across folders. Above 30, 81% of impure groups

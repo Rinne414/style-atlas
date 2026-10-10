@@ -318,6 +318,36 @@ def _trimmed(clustering: Clustering, style: np.ndarray, aside: dict, cap: int) -
     return out
 
 
+BUCKET_RESOLUTION = 1024  # kohya sd-scripts defaults for SDXL-class models
+BUCKET_MIN, BUCKET_MAX, BUCKET_STEP = 256, 1024, 64
+SPARSE_BUCKET = 4  # buckets with fewer images make short batches at batch size 2 and up
+
+
+def bucket_resolutions(resolution: int = BUCKET_RESOLUTION) -> list[tuple[int, int]]:
+    """The aspect-ratio buckets kohya sd-scripts makes (library/model_util.py,
+    make_bucket_resolutions) for a square training resolution."""
+    area = resolution * resolution
+    side = int(math.sqrt(area) // BUCKET_STEP) * BUCKET_STEP
+    resos = {(side, side)}
+    for width in range(BUCKET_MIN, BUCKET_MAX + 1, BUCKET_STEP):
+        height = min(BUCKET_MAX, int((area // width) // BUCKET_STEP) * BUCKET_STEP)
+        if height >= BUCKET_MIN:
+            resos.update({(width, height), (height, width)})
+    return sorted(resos)
+
+
+def bucket_counts(sizes: list[tuple[int, int]]) -> dict[str, int]:
+    """How many images fall in each bucket ("832x1216": n, most first): kohya picks the bucket
+    with the closest aspect ratio (library/dataset.py, select_bucket, with upscaling allowed)."""
+    resos = bucket_resolutions()
+    ratios = np.array([w / h for w, h in resos])
+    counts: Counter[str] = Counter()
+    for w, h in sizes:
+        bw, bh = (w, h) if (w, h) in resos else resos[int(np.abs(ratios - w / h).argmin())]
+        counts[f"{bw}x{bh}"] += 1
+    return dict(counts.most_common())
+
+
 def audit(
     paths: list[Path],
     min_side: int = 512,
@@ -342,6 +372,7 @@ def audit(
         "greyscale_in_colour_set": [],
     }
     sides = []
+    sizes: list[tuple[int, int]] = []
     readable = []
     for p in paths:
         info = image_info(p)
@@ -354,6 +385,7 @@ def audit(
         if info.jpeg_quality is not None and info.jpeg_quality < LOW_JPEG:
             report["low_jpeg_quality"].append(str(p))
         sides.append(min(info.width, info.height))
+        sizes.append((info.width, info.height))
         if min(info.width, info.height) < min_side:
             report["smaller_than_min_side"].append(str(p))
         if max(info.width, info.height) / max(1, min(info.width, info.height)) > max_ratio:
@@ -377,6 +409,7 @@ def audit(
             report["greyscale_in_colour_set"] = [str(paths[i]) for i in np.flatnonzero(grey)]
     summary = {k: len(v) for k, v in report.items()}
     summary["images"] = len(paths)
+    summary["buckets"] = bucket_counts(sizes)
     if sides:
         sides.sort()
         summary["short_side_median"] = sides[len(sides) // 2]

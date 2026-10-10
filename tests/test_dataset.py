@@ -240,3 +240,12 @@ def test_a_cap_below_the_minimum_group_size_keeps_the_groups(tmp_path):
     same = np.tile(x[:1], (6, 1))  # identical rows: still n different picks
     assert sorted(diverse_subset(same, 4)) == sorted(set(diverse_subset(same, 4)))
     assert len(diverse_subset(same, 4)) == 4 and diverse_subset(x, 0) == []
+
+
+def test_images_fall_into_kohya_buckets():
+    from styleatlas.dataset import bucket_counts, bucket_resolutions
+
+    resos = bucket_resolutions()
+    assert (1024, 1024) in resos and (704, 1024) in resos and all(max(r) <= 1024 for r in resos)
+    counts = bucket_counts([(1024, 1024), (2048, 2048), (832, 1216), (1216, 832), (832, 1216)])
+    assert counts == {"704x1024": 2, "1024x1024": 2, "1024x704": 1}

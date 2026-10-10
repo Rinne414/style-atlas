@@ -159,7 +159,7 @@ style-atlas search ref1.png ref2.png --combine --in "D:\gallery" --top 30
 style-atlas search mystery.png --in "D:\artists" --by-folder --top 5
 ```
 
-比的是每個資料夾的整體畫風（平均），不是單張最像的圖：在 284 位 Danbooru 畫師上，第一名猜中 74.8%，只看最像那張圖的畫師是 63.4%。
+比的是每個資料夾的整體畫風（平均），不是單張最像的圖：在 114 位工具沒看過的 Danbooru 畫師上，第一名猜中 70.7%，只看最像那張圖的畫師是 63.4%。
 
 **擴充訓練集**：把範例圖放進一個資料夾，找出 100 張最像的，連同標註複製到 `D:\lora\more\matches\`。範例有 3 張以上時，會用範例訓練一個小模型來排序，比只取範例的平均準（實測：3／5／10 張範例時，平均精確度分別高 0.055／0.066／0.116）。
 
@@ -317,7 +317,8 @@ how a picture is drawn rather than what it shows. On top of those vectors it can
   "style path" lists the images that lead from one picked style to another.
 - **Which artist does this look like?** `search --by-folder` ranks the sub-folders of a library
   (one per artist or style) by their overall style. On 284 Danbooru artists it named the right
-  one first for 74.8% of held-out works, against 63.4% for the artist of the closest image.
+  one first for 70.7% of held-out works by 114 artists the tool had never seen, against 63.4%
+  for the artist of the closest image.
 - **Explore a 3D style map** (`map`, or "Save shareable map" in the web app): one HTML file you
   can send to anyone. Group names float at each group's centre ("Names" hides them), and groups
   show their characteristic caption tags. "Record a turn" saves an 8-second video of the map
@@ -337,7 +338,8 @@ how a picture is drawn rather than what it shows. On top of those vectors it can
   training size (BENCHMARKS.md).
 - **Style consistency** (Check tab, `cluster`): how spread the folder's style is next to 250
   single Danbooru artists. Folders more spread than 90% of them are flagged as a probable mix;
-  this caught 63% of two-artist and 93% of three-artist mixes, and 8% of single artists.
+  on artists the tool had never seen this caught 51% of two-artist and 91% of three-artist
+  mixes, and 13% of single artists.
 - **Fix groups by hand** in the web app: "Find more like this" lists the images outside a group
   that look most like it; move an image to another group, merge two groups,
   split a group in two, or exclude images (X), which are then exported to `_excluded/`.

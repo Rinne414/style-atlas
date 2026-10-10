@@ -524,6 +524,7 @@ class StyleAtlasApp(GroupEdits):
             "min_side": side,
             "low_jpeg": LOW_JPEG,
             "issues": issues,
+            "buckets": report["summary"]["buckets"],
             "consistency": None
             if tight is None
             else {"spread": tight.spread, "percentile": tight.percentile, "verdict": tight.verdict},
