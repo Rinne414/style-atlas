@@ -2,73 +2,75 @@
 
 ## Unreleased
 
-- `sort --export ... --trigger-captions` starts each placed caption with its group's trigger,
-  as `cluster --trigger-captions` did for the dataset (kohya folder names lose their repeats).
-  `--strip-tags` works as in `cluster`.
-- **Readable `compare`.** It prints a short summary (verdict, distance, look change, near-copies)
-  in the message language; `--json` keeps every number as before.
-- From a second first-time-user test (Chinese): `duplicates` lists one file per line and is in
-  Chinese; `search`'s notes, `doctor`'s last line, `--renders` and the report's path are labelled
-  in Chinese; "when" reads 時間位置; the grouping line names the method in Chinese; the note on
-  small groups names them and warns that automatic repeats can overfit them; grouping by artist
-  warns when it finds few groups; `sort` names the dataset and the new folder and says "k of n
-  fit" instead of a bare share. README: where outputs go without `-o`.
-- `audit` adds the meaning in Chinese to each item on a Chinese system (`no_caption（沒有標註檔）`),
-  aligned by display width.
-- A failed model download says, in Chinese on a Chinese system, how to use the Hugging Face
-  mirror, with the Windows command (`set HF_ENDPOINT=https://hf-mirror.com`).
-- The web app's console window (what `StyleAtlas.bat` shows) is in Chinese on a Chinese
-  system too: layout and thumbnail progress, and the address it runs at.
-- `doctor` shows how big the vector cache and the thumbnail cache have grown, and that the
-  thumbnails can be deleted at any time.
-- `report` writes its page in the language of the messages unless `--lang` says otherwise (it
-  was always Chinese).
-- `sort` names the real minimum (groups of 3 or more images take new images); it said 2.
-- API: `cluster.fit_to_groups` takes plain CSD vectors and whitens inside, like `search`,
-  `rank_folders`, `consistency` and `cluster_by_artist` (docs/API.md).
-- Docs: `--fresh`, `.jfif`, the message language and what `-o` means are in the English README
-  too; the LoRA guide's glossary says which lines are already Chinese.
-- Folders unzipped from a Mac no longer report their `__MACOSX` folder and `._name.png`
-  metadata files as unreadable images.
-- **Command output in Chinese.** On a Chinese Windows (or a `zh` locale) the main messages of
-  `cluster`, `sort`, `report` and the embedding progress are in Traditional Chinese, with the
-  look words the web page uses ("偏亮、線條多"); `STYLE_ATLAS_LANG=en` or `zh` chooses. More
-  technical output (audit keys, errors) stays English and is explained in LORA_GUIDE section 7.
+New:
+
 - **LoRA render check in the report.** `style-atlas report TRAIN --renders RENDERS` adds a section
   that checks a LoRA's test images against its training set: the style distance and verdict (as
   `compare`), how many renders fall inside a training style group (the rule `sort` uses, with
   the same batch reading), how the look changed, renders that nearly repeat a training image
   (shown side by side: a sign of memorisation), and the renders least like the training set.
-  Chinese and English; one HTML file to keep or send. `cluster.batch_verdict` now holds the batch
-  reading for `sort` and the report.
-- Fix: a caption saved with a UTF-8 byte order mark (Windows Notepad) hid its first tag from
-  the watermark check, tag search and the per-group tags.
-- `.jfif` files (what Chrome on Windows often saves JPEGs from X/Twitter as) are now found.
-- Fix: in the web app, opening an original WebP image downloaded it instead of showing it
-  (Windows did not know the WebP type, and the server sends nosniff); image types now come from
-  the tool's own table.
-- **Fix: 16-bit grey PNGs.** Pillow clips them when converting to RGB, so such an image was read
-  as nearly all white (mean 254 instead of 127), and its style vector, look and softness were
+  Chinese and English; one HTML file to keep or send.
+- **Command output in Chinese.** On a Chinese Windows (or a `zh` locale) the messages of
+  `cluster`, `sort`, `report`, `compare`, `duplicates`, `audit` (labels), `doctor`, the
+  embedding progress, errors and the web app's console window (what `StyleAtlas.bat` shows) are
+  in Traditional Chinese, with the look words the web page uses ("偏亮、線條多") and columns
+  aligned by display width. `STYLE_ATLAS_LANG=en` or `zh` chooses. `report` writes its page in
+  the same language unless `--lang` says otherwise. LORA_GUIDE section 7 explains the English
+  wording.
+- **Readable `compare`.** It prints a short summary (verdict, distance, look change,
+  near-copies); `--json` keeps every number as before.
+- `sort --export ... --trigger-captions` starts each placed caption with its group's trigger, as
+  `cluster --trigger-captions` did for the dataset (kohya folder names lose their repeats);
+  `--strip-tags` works as in `cluster`.
+- `report` and `sort` say which saved web-app groups they use and when they were saved;
+  `--fresh` groups afresh instead.
+- `doctor` shows how big the vector cache and the thumbnail cache have grown, and that the
+  thumbnails can be deleted at any time.
+- Windows scripts (`setup.bat`, `StyleAtlas.bat`, `StyleAtlas-console.bat`) speak Chinese and
+  English; checked with dry runs of every branch they reach.
+- `.jfif` files (what Chrome on Windows often saves JPEGs from X/Twitter as) are found.
+
+Clearer output (from two first-time-user tests, in English and in Chinese):
+
+- `search` prints each query once and says the list is ranked in the search space while the
+  number shown is the plain cosine (so it is not always in order); `--by-folder` explains its
+  score.
+- `cluster` says when a style kept too few images after duplicates, outliers and exclusions to
+  get a folder (its number is then skipped), says that folder names are only a plan without
+  `--export`, names the small groups and warns that automatic repeats can overfit them, and
+  warns when grouping by artist finds few groups.
+- "In the range of one artist" adds that a mix of two or three artists often reads that way too
+  (CLI, report, web page).
+- `sort` names the dataset and the new folder, says "k of n fit", states the real minimum group
+  size (3), and `sorted.csv` has each image's `limit` (it fits when distance <= limit).
+- `duplicates` lists one file per line with how alike each group is; `audit` lists paths
+  relative to the folder, the buckets on one line, and how many files a list leaves out.
+
+Fixes:
+
+- **16-bit grey PNGs.** Pillow clips them when converting to RGB, so such an image was read as
+  nearly all white (mean 254 instead of 127), and its style vector, look and softness were
   wrong. They are now scaled to 8 bits first (also 32-bit and float grey images). Vectors cached
   by an earlier version stay in the cache: to redo them, delete `vectors.sqlite` in the cache
   folder (`style-atlas doctor` shows where); everything is then embedded again once.
-- Windows scripts (`setup.bat`, `StyleAtlas.bat`, `StyleAtlas-console.bat`) speak Chinese and
-  English; checked with dry runs of every branch they reach.
-- `cluster` without `--export` says the folder names are a plan and how to write them.
-- LoRA guide: a table that explains the English command output in Chinese.
-- **Clearer command output** (from a first-time-user test):
-  - `search` prints each query once and says that the list is ranked in the search space while
-    the number shown is the plain cosine (so it is not always in order).
-  - `report` and `sort` say which saved web-app groups they use and when they were saved;
-    `--fresh` groups afresh instead.
-  - `cluster` says when a style kept too few images after duplicates, outliers and exclusions to
-    get a folder (its number is then skipped).
-  - "In the range of one artist" now adds that a mix of two or three artists often reads that
-    way too (CLI, report, web page).
-  - `sort`'s `sorted.csv` has each image's `limit` (it fits when distance <= limit).
-  - `duplicates` shows how alike each group is; `audit` lists paths relative to the folder,
-    the buckets on one line, and how many files a list leaves out.
-- README: what `-o` means for each command.
+- In the web app, opening an original WebP image downloaded it instead of showing it (Windows
+  did not know the WebP type, and the server sends nosniff); image types now come from the
+  tool's own table.
+- A caption saved with a UTF-8 byte order mark (Windows Notepad) hid its first tag from the
+  watermark check, tag search and the per-group tags.
+- Folders unzipped from a Mac no longer report their `__MACOSX` folder and `._name.png`
+  metadata files as unreadable images.
+- The render check no longer fails when no training group has 3 images or more.
+
+Internal and docs:
+
+- `cluster.fit_to_groups` takes plain CSD vectors and whitens inside, like `search`,
+  `rank_folders`, `consistency` and `cluster_by_artist`; `cluster.batch_verdict` holds the batch
+  reading shared by `sort` and the report (docs/API.md).
+- README (Chinese and English): a command table, what `-o` means and where outputs go without
+  it, `--fresh`, `.jfif`, the message language.
+- Checked while CI is blocked: the full test suite on Python 3.10 and 3.12 (Windows), and a
+  built wheel installed and run.
 
 ## 0.43.0 - 2026-10-10
 
