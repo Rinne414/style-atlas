@@ -539,6 +539,15 @@ Each matched its name.
   by about 0.3 SD, and at 96 px lines fell by 1.75 SD.
 - So images are only ever shrunk, and the docs say to compare groups of similar sizes.
 
+**Taste**: the look measures do not predict personal taste. On one person's 140 like/dislike
+votes (81 liked):
+- the six measures alone reached CV AUC 0.53;
+- CSD alone (the taste model) reached 0.76;
+- CSD plus the measures reached 0.75.
+
+The single best measure was warmth, at AUC 0.39 (cooler images were liked slightly more). So
+the taste model stays CSD-only, and the measures describe styles; they do not rank them.
+
 **What it means for use**: a single image is noisy (most of the spread is within one artist:
 scene, lighting, composition). Group means are what the product shows: the group cards, the
 `clusters.json` profile and `compare` all compare means.
