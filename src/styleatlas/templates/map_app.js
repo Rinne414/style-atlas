@@ -150,8 +150,13 @@ async function showCompare(a, b, items, itemsB) {  // picked images in place of 
     const r = await post("api/compare", JSON.stringify(body), "application/json");
     setStatus("");
     const pane = $("pane-selected"); pane.replaceChildren();
+    // as the server compares them: side b without the images side a already holds
+    const membersOf = (g) => [...PTS.keys()].filter((i) => PTS[i].c === g);
+    const sideA = items || membersOf(a);
+    const inA = new Set(sideA);
+    const sideB = (itemsB || membersOf(b)).filter((i) => !inA.has(i));
     const nameA = items ? t("marked").replace("{n}", items.length) : clusterName(a);
-    const nameB = itemsB ? t("markedA").replace("{n}", itemsB.length) : clusterName(b);
+    const nameB = itemsB ? t("markedA").replace("{n}", sideB.length) : clusterName(b);
     const h = document.createElement("h3");
     h.textContent = t("compareTitle").replace("{a}", nameA).replace("{b}", nameB);
     const kv = document.createElement("div"); kv.className = "kv";
@@ -165,10 +170,8 @@ async function showCompare(a, b, items, itemsB) {  // picked images in place of 
       line(t("cmpLook").replace("{a}", nameA).replace("{b}", nameB), wordsFor(z) || t("cmpLookSame"));
     }
     const note = document.createElement("div"); note.className = "meta"; note.textContent = t("cmpNote");
-    const strips = [a, b].map((g, side) => {
+    const strips = [sideA, sideB].map((members, side) => {
       const grid = document.createElement("div"); grid.className = "grid";
-      const picked = side === 0 ? items : itemsB;
-      const members = picked || [...PTS.keys()].filter((i) => PTS[i].c === g);
       members.slice(0, 6).forEach((i) => grid.append(thumb(i)));
       const cap = document.createElement("div"); cap.className = "meta";
       cap.textContent = side === 0 ? nameA : nameB;

@@ -484,6 +484,19 @@ def test_the_style_report_can_be_saved_from_the_web_app(tmp_path):
         app.save_report({"lang": "fr"})
 
 
+def test_the_report_leaves_out_excluded_images_and_keeps_titles_as_text(tmp_path):
+    from styleatlas.report_card import render
+
+    app, atlas = _app(tmp_path, (8, 7))
+    app.exclude({"items": [0, 1]})
+    page = Path(app.save_report({"lang": "en"})["file"]).read_text(encoding="utf-8")
+    assert "13 images" in page and "2 excluded images left out" in page
+    page = render(atlas, app.clustering, "{body}", lang="en")
+    assert "<title>{body}</title>" in page and page.count("Style consistency") == 1
+    with pytest.raises(ValueError):
+        render(atlas, app.clustering, "all gone", excluded=range(len(atlas)))
+
+
 def test_the_page_script_parses(tmp_path):
     """`node --check` skips .js files that use import, so the check runs on an .mjs copy."""
     import shutil

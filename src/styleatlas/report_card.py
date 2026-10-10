@@ -8,6 +8,8 @@ from __future__ import annotations
 import base64
 import html
 import json
+import re
+from collections.abc import Collection
 from datetime import date
 from functools import lru_cache
 from importlib import resources
@@ -15,8 +17,8 @@ from pathlib import Path
 
 import numpy as np
 
-from styleatlas.atlas import Atlas
-from styleatlas.cluster import Clustering
+from styleatlas.atlas import LOAD_ERRORS, Atlas
+from styleatlas.cluster import Clustering, keep_rows
 from styleatlas.consistency import consistency
 from styleatlas.dataset import distinctive_tags, tag_summary
 from styleatlas.images import cached_thumbnail
@@ -25,11 +27,13 @@ from styleatlas.metrics import centroid
 
 THUMBS = 6  # most typical images shown per group
 THUMB_PX = 160
+PLACEHOLDER = re.compile(r"\{(title|lang|body)\}")
 
 TEXT = {
     "zh": {
         "images": "張圖",
         "made": "製作日期",
+        "excluded": "另有 {n} 張已排除，不算在內",
         "consistency": "畫風一致性",
         "tight": "很一致",
         "like one artist": "在一位畫師的正常範圍內",
@@ -47,6 +51,7 @@ TEXT = {
     "en": {
         "images": "images",
         "made": "Made",
+        "excluded": "{n} excluded images left out",
         "consistency": "Style consistency",
         "tight": "very consistent",
         "like one artist": "in the range of one artist",
@@ -114,7 +119,7 @@ def look_percentiles(looks: np.ndarray) -> dict[str, float]:
 def _thumb(path: Path) -> str:
     try:
         data = cached_thumbnail(path, THUMB_PX)
-    except OSError:
+    except LOAD_ERRORS:
         return ""
     return "data:image/webp;base64," + base64.b64encode(data).decode()
 
@@ -188,12 +193,24 @@ def render(
     names: dict[int, str] | None = None,
     closest: list[tuple[str, float]] | None = None,
     lang: str = "zh",
+    excluded: Collection[int] = (),
 ) -> str:
-    """The report page; `closest` is (folder, score) of the nearest reference artists."""
+    """The report page; `closest` is (folder, score) of the nearest reference artists.
+    `excluded` images (excluded by hand in the web app) are left out of every number."""
     t, e = TEXT[lang], html.escape
+    skip = set(excluded)
+    if skip:
+        kept = [i for i in range(len(atlas)) if i not in skip]
+        if not kept:
+            raise ValueError("all images are excluded")
+        clustering = keep_rows(atlas.style, clustering, kept)
+        atlas = atlas.subset(kept)
+    sub = f"{len(atlas)} {t['images']} · {t['made']} {date.today()}"
+    if skip:
+        sub += " · " + t["excluded"].format(n=len(skip))
     parts = [
         f"<h1>{e(title)}</h1>",
-        f'<p class="sub">{len(atlas)} {t["images"]} · {t["made"]} {date.today()}</p>',
+        f'<p class="sub">{sub}</p>',
         _consistency_section(atlas, t),
     ]
     if atlas.looks is not None:
@@ -203,8 +220,10 @@ def render(
         parts.append(f"<section><h2>{t['artists']}</h2><ol>{rows}</ol></section>")
     parts.append(_group_section(group_cards(atlas, clustering, names or {}, lang), t))
     parts.append(f'<p class="sub note">{e(t["note"])}</p>')
-    page = PAGE.replace("{title}", e(title)).replace("{lang}", "zh-Hant" if lang == "zh" else "en")
-    return page.replace("{body}", "\n".join(parts))
+    body = "\n".join(parts)
+    fill = {"title": e(title), "lang": "zh-Hant" if lang == "zh" else "en", "body": body}
+    # one pass, so a title such as "{body}" stays text
+    return PLACEHOLDER.sub(lambda m: fill[m.group(1)], PAGE)
 
 
 def write_report(atlas: Atlas, clustering: Clustering, out: Path, title: str, **kw) -> Path:

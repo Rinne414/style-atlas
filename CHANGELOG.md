@@ -1,17 +1,30 @@
 # Changelog
 
+## Unreleased
+
+- **The style report leaves out excluded images**: images excluded by hand (X) in the web app no
+  longer count in the report's consistency, look, closest artists or group sizes, whether it is
+  saved from the web app or made with `style-atlas report`; the header says how many were left
+  out. Groups keep their numbers and names.
+- **Fixes**: a report title such as `{body}` stays text (the page was filled in one pass per
+  placeholder before); an image that fails to open no longer stops the report; the compare panel
+  no longer shows, on side B, images that side A already holds (the numbers already left them
+  out).
+
 ## 0.35.0 - 2026-10-10
 
 - **Consistency reference from unseen artists**: the percentile is now read against 114 artists
   the whitening never saw (it was 250 artists it had seen, which put new single artists at the
   60th percentile instead of the 50th). Tested on held-out halves: 11% false alarms; 49% of
   two-artist, 85% of three and 100% of five-artist mixes flagged.
+
 ## 0.34.0 - 2026-10-10
 
 - **Held-out re-check of search with several examples**: the learned model's gain over the
   examples' mean vector (+0.055 / +0.066 / +0.116 AP) had been measured on artists the search
   whitening was fitted on. On new artists it is about even (-0.016 to +0.042). It stays the
   default; the README no longer claims a gain. BENCHMARKS.md has both tables.
+
 ## 0.33.0 - 2026-10-10
 
 - **Held-out re-check.** Style consistency and the which-artist ranking had been measured on
@@ -23,16 +36,19 @@
 - **Training buckets in the Check tab and `audit`**: how the images split into kohya's
   aspect-ratio buckets at 1024 (the same bucket list and nearest-ratio rule as sd-scripts), and
   how many buckets hold fewer than 4 images, which makes short batches at batch size 2 and up.
+
 ## 0.32.0 - 2026-10-10
 
 - **Compare two selections**: pick images on the map, "Remember as A", pick another batch, then
   "Compare with A" (style distance, z, p-value and how they look different). Images in both
   batches count for A only.
+
 ## 0.31.0 - 2026-10-10
 
 - **Save the 3D view as a PNG**: press P (in the web app and in a saved map), or "Save view as
   PNG" in the web app's "Advanced…" panel. The picture is the map as it is on screen.
 - A folder with a single image lays out without a warning.
+
 ## 0.30.0 - 2026-10-10
 
 - **Style report from the web app**: "Save style report" in the "Advanced…" panel writes the

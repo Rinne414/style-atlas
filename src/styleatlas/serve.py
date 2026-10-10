@@ -264,7 +264,7 @@ class StyleAtlasApp(GroupEdits):
 
     def save_report(self, body: dict) -> dict:
         """Write the one-page style report (`style-atlas report`) for the groups and names as
-        they are now, next to the exports."""
+        they are now, without the excluded images, next to the exports."""
         from styleatlas.report_card import write_report
 
         lang = body.get("lang", "zh")
@@ -272,9 +272,16 @@ class StyleAtlasApp(GroupEdits):
             raise ValueError("lang must be zh or en")
         with self._lock:
             raw, clustering, names = self.raw, self.clustering, self.names_by_group()
-        title = self.title or self.raw.root.name or "style report"
+            excluded = sorted(self.excluded)
+            title = self.title or raw.root.name or "style report"
         out = write_report(
-            raw, clustering, self.out_dir / "style_report.html", title, names=names, lang=lang
+            raw,
+            clustering,
+            self.out_dir / "style_report.html",
+            title,
+            names=names,
+            lang=lang,
+            excluded=excluded,
         )
         return {"file": str(out)}
 
@@ -540,7 +547,8 @@ class StyleAtlasApp(GroupEdits):
             else:
                 b = self._group(body.get("b"), allow_unassigned=False)
                 mb = list(self.clustering.clusters[b].members)
-            mb = [m for m in mb if m not in set(ma)]
+            held = set(ma)
+            mb = [m for m in mb if m not in held]
         else:
             a = self._group(body.get("a"), allow_unassigned=False)
             b = self._group(body.get("b"), allow_unassigned=False)

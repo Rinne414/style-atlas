@@ -223,21 +223,34 @@ def _finish(x: np.ndarray, raw: np.ndarray, method: str, params: dict, min_size:
     keep = [i for i, c in by_size if c >= min_size]
     remap = {old: new for new, old in enumerate(keep)}
     labels = np.array([remap.get(int(v), UNASSIGNED) for v in raw], dtype=int)
-    clusters = []
-    for cid in range(len(keep)):
-        members = np.flatnonzero(labels == cid)
-        c = centroid(x[members])
-        d = 1.0 - x[members] @ c
-        clusters.append(
-            ClusterInfo(
-                id=cid,
-                size=len(members),
-                medoid=int(members[int(np.argmin(d))]),
-                cohesion=float(d.mean()),
-                members=members.tolist(),
-            )
-        )
+    clusters = [_info(x, cid, np.flatnonzero(labels == cid)) for cid in range(len(keep))]
     return Clustering(labels, clusters, method, params)
+
+
+def _info(x: np.ndarray, cid: int, members: np.ndarray) -> ClusterInfo:
+    d = 1.0 - x[members] @ centroid(x[members])
+    return ClusterInfo(
+        id=cid,
+        size=len(members),
+        medoid=int(members[int(np.argmin(d))]),
+        cohesion=float(d.mean()),
+        members=members.tolist(),
+    )
+
+
+def keep_rows(x: np.ndarray, clustering: Clustering, kept: np.ndarray | list[int]) -> Clustering:
+    """The clustering of the rows `kept` only (`x`: the vectors of all rows), re-indexed to
+    them. Group ids stay as they are, so names and "Style N" still match the full set; groups
+    left with no rows are dropped."""
+    kept = np.asarray(kept, dtype=int)
+    labels = clustering.labels[kept]
+    sub = x[kept]
+    clusters = [
+        _info(sub, c.id, members)
+        for c in clustering.clusters
+        if len(members := np.flatnonzero(labels == c.id))
+    ]
+    return Clustering(labels, clusters, clustering.method, clustering.params)
 
 
 def edit_groups(x: np.ndarray, clustering: Clustering, moves: dict[int, int]) -> Clustering:

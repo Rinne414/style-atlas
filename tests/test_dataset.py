@@ -105,6 +105,22 @@ def test_expand_clustering_reindexes_to_the_full_set():
     assert all(c.medoid in c.members for c in full.clusters)
 
 
+def test_keep_rows_keeps_group_ids_and_drops_emptied_groups():
+    from styleatlas.cluster import edit_groups, keep_rows
+
+    x, _ = make_blobs([6, 4, 2])
+    full = edit_groups(x, cluster_styles(x, n_clusters=3, min_size=1), {})
+    small = next(c for c in full.clusters if c.size == 2)
+    kept = [i for i in range(len(x)) if i not in small.members and i != 0]
+    sub = keep_rows(x, full, kept)
+    assert len(sub.labels) == len(kept) and sub.labels.tolist() == full.labels[kept].tolist()
+    assert sorted(c.id for c in sub.clusters) == sorted(
+        c.id for c in full.clusters if c is not small
+    )
+    assert sum(c.size for c in sub.clusters) == len(kept)
+    assert all(c.medoid in c.members and max(c.members) < len(kept) for c in sub.clusters)
+
+
 def test_repeats_must_be_auto_or_a_positive_whole_number(tmp_path):
     import pytest
 

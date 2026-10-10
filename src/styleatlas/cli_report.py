@@ -6,7 +6,7 @@ import argparse
 from pathlib import Path
 
 from styleatlas.atlas import Atlas, build_atlas
-from styleatlas.cli_common import _atlas, _cluster, _opts, log
+from styleatlas.cli_common import _atlas, _cluster, _opts, log, web_exclusions
 from styleatlas.cluster import Clustering, edit_groups
 from styleatlas.export import output_dir
 from styleatlas.groupfile import GROUPS_FILE, carry_names, load_groups
@@ -22,11 +22,29 @@ def cmd_report(a: argparse.Namespace) -> int:
     if len(atlas) == 0:
         log(f"no readable images in {a.folder}")
         return 1
+    excluded = web_exclusions(atlas, Path(a.folder))
+    if len(excluded) == len(atlas):
+        log("every image is excluded in the web app; nothing to report")
+        return 1
+    if excluded:
+        log(f"{len(excluded)} image(s) you excluded in the web app are left out")
     clustering, names = _groups(a, atlas)
-    closest = _closest_artists(a, atlas) if a.artists else None
+    closest = None
+    if a.artists:
+        skip = set(excluded)
+        closest = _closest_artists(a, atlas.subset([i for i in range(len(atlas)) if i not in skip]))
     out = Path(a.out or output_dir(Path(a.folder)) / "style_report.html")
     title = a.title or Path(a.folder).resolve().name
-    path = write_report(atlas, clustering, out, title, names=names, closest=closest, lang=a.lang)
+    path = write_report(
+        atlas,
+        clustering,
+        out,
+        title,
+        names=names,
+        closest=closest,
+        lang=a.lang,
+        excluded=excluded,
+    )
     print(path)
     return 0
 

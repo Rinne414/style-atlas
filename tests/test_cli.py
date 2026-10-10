@@ -216,3 +216,13 @@ def test_report_sums_up_a_folder(lib, tmp_path, capsys):
     assert "data:image/webp;base64," in page  # thumbnails inside, so the file can be sent alone
     assert main(["report", str(lib), "-o", str(out), "--lang", "en", "--device", "cpu"]) == 0
     assert "Style consistency" in out.read_text(encoding="utf-8")
+
+
+def test_report_leaves_out_images_excluded_in_the_web_app(lib, tmp_path, capsys):
+    web = tmp_path / "lib_style_atlas"
+    web.mkdir()
+    (web / "excluded.json").write_text(json.dumps({"red/red__100003.png": True}), "utf-8")
+    out = tmp_path / "report.html"
+    assert main(["report", str(lib), "-o", str(out), "--lang", "en", "--device", "cpu"]) == 0
+    assert "1 excluded images left out" in out.read_text(encoding="utf-8")
+    assert "1 image(s) you excluded in the web app are left out" in capsys.readouterr().err

@@ -133,3 +133,14 @@ def _cluster(a: argparse.Namespace, atlas: Atlas):
     if "note" in result.params:
         log("note: " + result.params["note"])
     return result
+
+
+def web_exclusions(atlas: Atlas, folder: Path) -> list[int]:
+    """Images excluded by hand (X) in the web app, as indices into `atlas`."""
+    from styleatlas.export import output_dir
+    from styleatlas.persist import RelPathMap
+
+    marks = RelPathMap(output_dir(folder) / "excluded.json", atlas, read_only=True)
+    if marks.unreadable:
+        log(f"warning: could not read {marks.path}; the web app's exclusions are NOT applied")
+    return sorted(i for i, v in marks.values.items() if v is True)
