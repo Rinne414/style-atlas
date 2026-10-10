@@ -224,6 +224,13 @@ def test_groups_and_names_survive_a_restart(tmp_path):
     again = StyleAtlasApp(atlas, EncodeOptions(device="cpu"), "pca")
     assert again.restored and again.clustering.n_clusters == 1
     assert again.names_by_group() == {0: "all"} and again.settings["edited"] is True
+    new = tmp_path / "new.png"  # an image added later starts unassigned; the edits stay
+    Image.new("RGB", (16, 16), (99, 0, 0)).save(new)
+    grown = Atlas(tmp_path, [*paths, new], np.vstack([x, x[:1]]), np.vstack([x, x[:1]]), "sig")
+    later = StyleAtlasApp(grown, EncodeOptions(device="cpu"), "pca")
+    from styleatlas.cluster import UNASSIGNED
+
+    assert later.clustering.labels[-1] == UNASSIGNED and later.names_by_group() == {0: "all"}
 
 
 def test_web_export_can_write_a_kohya_layout_with_triggers(server):
