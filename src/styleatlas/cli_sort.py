@@ -125,6 +125,7 @@ def _rows(
             "folder": folders[i],
             "closest_group": labels[f.group],
             "distance": round(f.dist, 4),
+            "limit": round(f.limit, 4),  # fits when distance <= limit
             "fits": "yes" if f.fits else "no",
             "copy_of": dataset.rel(copies[i]) if i in copies else "",
         }
@@ -179,6 +180,11 @@ def sort_args(p: argparse.ArgumentParser) -> None:
     p.add_argument("folder", help="the new images")
     p.add_argument("--into", required=True, metavar="DATASET", help="the dataset already sorted")
     p.add_argument("-o", "--out", help="output folder (default: <folder>_style_atlas)")
+    p.add_argument(
+        "--fresh",
+        action="store_true",
+        help="group afresh instead of using the groups the web app saved",
+    )
     p.add_argument(
         "--by-folder",
         action="store_true",

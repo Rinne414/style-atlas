@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+- **Clearer command output** (from a first-time-user test):
+  - `search` prints each query once and says that the list is ranked in the search space while
+    the number shown is the plain cosine (so it is not always in order).
+  - `report` and `sort` say which saved web-app groups they use and when they were saved;
+    `--fresh` groups afresh instead.
+  - `cluster` says when a style kept too few images after duplicates, outliers and exclusions to
+    get a folder (its number is then skipped).
+  - "In the range of one artist" now adds that a mix of two or three artists often reads that
+    way too (CLI, report, web page).
+  - `sort`'s `sorted.csv` has each image's `limit` (it fits when distance <= limit).
+  - `duplicates` shows how alike each group is; `audit` lists paths relative to the folder,
+    the buckets on one line, and how many files a list leaves out.
+- README: what `-o` means for each command.
+
 ## 0.43.0 - 2026-10-10
 
 - **Group by artist, for galleries of many artists.** `--granularity artists` (web: "by artist")

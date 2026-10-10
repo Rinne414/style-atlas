@@ -68,6 +68,11 @@ def report_args(p: argparse.ArgumentParser) -> None:
     p.add_argument("--title")
     p.add_argument("--lang", choices=["zh", "en"], default="zh")
     p.add_argument(
+        "--fresh",
+        action="store_true",
+        help="group afresh instead of using the groups the web app saved",
+    )
+    p.add_argument(
         "--artists",
         metavar="DIR",
         help="a library with one sub-folder per artist: list the closest ones",

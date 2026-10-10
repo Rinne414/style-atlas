@@ -242,6 +242,8 @@ style-atlas taste score "D:\new_batch" --model "D:\my_taste.npz"
 | `style-atlas doctor` | 檢查 Python、torch、顯卡、模型下載和磁碟空間 |
 | `style-atlas calibrate`、`bench` | 進階：校準雜訊、用子資料夾當標準答案評分 |
 
+`-o` 在 `cluster`、`sort` 是輸出資料夾，在 `report`、`map` 是 HTML 檔；`search` 用 `--copy-to` 複製結果；`doctor` 不需要其他參數。
+
 ### 網頁介面與 3D 地圖
 
 - 右側最上方有「① 檢查資料 → ② 整理畫風群 → ③ 匯出」三個步驟，照順序點就能完成訓 LoRA 前的整理。

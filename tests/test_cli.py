@@ -301,6 +301,7 @@ def test_sort_places_new_images_into_the_dataset_sub_folders(lib, tmp_path, caps
     rows = _sorted_rows(out)
     assert rows["again.png"]["folder"] == "_already_in_dataset"
     assert rows["again.png"]["copy_of"].startswith("red/")
+    assert all(float(r["limit"]) > 0 for r in rows.values())  # each image's group limit
     assert all(rows[f"red_new_{i}.png"]["closest_group"] == "red" for i in range(3))
     assert rows["grey.png"]["fits"] == "no" and rows["grey.png"]["folder"] == "_unsure"
     placed = {p.name for p in (out / "sorted").rglob("*.png")}
@@ -418,3 +419,29 @@ def test_cluster_by_artist_and_its_refused_combinations(lib, tmp_path, capsys):
     assert "takes plain style vectors" in capsys.readouterr().err
     assert main([*base, "--granularity", "artists", "--method", "hdbscan"]) == 1
     assert "--method" in capsys.readouterr().err
+
+
+def test_report_says_where_saved_groups_come_from_and_fresh_ignores_them(lib, tmp_path, capsys):
+    from styleatlas.atlas import EncodeOptions, build_atlas
+    from styleatlas.cluster import cluster_styles
+    from styleatlas.groupfile import GROUPS_FILE, save_groups
+
+    atlas = build_atlas(lib, EncodeOptions(device="cpu"))
+    web = tmp_path / "lib_style_atlas"
+    web.mkdir()
+    groups = cluster_styles(atlas.style)
+    save_groups(web / GROUPS_FILE, atlas, groups, {}, "plain", {0: "saved-name"})
+    out = tmp_path / "r.html"
+    assert main(["report", str(lib), "-o", str(out), "--lang", "en", "--device", "cpu"]) == 0
+    assert "saved in" in capsys.readouterr().err and "saved-name" in out.read_text("utf-8")
+    assert main(["report", str(lib), "-o", str(out), "--fresh", "--device", "cpu"]) == 0
+    assert "saved in" not in capsys.readouterr().err and "saved-name" not in out.read_text("utf-8")
+
+
+def test_duplicate_groups_show_how_alike_they_are(lib, tmp_path, capsys):
+    import shutil
+
+    one = next((lib / "red").glob("*.png"))
+    shutil.copy(one, lib / "red" / "again.png")
+    assert main(["duplicates", str(lib), "--device", "cpu"]) == 0
+    assert "(similarity 1.000+)" in capsys.readouterr().out

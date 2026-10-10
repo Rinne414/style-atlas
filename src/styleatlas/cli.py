@@ -59,12 +59,26 @@ def cmd_audit(a: argparse.Namespace) -> int:
     if a.json:
         print(json.dumps(report, ensure_ascii=False, indent=1))
         return 0
+    root = Path(a.folder)
     for key, value in report["summary"].items():
+        if key == "buckets":
+            value = " · ".join(f"{b} {n}" for b, n in value.items())
+            key = "buckets (kohya, 1024)"
         print(f"{key:24s} {value}")
     for key, files in report["files"].items():
         for f in files[: a.show]:
-            print(f"  [{key}] {f}")
+            print(f"  [{key}] {_short(f, root)}")
+        if len(files) > a.show:
+            print(f"  [{key}] ... and {len(files) - a.show} more (--show N, or --json for all)")
     return 0
+
+
+def _short(path: str, root: Path) -> str:
+    """A path relative to the checked folder when it lies under it."""
+    try:
+        return Path(path).relative_to(root).as_posix()
+    except ValueError:
+        return path
 
 
 LARGE_MAP = 8000  # thumbnails make the single-file map ~2 KB per image
@@ -142,8 +156,8 @@ def cmd_search(a: argparse.Namespace) -> int:
     if a.json:
         print(json.dumps(rows, ensure_ascii=False, indent=1))
     else:
-        for row in rows:
-            print(f"{row['rank']:3d}  {row['cosine']:.3f}  {row['path']}    <- {row['query']}")
+        _print_by_query(rows, lambda r: f"{r['rank']:3d}  {r['cosine']:.3f}  {r['path']}")
+        log(SEARCH_ORDER)
     if a.copy_to:
         _copy_matches(atlas, [h.index for hits in results for h in hits], Path(a.copy_to))
     return 0
@@ -174,12 +188,31 @@ def _search_folders(a: argparse.Namespace, atlas, qstyle, names: list[str], same
     if a.json:
         print(json.dumps(rows, ensure_ascii=False, indent=1))
         return 0
-    for row in rows:
-        print(
-            f"{row['rank']:3d}  {row['score']:.3f}  {row['folder']} ({row['images']} images,"
-            f" closest {row['closest']})    <- {row['query']}"
-        )
+    _print_by_query(
+        rows,
+        lambda r: (
+            f"{r['rank']:3d}  {r['score']:.3f}  {r['folder']} ({r['images']} images,"
+            f" closest {r['closest']})"
+        ),
+    )
+    log("score: cosine between the query and each folder's mean style, in the search space")
     return 0
+
+
+SEARCH_ORDER = (
+    "ranked by style match in the search space (whitened, corrected for images that are close to "
+    "everything); the number shown is the plain cosine, so it is not always in order"
+)
+
+
+def _print_by_query(rows: list[dict], line: Callable[[dict], str]) -> None:
+    """Each query's name once, then its results."""
+    query = None
+    for row in rows:
+        if row["query"] != query:
+            query = row["query"]
+            print(f"{query}:")
+        print(line(row))
 
 
 def _fold(results: list, plain: np.ndarray, content: np.ndarray, top: int) -> list:
@@ -224,7 +257,9 @@ def cmd_duplicates(a: argparse.Namespace) -> int:
     extra = sum(len(g) - 1 for g in groups)
     log(f"{len(groups)} near-duplicate groups ({extra} images beyond the first of each group)")
     for n, g in enumerate(groups, 1):
-        print(f"group {n}: " + "  |  ".join(atlas.rel(i) for i in g))
+        style, content = atlas.style[g], atlas.content[g]
+        least = float(np.minimum(style @ style.T, content @ content.T).min())
+        print(f"group {n} (similarity {least:.3f}+): " + "  |  ".join(atlas.rel(i) for i in g))
     return 0
 
 

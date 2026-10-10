@@ -136,6 +136,24 @@ def _export(a: argparse.Namespace, atlas: Atlas, folders: list[str], out: Path) 
         log(f"not exported {p}: {why}")
 
 
+def _note_lost_groups(result, folders: list[str]) -> None:
+    """Groups none of whose images reach a style folder (all set aside as duplicates, outliers,
+    exclusions, or too few left): said here, as their folder numbers are skipped."""
+    from styleatlas.dataset import is_unassigned
+
+    lost = [
+        c.id + 1
+        for c in result.clusters
+        if all(folders[i].startswith("_") or is_unassigned(folders[i]) for i in c.members)
+    ]
+    if lost:
+        names = ", ".join(f"{n:02d}" for n in lost)
+        log(
+            f"note: style {names} kept too few images after duplicates, outliers and exclusions;"
+            " it has no folder (its number is skipped)"
+        )
+
+
 def _plan(
     a: argparse.Namespace, atlas: Atlas, result, dups: list[list[int]] | None
 ) -> tuple[list[str], dict]:
@@ -167,6 +185,7 @@ def _plan(
     trimmed = sum(f == "_trimmed" for f in folders)
     if trimmed:
         log(f"{trimmed} image(s) beyond {a.max_per_group} per group go to _trimmed")
+    _note_lost_groups(result, folders)
     return folders, tag_summary(atlas.paths, result)
 
 
@@ -197,7 +216,9 @@ def _when(pos: np.ndarray | None, members: list[int]) -> str:
 
 CONSISTENCY_WORDS = {
     "tight": "very consistent",
-    "like one artist": "in the range of a single artist",
+    "like one artist": (
+        "in the range of a single artist; a mix of two or three artists often reads this way too"
+    ),
     "mixed": "probably a mix of styles or periods; the groups below split it",
 }
 

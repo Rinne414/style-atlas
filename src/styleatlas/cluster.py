@@ -266,6 +266,7 @@ class Fit:
     group: int  # id of the closest group (by centre)
     dist: float  # cosine distance to that centre
     fits: bool  # as close as FIT_PERCENTILE% of the group's own images (left out in turn)
+    limit: float = 0.0  # the distance within which an image fits that group
 
 
 def fit_to_groups(
@@ -294,7 +295,7 @@ def fit_to_groups(
     for row in query @ cents.T:
         k = int(np.argmax(row))
         dist = 1.0 - float(row[k])
-        out.append(Fit(groups[k][0], dist, dist <= limits[k]))
+        out.append(Fit(groups[k][0], dist, dist <= limits[k], limits[k]))
     return out
 
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import time
 from dataclasses import replace
 from pathlib import Path
 
@@ -155,10 +156,12 @@ def saved_groups(
     from styleatlas.groupfile import GROUPS_FILE, carry_names, load_groups
 
     clustering = _cluster(a, atlas)
-    saved = load_groups(output_dir(folder) / GROUPS_FILE, atlas)
+    path = output_dir(folder) / GROUPS_FILE
+    saved = None if getattr(a, "fresh", False) else load_groups(path, atlas)
     if saved is None:
         return clustering, {}
-    log("using the groups and names saved by the web app")
+    when = time.strftime("%Y-%m-%d %H:%M", time.localtime(path.stat().st_mtime))
+    log(f"using the groups and names the web app saved in {path} ({when}); --fresh to regroup")
     edited = edit_groups(atlas.style, clustering, dict(enumerate(saved.labels.tolist())))
     return edited, carry_names(saved.labels, edited.labels, saved.names)
 
