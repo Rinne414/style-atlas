@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- **Fix: true colours on the 3D map.** The thumbnails were decoded from sRGB but never encoded
+  back for the screen, so every image on the map looked darker and more saturated than the file
+  (the demo's yellow 255,183,3 showed as orange 255,121,0; group-colour dots likewise). Group
+  names and axis labels had the opposite error and looked washed out. Checked by pixel counts
+  on a screenshot: 12,018 pixels of the true yellow, 0 of the wrong orange.
+
 ## 0.19.0 - 2026-10-10
 
 - **Workflow steps** at the top of the web app's side panel: "① Check → ② Sort the styles →

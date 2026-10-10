@@ -95,6 +95,12 @@ function stepMorph() {
   if (morph.k >= 1) { morph = null; drawNames(); }
 }
 
+function srgbTexture(cv) {  // canvas pixels are sRGB; unmarked, the sprite shader would brighten them
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
 /* ---------- group names floating at each group's centre ---------- */
 const MAX_NAMES = 16;  // the largest groups only: more labels cover the map
 let nameSprites = null;
@@ -109,7 +115,7 @@ function nameSprite(full, color) {
   cv.width = Math.ceil(g.measureText(text).width) + 24; cv.height = 46;
   g.font = font; g.fillStyle = "rgba(12,14,18,0.86)"; g.fillRect(0, 0, cv.width, cv.height);
   g.fillStyle = color; g.fillText(text, 12, 33);
-  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), depthTest: false, transparent: true }));
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: srgbTexture(cv), depthTest: false, transparent: true }));
   const h = 0.11; sp.scale.set(h * cv.width / cv.height, h, 1); sp.renderOrder = 10;
   return sp;
 }
@@ -204,7 +210,7 @@ function label(text, at) {
   const g = cv.getContext("2d"); g.font = "28px system-ui, sans-serif";
   g.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--accent");
   g.fillText(text, 8, 42);
-  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), depthTest: false }));
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: srgbTexture(cv), depthTest: false }));
   sp.position.copy(at); sp.scale.set(3.6, 0.225, 1);  // read from HOME_MEASURES
   return sp;
 }

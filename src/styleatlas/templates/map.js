@@ -65,11 +65,14 @@ const FRAG = `
       if (d > 0.5) discard;
       float edge = smoothstep(0.5, 0.42, d);
       gl_FragColor = vec4(vColor, edge * (0.25 + 0.75 * vAlpha));
-      return;
+    } else {
+      vec4 c = texture2D(uAtlas, (vCell + pc) * uCell);
+      if (c.a < 0.08) discard;
+      gl_FragColor = vec4(c.rgb * (0.35 + 0.65 * vAlpha), c.a * (0.2 + 0.8 * vAlpha));
     }
-    vec4 c = texture2D(uAtlas, (vCell + pc) * uCell);
-    if (c.a < 0.08) discard;
-    gl_FragColor = vec4(c.rgb * (0.35 + 0.65 * vAlpha), c.a * (0.2 + 0.8 * vAlpha));
+    // the texture is decoded from sRGB and THREE.Color works in linear: encode back for the screen,
+    // or every thumbnail shows darker and more saturated than the file (yellow 255,183,3 as orange)
+    #include <colorspace_fragment>
   }`;
 
 async function loadImage(src, retries = 1) {
