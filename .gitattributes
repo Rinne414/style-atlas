@@ -1,3 +1,6 @@
+# Text files are stored with LF whatever the editor writes (Windows tools may write CRLF).
+* text=auto
+
 # Windows scripts must keep CRLF line endings, also in GitHub zip downloads (git archive).
 *.bat text eol=crlf
 *.ps1 text eol=crlf
