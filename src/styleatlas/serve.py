@@ -287,6 +287,7 @@ class StyleAtlasApp(GroupEdits):
             names=names,
             lang=lang,
             excluded=excluded,
+            time_source=self.time_source,
         )
         return {"file": str(out)}
 

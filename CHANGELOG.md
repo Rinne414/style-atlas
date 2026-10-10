@@ -22,6 +22,8 @@ New:
 - `sort --export ... --trigger-captions` starts each placed caption with its group's trigger, as
   `cluster --trigger-captions` did for the dataset (kohya folder names lose their repeats);
   `--strip-tags` works as in `cluster`.
+- `report --time name|mtime` (and the web app's saved report, with the page's time setting)
+  shows where each style group sits in the folder's timeline, as `cluster --time` does.
 - `report` and `sort` say which saved web-app groups they use and when they were saved;
   `--fresh` groups afresh instead.
 - `doctor` shows how big the vector cache and the thumbnail cache have grown, and that the

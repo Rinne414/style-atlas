@@ -58,6 +58,7 @@ def cmd_report(a: argparse.Namespace) -> int:
         lang=a.lang or ("zh" if chinese() else "en"),
         excluded=excluded,
         renders=renders,
+        time_source=a.time,
     )
     log(tr("report:", "報告："))
     print(path)

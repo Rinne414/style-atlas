@@ -164,3 +164,28 @@ def labels_from_folders(paths: Iterable[Path], root: Path) -> list[str]:
         parts = Path(p).relative_to(root).parts
         out.append(parts[0] if len(parts) > 1 else "")
     return out
+
+
+def timeline(paths: list[Path], source: str) -> np.ndarray | None:
+    """Each image's position in the folder's timeline (0 oldest, 1 newest; NaN when unknown),
+    from file-name ids or modification times; None without a source or with under 2 times."""
+    times = np.array([file_time(p, source) or np.nan for p in paths], dtype=float)
+    known = ~np.isnan(times)
+    if source == "none" or known.sum() < 2:
+        return None
+    pos = np.full(len(times), np.nan)
+    order = np.argsort(times[known], kind="stable")
+    pos[np.flatnonzero(known)[order]] = np.arange(known.sum()) / (known.sum() - 1)
+    return pos
+
+
+def timeline_span(pos: np.ndarray | None, members) -> tuple[float, float, float] | None:
+    """(first quartile, median, third quartile) of a group's timeline positions, or None."""
+    if pos is None:
+        return None
+    v = pos[np.asarray(members, dtype=int)]
+    v = v[~np.isnan(v)]
+    if not len(v):
+        return None
+    q1, med, q3 = np.percentile(v, [25, 50, 75])
+    return float(q1), float(med), float(q3)

@@ -529,3 +529,11 @@ def test_sort_can_add_the_group_trigger_to_placed_captions(lib, tmp_path, monkey
     trigger = placed[0].parent.name.partition("_")[2]  # repeats removed: x_red or x_blue
     assert placed[0].read_text(encoding="utf-8").strip() == f"{trigger}, 1girl"  # red_tag gone
     assert main([*args, "--trigger-captions", "--device", "cpu"]) == 1  # needs --export
+
+
+def test_report_puts_each_group_on_the_timeline(lib, tmp_path):
+    out = tmp_path / "r.html"
+    args = ["report", str(lib), "-o", str(out), "--lang", "en", "--device", "cpu"]
+    assert main([*args, "--time", "name"]) == 0  # ids in the file names give the order
+    assert "When: median at" in out.read_text(encoding="utf-8")
+    assert main(args) == 0 and "When: median at" not in out.read_text(encoding="utf-8")

@@ -21,7 +21,7 @@ from styleatlas.atlas import LOAD_ERRORS, Atlas
 from styleatlas.cluster import Clustering, batch_verdict, keep_rows
 from styleatlas.consistency import consistency
 from styleatlas.dataset import distinctive_tags, tag_summary
-from styleatlas.images import cached_thumbnail
+from styleatlas.images import cached_thumbnail, timeline, timeline_span
 from styleatlas.look import LOOK_NAMES, NOTABLE, WORDS_ZH, profile
 from styleatlas.metrics import centroid
 from styleatlas.render_check import RenderCheck, check_renders
@@ -47,6 +47,7 @@ TEXT = {
         "artists": "最像的畫師（參考圖庫）",
         "groups": "畫風群",
         "group": "畫風",
+        "when": "時間位置：中位數在作品時間軸的 {m}%（中間一半 {a}%–{b}%；0% 最早）",
         "note": "畫風向量：CSD ViT-L（Somepalli 等，2024，CC-BY-4.0）。外觀數字是 256 px "
         "縮圖上的影像統計，描述畫風怎麼不同，不評好壞。",
     },
@@ -65,6 +66,7 @@ TEXT = {
         "artists": "Closest artists (reference library)",
         "groups": "Style groups",
         "group": "Style",
+        "when": "When: median at {m}% of the timeline (middle half {a}-{b}%; 0% oldest)",
         "note": "Style vectors: CSD ViT-L (Somepalli et al. 2024, CC-BY-4.0). Look numbers are "
         "image statistics on 256 px copies; they describe how styles differ, not which is better.",
     },
@@ -174,9 +176,15 @@ def _words(looks: np.ndarray, members: np.ndarray, lang: str) -> str:
     return sep.join(GROUP_WORDS[lang][LOOK_NAMES[j]][0 if z[j] > 0 else 1] for j in picked)
 
 
-def group_cards(atlas: Atlas, clustering: Clustering, names: dict[int, str], lang: str) -> list:
-    """One card per group, largest first: name, size, look words, typical tags, thumbnails of
-    its most typical images (closest to the group's centre)."""
+def group_cards(
+    atlas: Atlas,
+    clustering: Clustering,
+    names: dict[int, str],
+    lang: str,
+    pos: np.ndarray | None = None,
+) -> list:
+    """One card per group, largest first: name, size, look words, typical tags, where it sits in
+    the timeline (given positions `pos`), thumbnails of its most typical images."""
     tags = distinctive_tags(tag_summary(atlas.paths, clustering))
     cards = []
     for c in sorted(clustering.clusters, key=lambda c: -c.size):
@@ -188,6 +196,7 @@ def group_cards(atlas: Atlas, clustering: Clustering, names: dict[int, str], lan
                 "size": int(c.size),
                 "words": _words(atlas.looks, members, lang) if atlas.looks is not None else "",
                 "tags": tags.get(c.id, []),
+                "when": timeline_span(pos, members),
                 "thumbs": [s for s in (_thumb(atlas.paths[i]) for i in typical[:THUMBS]) if s],
             }
         )
@@ -267,9 +276,15 @@ def _group_section(cards: list, t: dict) -> str:
     for card in cards:
         imgs = "".join(f'<img src="{src}" alt="">' for src in card["thumbs"])
         size = f'<span class="sub">{card["size"]} {t["images"]}</span>'
+        when = ""
+        if card.get("when"):
+            q1, med, q3 = card["when"]
+            text = t["when"].format(m=round(100 * med), a=round(100 * q1), b=round(100 * q3))
+            when = f'<p class="sub">{e(text)}</p>'
         out.append(
             f'<div class="card"><h3>{e(card["name"])} {size}</h3><p>{e(card["words"])}</p>'
-            f'<p class="sub">{e(", ".join(card["tags"]))}</p><div class="thumbs">{imgs}</div></div>'
+            f'<p class="sub">{e(", ".join(card["tags"]))}</p>{when}'
+            f'<div class="thumbs">{imgs}</div></div>'
         )
     return "".join(out) + "</section>"
 
@@ -283,6 +298,7 @@ def render(
     lang: str = "zh",
     excluded: Collection[int] = (),
     renders: Atlas | None = None,
+    time_source: str = "none",
 ) -> str:
     """The report page; `closest` is (folder, score) of the nearest reference artists.
     `excluded` images (excluded by hand in the web app) are left out of every number. With
@@ -310,7 +326,8 @@ def render(
     if closest:
         rows = "".join(f'<li>{e(n)} <span class="sub">{s:.3f}</span></li>' for n, s in closest)
         parts.append(f"<section><h2>{t['artists']}</h2><ol>{rows}</ol></section>")
-    parts.append(_group_section(group_cards(atlas, clustering, names or {}, lang), t))
+    pos = timeline(atlas.paths, time_source)
+    parts.append(_group_section(group_cards(atlas, clustering, names or {}, lang, pos), t))
     parts.append(f'<p class="sub note">{e(t["note"])}</p>')
     body = "\n".join(parts)
     fill = {"title": e(title), "lang": "zh-Hant" if lang == "zh" else "en", "body": body}

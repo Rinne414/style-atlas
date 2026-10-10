@@ -19,6 +19,7 @@ from styleatlas.cli_common import (
     web_exclusions,
 )
 from styleatlas.cluster import outlier_scores
+from styleatlas.images import timeline, timeline_span
 from styleatlas.lang import chinese, pad, tr
 from styleatlas.look import describe, profile
 
@@ -237,28 +238,11 @@ def _plan(
     return folders, tag_summary(atlas.paths, result)
 
 
-def _timeline(atlas: Atlas, source: str) -> np.ndarray | None:
-    """Each image's position in the folder's timeline (0 oldest, 1 newest; NaN when unknown)."""
-    from styleatlas.images import file_time
-
-    times = np.array([file_time(p, source) or np.nan for p in atlas.paths], dtype=float)
-    known = ~np.isnan(times)
-    if source == "none" or known.sum() < 2:
-        return None
-    pos = np.full(len(times), np.nan)
-    order = np.argsort(times[known], kind="stable")
-    pos[np.flatnonzero(known)[order]] = np.arange(known.sum()) / (known.sum() - 1)
-    return pos
-
-
 def _when(pos: np.ndarray | None, members: list[int]) -> str:
-    if pos is None:
+    span = timeline_span(pos, members)
+    if span is None:
         return ""
-    v = pos[members]
-    v = v[~np.isnan(v)]
-    if not len(v):
-        return ""
-    q1, med, q3 = np.percentile(v, [25, 50, 75])
+    q1, med, q3 = span
     return tr(
         f"  when {med:4.0%} [{q1:.0%}-{q3:.0%}]", f"  時間位置 {med:4.0%} [{q1:.0%}-{q3:.0%}]"
     )
@@ -299,7 +283,7 @@ def _print_groups(
 ) -> None:
     from collections import Counter
 
-    pos = _timeline(atlas, time_source)
+    pos = timeline(atlas.paths, time_source)
     if pos is not None:
         log(
             tr(
