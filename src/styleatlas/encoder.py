@@ -14,6 +14,7 @@ import argparse
 import logging
 import math
 import os
+import sys
 from dataclasses import dataclass
 
 import numpy as np
@@ -96,6 +97,14 @@ def load_weights() -> dict[str, torch.Tensor]:
     slim = cache_dir() / f"csd_vit_l_{CSD_REVISION[:8]}.safetensors"
     if slim.exists():
         return load_file(str(slim))
+    print(
+        tr(
+            "first run: downloading the style model once (about 2.4 GB; a 1.2 GB copy is kept)",
+            "第一次使用：下載畫風模型（約 2.4 GB，只會下載一次；之後保留 1.2 GB 的精簡版）",
+        ),
+        file=sys.stderr,
+        flush=True,
+    )
     weights = _extract_weights()
     tmp = slim.with_suffix(".tmp")
     save_file(weights, str(tmp))
