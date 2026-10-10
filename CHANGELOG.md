@@ -66,7 +66,7 @@ Clearer output (from three first-time-user tests: English, Chinese, and searchin
   unassigned, cut 0.35 set" for three folders), and `map` says how to open the file.
 - `compare` lists at most 10 near-copy pairs (`--json` has all) and says that `calibrate`
   measures the z scale on your own folders.
-- Every option has a `--help` line.
+- Every option has a `--help` line; `search` and `outliers` refuse `--top 0`.
 - Each style group says which sub-folders its images come from ("來自：dayama 9"), in the report
   and on the web map, when the folder has several: a gallery sorted by artist shows which group
   is which artist.
