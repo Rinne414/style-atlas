@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.28.0 - 2026-10-10
 
 - A failed model download now says so plainly (no traceback) and suggests
   `HF_ENDPOINT=https://hf-mirror.com` where huggingface.co cannot be reached; the README says it
