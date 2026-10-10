@@ -45,7 +45,8 @@ from styleatlas.project import PROJECTIONS
 
 def cmd_embed(a: argparse.Namespace) -> int:
     atlas = _atlas(a, a.folder)
-    log(f"{len(atlas)} images embedded, {len(atlas.failed)} skipped")
+    n, skipped = len(atlas), len(atlas.failed)
+    log(tr(f"{n} images embedded, {skipped} skipped", f"{n} 張已算好向量，{skipped} 張略過"))
     return 0
 
 
