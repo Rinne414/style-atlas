@@ -15,6 +15,7 @@ from PIL import Image
 
 from styleatlas.encoder import CSDEncoder, cache_dir, encoder_signature
 from styleatlas.images import find_images, labels_from_folders, load_rgb
+from styleatlas.lang import tr
 from styleatlas.look import LOOK_NAMES, LOOK_VERSION, measure
 from styleatlas.metrics import StyleSpace, centroid
 from styleatlas.store import VectorStore
@@ -147,10 +148,21 @@ def embed_paths(
         first_by_key = {k: p for p, k in reversed(keys.items())}  # identical files: embed once
         todo = [p for k, p in first_by_key.items() if k not in have]
         if todo:
-            progress(f"{len(first_by_key) - len(todo)} cached, {len(todo)} to embed ({signature})")
+            cached = len(first_by_key) - len(todo)
+            progress(
+                tr(
+                    f"{cached} cached, {len(todo)} to embed ({signature})",
+                    f"{cached} 張已有向量，{len(todo)} 張要計算（{signature}）",
+                )
+            )
             failed += _embed_missing(todo, keys, have, store, opts, progress)
         else:
-            progress(f"all {len(keys)} images cached ({signature})")
+            progress(
+                tr(
+                    f"all {len(keys)} images cached ({signature})",
+                    f"{len(keys)} 張都已有向量（{signature}）",
+                )
+            )
     kept = [p for p in paths if p in keys and keys[p] in have]
     style = np.stack([have[keys[p]][0] for p in kept]) if kept else np.zeros((0, 768), np.float32)
     content = np.stack([have[keys[p]][1] for p in kept]) if kept else np.zeros((0, 768), np.float32)
@@ -166,7 +178,7 @@ def _embed_missing(
     progress: Progress,
 ) -> list[tuple[Path, str]]:
     encoder = get_encoder(opts)
-    progress(f"model ready on {encoder.device}")
+    progress(tr(f"model ready on {encoder.device}", f"模型已載入（{encoder.device}）"))
     failed: list[tuple[Path, str]] = []
     pending: dict[str, tuple[np.ndarray, np.ndarray]] = {}
     looks: dict[str, np.ndarray] = {}  # measured while each image is open anyway
@@ -189,7 +201,7 @@ def _embed_missing(
                 looks = {}
                 have.update(pending)
                 pending = {}
-                progress(f"embedded {done}/{len(todo)}")
+                progress(tr(f"embedded {done}/{len(todo)}", f"已計算 {done}/{len(todo)}"))
     return failed
 
 
@@ -243,7 +255,12 @@ def measure_looks(
         have = store.get_looks(keys.values(), LOOK_VERSION)
         todo = list({k: p for p, k in keys.items() if k not in have}.items())
         if todo:
-            progress(f"measuring the look of {len(todo)} images (once)")
+            progress(
+                tr(
+                    f"measuring the look of {len(todo)} images (once)",
+                    f"計算 {len(todo)} 張圖的外觀（只算一次）",
+                )
+            )
             workers = max(1, min(8, os.cpu_count() or 1))
             with ThreadPoolExecutor(workers) as pool:
                 for start in range(0, len(todo), LOOK_CHUNK):  # saved as it goes: Ctrl+C keeps it
@@ -254,7 +271,8 @@ def measure_looks(
                     store.put_looks(good, LOOK_VERSION)
                     have.update(found)
                     if len(todo) > LOOK_CHUNK:
-                        progress(f"measured {start + len(part)}/{len(todo)}")
+                        done_looks = f"{start + len(part)}/{len(todo)}"
+                        progress(tr(f"measured {done_looks}", f"外觀 {done_looks}"))
     if not paths:
         return np.zeros((0, len(LOOK_NAMES)), np.float32)
     x = np.stack([have[keys[p]] if p in keys else nan for p in paths]).astype(np.float32)

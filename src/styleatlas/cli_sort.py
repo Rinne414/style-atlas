@@ -30,11 +30,18 @@ from styleatlas.dataset import auto_repeats, group_labels, is_unassigned
 from styleatlas.duplicates import copies_of
 from styleatlas.export import export_folders, output_dir, write_csv
 from styleatlas.images import labels_from_folders
+from styleatlas.lang import tr
 from styleatlas.whiten import whiten
 
 UNSURE = "_unsure"  # closest group, but farther from it than 70% of its own images
 ALREADY = "_already_in_dataset"  # a near-copy of an image the dataset already holds
 RESERVED = {UNSURE.casefold(), ALREADY.casefold()}
+VERDICTS_ZH = {
+    "few": f"張數太少，不判斷整批（不到 {BATCH_MIN} 張）",
+    "in": "大多是資料集的畫風",
+    "some": "部分像資料集的畫風",
+    "out": "大多不像資料集的畫風",
+}
 VERDICTS = {
     "few": f"too few images to judge the batch (under {BATCH_MIN})",
     "in": "mostly the dataset's styles",
@@ -55,7 +62,7 @@ def cmd_sort(a: argparse.Namespace) -> int:
     dataset = _atlas(a, a.into, exclude=[out, *_nested(new_root, data_root)])
     new = _atlas(a, a.folder, exclude=[out, *_nested(data_root, new_root)])
     if len(new) == 0:
-        log(f"no readable images in {a.folder}")
+        log(tr(f"no readable images in {a.folder}", f"{a.folder} 裡沒有讀得到的圖"))
         return 1
     clustering, labels = _dataset_groups(a, dataset)
     skip = set(web_exclusions(dataset, Path(a.into)))
@@ -64,7 +71,12 @@ def cmd_sort(a: argparse.Namespace) -> int:
         whiten(dataset.style, keep=False), clustering, whiten(new.style, keep=False), skip
     )
     if not fits:
-        log(f"{a.into} has no style group of 2 or more images to sort into")
+        log(
+            tr(
+                f"{a.into} has no style group of 2 or more images to sort into",
+                f"{a.into} 沒有 2 張以上的畫風群可以放新圖",
+            )
+        )
         return 1
     copies = {
         row: base
@@ -77,9 +89,14 @@ def cmd_sort(a: argparse.Namespace) -> int:
         _repeats_notes(clustering, labels, folders)
     if a.export:
         done = export_folders(new, folders, out / "sorted", mode=a.export)
-        log(f"{done.placed} images placed in {done.folder}")
+        log(
+            tr(
+                f"{done.placed} images placed in {done.folder}",
+                f"已放 {done.placed} 張到 {done.folder}",
+            )
+        )
         for p, why in done.failed:
-            log(f"not placed {p}: {why}")
+            log(tr(f"not placed {p}: {why}", f"沒有放入 {p}：{why}"))
     print(table)
     return 0
 
@@ -114,7 +131,13 @@ def _unreserved(labels: dict[int, str]) -> dict[int, str]:
 def _note_small_groups(clustering: Clustering, labels: dict[int, str], skip: set[int]) -> None:
     small = [labels[c.id] for c in clustering.clusters if sum(m not in skip for m in c.members) < 2]
     if small:
-        log(f"too few images (under 2) to sort into: {', '.join(small)}")
+        names = ", ".join(small)
+        log(
+            tr(
+                f"too few images (under 2) to sort into: {names}",
+                f"這些群的圖太少（不到 2 張），不會放新圖進去：{names}",
+            )
+        )
 
 
 def _destination(i: int, fit: Fit, labels: dict[int, str], copies: dict[int, int]) -> str:
@@ -148,20 +171,31 @@ def _rows(
 def _summary(fits: list[Fit], labels: dict[int, str], folders: list[str]) -> None:
     rest = [(f, d) for f, d in zip(fits, folders, strict=True) if d != ALREADY]
     if len(rest) < len(fits):
+        k = len(fits) - len(rest)
         log(
-            f"{len(fits) - len(rest)} of {len(fits)} new images are near-copies of images the "
-            f"dataset already holds ({ALREADY})"
+            tr(
+                f"{k} of {len(fits)} new images are near-copies of images the dataset already holds"
+                f" ({ALREADY})",
+                f"{len(fits)} 張新圖裡有 {k} 張和資料集裡的圖幾乎一樣（{ALREADY}）",
+            )
         )
     if not rest:
         return
     placed = Counter(labels[f.group] for f, _ in rest)
     fitting = Counter(labels[f.group] for f, d in rest if d != UNSURE)
-    log(f"{len(rest)} new images, closest group of each:")
+    log(
+        tr(f"{len(rest)} new images, closest group of each:", f"{len(rest)} 張新圖，各自最像的群：")
+    )
     for name, n in sorted(placed.items(), key=lambda t: -t[1]):
-        log(f"  {name:30s} {n:5d}  ({fitting[name]} fit)")
+        log(f"  {name:30s} {n:5d}  " + tr(f"({fitting[name]} fit)", f"（{fitting[name]} 張符合）"))
     share = sum(fitting.values()) / len(rest)
-    verdict = VERDICTS[batch_verdict(share, len(rest))]
-    log(f"{share:.0%} fit their group: {verdict}; the rest go to {UNSURE} for a look")
+    reading = batch_verdict(share, len(rest))
+    log(
+        tr(
+            f"{share:.0%} fit their group: {VERDICTS[reading]}; the rest go to {UNSURE} for a look",
+            f"{share:.0%} 符合所屬的群：{VERDICTS_ZH[reading]}；其餘放進 {UNSURE}，請看一下",
+        )
+    )
 
 
 def _repeats_notes(clustering: Clustering, labels: dict[int, str], folders: list[str]) -> None:
@@ -176,8 +210,13 @@ def _repeats_notes(clustering: Clustering, labels: dict[int, str], folders: list
         new = auto_repeats(c.size + added[name])
         if new != int(match[1]):
             log(
-                f"{name}: {c.size} + {added[name]} images; rename it {new}_{match[2]} to keep "
-                "images x repeats near 100 (the trainer config files list the old repeats)"
+                tr(
+                    f"{name}: {c.size} + {added[name]} images; rename it {new}_{match[2]} to keep "
+                    "images x repeats near 100 (the trainer config files list the old repeats)",
+                    f"{name}：{c.size} + {added[name]} 張；建議改名成 {new}_{match[2]}，"
+                    "讓張數 × repeats "
+                    "維持在約 100（訓練設定檔裡的 repeats 也要跟著改）",
+                )
             )
 
 

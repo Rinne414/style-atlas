@@ -76,12 +76,23 @@ NOTABLE = 0.5  # |z| from which a difference is worth putting into words
 GREYSCALE = 0.02
 
 
-def describe(z: np.ndarray) -> str:
-    """Words for a profile (see `profile`), strongest first: "more line work, cooler"; empty
-    when no measure differs by NOTABLE or more."""
+WORDS_ZH = {  # as on the web page
+    "brightness": ("偏亮", "偏暗"),
+    "contrast": ("對比強", "對比弱"),
+    "colourfulness": ("色彩鮮豔", "色彩淡"),
+    "warmth": ("偏暖", "偏冷"),
+    "lines": ("線條多", "線條少"),
+    "flatness": ("色塊平", "質感多"),
+}
+
+
+def describe(z: np.ndarray, lang: str = "en") -> str:
+    """Words for a profile (see `profile`), strongest first: "more line work, cooler" (or
+    "線條多、偏冷" with lang "zh"); empty when no measure differs by NOTABLE or more."""
+    words_of, sep = (WORDS_ZH, "、") if lang == "zh" else (WORDS, ", ")
     order = np.argsort(-np.abs(z))
-    words = [WORDS[LOOK_NAMES[j]][0 if z[j] > 0 else 1] for j in order if abs(z[j]) >= NOTABLE]
-    return ", ".join(words)
+    words = [words_of[LOOK_NAMES[j]][0 if z[j] > 0 else 1] for j in order if abs(z[j]) >= NOTABLE]
+    return sep.join(words)
 
 
 def difference(a: np.ndarray, b: np.ndarray) -> np.ndarray:

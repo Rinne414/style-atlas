@@ -102,9 +102,9 @@ style-atlas cluster "D:\lora\artistX" --layout kohya --name artistX --dedupe --d
 
 詳細數字見 [BENCHMARKS.md](BENCHMARKS.md)。
 
-## 7. 指令輸出的英文怎麼看
+## 7. 指令輸出的語言
 
-指令（`cluster`、`sort`、`audit` 等）的訊息是英文，網頁介面和 `report` 有中文。常見的字句：
+中文 Windows 上，`cluster`、`sort` 等指令的主要訊息（分群結果、一致性、匯出、補新圖的摘要、計算進度）會自動用中文；想看英文就先執行 `set STYLE_ATLAS_LANG=en`（反過來 `zh` 強制中文）。有些較技術的輸出（`audit` 的項目名稱、`search` 的排序說明、錯誤訊息）仍是英文，對照如下：
 
 | 輸出 | 意思 |
 |---|---|

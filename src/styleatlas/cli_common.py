@@ -20,6 +20,7 @@ from styleatlas.cluster import (
     cluster_styles,
     edit_groups,
 )
+from styleatlas.lang import tr
 from styleatlas.metrics import (
     CHARACTERS,
     MAX_NEUTRALIZE,
@@ -65,7 +66,7 @@ def _opts(a: argparse.Namespace) -> EncodeOptions:
 def _atlas(a: argparse.Namespace, folder: str, exclude: list[Path] | None = None) -> Atlas:
     atlas = build_atlas(Path(folder), _opts(a), log, recursive=not a.no_recursive, exclude=exclude)
     for p, why in atlas.failed:
-        log(f"skipped {p}: {why}")
+        log(tr(f"skipped {p}: {why}", f"略過 {p}：{why}"))
     space = _space(a)
     if space != PLAIN:
         atlas, a.fitted_space = atlas.in_space(space)  # reused for --reference
@@ -99,12 +100,27 @@ def _log_space(transform: object) -> None:
     if isinstance(transform, SubjectCentring):
         n = len(transform.centres)
         if not n:
-            log("too few images to find characters: styles are compared as they are")
+            log(
+                tr(
+                    "too few images to find characters: styles are compared as they are",
+                    "圖太少，找不出角色：照原樣比較畫風",
+                )
+            )
         else:
-            log(f"comparing styles per character: {n} subjects found in the picture content")
+            log(
+                tr(
+                    f"comparing styles per character: {n} subjects found in the picture content",
+                    f"依角色比較畫風：從畫面內容找到 {n} 個主體",
+                )
+            )
     else:
         k = len(getattr(transform, "axes", []))
-        log(f"ignoring the {k} strongest direction(s) of variation (subject axis)")
+        log(
+            tr(
+                f"ignoring the {k} strongest direction(s) of variation (subject axis)",
+                f"忽略變化最大的 {k} 個方向（主體軸）",
+            )
+        )
 
 
 def _reference(a: argparse.Namespace) -> Atlas | None:
@@ -131,8 +147,11 @@ def _cluster(a: argparse.Namespace, atlas: Atlas):
         method, k = "kmeans", a.k or PERIODS
         if len(atlas) < SOFT_PERIODS:
             log(
-                f"note: with fewer than {SOFT_PERIODS} images the period boundaries are soft; "
-                "check them in the web app (serve)"
+                tr(
+                    f"note: with fewer than {SOFT_PERIODS} images the period boundaries are soft; "
+                    "check them in the web app (serve)",
+                    f"注意：少於 {SOFT_PERIODS} 張時，時期的分界不太穩定，請在網頁介面確認",
+                )
             )
     elif threshold is None:
         threshold = GRANULARITY.get(a.granularity)  # None for auto
@@ -140,8 +159,10 @@ def _cluster(a: argparse.Namespace, atlas: Atlas):
         atlas.style, method=method, threshold=threshold, n_clusters=k, min_size=a.min_size
     )
     cut = result.params.get("threshold")
-    how = f", cut {cut} ({'auto' if result.params.get('auto') else 'set'})" if cut else ""
-    log(f"{result.n_clusters} styles, {result.n_unassigned} unassigned ({result.method}{how})")
+    auto = result.params.get("auto")
+    how = f", cut {cut} ({'auto' if auto else 'set'})" if cut else ""
+    how_zh = f"，切分 {cut}（{'自動' if auto else '指定'}）" if cut else ""
+    log(_groups_line(result, f"{result.method}{how}", f"{result.method}{how_zh}"))
     if "note" in result.params:
         log("note: " + result.params["note"])
     return result
@@ -161,7 +182,12 @@ def saved_groups(
     if saved is None:
         return clustering, {}
     when = time.strftime("%Y-%m-%d %H:%M", time.localtime(path.stat().st_mtime))
-    log(f"using the groups and names the web app saved in {path} ({when}); --fresh to regroup")
+    log(
+        tr(
+            f"using the groups and names the web app saved in {path} ({when}); --fresh to regroup",
+            f"沿用網頁介面在 {when} 存的分群和名稱（{path}）；要重新分群請加 --fresh",
+        )
+    )
     edited = edit_groups(atlas.style, clustering, dict(enumerate(saved.labels.tolist())))
     return edited, carry_names(saved.labels, edited.labels, saved.names)
 
@@ -174,8 +200,13 @@ def _cluster_by_artist(a: argparse.Namespace, atlas: Atlas) -> Clustering:
         )
     result = cluster_by_artist(atlas.style, min_size=a.min_size)
     how = f"by artist: whitened, cut {ARTISTS_CUT}"
-    log(f"{result.n_clusters} styles, {result.n_unassigned} unassigned ({how})")
+    log(_groups_line(result, how, f"依畫師：whitened，切分 {ARTISTS_CUT}"))
     return result
+
+
+def _groups_line(result: Clustering, how: str, how_zh: str) -> str:
+    n, u = result.n_clusters, result.n_unassigned
+    return tr(f"{n} styles, {u} unassigned ({how})", f"分成 {n} 群，{u} 張未分群（{how_zh}）")
 
 
 def web_exclusions(atlas: Atlas, folder: Path) -> list[int]:
@@ -185,5 +216,10 @@ def web_exclusions(atlas: Atlas, folder: Path) -> list[int]:
 
     marks = RelPathMap(output_dir(folder) / "excluded.json", atlas, read_only=True)
     if marks.unreadable:
-        log(f"warning: could not read {marks.path}; the web app's exclusions are NOT applied")
+        log(
+            tr(
+                f"warning: could not read {marks.path}; the web app's exclusions are NOT applied",
+                f"警告：讀不到 {marks.path}，網頁介面的排除不會套用",
+            )
+        )
     return sorted(i for i, v in marks.values.items() if v is True)

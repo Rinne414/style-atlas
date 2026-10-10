@@ -242,7 +242,7 @@ style-atlas taste score "D:\new_batch" --model "D:\my_taste.npz"
 | `style-atlas doctor` | 檢查 Python、torch、顯卡、模型下載和磁碟空間 |
 | `style-atlas calibrate`、`bench` | 進階：校準雜訊、用子資料夾當標準答案評分 |
 
-`-o` 在 `cluster`、`sort` 是輸出資料夾，在 `report`、`map` 是 HTML 檔；`search` 用 `--copy-to` 複製結果；`doctor` 不需要其他參數。
+中文 Windows 上，指令的主要訊息會自動用中文（`set STYLE_ATLAS_LANG=en` 改回英文）。`-o` 在 `cluster`、`sort` 是輸出資料夾，在 `report`、`map` 是 HTML 檔；`search` 用 `--copy-to` 複製結果；`doctor` 不需要其他參數。
 
 ### 網頁介面與 3D 地圖
 

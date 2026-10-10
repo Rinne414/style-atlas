@@ -14,6 +14,6 @@ echo   style-atlas audit "D:\lora\artistX"
 echo   style-atlas cluster "D:\lora\artistX" --layout kohya --name artistX --dedupe --export copy
 echo   style-atlas --help
 echo   python scripts\make_demo_images.py demo_styles   （產生 72 張示範圖 / 72 demo images to try）
-echo 指令輸出的英文說明：docs\LORA_GUIDE.md 第 7 節 / The output explained in Chinese: docs\LORA_GUIDE.md, section 7
+echo 中文 Windows 上訊息會用中文；英文請先執行 set STYLE_ATLAS_LANG=en / Messages follow the Windows language; set STYLE_ATLAS_LANG=en for English.
 echo.
 cmd /k

@@ -25,3 +25,9 @@ def make_blobs(
 @pytest.fixture
 def blobs() -> tuple[np.ndarray, np.ndarray]:
     return make_blobs([20, 15, 10])
+
+
+@pytest.fixture(autouse=True)
+def english_messages(monkeypatch):
+    """Tests read the English messages, whatever the machine's language."""
+    monkeypatch.setenv("STYLE_ATLAS_LANG", "en")

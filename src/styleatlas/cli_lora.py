@@ -19,6 +19,7 @@ from styleatlas.cli_common import (
     web_exclusions,
 )
 from styleatlas.cluster import outlier_scores
+from styleatlas.lang import chinese, tr
 from styleatlas.look import describe, profile
 
 FEW_FOR_LORA = 8  # style-LoRA guides suggest starting at 8-15 images (docs/LORA_GUIDE.md)
@@ -88,20 +89,32 @@ def cmd_cluster(a: argparse.Namespace) -> int:
 
         dups = near_duplicate_groups(atlas.style, atlas.content)
         kept = duplicate_keepers(atlas.paths, dups)
-        log(f"{len(atlas) - len(kept)} near-duplicates set aside before grouping")
+        aside = len(atlas) - len(kept)
+        log(
+            tr(
+                f"{aside} near-duplicates set aside before grouping",
+                f"{aside} 張近重複圖先放到一邊，不參與分群",
+            )
+        )
         result = expand_clustering(_cluster(a, atlas.subset(kept)), kept, len(atlas))
     else:
         result = _cluster(a, atlas)
     folders, tags = _plan(a, atlas, result, dups)
     csv_path, json_path = write_table(atlas, result, out, folders, tags)
-    log(f"wrote {csv_path} and {json_path}")
+    log(tr(f"wrote {csv_path} and {json_path}", f"已寫出 {csv_path} 和 {json_path}"))
     if getattr(a, "fitted_space", None) is None:  # the reference was measured on plain CSD
         _log_consistency(atlas)
     _print_groups(atlas, result, folders, tags, a.time)
     if a.export:
         _export(a, atlas, folders, out)
     else:
-        log("the folder names above are the plan; add --export copy (or link) to write the folders")
+        log(
+            tr(
+                "the folder names above are the plan; add --export copy (or link) to write the "
+                "folders",
+                "上面的資料夾名稱只是規劃；加 --export copy（或 link）才會真的建立資料夾",
+            )
+        )
     if not a.no_map:
         path = write_map(
             atlas,
@@ -113,7 +126,7 @@ def cmd_cluster(a: argparse.Namespace) -> int:
             time_source=a.time,
             reference=_reference(a),
         )
-        log(f"map: {path}")
+        log(tr(f"map: {path}", f"地圖：{path}"))
     return 0
 
 
@@ -129,13 +142,25 @@ def _export(a: argparse.Namespace, atlas: Atlas, folders: list[str], out: Path) 
         layout=a.layout,
         strip_tags=parse_tags(a.strip_tags or ""),
     )
-    log(f"{a.export}: {done.placed} images into {done.folder}")
+    verb = "已複製" if a.export == "copy" else "已連結"
+    log(
+        tr(
+            f"{a.export}: {done.placed} images into {done.folder}",
+            f"{verb} {done.placed} 張到 {done.folder}",
+        )
+    )
     if a.layout == "kohya":
         from styleatlas.export import steps_per_epoch
 
-        log(f"one epoch = {steps_per_epoch(folders)} steps at batch size 1 (images x repeats)")
+        steps = steps_per_epoch(folders)
+        log(
+            tr(
+                f"one epoch = {steps} steps at batch size 1 (images x repeats)",
+                f"batch size 1 時，每個 epoch 約 {steps} 步（張數 × repeats）",
+            )
+        )
     for p, why in done.failed:
-        log(f"not exported {p}: {why}")
+        log(tr(f"not exported {p}: {why}", f"沒有匯出 {p}：{why}"))
 
 
 def _note_lost_groups(result, folders: list[str]) -> None:
@@ -151,8 +176,12 @@ def _note_lost_groups(result, folders: list[str]) -> None:
     if lost:
         names = ", ".join(f"{n:02d}" for n in lost)
         log(
-            f"note: style {names} kept too few images after duplicates, outliers and exclusions;"
-            " it has no folder (its number is skipped)"
+            tr(
+                f"note: style {names} kept too few images after duplicates, outliers and "
+                "exclusions;"
+                " it has no folder (its number is skipped)",
+                f"注意：第 {names} 群拿掉重複、離群和排除的圖之後太少，沒有資料夾（編號跳過）",
+            )
         )
 
 
@@ -163,7 +192,12 @@ def _plan(
 
     excluded = web_exclusions(atlas, Path(a.folder))
     if excluded:
-        log(f"{len(excluded)} image(s) you excluded in the web app go to _excluded")
+        log(
+            tr(
+                f"{len(excluded)} image(s) you excluded in the web app go to _excluded",
+                f"{len(excluded)} 張你在網頁介面排除的圖會放到 _excluded",
+            )
+        )
     outliers = None
     if a.drop_outliers:  # the N most atypical among the images not already excluded
         skip = set(excluded)
@@ -186,7 +220,12 @@ def _plan(
     )
     trimmed = sum(f == "_trimmed" for f in folders)
     if trimmed:
-        log(f"{trimmed} image(s) beyond {a.max_per_group} per group go to _trimmed")
+        log(
+            tr(
+                f"{trimmed} image(s) beyond {a.max_per_group} per group go to _trimmed",
+                f"每群超過 {a.max_per_group} 張的 {trimmed} 張放到 _trimmed",
+            )
+        )
     _note_lost_groups(result, folders)
     return folders, tag_summary(atlas.paths, result)
 
@@ -216,6 +255,11 @@ def _when(pos: np.ndarray | None, members: list[int]) -> str:
     return f"  when {med:4.0%} [{q1:.0%}-{q3:.0%}]"
 
 
+CONSISTENCY_WORDS_ZH = {
+    "tight": "很一致",
+    "like one artist": "在一位畫師的正常範圍內；兩三位畫師混在一起也常落在這裡",
+    "mixed": "多半混了不同畫風或時期；下面的分群把它分開",
+}
 CONSISTENCY_WORDS = {
     "tight": "very consistent",
     "like one artist": (
@@ -231,8 +275,13 @@ def _log_consistency(atlas: Atlas) -> None:
     c = consistency(atlas.style)
     if c is not None:
         log(
-            f"style consistency: spread {c.spread:.3f}, more spread than {c.percentile:.0f}% of "
-            f"single artists ({CONSISTENCY_WORDS[c.verdict]})"
+            tr(
+                f"style consistency: spread {c.spread:.3f}, more spread than {c.percentile:.0f}% "
+                "of "
+                f"single artists ({CONSISTENCY_WORDS[c.verdict]})",
+                f"畫風一致性：分散度 {c.spread:.3f}，比 {c.percentile:.0f}% 的單一畫師分散"
+                f"（{CONSISTENCY_WORDS_ZH[c.verdict]}）",
+            )
         )
 
 
@@ -243,7 +292,12 @@ def _print_groups(
 
     pos = _timeline(atlas, time_source)
     if pos is not None:
-        log("when = position in the folder's timeline (0% oldest): median [middle half]")
+        log(
+            tr(
+                "when = position in the folder's timeline (0% oldest): median [middle half]",
+                "when = 在作品時間軸上的位置（0% 最早）：中位數 [中間一半]",
+            )
+        )
 
     def by_style(item: tuple[str, int]) -> tuple[bool, str]:  # 2_x_style01 before 25_x_style11
         head, _, rest = item[0].partition("_")
@@ -256,14 +310,22 @@ def _print_groups(
             continue
         cid = int(result.labels[members[0]])
         top = ", ".join(r["tag"] for r in tags.get(cid, [])[:5]) if cid >= 0 else ""
-        few = "  (few images)" if n < FEW_FOR_LORA else ""
+        few = tr("  (few images)", "  （張數少）") if n < FEW_FOR_LORA else ""
         look = ""
         if atlas.looks is not None:
-            look = f"  [{describe(profile(atlas.looks, members)) or 'average look'}]"
+            words = describe(profile(atlas.looks, members), "zh" if chinese() else "en")
+            look = f"  [{words or tr('average look', '外觀平均')}]"
         log(f"  {folder:28s} {n:5d}{few}{_when(pos, members)}{look}  {top}")
     small = [f for f, n in Counter(folders).items() if not f.startswith("_") and n < FEW_FOR_LORA]
     if small:
         log(
-            f"note: {len(small)} group(s) have fewer than {FEW_FOR_LORA} images; common advice is "
-            "8-15+ per style LoRA, so consider merging them (web app) or a coarser --granularity"
+            tr(
+                f"note: {len(small)} group(s) have fewer than {FEW_FOR_LORA} images; common "
+                "advice is "
+                "8-15+ per style LoRA, so consider merging them (web app) or a coarser "
+                "--granularity",
+                f"注意：{len(small)} 群少於 {FEW_FOR_LORA} 張；"
+                "一般建議每個畫風 LoRA 至少 8～15 張，"
+                "可以在網頁介面合併，或用較粗的 --granularity",
+            )
         )

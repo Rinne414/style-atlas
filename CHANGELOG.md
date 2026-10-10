@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **Command output in Chinese.** On a Chinese Windows (or a `zh` locale) the main messages of
+  `cluster`, `sort`, `report` and the embedding progress are in Traditional Chinese, with the
+  look words the web page uses ("偏亮、線條多"); `STYLE_ATLAS_LANG=en` or `zh` chooses. More
+  technical output (audit keys, errors) stays English and is explained in LORA_GUIDE section 7.
 - **LoRA render check in the report.** `style-atlas report TRAIN --renders RENDERS` adds a section
   that checks a LoRA's test images against its training set: the style distance and verdict (as
   `compare`), how many renders fall inside a training style group (the rule `sort` uses, with

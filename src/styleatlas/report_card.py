@@ -22,7 +22,7 @@ from styleatlas.cluster import Clustering, batch_verdict, keep_rows
 from styleatlas.consistency import consistency
 from styleatlas.dataset import distinctive_tags, tag_summary
 from styleatlas.images import cached_thumbnail
-from styleatlas.look import LOOK_NAMES, NOTABLE, profile
+from styleatlas.look import LOOK_NAMES, NOTABLE, WORDS_ZH, profile
 from styleatlas.metrics import centroid
 from styleatlas.render_check import RenderCheck, check_renders
 
@@ -138,17 +138,7 @@ LOOK_WORDS = {  # next to the reference artists: (above the middle, below it)
         "flatness": ("flatter colour", "more texture"),
     },
 }
-GROUP_WORDS = {  # one group next to the whole folder, worded as on the web page
-    "zh": {
-        "brightness": ("偏亮", "偏暗"),
-        "contrast": ("對比強", "對比弱"),
-        "colourfulness": ("色彩鮮豔", "色彩淡"),
-        "warmth": ("偏暖", "偏冷"),
-        "lines": ("線條多", "線條少"),
-        "flatness": ("色塊平", "質感多"),
-    },
-    "en": LOOK_WORDS["en"],
-}
+GROUP_WORDS = {"zh": WORDS_ZH, "en": LOOK_WORDS["en"]}  # a group next to the whole folder
 
 
 @lru_cache(maxsize=1)

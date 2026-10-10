@@ -477,3 +477,16 @@ def test_render_check_without_any_training_group_of_three(lib, tmp_path):
     args = ["report", str(small), "-o", str(out), "--renders", str(lib / "green"), "--lang", "en"]
     assert main([*args, "--device", "cpu"]) == 0  # was a ZeroDivisionError
     assert "no style group of 3 images or more" in out.read_text(encoding="utf-8")
+
+
+def test_messages_are_in_chinese_when_asked(lib, tmp_path, monkeypatch, capsys):
+    from styleatlas.lang import chinese
+
+    monkeypatch.setenv("STYLE_ATLAS_LANG", "zh")
+    assert chinese()
+    base = ["cluster", str(lib), "--device", "cpu", "--no-map", "-o", str(tmp_path / "o")]
+    assert main(base) == 0
+    err = capsys.readouterr().err
+    assert "群，" in err and "張未分群" in err and "上面的資料夾名稱只是規劃" in err
+    monkeypatch.setenv("STYLE_ATLAS_LANG", "en")
+    assert not chinese()
