@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.38.0 - 2026-10-10
 
 - **Web app: put unassigned images in their closest style.** New images added to a folder start
   as unassigned; a button on the Unassigned row now moves each one that fits its closest style
