@@ -577,3 +577,15 @@ def test_two_groups_compared(server, tmp_path):
     status, data = request(port, "POST", "/api/compare", json.dumps({"a": 0, "b": 1}), hdr)
     assert status == 200 and "distance" in json.loads(data)
     assert request(port, "POST", "/api/compare", json.dumps({"a": 0, "b": 0}), hdr)[0] == 400
+
+
+def test_the_check_tab_lists_problems_by_index(tmp_path):
+    app, _ = _app(tmp_path, (8, 7))  # 16 px pictures, no captions
+    (tmp_path / "img0.txt").write_text("1girl, solo", encoding="utf-8")
+    (tmp_path / "img1.txt").write_text("", encoding="utf-8")
+    got = app.check({"min_side": 512})
+    assert got["min_side"] == 512 and len(got["issues"]["smaller_than_min_side"]) == 15
+    assert got["issues"]["empty_caption"] == [1] and 0 not in got["issues"]["no_caption"]
+    for bad in (10, 100000, "512", True):
+        with pytest.raises(ValueError):
+            app.check({"min_side": bad})

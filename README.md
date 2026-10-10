@@ -74,7 +74,7 @@ pip install -e ".[umap]"
 style-atlas audit "D:\lora\artistX" --min-side 768
 ```
 
-**2. 在網頁介面先看一遍**：哪些是重複圖（「重複」分頁）、哪些不合群（「離群」分頁）、分群是否合理。不要的圖按 X 排除。
+**2. 在網頁介面先看一遍**：哪些是重複圖（「重複」分頁）、哪些不合群（「檢查」分頁）、分群是否合理。不要的圖按 X 排除。步驟 1 的檢查也可以在網頁做：「檢查」分頁按「開始檢查」。
 
 ```bat
 style-atlas serve "D:\lora\artistX" --time name
@@ -119,7 +119,7 @@ dataset_config.toml   ← kohya sd-scripts 的資料集設定（`--dataset_confi
 **要把同一位畫師的作品分成不同時期**：
 - 用 `--granularity period`，並加上 `--time name` 看時間分佈。網頁介面則選「時期（單一畫師）」並填段數。
 - 會分成 3 段（`--k 4` 改段數；3 段只是慣例），幾乎每張圖都會分進其中一段。
-- 草稿、截圖這類不合群的圖也會被分進去，請搭配 `--drop-outliers 5`（或網頁「離群」分頁按 X 排除）。
+- 草稿、截圖這類不合群的圖也會被分進去，請搭配 `--drop-outliers 5`（或在網頁「檢查」分頁按 X 排除）。
 - 少於約 100 張時，分段界線不太穩定，請在網頁上確認。
 
 **其他分群方式**：
@@ -177,7 +177,7 @@ style-atlas taste score "D:\new_batch" --model "D:\my_taste.npz"
 
 - 縮圖浮在 3D 空間中，外框顏色代表畫風群，群名浮在每群中央（右上角「群名」可關掉；最多顯示最大的 16 群）。可以拖曳旋轉、滾輪縮放，`+` / `-` 調整縮圖大小。按 `?`（或右上角的 ? 按鈕）會列出所有快捷鍵。
 - 點右側的畫風群，鏡頭會飛過去並列出成員。點地圖上任一張圖，會列出最接近的 12 張。
-- 「離群」「重複」分頁分別列出最不合群的圖和近重複圖組。
+- 「檢查」分頁：按「開始檢查」會列出太小的圖、極端長寬比、混在彩色圖裡的黑白圖、沒有標註或標註是空的圖、動圖（和 `audit` 指令相同，不用打指令）；下面是最不合群的圖。「重複」分頁列出近重複圖組。
 - 右上角可以把「版面」從「畫風相似」切到「量化軸」。切換後，三個軸可以各自選一種指標，縮圖會移動到對應位置。可選的指標有：
   - 口味分數：用網頁介面評過分之後才有。
   - 離參考集距離（原創度）：要先用 `--reference 資料夾` 指定已知的畫風，例如畫師作品或論壇配方。
@@ -191,7 +191,7 @@ style-atlas taste score "D:\new_batch" --model "D:\my_taste.npz"
   - 畫風漸變：選一張圖按「畫風漸變：從這張開始」，再選另一張按「畫風漸變：到這張」，會列出在畫風上從前一張漸變到後一張的一串圖。適合找兩種畫風之間的過渡風格。
   - 調門檻後重新分群、一鍵匯出資料夾。匯出時可以選一般資料夾或 kohya 格式、填概念名稱、勾選「標註加觸發詞」。
   - 按「匯出時排除」（鍵盤 X）手動剔除不要的圖，清單會存檔，匯出時放到 `_excluded\`。
-  - 資料夾裡混了別的畫師的圖時：先把看到的兩三張按 X 排除，再到「離群」分頁的排除清單按「找更多像這些的」，其餘的通常都會排在最前面（實測：3 張當範例時，前 30 名找回 98%）。
+  - 資料夾裡混了別的畫師的圖時：先把看到的兩三張按 X 排除，再到「檢查」分頁的排除清單按「找更多像這些的」，其餘的通常都會排在最前面（實測：3 張當範例時，前 30 名找回 98%）。
   - 手動修正分群，修正會反映在之後的匯出：
     - 選取一張圖，用「移到其他群…」把它改放到別群；
     - 打開一個群，用「把這群合併到…」併進另一群，或按「拆成兩群」。
@@ -293,8 +293,8 @@ how a picture is drawn rather than what it shows. On top of those vectors it can
 - **Explore a 3D style map** (`map`, or "Save shareable map" in the web app): one HTML file you
   can send to anyone. Group names float at each group's centre ("Names" hides them), and groups
   show their characteristic caption tags.
-- **Check a dataset** (`audit`, `duplicates`): sizes, aspect ratios, captions, near-duplicates,
-  greyscale images mixed into a colour set.
+- **Check a dataset** (`audit`, `duplicates`, or the web app's Check tab): sizes, aspect ratios,
+  captions, near-duplicates, greyscale images mixed into a colour set.
 - **Fix groups by hand** in the web app: "Find more like this" lists the images outside a group
   that look most like it; move an image to another group, merge two groups,
   split a group in two, or exclude images (X), which are then exported to `_excluded/`.

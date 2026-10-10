@@ -5,7 +5,7 @@ const DATA = JSON.parse(document.getElementById("atlas-data").textContent);
 const PTS = DATA.points;
 const N = PTS.length;
 const T = {
-  en: { images: "images", clusters: "Styles", selected: "Selected", outliers: "Outliers",
+  en: { images: "images", clusters: "Styles", selected: "Selected", outliers: "Check",
     find: "filter by file name", thumbs: "Thumbnails", dots: "Dots", spin: "Rotate", home: "Reset", names: "Names",
     unassigned: "Unassigned", style: "Style", size: "images", cohesion: "spread",
     pick: "Click an image in the map to see its closest styles.", nearest: "Closest styles",
@@ -28,6 +28,12 @@ const T = {
     exclude: "Exclude from export (X)", included: "Excluded - undo (X)",
     excludedList: "Excluded by you ({n}) - exported to _excluded",
     compareWith: "Compare with…", compareTitle: "{a} compared with {b}",
+    checkTitle: "Dataset check", minSide: "short side < {n} px", checkRun: "Check", checking: "checking…",
+    checkClean: "No problems found.", checkAll: "all {n} images", outliersTitle: "Least like the rest",
+    chk_smaller_than_min_side: "Short side under {n} px", chk_extreme_aspect_ratio: "Extreme aspect ratio",
+    chk_greyscale_in_colour_set: "Greyscale in a colour set (sketches, comic pages?)",
+    chk_no_caption: "No caption file", chk_empty_caption: "Empty caption",
+    chk_animated: "Animated (only the first frame is used)", chk_truncated: "Truncated file",
     cmpDistance: "Style distance", cmpP: "Chance that the difference is noise",
     cmpLook: "How {b} looks next to {a}", cmpLookSame: "about the same look",
     v_same: "same style", v_related: "related", v_different: "clearly different",
@@ -56,7 +62,7 @@ const T = {
     tasteHelp: "Rate images with Like / Dislike (select one on the map, then press L or D). After {n} of each, a model learns your taste from the style vectors and ranks the unrated images.",
     tasteCount: "liked {a} · disliked {b}", tasteAuc: "cross-validated AUC {x} (0.5 = guessing). Treat it as a rough filter: it separates liked from disliked, not good from better.",
     tasteTop: "Most likely to like (unrated)", tasteBottom: "Least likely (unrated)", fine: "fine", medium: "medium", coarse: "coarse", auto: "auto (picked from the images)", foot: "Style vectors: CSD ViT-L (Somepalli et al. 2024, CC-BY-4.0). Map layout is for viewing only; groups are computed in the full space." },
-  zh: { images: "張圖", clusters: "畫風群", selected: "選取", outliers: "離群",
+  zh: { images: "張圖", clusters: "畫風群", selected: "選取", outliers: "檢查",
     find: "以檔名篩選", thumbs: "縮圖", dots: "圓點", spin: "旋轉", home: "重置", names: "群名",
     unassigned: "未歸類", style: "畫風", size: "張", cohesion: "分散度",
     pick: "在地圖上點一張圖，看最接近的畫風。", nearest: "最接近的畫風", members: "成員",
@@ -79,6 +85,12 @@ const T = {
     exclude: "匯出時排除 (X)", included: "已排除，取消 (X)",
     excludedList: "你排除的圖（{n}）：匯出時放到 _excluded",
     compareWith: "和…比較", compareTitle: "{a} 和 {b} 比較",
+    checkTitle: "資料集檢查", minSide: "短邊 < {n} px", checkRun: "開始檢查", checking: "檢查中…",
+    checkClean: "沒有發現問題。", checkAll: "全部 {n} 張", outliersTitle: "最不合群的圖",
+    chk_smaller_than_min_side: "短邊小於 {n} px", chk_extreme_aspect_ratio: "長寬比極端",
+    chk_greyscale_in_colour_set: "混在彩色圖裡的黑白圖（草稿、漫畫頁？）",
+    chk_no_caption: "沒有標註檔", chk_empty_caption: "標註是空的",
+    chk_animated: "動圖（只看第一格）", chk_truncated: "檔案不完整",
     cmpDistance: "畫風距離", cmpP: "差異只是雜訊的機率",
     cmpLook: "{b} 和 {a} 相比的外觀", cmpLookSame: "外觀差不多",
     v_same: "同一畫風", v_related: "相近", v_different: "明顯不同",
@@ -487,12 +499,56 @@ function buildClusters() {
   }
 }
 
+const CHECK_KEYS = ["smaller_than_min_side", "greyscale_in_colour_set", "extreme_aspect_ratio",
+  "no_caption", "empty_caption", "animated", "truncated"];
+let CHECK = null;  // the last dataset check (live app only)
+
+function checkSection() {
+  const box = document.createElement("div");
+  const h = document.createElement("h3"); h.textContent = t("checkTitle");
+  const side = document.createElement("select");
+  [512, 768, 1024].forEach((n) => {
+    const o = document.createElement("option"); o.value = String(n); o.textContent = t("minSide").replace("{n}", n); side.append(o);
+  });
+  if (CHECK) side.value = String(CHECK.min_side);
+  const run = document.createElement("button"); run.textContent = t("checkRun"); run.style.marginLeft = "6px";
+  run.addEventListener("click", () => runCheck(parseInt(side.value, 10)));
+  box.append(h, side, run);
+  if (!CHECK) return box;
+  const found = CHECK_KEYS.filter((k) => (CHECK.issues[k] || []).length);
+  if (!found.length) {
+    const ok = document.createElement("div"); ok.className = "kv"; ok.textContent = t("checkClean"); box.append(ok);
+  }
+  found.forEach((k) => {
+    const list = CHECK.issues[k];
+    const sub = document.createElement("div"); sub.className = "meta";
+    const many = list.length > 0.9 * N;  // e.g. a folder without any captions: say so, no grid
+    sub.textContent = `${t("chk_" + k).replace("{n}", CHECK.min_side)}: ${many ? t("checkAll").replace("{n}", list.length) : list.length}`;
+    box.append(sub);
+    if (!many) {
+      const g = document.createElement("div"); g.className = "grid"; list.slice(0, 60).forEach((i) => g.append(thumb(i)));
+      box.append(g);
+    }
+  });
+  return box;
+}
+
+async function runCheck(minSide) {
+  setStatus(t("checking"));
+  try {
+    CHECK = await post("api/check", JSON.stringify({ min_side: minSide }), "application/json");
+    setStatus(""); buildOutliers();
+  } catch (e) { setStatus(String(e.message || e)); }
+}
+
 function buildOutliers() {
   const pane = $("pane-outliers"); pane.replaceChildren();
+  if (DATA.live) pane.append(checkSection());
+  const oh = document.createElement("h3"); oh.textContent = t("outliersTitle");
   const help = document.createElement("div"); help.className = "kv"; help.textContent = t("outlierHelp");
   const g = document.createElement("div"); g.className = "grid";
   [...PTS.keys()].sort((a, b) => PTS[b].o - PTS[a].o).slice(0, 60).forEach((i) => g.append(thumb(i)));
-  pane.append(help, g);
+  pane.append(oh, help, g);
   if (DATA.live && EXCLUDED.size) {
     const h = document.createElement("h3"); h.textContent = t("excludedList").replace("{n}", EXCLUDED.size);
     const eg = document.createElement("div"); eg.className = "grid";

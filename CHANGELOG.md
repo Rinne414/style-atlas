@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **Check tab** in the web app (the Outliers tab, renamed): "Check" runs the dataset audit of
+  `audit` and lists small, extreme, animated and truncated images, missing or empty captions and
+  greyscale images in a colour set, with thumbnails to exclude (X). With this, the whole LoRA
+  preparation can be done in the browser.
 - **Compare with…** on an open group in the web app: style distance, z and verdict, a
   permutation p-value, and how the other group looks next to this one, as `compare` does for
   two folders.

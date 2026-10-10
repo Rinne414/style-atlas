@@ -26,6 +26,9 @@
    a cross-role protocol. It would be the strongest public test of "style, not character". Access
    needs a signed release agreement e-mailed to the authors, so only the owner can request it:
    https://github.com/nkjcqvcpi/ASR
+7. **GPU run.** The development machine has an RTX 3090 and `setup.bat` installs CUDA torch there,
+   but no embedding has run on the GPU: the machine has hard-reset under load before, so a short
+   GPU test (speed, fp16) waits for the owner's go-ahead.
 
 ## Known limits, measured
 
@@ -41,7 +44,11 @@ All of these are in `docs/BENCHMARKS.md`.
   (or `--neutralize 1`) fixes much of this for collections where the same characters recur, but
   must not be used on mixed artists. A character the folder never showed gets a wrong offset.
 - **Taste model**: it separates like from dislike (AUC about 0.77 on one person's votes). It does
-  not rank degrees of liking, and it may fail on a new generator.
+  not rank degrees of liking, and it may fail on a new generator. The look measures add nothing
+  to it (AUC 0.53 alone).
+- **Strays by another artist** in one artist's folder: neither the grouping nor the outlier
+  scores find them reliably (about half). From two or three that the user excludes, "Find more
+  like these" lists the rest first (98% in the top 30).
 
 ## Ideas not done yet
 

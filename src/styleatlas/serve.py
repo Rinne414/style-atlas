@@ -33,6 +33,7 @@ from styleatlas.cluster import (
 )
 from styleatlas.dataset import (
     LAYOUTS,
+    audit,
     clean_group_name,
     distinctive_tags,
     is_unassigned,
@@ -71,6 +72,7 @@ UNDO_STEPS = 30
 EXPORT_MIN_GROUP = 3  # groups left smaller after set-asides go to _unassigned (as in the CLI)
 MAX_SPLIT = 4000  # splitting runs under the lock; larger groups would stall every request
 COMPARE_ROUNDS = 199  # permutations for a group comparison's p-value (resolution 0.005)
+MIN_SIDE_RANGE = (64, 8192)  # the check tab's smallest-side setting
 
 
 class StyleAtlasApp:
@@ -323,6 +325,26 @@ class StyleAtlasApp:
             x = self.atlas.style
         hits = search(x[members], x, top=SEARCH_TOP, combine=True, exclude=set(members))[0]
         return {"hits": [{"i": h.index, "group": int(labels[h.index])} for h in hits]}
+
+    def check(self, body: dict) -> dict:
+        """The dataset audit (`style-atlas audit`) for the images on the map, by index: small,
+        extreme, animated or truncated images, missing or empty captions, and greyscale images in
+        a colour set."""
+        side = body.get("min_side", 512)
+        if type(side) is not int or not MIN_SIDE_RANGE[0] <= side <= MIN_SIDE_RANGE[1]:
+            raise ValueError(
+                f"min_side must be a whole number from {MIN_SIDE_RANGE[0]} to {MIN_SIDE_RANGE[1]}"
+            )
+        with self._lock:
+            paths, looks = list(self.raw.paths), self.raw.looks
+        report = audit(paths, min_side=side, looks=looks)  # file headers only: outside the lock
+        index = {str(p): i for i, p in enumerate(paths)}
+        issues = {
+            key: [index[f] for f in files if f in index]
+            for key, files in report["files"].items()
+            if key != "unreadable"
+        }
+        return {"min_side": side, "issues": issues}
 
     def compare(self, body: dict) -> dict:
         """Two groups side by side, as `style-atlas compare`: centroid distance, its z and verdict
