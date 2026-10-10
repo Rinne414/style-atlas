@@ -305,6 +305,23 @@ the whitened space did worse than the fixed cut on Danbooru. A fixed cut needs c
 kind of collection, so grouping stays in plain space with `auto`. (No setting recovered the Anima
 recipes in either space: the characters dominate, which is what `--neutralize` is for.)
 
+**A cut relative to the folder (2026-10-10, tried and not used).** Same folds, cut = r x the
+folder's median whitened hub distance:
+
+| Artists | 2 | 5 | 20 | 50 |
+|---|---|---|---|---|
+| Plain, `auto` (the product) | 0.456 | 0.541 | 0.388 | 0.349 |
+| Whitened, cut 0.90 | 0.492 | 0.564 | 0.517 | 0.420 |
+| Whitened, best r for that size | 0.692 (r 1.0) | 0.588 (0.95) | 0.526 (0.90) | 0.423 (0.90) |
+| Whitened, r 0.90 for all | 0.300 | 0.530 | 0.526 | 0.423 |
+
+The best r moves with the number of artists and its peak is narrow, so no single r carries
+across folders; the folder's median distance itself grows with the number of artists (0.956 at
+2, 0.993 at 50). On the Anima renders (median 0.57-0.62) no r recovered the recipes either
+(ARI at most 0.11). Grouping stays in plain space with `auto`: the whitened gain is real only
+for folders of 20 or more artists, and whitening turns down the within-artist variation that
+splitting one artist depends on.
+
 ### Single-image distances (the Style Gate's scale)
 
 Danbooru, deduplicated: plain CSD distance (1 - cosine) between single images.
