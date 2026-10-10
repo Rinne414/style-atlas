@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+- **Look measures**: six readable image statistics per image (brightness, contrast,
+  colourfulness, warmth, lines, flatness) that say *how* styles differ. Each image is measured
+  once and cached, and images embedded from now on are measured while they are open.
+  - Web app: words on every group card ("cooler, more line work") and six new axes in the
+    "measures" layout.
+  - `clusters.csv` gets a column per measure; `clusters.json` a per-group profile and words;
+    `cluster` prints the words per group; `compare` reports B minus A in pooled SDs.
+  - Chosen on 3,259 Danbooru works by 306 artists: 13-40% of each measure's spread is between
+    artists; three candidates were dropped as near-duplicates of the others (BENCHMARKS.md).
+
 ## 0.14.0 - 2026-10-10
 
 - **`--ignore-characters`** (cluster, map, serve, search): finds the characters from the CSD

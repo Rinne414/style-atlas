@@ -154,6 +154,8 @@ style-atlas taste score "D:\new_batch" --model "D:\lora\artistX_style_atlas\tast
   - 離參考集距離（原創度）：要先用 `--reference 資料夾` 指定已知的畫風，例如畫師作品或論壇配方。
   - 時間。
   - 離群度。
+  - 外觀量測：亮度、對比、鮮豔度、冷暖、線條量、平塗度（見下一節）。例如 X 選冷暖、Y 選線條量、Z 選鮮豔度，就能看到整個資料夾在這三個面向上怎麼分布。
+- 右側每個畫風群的卡片下方，會用一句話說明這群和整個資料夾相比的外觀差異，例如「偏冷、線條多、色彩鮮豔」。
 - 只有網頁介面才有的功能：
   - 拖一張圖進畫面就能以圖搜尋。一次拖多張同一種畫風的圖，會當成同一種畫風一起搜尋（3 張以上時用它們訓練的小模型排序）。
   - 畫風漸變：選一張圖按「畫風漸變：從這張開始」，再選另一張按「畫風漸變：到這張」，會列出在畫風上從前一張漸變到後一張的一串圖。適合找兩種畫風之間的過渡風格。
@@ -173,6 +175,24 @@ style-atlas taste score "D:\new_batch" --model "D:\lora\artistX_style_atlas\tast
 - 網頁介面的「存成分享用地圖」會把目前的分群、手動調整與名稱存成同一種單一 HTML 檔（在 `<資料夾>_style_atlas\map.html`）。
 - `map` 產生的是單一 HTML 檔，three.js 和縮圖都已內嵌，離線也能開。**分享地圖等於分享這些縮圖。**
 - `serve` 只監聽本機 127.0.0.1，會檢查 Host 標頭，也只提供掃描過的檔案，不會把你的資料夾開放到網路上。
+
+### 外觀量測：畫風「哪裡不同」
+
+CSD 向量只告訴你兩種畫風差多遠，沒說差在哪裡。所以每張圖另外算 6 個看得懂的影像統計（縮到長邊 256 px 後計算）：
+
+| 量測 | 意思 |
+|---|---|
+| 亮度 | 整體明暗（0 全黑到 1 全白） |
+| 對比 | 明暗差異的大小 |
+| 鮮豔度 | 色彩飽和程度（Hasler & Süsstrunk 2003）；0 是黑白，約 0.4 是霓虹色 |
+| 冷暖 | 紅減藍的平均；負的偏冷、正的偏暖 |
+| 線條量 | 落在明顯明暗邊緣上的像素比例（線稿、排線、細紋理） |
+| 平塗度 | 落在平坦區域的像素比例（賽璐璐平塗、素色背景） |
+
+- 用在哪裡：網頁的群卡片文字和「量化軸」、`clusters.csv`（每張圖一欄一個量測）、`clusters.json`（每群和整個資料夾相比的差異與文字）、`compare`（B 減 A，單位是兩組合併的標準差）。
+- 每張圖只算一次，結果存在快取裡；之後新嵌入的圖在嵌入時順便算，不必再讀一次檔。舊版就嵌入過的圖，第一次會花一點時間補算。
+- 單張圖的數值雜訊大，請比較**群的平均**。在 306 位畫師、3,259 張 Danbooru 作品上，各量測有 13～40% 的差異來自「畫師不同」（線條量 0.40、平塗度 0.37、鮮豔度 0.32、亮度 0.32、對比 0.26、冷暖 0.13），其餘來自同一畫師的不同作品（場景、構圖）。冷暖最受場景影響。
+- 這些是影像統計，不是美感分數：「線條多」不代表比較好。
 
 ### ComfyUI 節點
 
@@ -215,7 +235,7 @@ Style Gate 的預設門檻是 0.5。在 Danbooru 上，單張圖之間的距離�
 2. **單張圖之間的距離雜訊很大**。比較兩種畫風時，應該用多張圖的平均來比（`compare`），並用同一畫風內部的雜訊當尺度（`calibrate`）。
 3. **公開的美學評分模型不等於個人口味**。在一位使用者的實際選擇上，7 個現成評分器的準確率都只有 36–52%，和亂猜差不多。用他自己的喜歡／不喜歡訓練的小模型，交叉驗證 AUC 是 0.76。所以本工具只提供**個人**口味模型，不內建通用美學分數。
 4. **口味模型只適合粗篩**。它分得出喜歡和不喜歡，但分不出「好」和「更好」，換了新的生成來源也可能失準。
-5. **CSD 的 content 向量幾乎和 style 向量一樣**，兩者的配對相似度相關係數是 0.95。把內容成分扣掉並不會讓分群變好，所以 content 向量只拿來判斷近重複。
+5. **CSD 的 content 向量幾乎和 style 向量一樣**，兩者的配對相似度相關係數是 0.95。把內容成分扣掉並不會讓分群變好，所以 content 向量只拿來判斷近重複，以及在 `--ignore-characters` 時找出角色（用它分群可以正確找出固定角色）。
 
 ### 授權與致謝
 
@@ -348,7 +368,8 @@ Common options:
 - `--resolution 224|336`: 336 is about 1 point better at retrieval and 2.5x slower.
 - `--reference DIR` (cluster, map, serve): a folder of styles you already know. It adds an
   originality measure, the distance from each image to its closest reference. The map's
-  "measures" layout can then put taste, originality, time and atypicality on the X / Y / Z axes.
+  "measures" layout can then put taste, originality, time and atypicality on the X / Y / Z axes,
+  along with the six look measures (see "Look measures" below).
 - `--ignore-characters` (cluster, map, serve, search): use it when the same characters appear in
   many styles. It finds the characters from the CSD content vectors (no labels needed) and moves
   each character's style vectors to a shared centre. On 16 Anima recipes x 4 characters,
@@ -396,6 +417,22 @@ Common options:
   computed in the full space.
 - **Taste**: PCA-20, then standardisation, then logistic regression. It is saved as plain `.npz`
   with no pickle.
+- **Look measures**: six image statistics that say *how* styles differ, computed on a copy whose
+  long side is 256 px:
+  - brightness (mean luma);
+  - contrast (luma standard deviation);
+  - colourfulness (Hasler and Suesstrunk 2003; 0 greyscale, about 0.4 neon);
+  - warmth (mean red minus mean blue);
+  - lines (share of pixels on a strong luma edge);
+  - flatness (share of pixels in flat areas).
+
+  Each image is measured once and cached; images embedded from 0.15 on are measured while they
+  are open for embedding. They appear as words on each group card ("cooler, more line work"),
+  as axes of the map's "measures" layout, as columns in `clusters.csv`, as a per-group profile
+  in `clusters.json`, and as B minus A in `compare`. A single image is noisy: on 3,259 Danbooru
+  works by 306 artists, 13-40% of each measure's spread was between artists (lines 0.40,
+  flatness 0.37, colourfulness 0.32, brightness 0.32, contrast 0.26, warmth 0.13), so compare
+  group means. They describe; they do not judge quality.
 
 ### Accuracy and limits
 

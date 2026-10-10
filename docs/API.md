@@ -59,6 +59,19 @@ from styleatlas.report import write_map
 write_map(atlas, groups, Path("map.html"), time_source="name")
 ```
 
+## Look measures
+
+```python
+from styleatlas.atlas import EncodeOptions, measure_looks
+from styleatlas.look import LOOK_NAMES, describe, difference, measure, profile
+
+looks = measure_looks(paths, EncodeOptions())   # (n, 6), cached; LOOK_NAMES order
+z = profile(looks, member_indices)              # a group against the whole set, in SDs
+describe(z)                                     # "cooler, more line work" ("" if nothing stands out)
+difference(looks_a, looks_b)                    # B minus A in pooled SDs
+measure(pil_image)                              # one image, no cache
+```
+
 ## The search space
 
 `styleatlas.whiten.whiten(vectors)` maps CSD vectors into the space search ranks in (learned from

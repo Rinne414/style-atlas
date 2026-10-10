@@ -498,6 +498,43 @@ of recipes.
     unchanged (74%). The gain was one query in 32 for each held-out character, within noise, so
     it was not adopted.
 
+## Readable look measures (2026-10-10)
+
+`look.py` computes six image statistics per image on a copy whose long side is 256 px. The
+question was which ones carry style, and which are redundant.
+
+**Data**: 3,259 Danbooru works by 306 artists (about 11 each). ICC(1) is the share of a
+measure's variance that lies between artists: 0 means the artist does not matter, 1 means every
+work of an artist has the same value.
+
+| Measure | ICC | Kept |
+|---|---|---|
+| detail (mean absolute Laplacian) | 0.417 | no: r = 0.97 with lines |
+| **lines** (share of pixels with luma gradient > 0.12) | **0.402** | yes |
+| palette (log of colours covering 90% of pixels) | 0.376 | no: r = 0.72 with colourfulness, -0.58 with flatness |
+| dark lines (lines below median luma) | 0.369 | no: r = 0.80 with lines |
+| **flatness** (share of pixels with luma gradient < 0.01) | **0.367** | yes |
+| **colourfulness** (Hasler and Suesstrunk 2003) | **0.321** | yes |
+| **brightness** (mean luma) | **0.320** | yes |
+| **contrast** (luma standard deviation) | **0.263** | yes |
+| **warmth** (mean red minus mean blue) | **0.133** | yes: scene-dependent, but it is what people ask about |
+
+Among the six kept, the largest correlation is lines vs flatness (-0.51). The rest are below
+0.4 in absolute value.
+
+**Visual check** on 192 NovelAI renders: the five lowest and five highest images of each
+measure were put side by side.
+- lines: soft painting vs heavy line art and sketches;
+- flatness: busy textured scenes vs flat colour and plain backgrounds;
+- colourfulness: greyscale vs neon;
+- warmth: blue night scenes vs red and orange light.
+
+Each matched its name.
+
+**What it means for use**: a single image is noisy (most of the spread is within one artist:
+scene, lighting, composition). Group means are what the product shows: the group cards, the
+`clusters.json` profile and `compare` all compare means.
+
 ## Near-duplicate threshold (2026-10-09)
 
 Pairs were checked by eye at each score of min(style cos, content cos):
