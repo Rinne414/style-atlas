@@ -21,7 +21,7 @@ from pathlib import Path
 
 from styleatlas.atlas import Atlas
 from styleatlas.cluster import Clustering
-from styleatlas.dataset import plan_folders
+from styleatlas.dataset import norm_tag, plan_folders
 from styleatlas.look import LOOK_NAMES, describe, profile
 from styleatlas.report import cluster_table
 
@@ -143,11 +143,6 @@ def trigger_of(folder: str, layout: str = "plain") -> str | None:
     if layout == "kohya":
         return folder.partition("_")[2] or folder
     return folder
-
-
-def norm_tag(tag: str) -> str:
-    """Tags compare without case, and with spaces and underscores alike."""
-    return " ".join(tag.lower().replace("_", " ").split())
 
 
 def parse_tags(text: str) -> frozenset[str]:

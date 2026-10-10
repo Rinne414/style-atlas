@@ -407,7 +407,7 @@ function buildClusters() {
 
 const CHECK_KEYS = ["smaller_than_min_side", "soft_or_enlarged", "low_jpeg_quality",
   "greyscale_in_colour_set", "extreme_aspect_ratio",
-  "no_caption", "empty_caption", "animated", "truncated", "unreadable"];
+  "watermark_or_signature", "no_caption", "empty_caption", "animated", "truncated", "unreadable"];
 let CHECK = null;  // the last dataset check (live app only)
 
 function checkSection() {

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 from PIL import Image
 
@@ -67,6 +69,8 @@ def test_tag_summary_finds_distinctive_tags(tmp_path):
 
 def test_audit_flags_problems(tmp_path):
     _img(tmp_path / "ok.png", (768, 768)).with_suffix(".txt").write_text("1girl")
+    marked = _img(tmp_path / "marked.png", (768, 768)).with_suffix(".txt")
+    marked.write_text("1girl, Artist_Name, smile", encoding="utf-8")
     _img(tmp_path / "small.png", (300, 300))
     _img(tmp_path / "strip.png", (2000, 600)).with_suffix(".txt").write_text("")
     (tmp_path / "broken.png").write_bytes(b"not an image")
@@ -75,7 +79,8 @@ def test_audit_flags_problems(tmp_path):
     paths = sorted(tmp_path.glob("*.png"))
     report = audit(paths, min_side=512)
     s = report["summary"]
-    assert s["images"] == 5 and s["unreadable"] == 1 and s["truncated"] == 1
+    assert s["images"] == 6 and s["unreadable"] == 1 and s["truncated"] == 1
+    assert [Path(f).name for f in report["files"]["watermark_or_signature"]] == ["marked.png"]
     assert s["smaller_than_min_side"] == 2 and s["extreme_aspect_ratio"] == 1
     assert s["no_caption"] == 2 and s["empty_caption"] == 1
     assert np.isclose(s["short_side_median"], 600)

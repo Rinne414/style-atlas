@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **Check: watermarks and signatures.** Images whose caption has a tag such as `watermark`,
+  `signature`, `artist name` or `web address` (Danbooru and WD14 tags) are listed: a LoRA
+  learns the mark along with the style.
 - **Which artist does this look like?** `search --by-folder` ranks the sub-folders of `--in`
   (one per artist or style) by their mean style and names each one's closest image. On 284
   Danbooru artists, the right one came first for 74.8% of held-out works, against 63.4% for the

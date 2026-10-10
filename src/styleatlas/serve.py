@@ -36,6 +36,7 @@ from styleatlas.dataset import (
     clean_group_name,
     distinctive_tags,
     is_unassigned,
+    norm_tag,
     plan_folders,
     read_tags,
     tag_summary,
@@ -43,7 +44,6 @@ from styleatlas.dataset import (
 from styleatlas.export import (
     KOHYA_CONFIG,
     export_folders,
-    norm_tag,
     output_dir,
     parse_tags,
     write_table,

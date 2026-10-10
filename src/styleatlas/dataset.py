@@ -61,6 +61,30 @@ def caption_of(image: Path) -> Path | None:
     return None
 
 
+# Caption tags (Danbooru, WD14) for marks drawn on the image, which a LoRA learns along with
+# the style: crop them out, exclude the image, or keep the tag in the caption.
+MARK_TAGS = frozenset(
+    {
+        "watermark",
+        "sample watermark",
+        "signature",
+        "artist name",
+        "dated",
+        "web address",
+        "twitter username",
+        "patreon username",
+        "pixiv username",
+        "weibo username",
+        "logo",
+    }
+)
+
+
+def norm_tag(tag: str) -> str:
+    """Tags compare without case, and with spaces and underscores alike."""
+    return " ".join(tag.lower().replace("_", " ").split())
+
+
 def read_tags(image: Path) -> list[str]:
     """Comma-separated tags from the caption sidecar (Danbooru / WD14 style), lower-cased."""
     side = caption_of(image)
@@ -302,8 +326,9 @@ def audit(
     looks: np.ndarray | None = None,
 ) -> dict:
     """Problems a trainer would hit: small, extreme, enlarged or heavily compressed images,
-    animations, missing captions, and (given the look measures of `paths`) greyscale images
-    mixed into a colour set. Finding enlarged images decodes every image (in parallel)."""
+    animations, missing captions, captions that mention a watermark or signature, and (given
+    the look measures of `paths`) greyscale images mixed into a colour set. Finding enlarged
+    images decodes every image (in parallel)."""
     report: dict[str, list[str]] = {
         "unreadable": [],
         "truncated": [],
@@ -314,6 +339,7 @@ def audit(
         "animated": [],
         "no_caption": [],
         "empty_caption": [],
+        "watermark_or_signature": [],
         "greyscale_in_colour_set": [],
     }
     sides = []
@@ -336,10 +362,13 @@ def audit(
         if info.frames > 1:
             report["animated"].append(str(p))
         side = caption_of(p)
+        tags = read_tags(p) if side is not None else []
         if side is None:
             report["no_caption"].append(str(p))
-        elif not read_tags(p):
+        elif not tags:
             report["empty_caption"].append(str(p))
+        elif any(norm_tag(t) in MARK_TAGS for t in tags):
+            report["watermark_or_signature"].append(str(p))
     for p, soft in zip(readable, softness_of_files(readable), strict=True):
         if soft is not None and soft < SOFT:
             report["soft_or_enlarged"].append(str(p))
