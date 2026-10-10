@@ -522,9 +522,10 @@ def test_sort_can_add_the_group_trigger_to_placed_captions(lib, tmp_path, monkey
     monkeypatch.setattr(cli_sort, "fit_to_groups", fits_all)
     out = tmp_path / "o"
     args = ["sort", str(new), "--into", str(data), "--by-folder", "-o", str(out)]
-    assert main([*args, "--export", "copy", "--trigger-captions", "--device", "cpu"]) == 0
+    extra = ["--export", "copy", "--trigger-captions", "--strip-tags", "red_tag"]
+    assert main([*args, *extra, "--device", "cpu"]) == 0
     placed = list((out / "sorted").rglob("n.txt"))
     assert len(placed) == 1 and placed[0].parent.name.startswith("10_x_")
     trigger = placed[0].parent.name.partition("_")[2]  # repeats removed: x_red or x_blue
-    assert placed[0].read_text(encoding="utf-8").startswith(f"{trigger}, 1girl")
+    assert placed[0].read_text(encoding="utf-8").strip() == f"{trigger}, 1girl"  # red_tag gone
     assert main([*args, "--trigger-captions", "--device", "cpu"]) == 1  # needs --export

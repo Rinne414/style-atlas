@@ -29,7 +29,7 @@ from styleatlas.cluster import (
 )
 from styleatlas.dataset import auto_repeats, group_labels, is_unassigned
 from styleatlas.duplicates import copies_of
-from styleatlas.export import export_folders, output_dir, write_csv
+from styleatlas.export import export_folders, output_dir, parse_tags, write_csv
 from styleatlas.images import labels_from_folders
 from styleatlas.lang import pad, tr
 
@@ -55,8 +55,8 @@ def cmd_sort(a: argparse.Namespace) -> int:
     new_root, data_root = Path(a.folder).resolve(), Path(a.into).resolve()
     if new_root == data_root:
         raise ValueError("the new images and the dataset are the same folder")
-    if a.trigger_captions and not a.export:
-        raise ValueError("--trigger-captions only applies with --export copy|link")
+    if (a.trigger_captions or a.strip_tags) and not a.export:
+        raise ValueError("--trigger-captions and --strip-tags only apply with --export copy|link")
     out = Path(a.out) if a.out else output_dir(Path(a.folder))
     if any(root.is_relative_to(out.resolve()) for root in (new_root, data_root)):
         raise ValueError("the output folder must not hold the new images or the dataset")
@@ -98,6 +98,7 @@ def cmd_sort(a: argparse.Namespace) -> int:
             mode=a.export,
             trigger_captions=a.trigger_captions,
             layout="kohya" if kohya else "plain",
+            strip_tags=parse_tags(a.strip_tags or ""),
         )
         log(
             tr(
@@ -259,4 +260,9 @@ def sort_args(p: argparse.ArgumentParser) -> None:
         action="store_true",
         help="start each placed caption with its group's trigger, as `cluster --trigger-captions` "
         "does (kohya folders: the name without the repeats)",
+    )
+    p.add_argument(
+        "--strip-tags",
+        metavar="TAGS",
+        help="remove these comma-separated tags from the placed captions, as `cluster` does",
     )

@@ -4,6 +4,7 @@
 
 - `sort --export ... --trigger-captions` starts each placed caption with its group's trigger,
   as `cluster --trigger-captions` did for the dataset (kohya folder names lose their repeats).
+  `--strip-tags` works as in `cluster`.
 - **Readable `compare`.** It prints a short summary (verdict, distance, look change, near-copies)
   in the message language; `--json` keeps every number as before.
 - From a second first-time-user test (Chinese): `duplicates` lists one file per line and is in
