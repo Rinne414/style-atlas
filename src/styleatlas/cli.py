@@ -72,6 +72,14 @@ def cmd_map(a: argparse.Namespace) -> int:
     from styleatlas.report import write_map
 
     atlas = _atlas(a, a.folder).with_looks(_opts(a), log)
+    if a.by_folder:
+        from styleatlas.atlas import folder_atlas
+
+        atlas = folder_atlas(atlas)
+        if len(atlas) < 3:
+            log(f"{a.folder} has {len(atlas)} sub-folders; --by-folder needs at least 3")
+            return 1
+        log(f"{len(atlas)} sub-folders, each shown by its most typical image")
     if len(atlas) > LARGE_MAP:
         log(f"{len(atlas)} images: the HTML file will be large; `style-atlas serve` loads faster")
     result = _cluster(a, atlas)
@@ -392,6 +400,11 @@ def _add_folder_commands(add: Adder) -> None:
     p.add_argument("folder")
     p.add_argument("-o", "--out")
     p.add_argument("--title")
+    p.add_argument(
+        "--by-folder",
+        action="store_true",
+        help="one point per sub-folder (e.g. per artist) at its mean style, grouped into families",
+    )
     _cluster_args(p)
     p = add("serve", cmd_serve, "open the interactive map in the browser with live search")
     p.add_argument("folder")

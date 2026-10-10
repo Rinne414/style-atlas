@@ -87,7 +87,8 @@ def cmd_cluster(a: argparse.Namespace) -> int:
     folders, tags = _plan(a, atlas, result, dups)
     csv_path, json_path = write_table(atlas, result, out, folders, tags)
     log(f"wrote {csv_path} and {json_path}")
-    _log_consistency(atlas)
+    if getattr(a, "fitted_space", None) is None:  # the reference was measured on plain CSD
+        _log_consistency(atlas)
     _print_groups(atlas, result, folders, tags, a.time)
     if a.export:
         _export(a, atlas, folders, out)

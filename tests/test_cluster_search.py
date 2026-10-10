@@ -281,3 +281,14 @@ def test_a_large_library_is_whitened_once_and_kept_read_only():
     np.testing.assert_allclose(whiten(x.copy()), first)
     small = x[:10]
     assert whiten(small) is not whiten(small)  # queries are not kept
+
+
+def test_copies_of_handles_empty_sets_and_one_off_whitening_is_not_kept():
+    from styleatlas.duplicates import copies_of
+    from styleatlas.whiten import CACHE_ROWS, whiten
+
+    x, _ = make_blobs([4])
+    assert copies_of(x, x, x[:0], x[:0]) == [] and copies_of(x[:0], x[:0], x, x) == []
+    assert [(q, i) for q, i, _ in copies_of(x[:2], x[:2], x, x)] == [(0, 0), (1, 1)]
+    big, _ = make_blobs([CACHE_ROWS])
+    assert whiten(big, keep=False) is not whiten(big, keep=False)

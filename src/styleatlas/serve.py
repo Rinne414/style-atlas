@@ -341,8 +341,10 @@ class StyleAtlasApp(GroupEdits):
         """Dropped images that are near-duplicates of one in the folder (the same picture, a
         crop or a recolour; duplicates.py): a LoRA render that repeats a training image, or a
         found image the folder already has. Plain CSD, where that threshold was set."""
+        with self._lock:
+            skip = set(self.excluded)  # not trained on, so not a copy the LoRA could have learned
         found = copies_of(style, content, self.raw.style, self.raw.content)
-        return [{"q": k, "i": i, "score": round(s, 3)} for k, i, s in found]
+        return [{"q": k, "i": i, "score": round(s, 3)} for k, i, s in found if i not in skip]
 
     def closest_folders(self, query: np.ndarray, combine: bool = False) -> list[dict]:
         """The opened folder's sub-folders ranked by style, as `search --by-folder` (the first
@@ -468,7 +470,7 @@ class StyleAtlasApp(GroupEdits):
         with self._lock:
             paths, looks = list(self.raw.paths), self.raw.looks
             kept = [i for i in range(len(paths)) if i not in self.excluded]
-            style = self.atlas.style[kept]
+            style = self.raw.style[kept]  # plain CSD, as the reference was measured
         report = audit(paths, min_side=side, looks=looks)  # decodes every image: outside the lock
         tight = consistency(style)  # of the images not excluded, so a re-check shows the effect
         index = {str(p): i for i, p in enumerate(paths)}

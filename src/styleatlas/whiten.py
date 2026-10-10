@@ -28,17 +28,18 @@ CACHE_ROWS = 1000  # a library this large is kept whitened while it is searched 
 _LAST: list[tuple[np.ndarray, np.ndarray]] = []  # (input, read-only result), by identity
 
 
-def whiten(x: np.ndarray) -> np.ndarray:
+def whiten(x: np.ndarray, keep: bool = True) -> np.ndarray:
     """Unit vectors in the whitened space (same shape as `x`). A large input that is passed
     again as the very same array (never modified in place) gets the same read-only result, so
     the neighbour density computed from it is reused too: a search of a 20,000-image folder
-    took 4.3 s with the density recomputed every time."""
+    took 4.3 s with the density recomputed every time. `keep=False` for one-off arrays, which
+    would otherwise push the searched library out of the cache."""
     for src, out in _LAST:
         if src is x:
             return out
     mean, matrix = _params()
     out = unit((np.asarray(x, dtype=np.float32) - mean) @ matrix)
-    if len(out) >= CACHE_ROWS:
+    if keep and len(out) >= CACHE_ROWS:
         out.flags.writeable = False
         _LAST.append((x, out))
         del _LAST[:-2]

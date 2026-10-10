@@ -12,9 +12,9 @@ import numpy as np
 from PIL import Image
 
 from styleatlas.encoder import CSDEncoder, cache_dir, encoder_signature
-from styleatlas.images import find_images, load_rgb
+from styleatlas.images import find_images, labels_from_folders, load_rgb
 from styleatlas.look import LOOK_NAMES, LOOK_VERSION, measure
-from styleatlas.metrics import StyleSpace
+from styleatlas.metrics import StyleSpace, centroid
 from styleatlas.store import VectorStore
 
 Progress = Callable[[str], None]
@@ -74,6 +74,33 @@ class Atlas:
         if self.looks is not None:
             return self
         return replace(self, looks=measure_looks(self.paths, opts, progress))
+
+
+def folder_atlas(atlas: Atlas) -> Atlas:
+    """One point per first-level sub-folder (an artist, a style): the folder's mean style,
+    shown by its most typical image (the one closest to that mean). Loose images at the top
+    level are left out. Grouping these points finds families of similar folders."""
+    folders = labels_from_folders(atlas.paths, atlas.root)
+    names = sorted(set(folders) - {""})
+    labels = np.asarray(folders, dtype=object)
+    paths, style, content, looks = [], [], [], []
+    for name in names:
+        members = np.flatnonzero(labels == name)
+        mean = centroid(atlas.style[members])
+        paths.append(atlas.paths[int(members[np.argmax(atlas.style[members] @ mean)])])
+        style.append(mean)
+        content.append(centroid(atlas.content[members]))
+        if atlas.looks is not None:
+            looks.append(atlas.looks[members].mean(axis=0))
+    empty = np.zeros((0, atlas.style.shape[1]), np.float32)
+    return Atlas(
+        atlas.root,
+        paths,
+        np.stack(style).astype(np.float32) if style else empty,
+        np.stack(content).astype(np.float32) if content else empty,
+        atlas.signature,
+        looks=np.stack(looks).astype(np.float32) if looks else None,
+    )
 
 
 def _relative(path: Path, root: Path) -> str:

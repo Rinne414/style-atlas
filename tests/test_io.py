@@ -4,8 +4,10 @@ import csv
 import io
 import json
 import os
+from pathlib import Path
 
 import numpy as np
+import pytest
 from PIL import Image
 
 from styleatlas.atlas import Atlas
@@ -237,3 +239,16 @@ def test_results_go_next_to_the_folder_never_inside_it(tmp_path):
     assert output_dir(tmp_path / "artistX") == (tmp_path / "artistX_style_atlas").resolve()
     drive = output_dir(tmp_path.parents[len(tmp_path.parents) - 1])  # a whole drive has no name
     assert drive.name.endswith("_style_atlas") and drive.name != "_style_atlas"
+
+
+@pytest.mark.parametrize(
+    "name", ["畫師 #1: x", "a\x7fb", "a\x85b", "a\u2028b", "emoji 😀", 'q"t', "t\tx"]
+)
+def test_folder_names_survive_toml_and_yaml(name):
+    from styleatlas.export import _quoted
+
+    tomllib = pytest.importorskip("tomllib")
+    yaml = pytest.importorskip("yaml")
+    text = str(Path("D:/lora") / name)
+    assert tomllib.loads("k = " + _quoted(Path(text)))["k"] == text
+    assert yaml.safe_load("k: " + _quoted(Path(text)))["k"] == text

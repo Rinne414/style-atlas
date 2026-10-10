@@ -51,7 +51,7 @@ def consistency(style: np.ndarray) -> Consistency | None:
     """The style consistency of a set of CSD style vectors; None below SAMPLE images."""
     if len(style) < SAMPLE:
         return None
-    x = unit(whiten(style))
+    x = unit(whiten(style, keep=False))
     rng = np.random.default_rng(SEED)
     spread = float(
         np.mean([_spread(x[rng.choice(len(x), SAMPLE, replace=False)]) for _ in range(DRAWS)])

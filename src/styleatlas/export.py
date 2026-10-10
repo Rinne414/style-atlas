@@ -267,8 +267,18 @@ def _style_folders(root: Path, folders: list[str]) -> list[tuple[str, Path, int]
     return out
 
 
-def _toml_string(path: Path) -> str:
-    return json.dumps(str(path), ensure_ascii=False)  # a valid TOML basic string
+_UNSAFE_IN_CONFIG = {
+    c: f"\\u{ord(c):04x}" for c in [*map(chr, range(0x7F, 0xA0)), "\u2028", "\u2029"]
+}
+
+
+def _quoted(path: Path) -> str:
+    """A double-quoted string that TOML and YAML both read back exactly: JSON escaping for
+    quotes, backslashes and C0 controls, other text as is (YAML 1.1 cannot read JSON's
+    surrogate-pair escapes), and DEL, C1 controls and line separators as \\uXXXX (TOML forbids
+    DEL raw; YAML treats NEL and the separators as line breaks)."""
+    text = json.dumps(str(path), ensure_ascii=False)
+    return "".join(_UNSAFE_IN_CONFIG.get(c, c) for c in text)
 
 
 def write_trainer_configs(root: Path, folders: list[str], trigger: bool = False) -> list[Path]:
@@ -301,7 +311,7 @@ def _write_kohya(root: Path, styles: list[tuple[str, Path, int]], trigger: bool)
         "",
     ]
     lines += [
-        f"  [[datasets.subsets]]\n  image_dir = {_toml_string(path)}\n  num_repeats = {repeats}\n"
+        f"  [[datasets.subsets]]\n  image_dir = {_quoted(path)}\n  num_repeats = {repeats}\n"
         for _, path, repeats in styles
     ]
     path = root / KOHYA_CONFIG
@@ -323,7 +333,7 @@ def _write_diffusion_pipe(root: Path, styles: list[tuple[str, Path, int]]) -> Pa
         "",
     ]
     lines += [
-        f"[[directory]]\npath = {_toml_string(path)}\nnum_repeats = {repeats}\n"
+        f"[[directory]]\npath = {_quoted(path)}\nnum_repeats = {repeats}\n"
         for _, path, repeats in styles
     ]
     path = root / DIFFUSION_PIPE_CONFIG
@@ -366,7 +376,7 @@ def _write_ai_toolkit(root: Path, styles: list[tuple[str, Path, int]], trigger: 
     ]
     for _, path, repeats in styles:
         lines += [
-            f"  - folder_path: {_toml_string(path)}",
+            f"  - folder_path: {_quoted(path)}",
             '    caption_ext: "txt"',
             f"    num_repeats: {repeats}",
             "    shuffle_tokens: true",

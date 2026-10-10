@@ -21,6 +21,7 @@ DEFAULT_THRESHOLD = 0.95
 BENCH_THRESHOLD = 0.92
 NEIGHBORS = 10
 MAX_SPLIT = 3000
+COPY_BLOCK = 256  # rows compared at once: two (256 x library) float32 arrays
 
 
 def copies_of(
@@ -32,9 +33,11 @@ def copies_of(
 ) -> list[tuple[int, int, float]]:
     """(row, base row, score) for each row that is a near-duplicate of some base row (its
     closest one): a LoRA render repeating a training image, or a found image a folder holds."""
-    out = []
-    for s in range(0, len(style), CHUNK):
-        rows = slice(s, s + CHUNK)
+    out: list[tuple[int, int, float]] = []
+    if len(style) == 0 or len(base_style) == 0:
+        return out
+    for s in range(0, len(style), COPY_BLOCK):
+        rows = slice(s, s + COPY_BLOCK)
         score = np.minimum(style[rows] @ base_style.T, content[rows] @ base_content.T)
         best = np.argmax(score, axis=1)
         for r, j in enumerate(best):

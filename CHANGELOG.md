@@ -5,6 +5,11 @@
 - **ai-toolkit config.** A kohya-layout export also writes `ai_toolkit_datasets.yaml`: one
   dataset entry per style folder (`folder_path`, `num_repeats`, `keep_tokens` ...) to paste
   under `datasets:`. Fields checked against ai-toolkit's `DatasetConfig`.
+- Fixes from a review (Sonnet): the web check measured consistency in the current space (with
+  "ignore characters" on, mixes looked tight) and pushed the searched folder out of the search
+  cache; `cluster` shows consistency only on plain vectors; copies skip excluded images and no
+  longer fail on an empty folder; folder names with DEL, C1 controls or line separators now
+  survive the TOML and YAML configs.
 
 ## 0.23.0 - 2026-10-10
 
