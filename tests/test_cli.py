@@ -613,3 +613,9 @@ def test_search_names_a_query_that_does_not_exist(lib, tmp_path, capsys):
     assert main(["search", str(missing), "--in", str(lib), "--device", "cpu"]) == 1
     err = capsys.readouterr().err
     assert "not found" in err and "nothere.png" in err
+
+
+def test_compare_refuses_the_same_folder_twice(lib, capsys):
+    red = str(lib / "red")
+    assert main(["compare", red, red, "--device", "cpu"]) == 1
+    assert "same folder" in capsys.readouterr().err
