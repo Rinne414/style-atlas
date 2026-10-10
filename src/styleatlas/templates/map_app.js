@@ -137,7 +137,7 @@ function toggleMark(i) {
 }
 
 function showMarks() {
-  selected = null; searchHits = null; recolor();
+  recolor();
   let bar = $("markBar");
   if (!MARKED.size) { if (bar) bar.remove(); return; }
   if (!bar) { bar = document.createElement("div"); bar.id = "markBar"; $("stage").append(bar); }
@@ -172,11 +172,15 @@ function setupMarking() {  // Shift+drag on the map draws a box; OrbitControls m
   }, { capture: true });
   canvas.addEventListener("pointermove", (e) => {
     if (!start) return;
+    if (!e.buttons) { start = null; box.style.display = "none"; return; }  // the button was let go elsewhere
     const r = $("stage").getBoundingClientRect();
     Object.assign(box.style, { display: "block",
       left: `${Math.min(start[0], e.clientX) - r.left}px`, top: `${Math.min(start[1], e.clientY) - r.top}px`,
       width: `${Math.abs(e.clientX - start[0])}px`, height: `${Math.abs(e.clientY - start[1])}px` });
   });
+  const reset = () => { start = null; box.style.display = "none"; };
+  canvas.addEventListener("pointercancel", reset);
+  canvas.addEventListener("lostpointercapture", (e) => { if (start && !e.buttons) reset(); });
   canvas.addEventListener("pointerup", (e) => {
     if (!start) return;
     const [sx, sy] = start; start = null; box.style.display = "none";

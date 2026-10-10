@@ -157,3 +157,5 @@ def test_cluster_can_cap_each_group(lib, tmp_path, capsys):
     assert main([*args, "--max-per-group", "4"]) == 0
     assert "6 image(s) beyond 4 per group go to _trimmed" in capsys.readouterr().err
     assert len(list((out / "folders" / "_trimmed").glob("*.png"))) == 6  # 2 of each colour
+    with pytest.raises(SystemExit):
+        main([*args, "--max-per-group", "0"])

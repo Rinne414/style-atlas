@@ -83,6 +83,13 @@ def _space(a: argparse.Namespace) -> str:
     return f"neutralize-{n}" if n else PLAIN
 
 
+def _positive_int(text: str) -> int:
+    n = int(text)
+    if n < 1:
+        raise argparse.ArgumentTypeError("must be 1 or more")
+    return n
+
+
 def _neutralize_count(text: str) -> int:
     n = int(text)
     if not 0 <= n <= MAX_NEUTRALIZE:
@@ -631,7 +638,7 @@ def _lora_args(p: argparse.ArgumentParser) -> None:
     )
     g.add_argument(
         "--max-per-group",
-        type=int,
+        type=_positive_int,
         metavar="N",
         help="keep at most N images per style, chosen to cover it; the rest go to _trimmed",
     )

@@ -175,13 +175,14 @@ let flyTo = null;
 function recolor() {
   const q = filter.toLowerCase();
   for (let i = 0; i < N; i++) {
-    if (MARKED.size) { alpha[i] = MARKED.has(i) ? 1 : 0.5; continue; }  // the rest stay clickable
     let on = true;
     if (focusCluster !== null) on = PTS[i].c === focusCluster;
     if (q) on = on && PTS[i].n.toLowerCase().includes(q);
     if (selected !== null) on = i === selected || PTS[selected].k.includes(i);
     else if (searchHits) on = searchHits.has(i);
     alpha[i] = on ? 1 : 0.12;
+    // marks sit on top of the view: marked bright, the rest visible but softer (still pickable)
+    if (MARKED.size) alpha[i] = MARKED.has(i) ? 1 : on ? 0.6 : 0.12;
   }
   pushAlpha();
   fadeNames();
@@ -538,6 +539,7 @@ $("find").addEventListener("input", (e) => {
 async function findTag(tag) {
   try {
     const r = await post("api/tagged", JSON.stringify({ tag }), "application/json");
+    if ($("find").value.trim() !== "#" + tag) return;  // the box changed while the captions were read
     selected = null; searchHits = new Set(r.hits); recolor();
     setStatus(t("tagHits").replace("{n}", r.hits.length).replace("{t}", tag));
   } catch (e) { setStatus(String(e.message || e)); }

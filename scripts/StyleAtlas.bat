@@ -5,10 +5,12 @@ chcp 65001 >nul
 set "FOLDER=%~1"
 if not defined FOLDER call :pick
 if not defined FOLDER (
-  echo No folder chosen. Drag an image folder onto this file, or run:  style-atlas serve "D:\your\folder"
+  echo No folder chosen. If no window opened, drag the image folder onto this file instead,
+  echo or run:  style-atlas serve "D:\your\folder"
   pause
   exit /b 1
 )
+if "%FOLDER:~-1%"=="\" set "FOLDER=%FOLDER%."
 set "SA=%~dp0..\.venv\Scripts\style-atlas.exe"
 if not exist "%SA%" set "SA=style-atlas"
 if "%SA%"=="style-atlas" (

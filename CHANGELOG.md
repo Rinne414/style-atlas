@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Fixes from a Sonnet review of this release:
+  - Selected images are now shown on top of the normal view instead of replacing it, so a box
+    drawn while one group is in focus no longer picks up hidden images.
+  - A per-style cap below the minimum group size no longer sends every image to unassigned
+    (group size is judged before trimming).
+  - The box selection resets if the drag is interrupted.
+  - A late `#tag` answer no longer overwrites a changed filter, and `#__` matches nothing.
+  - `--max-per-group` takes 1 or more, and the diverse pick never takes one image twice.
+  - The open_clip message is filtered by itself instead of all warnings.
+  - `StyleAtlas.bat` handles a whole drive (`D:\`), and says what to do if no picker opened.
+  - `.gitattributes` keeps CRLF in `.bat` and `.ps1` files, also in GitHub zip downloads.
 - **Remove tags in the exported captions** (`--strip-tags "sketch, monochrome"`; web: "remove tags"
   in the export row): whole tags only, case, spaces and underscores ignored; your own captions
   are never changed. Useful with trigger captions, so the trigger takes the style.

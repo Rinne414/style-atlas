@@ -222,3 +222,16 @@ def test_a_cap_per_group_trims_the_rest_and_sets_repeats_by_what_is_kept(tmp_pat
     assert folders.count("_trimmed") == (10 - 4) + (7 - 4)
     assert all(kept.count(f) == 4 for f in set(kept))
     assert all(f.split("_")[0] == str(auto_repeats(4)) for f in kept)
+
+
+def test_a_cap_below_the_minimum_group_size_keeps_the_groups(tmp_path):
+    from styleatlas.dataset import diverse_subset
+
+    x, _ = make_blobs([10, 7])
+    paths = [_img(tmp_path / f"i{i}.png") for i in range(len(x))]
+    result = cluster_styles(x, min_size=3)
+    folders = plan_folders(paths, result, "plain", max_per_group=2, style=x, min_size=3)
+    assert "unassigned" not in folders and folders.count("_trimmed") == len(x) - 4
+    same = np.tile(x[:1], (6, 1))  # identical rows: still n different picks
+    assert sorted(diverse_subset(same, 4)) == sorted(set(diverse_subset(same, 4)))
+    assert len(diverse_subset(same, 4)) == 4 and diverse_subset(x, 0) == []

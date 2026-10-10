@@ -696,7 +696,7 @@ def test_images_are_found_by_a_caption_tag(tmp_path):
     assert app.tagged({"tag": "mono"})["hits"] == [0]
     assert app.tagged({"tag": "Rough Sketch"})["hits"] == [1]  # spaces = underscores
     assert app.tagged({"tag": "1girl"})["hits"] == [0, 1, 2]
-    for bad in ("", "  ", 5, "x" * 300):
+    for bad in ("", "  ", 5, "x" * 300, "__"):
         with pytest.raises(ValueError):
             app.tagged({"tag": bad})
 

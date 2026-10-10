@@ -35,15 +35,20 @@ MAX_PER_GROUP_RANGE = (1, 100_000)
 def diverse_subset(x: np.ndarray, n: int) -> list[int]:
     """n rows of `x` (unit vectors) that cover the set: the most central one first, then each
     time the row farthest from everything picked so far (farthest-point sampling)."""
+    if n <= 0:
+        return []
     if n >= len(x):
         return list(range(len(x)))
+    x = np.nan_to_num(x)
     centre = x.mean(axis=0)
     picked = [int(np.argmax(x @ centre))]
     nearest = 1.0 - x @ x[picked[0]]  # distance from each row to its closest pick
+    nearest[picked[0]] = -np.inf  # never picked twice, even among identical rows
     while len(picked) < n:
         i = int(np.argmax(nearest))
         picked.append(i)
         nearest = np.minimum(nearest, 1.0 - x @ x[i])
+        nearest[picked] = -np.inf
     return picked
 
 
@@ -256,6 +261,7 @@ def plan_folders(
         local = {k for k, i in enumerate(group) if i in aside}
         keep = group[best_in_group([paths[i] for i in group], local)]
         aside.update({i: SET_ASIDE["duplicate"] for i in group if i != keep and i not in aside})
+    full = Counter(int(c) for i, c in enumerate(clustering.labels) if i not in aside)
     if max_per_group is not None and style is not None:
         aside.update(_trimmed(clustering, style, aside, max_per_group))
     sizes = Counter(int(c) for i, c in enumerate(clustering.labels) if i not in aside)
@@ -265,7 +271,7 @@ def plan_folders(
     for i, cid in enumerate(int(c) for c in clustering.labels):
         if i in aside:
             folders.append(aside[i])
-        elif cid == UNASSIGNED or sizes[cid] < min_size:
+        elif cid == UNASSIGNED or full[cid] < min_size:  # judged before any trimming
             folders.append(SET_ASIDE["unassigned"] if layout == "kohya" else "unassigned")
         elif layout == "plain":
             folders.append(labels[cid])

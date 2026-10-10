@@ -244,6 +244,8 @@ class StyleAtlasApp:
         if not isinstance(text, str) or not text.strip() or len(text) > MAX_TAG_TEXT:
             raise ValueError("tag must be some text")
         want = norm_tag(text)
+        if not want:
+            raise ValueError("tag must have a letter or a digit")
         if self._tag_sets is None:
             self._read_tags()
         with self._lock:

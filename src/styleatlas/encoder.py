@@ -128,6 +128,13 @@ class Embeddings:
     content: np.ndarray  # (n, 768) float32, unit rows
 
 
+class _NoRandomInitWarning(logging.Filter):
+    """Drops only open_clip's "No pretrained weights loaded ... initialized randomly" line."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        return "No pretrained weights loaded" not in record.getMessage()
+
+
 class CSDEncoder:
     """Image -> (style, content) unit vectors."""
 
@@ -149,13 +156,14 @@ class CSDEncoder:
         self.px = resolution
         self.batch_size = max(1, batch_size)
         weights = load_weights()
-        logging.disable(logging.WARNING)  # open_clip says "initialized randomly"; CSD loads next
+        quiet = _NoRandomInitWarning()  # open_clip says "initialized randomly"; CSD loads next
+        logging.getLogger().addFilter(quiet)
         try:
             visual = open_clip.create_model(
                 "ViT-L-14-quickgelu", pretrained=None, force_image_size=resolution
             ).visual
         finally:
-            logging.disable(logging.NOTSET)
+            logging.getLogger().removeFilter(quiet)
         visual.proj = None
         backbone = {
             k.removeprefix("backbone."): v for k, v in weights.items() if k.startswith("backbone.")
