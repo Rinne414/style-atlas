@@ -264,6 +264,39 @@ def _families_line(result: Clustering, min_size: int) -> str:
     )
 
 
+def export_notes(done, folders: list[str], layout: str, trigger: bool) -> None:
+    """After an export: photos written upright, and the trigger words in the captions (with a
+    warning when one is not plain ASCII)."""
+    from styleatlas.export import trigger_of
+
+    if done.upright:
+        log(
+            tr(
+                f"{done.upright} photo(s) turned only by EXIF were written upright "
+                "(kohya would train them sideways); the originals are unchanged",
+                f"{done.upright} 張只靠 EXIF 轉正的照片已轉正後存出（kohya 會把它們橫著訓練）；"
+                "原檔沒有改動",
+            )
+        )
+    if not trigger:
+        return
+    words = sorted({w for f in folders if (w := trigger_of(f, layout)) is not None})
+    if words:
+        log(tr("trigger words: ", "觸發詞：") + ", ".join(words))
+    if any(not w.isascii() for w in words):
+        log(tr(NON_ASCII_TRIGGER_EN, NON_ASCII_TRIGGER_ZH))
+
+
+NON_ASCII_TRIGGER_EN = (
+    "note: some trigger words are not plain English: the text encoders of SD 1.5 and SDXL split "
+    "them into many byte pieces; name the groups in English for those models"
+)
+NON_ASCII_TRIGGER_ZH = (
+    "注意：有些觸發詞不是英文：SD 1.5、SDXL 的文字編碼器會把中文拆成很多碎片；"
+    "訓練這些模型時，群名建議用英文"
+)
+
+
 def web_exclusions(atlas: Atlas, folder: Path) -> list[int]:
     """Images excluded by hand (X) in the web app, as indices into `atlas`."""
     from styleatlas.export import output_dir

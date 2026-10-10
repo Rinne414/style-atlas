@@ -52,6 +52,7 @@ from styleatlas.export import (
     output_dir,
     parse_tags,
     steps_per_epoch,
+    trigger_of,
     write_table,
 )
 from styleatlas.groupfile import carry_names, load_groups
@@ -666,6 +667,10 @@ class StyleAtlasApp(GroupEdits):
             "small_ids": sorted(small),
             # the rest go to the set-aside folders (_duplicates, _excluded, unassigned ...)
             "training": sum(not (f.startswith("_") or is_unassigned(f)) for f in folders),
+            "upright": result.upright,
+            "triggers": sorted(
+                {t for f in folders if trigger and (t := trigger_of(f, layout)) is not None}
+            ),
             "trimmed": trimmed,
             "config": (result.folder / KOHYA_CONFIG).exists(),
             "steps": steps_per_epoch(folders) if layout == "kohya" else None,

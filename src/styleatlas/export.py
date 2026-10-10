@@ -35,6 +35,7 @@ class ExportResult:
     folder: Path
     placed: int = 0
     failed: list[tuple[Path, str]] = field(default_factory=list)
+    upright: int = 0  # images turned only by EXIF, written upright
 
 
 def output_dir(source: Path) -> Path:
@@ -131,16 +132,51 @@ def fresh_dir(base: Path) -> Path:
     return candidate
 
 
-def _place(src: Path, dst: Path, mode: str) -> None:
+def _place(src: Path, dst: Path, mode: str) -> bool:
+    """Copy or hard-link `src` to `dst`; True when it was written upright instead (see
+    _write_upright)."""
     if dst.exists():
         raise FileExistsError(f"{dst} already exists")
+    if _write_upright(src, dst):
+        return True
     if mode == "link":
         try:
             os.link(src, dst)
-            return
+            return False
         except OSError:
             pass  # other drive or no hard-link support: fall back to a copy
     shutil.copy2(src, dst)
+    return False
+
+
+UPRIGHT_JPEG_QUALITY = 95
+
+
+def _write_upright(src: Path, dst: Path) -> bool:
+    """An image turned only by its EXIF orientation is written with its pixels turned and the
+    tag removed: kohya sd-scripts reads the pixels as stored and would train it sideways. The
+    source is never changed (a link could not be turned, so these are always copies). False,
+    writing nothing, for every other image."""
+    from PIL import Image, ImageOps
+
+    from styleatlas.dataset import EXIF_ORIENTATION
+
+    try:
+        with Image.open(src) as im:
+            if im.getexif().get(EXIF_ORIENTATION, 1) not in range(2, 9):
+                return False
+            fmt = im.format
+            out = ImageOps.exif_transpose(im)
+    except Exception:  # noqa: BLE001 - unreadable or odd EXIF: copy the file as it is
+        return False
+    extra = {"quality": UPRIGHT_JPEG_QUALITY} if fmt == "JPEG" else {}
+    if out.info.get("icc_profile"):
+        extra["icc_profile"] = out.info["icc_profile"]
+    exif = out.getexif()
+    exif.pop(EXIF_ORIENTATION, None)
+    out.save(dst, format=fmt, exif=exif, **extra)
+    shutil.copystat(src, dst)
+    return True
 
 
 def trigger_of(folder: str, layout: str = "plain") -> str | None:
@@ -243,7 +279,7 @@ def export_folders(
             folder.mkdir(parents=True, exist_ok=True)
             trigger = trigger_of(folders[i], layout) if trigger_captions else None
             _place_sidecars(src, folder, stem, mode, trigger, strip_tags)
-            _place(src, folder / f"{stem}{src.suffix}", mode)
+            result.upright += _place(src, folder / f"{stem}{src.suffix}", mode)
         except OSError as e:  # long path, permissions, full disk: report and keep going
             result.failed.append((src, str(e)))
             for ext in (*SIDECARS, src.suffix):  # fresh folder + unique stem: only our files

@@ -15,6 +15,7 @@ from styleatlas.cli_common import (
     _opts,
     _positive_int,
     _reference,
+    export_notes,
     log,
     web_exclusions,
 )
@@ -190,6 +191,7 @@ def _export(a: argparse.Namespace, atlas: Atlas, folders: list[str], out: Path) 
             f"{verb} {done.placed} 張到 {done.folder}",
         )
     )
+    export_notes(done, folders, a.layout, a.trigger_captions)
     if a.layout == "kohya":
         from styleatlas.export import steps_per_epoch
 

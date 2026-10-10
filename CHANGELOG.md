@@ -43,6 +43,13 @@ New:
   English; checked with dry runs of every branch they reach.
 - `.jfif` files (what Chrome on Windows often saves JPEGs from X/Twitter as) are found.
 - `python -m styleatlas ...` runs the command when Python's Scripts folder is not on PATH.
+- **Exports write EXIF-turned photos upright** (`cluster`/`sort --export`, the web export): the
+  pixels are turned and the tag removed, so kohya sd-scripts trains them the right way up; the
+  source files are never changed (such an image is copied even in link mode). Among duplicates
+  of equal size, an upright copy is kept for training.
+- Exports name the trigger words they wrote into the captions, and warn when one is not plain
+  English (SD 1.5 / SDXL text encoders split CJK into byte pieces); the web app's trigger
+  checkbox explains the `<name>_<group>` form and that it is pinned first.
 - **Greyscale tags checked against the picture** (`audit` and the web app's Check tab):
   greyscale pictures in a colour set whose caption lacks `monochrome` / `greyscale` (the
   LoRA would learn grey as part of the trigger; 15% of greyscale Danbooru works miss both
@@ -79,6 +86,8 @@ Clearer output (from three first-time-user tests: English, Chinese, and searchin
   message says how many images go to training and names the groups that fell under 3 images
   after duplicates and exclusions; the duplicates tab says that the export keeps one per group
   by itself; an image search shows each sub-folder's score next to its name.
+- Web app: the export bar keeps its settings (layout, name, trigger, open or closed) across
+  the reload that follows an edit.
 - Each style group says which sub-folders its images come from ("來自：dayama 9"), in the report
   and on the web map, when the folder has several: a gallery sorted by artist shows which group
   is which artist.

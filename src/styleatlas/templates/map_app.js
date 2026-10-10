@@ -526,7 +526,30 @@ function setupRegroup() {  // granularity, cut, periods, the regroup button and 
   });
 }
 
+const EXPORT_KEY = "styleAtlasExport";  // the export options, kept while the tab is open
+const EXPORT_FIELDS = ["expLayout", "expName", "expMax", "expStrip"];
+
+function saveExportOptions() {
+  const options = Object.fromEntries(EXPORT_FIELDS.map((id) => [id, $(id).value]));
+  options.expTrig = $("expTrig").checked; options.open = !$("exportPanel").hidden;
+  try { sessionStorage.setItem(EXPORT_KEY, JSON.stringify(options)); } catch (e) { /* storage off */ }
+}
+
+function restoreExportOptions() {  // an edit reloads the page: the bar comes back as it was
+  let options = null;
+  try { options = JSON.parse(sessionStorage.getItem(EXPORT_KEY) || "null"); } catch (e) { return; }
+  if (!options) return;
+  EXPORT_FIELDS.forEach((id) => { if (typeof options[id] === "string") $(id).value = options[id]; });
+  $("expTrig").checked = Boolean(options.expTrig);
+  if (options.open && $("exportPanel").hidden) $("exportOpen").click();
+}
+
 function setupExport() {
+  [...EXPORT_FIELDS, "expTrig"].forEach((id) => {
+    $(id).addEventListener("change", saveExportOptions); $(id).addEventListener("input", saveExportOptions);
+  });
+  $("exportOpen").addEventListener("click", saveExportOptions);  // after setupPanels toggled it
+  restoreExportOptions();
   $("export").addEventListener("click", async () => {
     try {
       const cap = parseInt($("expMax").value, 10);
@@ -540,7 +563,10 @@ function setupExport() {
       const trimmed = r.trimmed ? " " + t("trimmedNote").replace("{n}", r.trimmed) : "";
       const steps = r.steps ? " " + t("stepsNote").replace("{n}", r.steps) : "";
       const done = t("exported").replace("{n}", r.placed).replace("{f}", r.folder).replace("{k}", r.training);
-      setStatus(done + small + trimmed + steps + config);
+      const upright = r.upright ? " " + t("uprightNote").replace("{n}", r.upright) : "";
+      const words = r.triggers && r.triggers.length ? " " + t("triggersNote").replace("{w}", r.triggers.join(", ")) : "";
+      const ascii = (r.triggers || []).some((w) => /[^\x00-\x7f]/.test(w)) ? " " + t("nonAsciiTrigger") : "";
+      setStatus(done + small + trimmed + steps + upright + words + ascii + config);
       addOpenFolder();
     } catch (e) { setStatus(String(e.message || e)); }
   });

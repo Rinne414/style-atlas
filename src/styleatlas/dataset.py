@@ -144,15 +144,18 @@ def _orientation(im: Image.Image) -> int:
 
 
 def best_in_group(paths: list[Path], blocked: set[int] | None = None) -> int:
-    """Index of the copy to keep: most pixels, then has a caption, then the larger file.
+    """Index of the copy to keep: most pixels, then not turned only by EXIF, then has a
+    caption, then the larger file.
     Copies in `blocked` (excluded or outliers) are chosen only when nothing else is left."""
     blocked = blocked or set()
 
-    def rank(i: int) -> tuple[int, int, int, int]:
+    def rank(i: int) -> tuple[int, int, int, int, int]:
         info = image_info(paths[i])
         pixels = info.width * info.height if info else 0
         size = info.file_size if info else 0
-        return (int(i not in blocked), pixels, int(caption_of(paths[i]) is not None), size)
+        upright = int(info is not None and info.orientation not in range(2, 9))
+        has_caption = int(caption_of(paths[i]) is not None)
+        return (int(i not in blocked), pixels, upright, has_caption, size)
 
     return max(range(len(paths)), key=rank)
 

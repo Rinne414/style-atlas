@@ -93,6 +93,41 @@ def test_export_link_mode(tmp_path):
     assert os.stat(linked).st_nlink >= 1
 
 
+@pytest.mark.parametrize("mode", ["copy", "link"])
+def test_export_writes_photos_turned_only_by_exif_upright(tmp_path, mode):
+    src = tmp_path / "src"
+    src.mkdir()
+    photo = src / "phone.jpg"
+    stored = Image.new("RGB", (60, 40), (200, 30, 30))  # stored sideways: wide
+    stored.paste((30, 30, 200), (0, 0, 10, 40))  # a blue band on the stored left edge
+    exif = Image.Exif()
+    exif[0x0112] = 6  # viewers turn it 90 degrees clockwise: tall
+    stored.save(photo, exif=exif, quality=95)
+    before = photo.read_bytes()
+    x = np.eye(1, 4, dtype=np.float32)
+    atlas = Atlas(src, [photo], x, x, "sig")
+    done = export_folders(atlas, ["style_01"], tmp_path / "out", mode=mode)
+    assert done.placed == 1 and done.upright == 1
+    with Image.open(tmp_path / "out" / "style_01" / "phone.jpg") as out:
+        assert out.size == (40, 60)  # upright in its pixels
+        assert out.getexif().get(0x0112, 1) == 1
+        top = out.convert("RGB").getpixel((20, 2))
+    assert top[2] > 150 and top[0] < 100  # the blue band is now on top, as a viewer shows it
+    assert photo.read_bytes() == before  # the source is untouched
+
+
+def test_the_upright_copy_wins_a_tie_between_duplicates(tmp_path):
+    from styleatlas.dataset import best_in_group
+
+    same = Image.new("RGB", (60, 40), (90, 90, 90))
+    exif = Image.Exif()
+    exif[0x0112] = 6
+    same.save(tmp_path / "a_turned.jpg", exif=exif, quality=95)
+    same.save(tmp_path / "b_plain.jpg", quality=95)
+    paths = [tmp_path / "a_turned.jpg", tmp_path / "b_plain.jpg"]
+    assert best_in_group(paths) == 1
+
+
 def test_write_table(tmp_path):
     atlas = _atlas(tmp_path, [6, 5])
     csv_path, json_path = write_table(atlas, cluster_styles(atlas.style), tmp_path / "out")

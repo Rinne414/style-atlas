@@ -16,7 +16,7 @@ from pathlib import Path
 import numpy as np
 
 from styleatlas.atlas import Atlas
-from styleatlas.cli_common import _atlas, log, saved_groups, web_exclusions
+from styleatlas.cli_common import _atlas, export_notes, log, saved_groups, web_exclusions
 from styleatlas.cluster import (
     BATCH_MIN,
     FIT_MIN,
@@ -144,6 +144,7 @@ def _place(a: argparse.Namespace, new: Atlas, folders: list, labels: dict, out: 
             f"已放 {done.placed} 張到 {done.folder}",
         )
     )
+    export_notes(done, folders, "kohya" if kohya else "plain", a.trigger_captions)
     for p, why in done.failed:
         log(tr(f"not placed {p}: {why}", f"沒有放入 {p}：{why}"))
 
