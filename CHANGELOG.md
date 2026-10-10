@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.20.0 - 2026-10-10
 
 - **Illustrated web guide** in Traditional Chinese, `docs/WEB_GUIDE.md`: the three steps (check, sort
   the styles, export) and the other tools, with screenshots. All screenshots were retaken with the
