@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **Style consistency.** The Check tab and `cluster` say how spread the folder's style is
+  next to 250 single Danbooru artists, on random 10-image samples. More spread than 90% of
+  them reads as a probable mix: 63% of two-artist and 93% of three-artist mixes, 8% of
+  single artists (BENCHMARKS.md). Not meant for AI renders from one model with the same
+  characters, which always look tight.
 - **Faster search in the web app.** Each search of a large folder recomputed the library's
   neighbour density: 4.1 s per search at 20,000 images. It is now kept (and prepared when the
   app starts), so later searches take milliseconds.

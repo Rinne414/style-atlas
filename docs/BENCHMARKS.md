@@ -666,6 +666,33 @@ works whose own artist came first or in the top 5, by the ranking method:
 - The 19,554-image Danbooru set is six copies of the 300-artist set (it was built to time large
   maps), so it cannot be used here: every work has an exact twin.
 
+## Style consistency: one artist or a mix? (2026-10-10)
+
+The Check tab and `cluster` report how spread a folder's style is, next to single artists.
+
+- **Measure**: the mean distance of each image to the centre of the others (whitened CSD). It
+  shrinks as a set grows (the same 13 prolific artists: 0.76 at 5 images, 0.71 at 10, 0.67 at
+  20, 0.65 at 40 or more), so it is averaged over 30 random 10-image samples ("spread@10").
+- **Reference**: spread@10 of 250 Danbooru artists with 10 or more works.
+- **Test**: 40-image folders of 13 other, prolific artists (65 single-artist folders) and
+  mixes of their works (100 each).
+
+| Folder | Spread@10, median | More spread than 90% of the reference | AUC against one artist |
+|---|---|---|---|
+| One artist | 0.732 | 8% | - |
+| Two artists | 0.818 | 63% | 0.887 |
+| Three artists | 0.851 | 93% | 0.960 |
+| Five artists | 0.885 | 100% | 0.995 |
+
+- **Plain CSD instead of whitened** separated much worse: AUC 0.71-0.76 for two-artist mixes
+  and 0.86-0.90 for five, on single 10- and 30-image samples.
+- **Check on whole folders**: the five prolific Danbooru artists each read "in the range of one
+  artist" (61-78%), two of them together 95% ("mixed"), all five 100%.
+- **Limit**: AI renders from one model with the same four characters read "very consistent"
+  (NAI set 8%, Anima set 7%) although they hold 96 different recipes. The reference is human
+  artists, and CSD vectors of one model's renders sit close together; for such folders the
+  groups and the map say more than this number.
+
 ## Pixiv: followed AI-illustration accounts (2026-10-09)
 
 - **Data**: 467 all-ages works by 176 AI-illustration accounts (median 2 works each). The

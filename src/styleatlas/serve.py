@@ -28,6 +28,7 @@ from styleatlas.cluster import (
     PERIODS,
     cluster_styles,
 )
+from styleatlas.consistency import consistency
 from styleatlas.dataset import (
     LAYOUTS,
     MAX_PER_GROUP_RANGE,
@@ -454,12 +455,22 @@ class StyleAtlasApp(GroupEdits):
             )
         with self._lock:
             paths, looks = list(self.raw.paths), self.raw.looks
+            kept = [i for i in range(len(paths)) if i not in self.excluded]
+            style = self.atlas.style[kept]
         report = audit(paths, min_side=side, looks=looks)  # decodes every image: outside the lock
+        tight = consistency(style)  # of the images not excluded, so a re-check shows the effect
         index = {str(p): i for i, p in enumerate(paths)}
         issues = {
             key: [index[f] for f in files if f in index] for key, files in report["files"].items()
         }
-        return {"min_side": side, "low_jpeg": LOW_JPEG, "issues": issues}
+        return {
+            "min_side": side,
+            "low_jpeg": LOW_JPEG,
+            "issues": issues,
+            "consistency": None
+            if tight is None
+            else {"spread": tight.spread, "percentile": tight.percentile, "verdict": tight.verdict},
+        }
 
     def compare(self, body: dict) -> dict:
         """Two groups side by side, as `style-atlas compare`: centroid distance, its z and verdict

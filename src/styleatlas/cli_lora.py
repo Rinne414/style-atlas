@@ -87,6 +87,7 @@ def cmd_cluster(a: argparse.Namespace) -> int:
     folders, tags = _plan(a, atlas, result, dups)
     csv_path, json_path = write_table(atlas, result, out, folders, tags)
     log(f"wrote {csv_path} and {json_path}")
+    _log_consistency(atlas)
     _print_groups(atlas, result, folders, tags, a.time)
     if a.export:
         _export(a, atlas, folders, out)
@@ -191,6 +192,24 @@ def _when(pos: np.ndarray | None, members: list[int]) -> str:
         return ""
     q1, med, q3 = np.percentile(v, [25, 50, 75])
     return f"  when {med:4.0%} [{q1:.0%}-{q3:.0%}]"
+
+
+CONSISTENCY_WORDS = {
+    "tight": "tighter than most single artists",
+    "like one artist": "in the range of a single artist",
+    "mixed": "more spread than 90% of single artists: probably a mix of styles or periods",
+}
+
+
+def _log_consistency(atlas: Atlas) -> None:
+    from styleatlas.consistency import consistency
+
+    c = consistency(atlas.style)
+    if c is not None:
+        log(
+            f"style consistency: spread {c.spread:.3f}, more spread than {c.percentile:.0f}% of "
+            f"single artists ({CONSISTENCY_WORDS[c.verdict]})"
+        )
 
 
 def _print_groups(

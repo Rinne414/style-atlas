@@ -17,7 +17,7 @@ style-atlas 會看每張圖「怎麼畫」（不是畫了什麼），自動把�
 | **找畫風相近的圖**：一張或同畫風的幾張圖當範例，也能把結果直接複製成資料夾 | 網頁介面拖圖進去，或用 `search`（`--combine`、`--copy-to`） |
 | **這張圖像哪位畫師？**：圖庫按畫師（或畫風）分資料夾時，列出最像的資料夾 | `search --by-folder` |
 | **3D 畫風地圖**：縮圖浮在 3D 空間，可轉動，點一下就看最接近的畫風 | `map`，或網頁介面的「存成分享用地圖」（單一 HTML 檔，可直接傳給朋友） |
-| **檢查資料集**：解析度、小圖放大、壓縮太重、極端比例、缺標註、近重複 | `audit`、`duplicates` |
+| **檢查資料集**：解析度、小圖放大、壓縮太重、極端比例、缺標註、近重複，以及整個資料夾的畫風一致性（像一位畫師，還是混了好幾種） | `audit`、`duplicates` |
 | **量化畫風與口味**：兩組圖是否同一畫風、差在哪裡（亮度、鮮豔度、線條量等）、個人喜好模型 | `compare`、`taste`、網頁介面的外觀描述與「喜歡／不喜歡」 |
 
 ![網頁介面：72 張圖自動分成 4 個畫風群，右側是群組清單、名稱和外觀描述（例如「對比弱、線條少、色塊平」）](docs/images/map.jpg)
@@ -327,6 +327,9 @@ how a picture is drawn rather than what it shows. On top of those vectors it can
   smaller original, heavily compressed JPEGs, and captions that mention a watermark, signature
   or URL (`watermark`, `signature`, `artist name`, `web address` ...). The style map cannot find enlarged images (CSD
   looks at 224 px), so the check measures their sharpness (BENCHMARKS.md).
+- **Style consistency** (Check tab, `cluster`): how spread the folder's style is next to 250
+  single Danbooru artists. Folders more spread than 90% of them are flagged as a probable mix;
+  this caught 63% of two-artist and 93% of three-artist mixes, and 8% of single artists.
 - **Fix groups by hand** in the web app: "Find more like this" lists the images outside a group
   that look most like it; move an image to another group, merge two groups,
   split a group in two, or exclude images (X), which are then exported to `_excluded/`.

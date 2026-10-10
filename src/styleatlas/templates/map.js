@@ -424,6 +424,13 @@ function checkSection() {
   run.addEventListener("click", () => { run.disabled = true; runCheck(parseInt(side.value, 10)); });
   box.append(h, side, run);
   if (!CHECK) return box;
+  if (CHECK.consistency) {  // how spread the folder's style is, next to single artists
+    const c = CHECK.consistency, line = document.createElement("div");
+    line.className = "kv"; line.title = t("consistTip");
+    const key = c.percentile >= 99.5 ? "beyond" : c.verdict.replaceAll(" ", "_");  // past every reference artist
+    line.textContent = t("consist_" + key).replace("{p}", Math.round(c.percentile));
+    box.append(line);
+  }
   const found = CHECK_KEYS.filter((k) => (CHECK.issues[k] || []).length);
   if (!found.length) {
     const ok = document.createElement("div"); ok.className = "kv"; ok.textContent = t("checkClean"); box.append(ok);
