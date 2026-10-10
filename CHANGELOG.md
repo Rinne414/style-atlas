@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.37.0 - 2026-10-10
 
 - **`style-atlas sort`: add new images to a sorted dataset.** Each new image goes to the dataset
   group it is closest to (a sub-folder with `--by-folder`, e.g. an exported kohya dataset; else
@@ -11,6 +11,9 @@
   went to the right folder and 6% of other artists' works were let in (plain CSD: 85.7% and
   47%). BENCHMARKS.md has the tables.
 - The web app's drop check no longer counts excluded images as members of their group.
+- CI note: the 0.36.0 commit failed CI on Windows because of one new test (a t-SNE layout check
+  that depended on the platform's scikit-learn); the 0.36.0 code itself was unaffected. The test
+  now checks neighbour purity instead.
 
 ## 0.36.0 - 2026-10-10
 
