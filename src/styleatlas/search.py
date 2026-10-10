@@ -10,8 +10,9 @@ from styleatlas.metrics import CHUNK, DEFAULT_K, centroid, hub_scores, neighbor_
 from styleatlas.whiten import whiten
 
 # With several example images, a logistic model of examples vs the library ranks the rest of an
-# artist's work better than the examples' mean vector: +0.055 / +0.066 / +0.116 average precision
-# with 3 / 5 / 10 examples on 13 artists hidden in a 3,689-image library (docs/BENCHMARKS.md).
+# artist's work: +0.055 / +0.066 / +0.116 average precision over the mean vector with 3 / 5 / 10
+# examples on artists the whitening had seen, but about even (-0.016 to +0.042) on new artists
+# (docs/BENCHMARKS.md, "Searching with several example images").
 MIN_LEARNED = 3
 LEARNED_NEGATIVES = 1000
 LEARNED_SEED = 0

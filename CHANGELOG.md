@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- **Held-out re-check of search with several examples**: the learned model's gain over the
+  examples' mean vector (+0.055 / +0.066 / +0.116 AP) had been measured on artists the search
+  whitening was fitted on. On new artists it is about even (-0.016 to +0.042). It stays the
+  default; the README no longer claims a gain. BENCHMARKS.md has both tables.
 ## 0.33.0 - 2026-10-10
 
 - **Held-out re-check.** Style consistency and the which-artist ranking had been measured on

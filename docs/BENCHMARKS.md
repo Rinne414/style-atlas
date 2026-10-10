@@ -348,6 +348,19 @@ examples; the targets are that artist's other works. AP = average precision; pai
 
 `search --combine` now uses the learned model from 3 example images up.
 
+**Held out (2026-10-10).** The 13 artists above are among the 306 the search whitening was
+fitted on. On artists it never saw, the gain is gone:
+
+| Unseen artists | Library | 3 examples | 5 examples | 10 examples |
+|---|---|---|---|---|
+| 114, about 10 works each | 4,717 | 0.437 -> 0.424 (-0.013) | 0.514 -> 0.498 (-0.016) | - |
+| 16, 30 or more works each | 5,195 | 0.479 -> 0.521 (+0.042) | 0.556 -> 0.575 (+0.019) | 0.647 -> 0.650 (+0.003) |
+
+(AP, mean vector -> learned model.) The learned model ranks about as well as the mean vector on
+new artists, better in some draws and worse in others (better in 67% / 58% / 42% of the 48
+trials with 3 / 5 / 10 examples). It stays the default, as it is no worse, but the gain quoted
+above came from the whitening having seen those artists.
+
 ### More than 8,000 images (2026-10-10)
 
 Average linkage needs an n x n distance matrix, which is too large above 8,000 images. Until
