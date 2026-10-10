@@ -40,6 +40,11 @@ New:
   English; checked with dry runs of every branch they reach.
 - `.jfif` files (what Chrome on Windows often saves JPEGs from X/Twitter as) are found.
 - `python -m styleatlas ...` runs the command when Python's Scripts folder is not on PATH.
+- **Greyscale tags checked against the picture** (`audit` and the web app's Check tab):
+  greyscale pictures in a colour set whose caption lacks `monochrome` / `greyscale` (the
+  LoRA would learn grey as part of the trigger; 15% of greyscale Danbooru works miss both
+  tags), and captions tagged `greyscale` on a clearly coloured picture. Measured on 2,000
+  Danbooru works (BENCHMARKS.md).
 
 Clearer output (from two first-time-user tests, in English and in Chinese):
 

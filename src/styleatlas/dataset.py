@@ -372,7 +372,16 @@ AUDIT_KEYS = (
     "empty_caption",
     "watermark_or_signature",
     "greyscale_in_colour_set",
+    "greyscale_untagged",
+    "greyscale_tag_on_colour",
 )
+GREY_TAGS = frozenset({"monochrome", "greyscale", "grayscale"})
+# a greyscale caption is wrong on a picture with spot colour unless the caption says so
+SPOT_TAGS = frozenset({"spot color", "partially colored", "limited palette", "sepia"})
+# From this colourfulness a picture tagged greyscale clearly has colour: on 185 Danbooru works
+# tagged greyscale, 6 reached it (framed photos, spot colour, a teal tint); between 0.03 and 0.08
+# were photos of paper and faint tints, not worth a warning (docs/BENCHMARKS.md).
+CLEARLY_COLOURED = 0.08
 
 
 def audit(
@@ -383,8 +392,9 @@ def audit(
 ) -> dict:
     """Problems a trainer would hit: small, extreme, enlarged or heavily compressed images,
     animations, missing captions, captions that mention a watermark or signature, and (given
-    the look measures of `paths`) greyscale images mixed into a colour set. Finding enlarged
-    images decodes every image (in parallel)."""
+    the look measures of `paths`) greyscale images mixed into a colour set and captions whose
+    greyscale tags disagree with the picture. Finding enlarged images decodes every image (in
+    parallel)."""
     report: dict[str, list[str]] = {k: [] for k in AUDIT_KEYS}
     sizes: list[tuple[int, int]] = []
     readable = []
@@ -401,10 +411,39 @@ def audit(
         if soft is not None and soft < SOFT:
             report["soft_or_enlarged"].append(str(p))
     if looks is not None and len(paths):
-        grey = looks[:, LOOK_NAMES.index("colourfulness")] < GREYSCALE
-        if grey.mean() < 0.5:  # a mostly greyscale folder is a monochrome artist, not a mistake
-            report["greyscale_in_colour_set"] = [str(paths[i]) for i in np.flatnonzero(grey)]
+        report |= _colour_problems(paths, looks[:, LOOK_NAMES.index("colourfulness")])
     return {"summary": _audit_summary(report, len(paths), sizes), "files": report}
+
+
+def _colour_problems(paths: list[Path], colour: np.ndarray) -> dict[str, list[str]]:
+    """Greyscale pictures in a colour set (and those of them whose caption lacks monochrome or
+    greyscale, so the LoRA would learn greyscale as part of the style), and captions tagged
+    greyscale on a clearly coloured picture. A mostly greyscale folder is a monochrome artist:
+    its grey pictures are not flagged, and leaving the tag out there may be deliberate."""
+    out: dict[str, list[str]] = {}
+    grey = colour < GREYSCALE  # NaN (unreadable) compares False
+    if grey.mean() < 0.5:
+        out["greyscale_in_colour_set"] = [str(paths[i]) for i in np.flatnonzero(grey)]
+        out["greyscale_untagged"] = [
+            str(paths[i]) for i in np.flatnonzero(grey) if _tags_lack(paths[i], GREY_TAGS)
+        ]
+    out["greyscale_tag_on_colour"] = [
+        str(paths[i])
+        for i in np.flatnonzero(colour >= CLEARLY_COLOURED)
+        if _says_greyscale(paths[i])
+    ]
+    return out
+
+
+def _tags_lack(path: Path, wanted: frozenset[str]) -> bool:
+    """The image has a non-empty caption without any of `wanted`."""
+    tags = {norm_tag(t) for t in read_tags(path)}
+    return bool(tags) and not tags & wanted
+
+
+def _says_greyscale(path: Path) -> bool:
+    tags = {norm_tag(t) for t in read_tags(path)}
+    return bool(tags & {"greyscale", "grayscale"}) and not tags & SPOT_TAGS
 
 
 def _image_problems(info, min_side: int, max_ratio: float) -> list[str]:

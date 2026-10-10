@@ -34,11 +34,15 @@ def _system_is_chinese() -> bool:
         return False
 
 
+def columns(text: str) -> int:
+    """Terminal columns `text` takes: a Chinese character takes two."""
+    return sum(2 if unicodedata.east_asian_width(ch) in "WF" else 1 for ch in text)
+
+
 def pad(text: str, width: int) -> str:
-    """`text` padded to `width` terminal columns: a Chinese character takes two, so plain
-    format widths would misalign Chinese group names."""
-    shown = sum(2 if unicodedata.east_asian_width(ch) in "WF" else 1 for ch in text)
-    return text + " " * max(1, width - shown)
+    """`text` padded to `width` terminal columns (at least one space), so Chinese group names
+    line up where plain format widths would not."""
+    return text + " " * max(1, width - columns(text))
 
 
 def tr(en: str, zh: str) -> str:

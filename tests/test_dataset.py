@@ -274,3 +274,39 @@ def test_caption_tags_ignore_a_utf8_byte_order_mark(tmp_path):
     Image.new("RGB", (8, 8)).save(img)
     img.with_suffix(".txt").write_bytes("\ufeffwatermark, 1girl".encode())  # as Notepad saves
     assert read_tags(img) == ["watermark", "1girl"]
+
+
+def test_audit_compares_greyscale_tags_with_the_picture(tmp_path):
+    from styleatlas.look import LOOK_NAMES
+
+    captions = {
+        "a": ("1girl", 0.20),
+        "b": ("1girl, smile", 0.15),
+        "c": ("1girl", 0.10),
+        "grey_tagged": ("1girl, monochrome", 0.0),
+        "grey_untagged": ("1girl, sketch", 0.0),
+        "tinted": ("1girl, greyscale", 0.05),  # a faint tint: not flagged
+        "coloured": ("1girl, Greyscale", 0.12),
+        "spot": ("greyscale, spot_color", 0.12),
+    }
+    paths, looks = [], np.zeros((len(captions), len(LOOK_NAMES)), np.float32)
+    for i, (name, (text, colour)) in enumerate(captions.items()):
+        paths.append(_img(tmp_path / f"{name}.png", (768, 768)))
+        paths[-1].with_suffix(".txt").write_text(text, encoding="utf-8")
+        looks[i, LOOK_NAMES.index("colourfulness")] = colour
+    files = audit(paths, looks=looks)["files"]
+    names = {k: sorted(Path(f).stem for f in v) for k, v in files.items()}
+    assert names["greyscale_in_colour_set"] == ["grey_tagged", "grey_untagged"]
+    assert names["greyscale_untagged"] == ["grey_untagged"]
+    assert names["greyscale_tag_on_colour"] == ["coloured"]
+
+
+def test_audit_leaves_a_monochrome_artist_alone(tmp_path):
+    from styleatlas.look import LOOK_NAMES
+
+    paths = [_img(tmp_path / f"{i}.png", (768, 768)) for i in range(4)]
+    for p in paths:
+        p.with_suffix(".txt").write_text("1girl", encoding="utf-8")
+    looks = np.zeros((4, len(LOOK_NAMES)), np.float32)  # every picture greyscale
+    files = audit(paths, looks=looks)["files"]
+    assert files["greyscale_in_colour_set"] == [] and files["greyscale_untagged"] == []

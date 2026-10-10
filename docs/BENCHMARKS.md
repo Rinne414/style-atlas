@@ -688,6 +688,28 @@ above: quality 60 already moves the style vector by a third of a seed difference
 unchanged; JPEGs are decoded at a reduced scale that is still at least the training size).
 3,259 images of about 400 px took 4.6 s; the 150 large originals took 2.1 s.
 
+## Greyscale tags against the picture (2026-10-11)
+
+**Data**: the 3,259-work Danbooru corpus (general rating) with only its colour tags fetched
+again (`greyscale`, `monochrome`, spot colour and colour themes); 2,000 posts were still
+visible to an anonymous request. Colourfulness is the product's look measure.
+
+- **Greyscale pictures without the tags.** 226 pictures are under the greyscale line (0.02);
+  191 carry `monochrome` or `greyscale`, **35 (15%) carry neither**. The six looked at were all
+  plainly greyscale (sketches, a comic page, a text page), so these are missed tags, not
+  measurement errors. A LoRA trained on such a caption learns greyscale as part of its trigger.
+  The check (`greyscale_untagged`) lists greyscale pictures in a colour set whose caption has
+  neither tag; in a mostly greyscale folder leaving the tag out may be deliberate (the monochrome
+  look is the style), so nothing is listed there.
+- **`greyscale` on a coloured picture.** Of 185 pictures tagged `greyscale` (and not spot
+  colour), colourfulness at the 50th / 90th / 95th / 99th percentile was 0.00 / 0.02 / 0.05 /
+  0.12. From 0.08 up, 6 were listed and all had clear colour: two photos of signed boards in
+  wooden frames, pink spot colour on a halo and eyes, pink line work, a teal-tinted sketch and a
+  rose-tinted one. Between 0.03 and 0.08 were photos of paper and faint tints, which Danbooru
+  also tags `greyscale`, so the check (`greyscale_tag_on_colour`) starts at 0.08 and skips
+  captions that also say `spot_color`, `partially_colored`, `limited_palette` or `sepia`.
+  `monochrome` alone is not checked: a single-hue picture (blue, sepia) is rightly monochrome.
+
 ## Which artist? Ranking sub-folders (2026-10-10)
 
 `search --by-folder` ranks the sub-folders of a library instead of single images. Each work was

@@ -106,13 +106,13 @@ All of these are in `docs/BENCHMARKS.md`.
   "A LoRA is Worth a Thousand Pictures" (LoRA weights as style features; arxiv.org/abs/2412.12048).
   The Anima-Style-Embedding card was checked again: it still needs precomputed features.
 
-- **From the v0.24 product critique, not done yet**:
+- **From the v0.24 product critique**:
   - Search inside a caption tag is done (0.26). Negative examples were measured and dropped
     (BENCHMARKS.md, "Tried and rejected").
-  - Caption checks against the image, for example `monochrome` on a colourful picture.
+  - Caption checks against the image: greyscale tags are checked (after 0.43). Other tags
+    (hair colour, `1girl` against the number of people) would need a tagger model.
   - Comparing selections is done (against a group 0.27, two selections 0.32).
-  - An aspect-ratio bucket report as the trainer will see it.
-  - A one-page report for a folder (consistency, looks, nearest artists, originality).
+  - The aspect-ratio bucket report is done (0.33), the one-page report too (0.29).
   - Rejected: hiding the taste model. Quantifying taste is one of the owner's goals.
 - **Watermarks without captions**: only caption tags are checked. Detecting marks in the pixels
   needs a detector model.

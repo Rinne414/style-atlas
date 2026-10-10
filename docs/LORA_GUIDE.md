@@ -23,6 +23,8 @@ style-atlas audit "D:\lora\artistX" --min-side 768
 - 缺標註或標註是空的。
 - 標註裡有 `watermark`、`signature`、`artist name`、`web address` 這類標籤的圖：圖上有浮水印或簽名，LoRA 會一起學進去。可以裁掉、排除，或把那個標籤留在標註裡（讓模型把它歸給那個標籤，而不是畫風）。
 - 混在彩色圖裡的黑白圖（例如草稿、漫畫頁）。整個資料夾大多是黑白時不會列出，因為那是畫師本身的風格。
+- 其中標註沒有 `monochrome` 或 `greyscale` 的黑白圖：LoRA 會把「黑白」當成觸發詞畫風的一部分。補上標籤或排除。Danbooru 上約 15% 的黑白圖也漏了這兩個標籤，所以從 Danbooru 抓來的標註也要看。
+- 標註寫 `greyscale`、圖卻明顯有顏色（例如裱框照片、局部上色、帶色調的草稿）：改成 `monochrome` 加上顏色標籤，或拿掉 `greyscale`。只有 `monochrome` 的單色圖不會列出，那本來就對。
 
 ## 2. 看一遍，再決定怎麼分
 
@@ -104,7 +106,7 @@ style-atlas cluster "D:\lora\artistX" --layout kohya --name artistX --dedupe --d
 
 ## 7. 指令輸出的語言
 
-中文 Windows 上，`cluster`、`sort` 等指令的主要訊息（分群結果、一致性、匯出、補新圖的摘要、計算進度）會自動用中文；想看英文就先執行 `set STYLE_ATLAS_LANG=en`（反過來 `zh` 強制中文）。`audit` 的項目名稱會在後面附上中文（例如 `no_caption（沒有標註檔）`）；`search` 的排序說明和部分錯誤訊息仍是英文。下表是英文訊息（非中文系統，或設了 `STYLE_ATLAS_LANG=en`）的意思；中文系統上，大多數本來就會直接顯示中文：
+中文 Windows 上，`cluster`、`sort` 等指令的主要訊息（分群結果、一致性、匯出、補新圖的摘要、計算進度）會自動用中文；想看英文就先執行 `set STYLE_ATLAS_LANG=en`（反過來 `zh` 強制中文）。`audit` 的項目名稱會在後面附上中文（例如 `no_caption（沒有標註檔）`）；其他指令的訊息和選項錯誤也都有中文。下表是英文訊息（非中文系統，或設了 `STYLE_ATLAS_LANG=en`）的意思；中文系統上，大多數本來就會直接顯示中文：
 
 | 輸出 | 意思 |
 |---|---|

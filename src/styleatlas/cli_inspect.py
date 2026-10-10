@@ -12,7 +12,7 @@ from styleatlas.atlas import embed_paths, measure_looks
 from styleatlas.cli_common import _atlas, _opts, log
 from styleatlas.cluster import outlier_scores
 from styleatlas.images import find_images
-from styleatlas.lang import chinese, pad, tr
+from styleatlas.lang import chinese, columns, pad, tr
 from styleatlas.look import LOOK_NAMES, describe, difference
 from styleatlas.metrics import StyleScale, group_difference
 
@@ -27,10 +27,11 @@ def cmd_audit(a: argparse.Namespace) -> int:
         print(json.dumps(report, ensure_ascii=False, indent=1))
         return 0
     root = Path(a.folder)
+    width = max(columns(_audit_label(key)) for key in report["summary"]) + 2
     for key, value in report["summary"].items():
         if key == "buckets":
             value = " · ".join(f"{b} {n}" for b, n in value.items())
-        print(f"{pad(_audit_label(key), 34)} {value}")
+        print(f"{pad(_audit_label(key), width)}{value}")
     for key, files in report["files"].items():
         for f in files[: a.show]:
             print(f"  [{key}] {_short(f, root)}")
@@ -58,6 +59,8 @@ AUDIT_ZH = {
     "empty_caption": "標註是空的",
     "watermark_or_signature": "標註提到浮水印或簽名",
     "greyscale_in_colour_set": "彩色資料夾裡的灰階圖",
+    "greyscale_untagged": "灰階圖的標註沒有 monochrome",
+    "greyscale_tag_on_colour": "標了 greyscale 卻是彩色",
     "images": "圖片數",
     "buckets": "kohya 的 1024 bucket",
     "short_side_median": "短邊中位數",

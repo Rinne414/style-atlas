@@ -422,7 +422,7 @@ function groupBar(c) {  // live app only: the edits for a group, or placing the 
 }
 
 const CHECK_KEYS = ["smaller_than_min_side", "soft_or_enlarged", "low_jpeg_quality",
-  "greyscale_in_colour_set", "extreme_aspect_ratio",
+  "greyscale_in_colour_set", "greyscale_untagged", "greyscale_tag_on_colour", "extreme_aspect_ratio",
   "watermark_or_signature", "no_caption", "empty_caption", "animated", "truncated", "unreadable"];
 let CHECK = null;  // the last dataset check (live app only)
 

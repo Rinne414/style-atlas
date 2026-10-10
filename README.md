@@ -80,7 +80,7 @@ pip install -e ".[umap]"
 
 以下的 `style-atlas ...` 指令都在 `scripts\StyleAtlas-console.bat` 開的視窗裡輸入（一次貼一行）。
 
-**1. 檢查**：太小的圖、極端長寬比、動圖、缺標註或標註是空的、混在彩色圖裡的黑白圖。
+**1. 檢查**：太小的圖、極端長寬比、動圖、缺標註或標註是空的、混在彩色圖裡的黑白圖，以及黑白標籤和圖不一致的標註。
 
 ```bat
 style-atlas audit "D:\lora\artistX" --min-side 768
@@ -366,7 +366,8 @@ how a picture is drawn rather than what it shows. On top of those vectors it can
   The colours are loose "families": grouping two halves of each artist's works separately agreed
   only at ARI 0.32.
 - **Check a dataset** (`audit`, `duplicates`, or the web app's Check tab): sizes, aspect ratios,
-  captions, near-duplicates, greyscale images mixed into a colour set, images enlarged from a
+  captions, near-duplicates, greyscale images mixed into a colour set (and captions whose
+  `monochrome` / `greyscale` tags disagree with the picture), images enlarged from a
   smaller original, heavily compressed JPEGs, and captions that mention a watermark, signature
   or URL (`watermark`, `signature`, `artist name`, `web address` ...). The style map cannot
   find enlarged images (CSD looks at 224 px), so the check measures their sharpness at
@@ -452,8 +453,9 @@ takes the same arguments.
 
 ### LoRA workflow
 
-Check for small, extreme, animated and stray greyscale images and for missing captions; then
-review duplicates, outliers and groups in the browser (exclude images with X); then export.
+Check for small, extreme, animated and stray greyscale images, for missing captions and for
+greyscale tags that disagree with the picture; then review duplicates, outliers and groups in
+the browser (exclude images with X); then export.
 `serve` keeps its console busy until you press Ctrl+C, so run the export in a second console.
 
 ```bat
