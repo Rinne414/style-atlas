@@ -252,6 +252,7 @@ def export_folders(
 KOHYA_CONFIG = "dataset_config.toml"
 DIFFUSION_PIPE_CONFIG = "diffusion_pipe_dataset.toml"
 ONETRAINER_CONCEPTS = "onetrainer_concepts.json"
+AI_TOOLKIT_DATASETS = "ai_toolkit_datasets.yaml"
 
 
 def _style_folders(root: Path, folders: list[str]) -> list[tuple[str, Path, int]]:
@@ -271,8 +272,8 @@ def _toml_string(path: Path) -> str:
 
 
 def write_trainer_configs(root: Path, folders: list[str], trigger: bool = False) -> list[Path]:
-    """Dataset configs for kohya sd-scripts, diffusion-pipe and OneTrainer, each listing every
-    style folder with its repeats. Resolution and batch size are starting points."""
+    """Dataset configs for kohya sd-scripts, diffusion-pipe, OneTrainer and ai-toolkit, each
+    listing every style folder with its repeats. Resolution and batch size are starting points."""
     styles = _style_folders(root, folders)
     if not styles:
         return []
@@ -280,6 +281,7 @@ def write_trainer_configs(root: Path, folders: list[str], trigger: bool = False)
         _write_kohya(root, styles, trigger),
         _write_diffusion_pipe(root, styles),
         _write_onetrainer(root, styles, trigger),
+        _write_ai_toolkit(root, styles, trigger),
     ]
 
 
@@ -351,6 +353,28 @@ def _write_onetrainer(root: Path, styles: list[tuple[str, Path, int]], trigger: 
     ]
     path = root / ONETRAINER_CONCEPTS
     path.write_text(json.dumps(concepts, ensure_ascii=False, indent=2), encoding="utf-8")
+    return path
+
+
+def _write_ai_toolkit(root: Path, styles: list[tuple[str, Path, int]], trigger: bool) -> Path:
+    """ai-toolkit dataset entries, to paste under `datasets:` in its training config. Written
+    by hand (JSON strings are valid YAML), so no YAML library is needed."""
+    lines = [
+        "# Written by style-atlas for ai-toolkit: paste these entries under `datasets:` in your",
+        "# training config. Set resolution for your model.",
+        "datasets:",
+    ]
+    for _, path, repeats in styles:
+        lines += [
+            f"  - folder_path: {_toml_string(path)}",
+            '    caption_ext: "txt"',
+            f"    num_repeats: {repeats}",
+            "    shuffle_tokens: true",
+            f"    keep_tokens: {1 if trigger else 0}",
+            "    resolution: [1024]",
+        ]
+    path = root / AI_TOOLKIT_DATASETS
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return path
 
 

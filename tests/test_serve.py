@@ -685,6 +685,10 @@ def test_a_kohya_export_with_chinese_names_writes_a_valid_dataset_config(tmp_pat
     assert all(c["balancing_strategy"] == "REPEATS" for c in concepts)
     assert all(c["text"]["prompt_source"] == "sample" for c in concepts)
     assert all(c["text"]["keep_tags_count"] == 1 for c in concepts)
+    yaml = pytest.importorskip("yaml")
+    toolkit = yaml.safe_load((root / "ai_toolkit_datasets.yaml").read_text(encoding="utf-8"))
+    assert {Path(d["folder_path"]): d["num_repeats"] for d in toolkit["datasets"]} == repeats
+    assert all(d["keep_tokens"] == 1 and d["caption_ext"] == "txt" for d in toolkit["datasets"])
 
 
 def test_each_group_lists_its_closest_groups(tmp_path):

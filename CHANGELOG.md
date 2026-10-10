@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- **ai-toolkit config.** A kohya-layout export also writes `ai_toolkit_datasets.yaml`: one
+  dataset entry per style folder (`folder_path`, `num_repeats`, `keep_tokens` ...) to paste
+  under `datasets:`. Fields checked against ai-toolkit's `DatasetConfig`.
+
 ## 0.23.0 - 2026-10-10
 
 - **Copies of a folder image among dropped images.** When you search with images in the web app,

@@ -60,7 +60,7 @@ style-atlas cluster "D:\lora\artistX" --layout kohya --name artistX --dedupe --d
 - repeats 會自動調成「張數 × repeats ≈ 100」，也可以用 `--repeats N` 指定。例如某群 20 張 → repeats 5，每個 epoch 這群看 100 次；batch size 1 時就是 100 步，訓 10 個 epoch 是 1,000 步。張數少的群 repeats 高，各群份量就接近。
 - 某群太多張（例如 300 張）時，加 `--max-per-group 40`（網頁：「每群最多幾張」）只保留 40 張能涵蓋整群變化的圖，其餘放到 `_trimmed\`。
 - 匯出資料夾裡會一起寫一份 `dataset_config.toml`（kohya sd-scripts 用 `--dataset_config` 指定），列出每群的資料夾路徑與 repeats；有勾觸發詞時會設 `keep_tokens = 1`，讓觸發詞在打亂標籤時固定在最前面。解析度與 batch size 請依模型自行調整（SDXL／Illustrious／Anima 用 1024）。
-- 用其他訓練器時：同一個資料夾還有 `diffusion_pipe_dataset.toml`（diffusion-pipe：在訓練設定的 `dataset` 填這個檔；在 WSL 裡要把 `D:\` 改成 `/mnt/d/`）和 `onetrainer_concepts.json`（OneTrainer：複製到 OneTrainer 的 `training_concepts\` 資料夾，再到 concepts 分頁的下拉選單選它）。三份的資料夾與 repeats 都一樣。
+- 用其他訓練器時：同一個資料夾還有 `diffusion_pipe_dataset.toml`（diffusion-pipe：在訓練設定的 `dataset` 填這個檔；在 WSL 裡要把 `D:\` 改成 `/mnt/d/`）和 `onetrainer_concepts.json`（OneTrainer：複製到 OneTrainer 的 `training_concepts\` 資料夾，再到 concepts 分頁的下拉選單選它），以及 `ai_toolkit_datasets.yaml`（ai-toolkit：把裡面的項目貼到訓練設定的 `datasets:` 底下）。四份的資料夾與 repeats 都一樣。
 - 標註裡有描述畫風本身的標籤（例如 `sketch`、`monochrome`）時，加 `--strip-tags "sketch, monochrome"`（網頁：「要移除的標籤」）把它們從匯出的標註拿掉，讓觸發詞去學這個畫風。原本的標註不會被改。
 - 被排除的圖放在 `_duplicates\`、`_outliers\`、`_unassigned\`、`_excluded\` 這幾個資料夾。它們沒有數字前綴，所以 kohya 不會拿來訓練。
 - 想**一群訓一個 LoRA**（例如早期、近期畫風分開）：把那一群的資料夾單獨當 train_data_dir。

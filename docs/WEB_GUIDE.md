@@ -49,13 +49,13 @@
 
 | 選項 | 用途 |
 |---|---|
-| 一般資料夾 / kohya | kohya 會做成 `10_名稱_style01` 這種資料夾，並附 kohya（`dataset_config.toml`）、diffusion-pipe、OneTrainer 的設定檔 |
+| 一般資料夾 / kohya | kohya 會做成 `10_名稱_style01` 這種資料夾，並附 kohya（`dataset_config.toml`）、diffusion-pipe、OneTrainer、ai-toolkit 的設定檔 |
 | LoRA 名稱（資料夾名） | 資料夾和觸發詞的開頭 |
 | 每群最多幾張 | 某群太多時只留這麼多張，會挑能涵蓋整群變化的；其餘放到 `_trimmed\` |
 | 要移除的標籤 | 例如 `sketch, monochrome`，匯出的標註裡會拿掉這些標籤 |
 | 標註加觸發詞 | 每個標註最前面加上該群的觸發詞 |
 
-按「開始匯出」。kohya 格式會同時附上 kohya、diffusion-pipe、OneTrainer 的設定檔（用法見 [LORA_GUIDE.md](LORA_GUIDE.md) 步驟 3）。
+按「開始匯出」。kohya 格式會同時附上 kohya、diffusion-pipe、OneTrainer、ai-toolkit 的設定檔（用法見 [LORA_GUIDE.md](LORA_GUIDE.md) 步驟 3）。
 
 ## 其他好用的功能
 
