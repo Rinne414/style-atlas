@@ -349,6 +349,21 @@ def bucket_counts(sizes: list[tuple[int, int]]) -> dict[str, int]:
     return dict(counts.most_common())
 
 
+AUDIT_KEYS = (
+    "unreadable",
+    "truncated",
+    "smaller_than_min_side",
+    "extreme_aspect_ratio",
+    "soft_or_enlarged",
+    "low_jpeg_quality",
+    "animated",
+    "no_caption",
+    "empty_caption",
+    "watermark_or_signature",
+    "greyscale_in_colour_set",
+)
+
+
 def audit(
     paths: list[Path],
     min_side: int = 512,
@@ -359,20 +374,7 @@ def audit(
     animations, missing captions, captions that mention a watermark or signature, and (given
     the look measures of `paths`) greyscale images mixed into a colour set. Finding enlarged
     images decodes every image (in parallel)."""
-    report: dict[str, list[str]] = {
-        "unreadable": [],
-        "truncated": [],
-        "smaller_than_min_side": [],
-        "extreme_aspect_ratio": [],
-        "soft_or_enlarged": [],
-        "low_jpeg_quality": [],
-        "animated": [],
-        "no_caption": [],
-        "empty_caption": [],
-        "watermark_or_signature": [],
-        "greyscale_in_colour_set": [],
-    }
-    sides = []
+    report: dict[str, list[str]] = {k: [] for k in AUDIT_KEYS}
     sizes: list[tuple[int, int]] = []
     readable = []
     for p in paths:
@@ -381,26 +383,9 @@ def audit(
             report["unreadable"].append(str(p))
             continue
         readable.append(p)
-        if info.truncated:
-            report["truncated"].append(str(p))
-        if info.jpeg_quality is not None and info.jpeg_quality < LOW_JPEG:
-            report["low_jpeg_quality"].append(str(p))
-        sides.append(min(info.width, info.height))
         sizes.append((info.width, info.height))
-        if min(info.width, info.height) < min_side:
-            report["smaller_than_min_side"].append(str(p))
-        if max(info.width, info.height) / max(1, min(info.width, info.height)) > max_ratio:
-            report["extreme_aspect_ratio"].append(str(p))
-        if info.frames > 1:
-            report["animated"].append(str(p))
-        side = caption_of(p)
-        tags = read_tags(p) if side is not None else []
-        if side is None:
-            report["no_caption"].append(str(p))
-        elif not tags:
-            report["empty_caption"].append(str(p))
-        elif any(norm_tag(t) in MARK_TAGS for t in tags):
-            report["watermark_or_signature"].append(str(p))
+        for key in _image_problems(info, min_side, max_ratio) + _caption_problems(p):
+            report[key].append(str(p))
     for p, soft in zip(readable, softness_of_files(readable), strict=True):
         if soft is not None and soft < SOFT:
             report["soft_or_enlarged"].append(str(p))
@@ -408,11 +393,37 @@ def audit(
         grey = looks[:, LOOK_NAMES.index("colourfulness")] < GREYSCALE
         if grey.mean() < 0.5:  # a mostly greyscale folder is a monochrome artist, not a mistake
             report["greyscale_in_colour_set"] = [str(paths[i]) for i in np.flatnonzero(grey)]
+    return {"summary": _audit_summary(report, len(paths), sizes), "files": report}
+
+
+def _image_problems(info, min_side: int, max_ratio: float) -> list[str]:
+    short, long = min(info.width, info.height), max(info.width, info.height)
+    checks = {
+        "truncated": info.truncated,
+        "low_jpeg_quality": info.jpeg_quality is not None and info.jpeg_quality < LOW_JPEG,
+        "smaller_than_min_side": short < min_side,
+        "extreme_aspect_ratio": long / max(1, short) > max_ratio,
+        "animated": info.frames > 1,
+    }
+    return [k for k, found in checks.items() if found]
+
+
+def _caption_problems(path: Path) -> list[str]:
+    side = caption_of(path)
+    if side is None:
+        return ["no_caption"]
+    tags = read_tags(path)
+    if not tags:
+        return ["empty_caption"]
+    return ["watermark_or_signature"] if any(norm_tag(t) in MARK_TAGS for t in tags) else []
+
+
+def _audit_summary(report: dict, n: int, sizes: list[tuple[int, int]]) -> dict:
     summary = {k: len(v) for k, v in report.items()}
-    summary["images"] = len(paths)
+    summary["images"] = n
     summary["buckets"] = bucket_counts(sizes)
+    sides = sorted(min(w, h) for w, h in sizes)
     if sides:
-        sides.sort()
         summary["short_side_median"] = sides[len(sides) // 2]
         summary["short_side_p10"] = sides[max(0, math.ceil(len(sides) * 0.1) - 1)]
-    return {"summary": summary, "files": report}
+    return summary

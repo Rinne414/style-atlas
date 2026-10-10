@@ -105,8 +105,44 @@ def build_payload(
     group_tags: dict[int, list[str]] | None = None,
 ) -> dict:
     times = [file_time(p, time_source) for p in atlas.paths]
-    group_tags = group_tags or {}
+    return {
+        "title": title or atlas.root.name or "style atlas",
+        "projection": layout.projection,
+        "method": clustering.method,
+        "params": clustering.params,
+        "signature": atlas.signature,
+        "clusters": _cluster_rows(atlas, clustering, group_tags or {}),
+        "points": _points(atlas, clustering, layout, thumb_of, link_of, times),
+        "duplicates": layout.duplicates,
+        "time_source": time_source if any(v is not None for v in times) else "none",
+        "reference": layout.ref_title,
+        "look_names": list(LOOK_NAMES) if atlas.looks is not None else [],
+    }
+
+
+def _cluster_rows(atlas: Atlas, clustering: Clustering, group_tags: dict) -> list[dict]:
     near = nearest_groups(atlas, clustering)
+    return [
+        {
+            "id": c.id,
+            "size": c.size,
+            "medoid": c.medoid,
+            "cohesion": round(c.cohesion, 4),
+            "tags": group_tags.get(c.id, []),
+            "near": near.get(c.id, []),
+        }
+        for c in clustering.clusters
+    ]
+
+
+def _points(
+    atlas: Atlas,
+    clustering: Clustering,
+    layout: Layout,
+    thumb_of: Callable[[int], str],
+    link_of: Callable[[int], str],
+    times: list,
+) -> list[dict]:
     points = [
         {
             "p": layout.coords[i].round(4).tolist(),
@@ -126,29 +162,7 @@ def build_payload(
         rows = atlas.looks.astype(np.float64).round(3).tolist()  # float32 would print 0.59100002
         for pt, row in zip(points, rows, strict=True):
             pt["lk"] = row
-    return {
-        "title": title or atlas.root.name or "style atlas",
-        "projection": layout.projection,
-        "method": clustering.method,
-        "params": clustering.params,
-        "signature": atlas.signature,
-        "clusters": [
-            {
-                "id": c.id,
-                "size": c.size,
-                "medoid": c.medoid,
-                "cohesion": round(c.cohesion, 4),
-                "tags": group_tags.get(c.id, []),
-                "near": near.get(c.id, []),
-            }
-            for c in clustering.clusters
-        ],
-        "points": points,
-        "duplicates": layout.duplicates,
-        "time_source": time_source if any(v is not None for v in times) else "none",
-        "reference": layout.ref_title,
-        "look_names": list(LOOK_NAMES) if atlas.looks is not None else [],
-    }
+    return points
 
 
 def map_payload(

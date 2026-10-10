@@ -590,8 +590,8 @@ class StyleAtlasApp(GroupEdits):
         with self._lock:
             return self.taste.vote(i, like)
 
-    def export(self, body: dict) -> dict:
-        mode = body.get("mode", "copy")
+    def _export_options(self, body: dict) -> tuple[str, bool, str, str, int | None]:
+        """(layout, trigger, name, strip_tags, max_per_group) from the page, checked."""
         layout = body.get("layout", "plain")
         trigger = body.get("trigger", False)
         if layout not in LAYOUTS or not isinstance(trigger, bool):
@@ -604,6 +604,11 @@ class StyleAtlasApp(GroupEdits):
         low, high = MAX_PER_GROUP_RANGE
         if cap is not None and (type(cap) is not int or not low <= cap <= high):
             raise ValueError(f"max_per_group must be empty or a whole number from {low} to {high}")
+        return layout, trigger, name, strip, cap
+
+    def export(self, body: dict) -> dict:
+        mode = body.get("mode", "copy")
+        layout, trigger, name, strip, cap = self._export_options(body)
         out = self.out_dir
         with self._lock:
             folders = plan_folders(
