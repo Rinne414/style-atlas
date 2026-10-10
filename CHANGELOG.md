@@ -5,6 +5,8 @@
 - Pillow 10.3 or newer is required (CVE-2024-28219 was fixed there; the images a folder holds
   are untrusted input). torch stays at 2.4+: the CSD weights are loaded with `weights_only=True`
   from a pinned Hugging Face revision, and newer torch would shut out older ComfyUI setups.
+- Internal: `cli.py` (782 lines) split into `cli_common.py` (shared helpers) and `cli_lora.py`
+  (the `cluster` command); the commands and options are unchanged.
 
 ## 0.20.0 - 2026-10-10
 
