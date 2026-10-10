@@ -489,7 +489,14 @@ of recipes.
 - The web app's 「忽略角色軸」 switch uses it since 0.14.0.
 - A new image (a search query or a `--reference` image) is moved by the offset of its nearest
   character. A character the collection never showed gets a wrong offset; `--neutralize`, which
-  learns no characters, is the safer choice there (see the second check above).
+  learns no characters, is the safer choice there.
+  - Measured on the Anima 4-character set, leaving one character out of the folder and querying
+    with its renders (128 queries in all). Same-recipe top-1: plain 68%, nearest character's
+    offset 71%, `--neutralize 1` 74%, no offset at all 76%.
+  - Tried: giving no offset to a query farther from every character centre than 95% of the
+    folder's images. Unseen-character queries reached 74%, and queries of known characters were
+    unchanged (74%). The gain was one query in 32 for each held-out character, within noise, so
+    it was not adopted.
 
 ## Near-duplicate threshold (2026-10-09)
 
