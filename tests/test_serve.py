@@ -512,3 +512,39 @@ def test_the_server_queues_bursts_of_thumbnail_requests(server):
     from styleatlas.webserver import _Server
 
     assert _Server.request_queue_size >= 64
+
+
+def test_uploads_move_by_their_own_character_and_a_failed_switch_leaves_no_undo(
+    tmp_path, monkeypatch
+):
+    import io
+
+    import numpy as np
+
+    from styleatlas import metrics
+
+    app, _ = _app(tmp_path, (8, 7, 6))
+    app.set_space({"space": "characters"})
+    assert len(app.space.transform.centres) >= 2
+    assert not np.allclose(app.atlas.style, app.raw.style)
+    style, content = app.raw.style[:1], app.raw.content[-1:]  # content of another group
+
+    class FakeEncoder:
+        def encode(self, images):
+            return type("E", (), {"style": style, "content": content})
+
+    monkeypatch.setattr("styleatlas.serve.get_encoder", lambda opts: FakeEncoder())
+    buf = io.BytesIO()
+    Image.new("RGB", (8, 8)).save(buf, format="PNG")
+    got = app._embed([buf.getvalue()])
+    assert np.allclose(got, app.space.apply(style, content))
+    assert not np.allclose(got, app.space.apply(style, style))
+
+    def broken(*args, **kwargs):
+        raise ValueError("no subjects")
+
+    monkeypatch.setattr(metrics.Neutralizer, "fit", broken)
+    steps = len(app._history)
+    with pytest.raises(ValueError):
+        app.set_space({"space": "neutralize-1"})
+    assert len(app._history) == steps and app.space.name == "characters"

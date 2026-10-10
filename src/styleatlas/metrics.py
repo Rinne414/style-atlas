@@ -91,6 +91,7 @@ class Neutralizer:
 
 SUBJECT_KMAX = 8
 SUBJECT_SAMPLE = 3000  # subjects are found on at most this many images, then assigned to all
+MIN_PER_SUBJECT = 5  # a character that recurs across styles shows up several times
 
 
 @dataclass(frozen=True)
@@ -98,11 +99,14 @@ class SubjectCentring:
     """Moves each style vector by its subject's offset from the overall mean, so one style drawn
     on different characters lands in one place.
 
-    Subjects are k-means groups of the CSD *content* vectors, k from 2 to 8 by silhouette. On AI
-    renders of 2-4 fixed characters in many styles this found the characters exactly (ARI 0.98 to
-    1.0), and with 4 characters same-style top-1 rose from 58% (neutralize 1) to 70%. On a mix of
-    different artists the "subjects" are mostly the artists, and centring wrecked grouping (ARI
-    0.42 to 0.00 with 2 artists), so this is opt-in, like the Neutralizer."""
+    Subjects are k-means groups of the CSD *content* vectors: k from 2 to 8 (at most one per 5
+    images), picked by silhouette. On AI renders of 2-4 fixed characters in many styles this found
+    the characters exactly (ARI 0.98 to 1.0), and with 4 characters same-style top-1 rose from 58%
+    (neutralize 1) to 70%. On a mix of different artists the "subjects" are mostly the artists,
+    and centring wrecked grouping (ARI 0.42 to 0.00 with 2 artists), so this is opt-in, like the
+    Neutralizer. It always finds at least 2 subjects: on one artist's own work the best
+    silhouette was 0.06-0.10 against 0.14-0.20 for character sets, too close for an automatic
+    off switch."""
 
     centres: np.ndarray  # (s, d) content centroids
     offsets: np.ndarray  # (s, d) each subject's mean style minus the overall mean style
@@ -134,14 +138,14 @@ def _subject_centres(content: np.ndarray) -> np.ndarray | None:
     from sklearn.cluster import KMeans
     from sklearn.metrics import silhouette_score
 
-    if len(content) < 6:
+    if len(content) < 2 * MIN_PER_SUBJECT:
         return None
     rng = np.random.default_rng(0)
     sample = content
     if len(content) > SUBJECT_SAMPLE:
         sample = content[rng.choice(len(content), SUBJECT_SAMPLE, replace=False)]
     best, centres = -1.0, None
-    for k in range(2, min(SUBJECT_KMAX, len(sample) - 1) + 1):
+    for k in range(2, min(SUBJECT_KMAX, len(sample) // MIN_PER_SUBJECT) + 1):
         km = KMeans(k, n_init=4, random_state=0).fit(sample)
         labels = np.asarray(km.labels_)
         if len(np.unique(labels)) < 2:  # duplicate images can leave a single group

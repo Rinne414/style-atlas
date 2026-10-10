@@ -125,7 +125,7 @@ def test_ignore_characters_and_neutralize_are_alternatives(lib, tmp_path, capsys
     out = tmp_path / "out"
     base = ["cluster", str(lib), "--device", "cpu", "--no-map", "-o", str(out)]
     assert main([*base, "--ignore-characters"]) == 0
-    assert "subjects found in the picture content" in capsys.readouterr().err
-    with pytest.raises(SystemExit):  # argparse: not allowed together
-        main([*base, "--ignore-characters", "--neutralize", "1"])
-    assert main([*base, "--neutralize", "9"]) == 1
+    assert "3 subjects found in the picture content" in capsys.readouterr().err  # the 3 colours
+    for bad in (["--ignore-characters", "--neutralize", "1"], ["--neutralize", "9"]):
+        with pytest.raises(SystemExit):  # refused by argparse, before any image is read
+            main([*base, *bad])

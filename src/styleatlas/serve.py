@@ -93,6 +93,7 @@ class StyleAtlasApp:
         self.taste: TasteSession | None = None
         self.group_names: dict[int, str] = {}  # group id -> name, carried across regroupings
         self._history: list[tuple] = []  # earlier (clustering, settings, names, space) for undo
+        self._spaces: dict[str, tuple] = {}  # name -> (space, layout); the raw vectors never change
         saved = load_groups(self._groups_path, atlas)
         if saved and saved.space is not None:
             space = saved.space  # the switch as it was left in the page
@@ -107,12 +108,15 @@ class StyleAtlasApp:
     def _apply_space(self, name: str) -> None:
         """(Re)build everything that depends on the vector space (see metrics.StyleSpace)."""
         raw = self.raw
-        self.space = StyleSpace.fit(name, raw.style, raw.content)
+        self.space = self._fitted(name)
         self.atlas = replace(raw, style=self.space.apply(raw.style, raw.content))
-        ref = self.raw_reference
-        if ref is not None:
-            ref = replace(ref, style=self.space.apply(ref.style, ref.content))
-        self.layout = compute_layout(self.atlas, self.projection, self.progress, ref)
+        if name not in self._spaces:  # switching back (or Undo) reuses the first layout
+            ref = self.raw_reference
+            if ref is not None:
+                ref = replace(ref, style=self.space.apply(ref.style, ref.content))
+            layout = compute_layout(self.atlas, self.projection, self.progress, ref)
+            self._spaces[name] = (self.space, layout)
+        self.layout = self._spaces[name][1]
         s = self.settings
         self.clustering = cluster_styles(
             self.atlas.style,
@@ -125,6 +129,11 @@ class StyleAtlasApp:
             self.taste.atlas = self.atlas
             self.taste._refit()
 
+    def _fitted(self, name: str) -> StyleSpace:
+        if name in self._spaces:
+            return self._spaces[name][0]
+        return StyleSpace.fit(name, self.raw.style, self.raw.content)
+
     def set_space(self, body: dict) -> dict:
         """Switch the vector space. Groups are rebuilt in it (names follow their images); Undo
         returns to the old space with its groups and hand edits."""
@@ -134,6 +143,7 @@ class StyleAtlasApp:
             raise ValueError(f"space must be {choices}")
         with self._lock:
             if name != self.space.name:
+                self._fitted(name)  # the step that can fail, before anything changes
                 self._remember()
                 old, names = self.clustering.labels, self.group_names
                 self._apply_space(name)

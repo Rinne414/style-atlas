@@ -479,6 +479,10 @@ of recipes.
 - With two characters the two are about equal: the strongest direction *is* the line between the
   two characters. With four, one direction cannot hold them all, and centring is far better.
 - Centring and then neutralizing gave no further gain.
+- It always finds at least 2 subjects (k from 2 to 8, at most one per 5 images). The best
+  content silhouette was 0.14-0.20 on the three character sets and 0.06 and 0.10 on two Danbooru
+  artists' own work (271 and 300 images). That gap is too small for an automatic off switch, so
+  the user turns it on.
 - On mixed Danbooru artists centring is as harmful as neutralizing: the "characters" it finds are
   mostly the artists. k-means ARI fell from 0.42 to 0.00 with 2 artists and from 0.50 to 0.07
   with 5; with 20 it was unchanged. So it is opt-in too.

@@ -111,12 +111,12 @@ def test_cli_reference_uses_the_folders_neutralizer(monkeypatch, tmp_path):
     from styleatlas import cli
     from styleatlas.atlas import Atlas
 
-    rng = np.random.default_rng(1)
-    folder = unit(rng.normal(size=(12, 768)))
-    ref = unit(rng.normal(size=(4, 768)))
+    folder, content, *_ = _characters_in_styles()
+    ref, ref_content = folder[[0, 12, 24, 1]], content[[12, 24, 0, 13]]  # other subjects
+    n = len(folder)
     fake = {
-        "folder": Atlas(tmp_path, [tmp_path / f"f{i}.png" for i in range(12)], folder, folder, "s"),
-        "ref": Atlas(tmp_path, [tmp_path / f"r{i}.png" for i in range(4)], ref, ref, "s"),
+        "folder": Atlas(tmp_path, [tmp_path / f"f{i}.png" for i in range(n)], folder, content, "s"),
+        "ref": Atlas(tmp_path, [tmp_path / f"r{i}.png" for i in range(4)], ref, ref_content, "s"),
     }
     monkeypatch.setattr(cli, "build_atlas", lambda root, *a, **k: fake[Path(root).name])
     monkeypatch.setattr(cli, "_opts", lambda a: None)
@@ -124,8 +124,9 @@ def test_cli_reference_uses_the_folders_neutralizer(monkeypatch, tmp_path):
         args = argparse.Namespace(**flags, reference="ref", no_recursive=False)
         atlas = cli._atlas(args, "folder")
         got = cli._reference(args)
-        assert np.allclose(got.style, args.fitted_space.apply(ref, ref))
+        assert np.allclose(got.style, args.fitted_space.apply(ref, ref_content))
         assert not np.allclose(atlas.style, folder)
+    assert not np.allclose(got.style, args.fitted_space.apply(ref, ref))
 
 
 def _characters_in_styles(n_styles: int = 12, n_subjects: int = 3, seed: int = 0):

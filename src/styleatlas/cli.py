@@ -79,15 +79,23 @@ def _space(a: argparse.Namespace) -> str:
     if getattr(a, "ignore_characters", False):
         return CHARACTERS
     n = getattr(a, "neutralize", 0)
-    if not 0 <= n <= MAX_NEUTRALIZE:
-        raise ValueError(f"--neutralize takes 0 to {MAX_NEUTRALIZE}")
     return f"neutralize-{n}" if n else PLAIN
+
+
+def _neutralize_count(text: str) -> int:
+    n = int(text)
+    if not 0 <= n <= MAX_NEUTRALIZE:
+        raise argparse.ArgumentTypeError(f"takes 0 to {MAX_NEUTRALIZE}")
+    return n
 
 
 def _log_space(transform: object) -> None:
     if isinstance(transform, SubjectCentring):
         n = len(transform.centres)
-        log(f"comparing styles per character: {n} subjects found in the picture content")
+        if not n:
+            log("too few images to find characters: styles are compared as they are")
+        else:
+            log(f"comparing styles per character: {n} subjects found in the picture content")
     else:
         k = len(getattr(transform, "axes", []))
         log(f"ignoring the {k} strongest direction(s) of variation (subject axis)")
@@ -604,7 +612,9 @@ def _add_folder_commands(add: Adder) -> None:
 def _space_args(p) -> None:
     x = p.add_mutually_exclusive_group()
     x.add_argument("--ignore-characters", action="store_true", help=CHARACTERS_HELP)
-    x.add_argument("--neutralize", type=int, default=0, metavar="N", help=NEUTRALIZE_HELP)
+    x.add_argument(
+        "--neutralize", type=_neutralize_count, default=0, metavar="N", help=NEUTRALIZE_HELP
+    )
 
 
 def _add_inspect_commands(add: Adder) -> None:
