@@ -338,7 +338,7 @@ function pathButton(i) {
   const b = document.createElement("button");
   b.textContent = PATH_FROM === null || PATH_FROM === i ? t("pathFrom") : t("pathTo");
   b.addEventListener("click", () => {
-    if (PATH_FROM === null || PATH_FROM === i) { PATH_FROM = i; b.textContent = t("pathTo"); return; }
+    if (PATH_FROM === null || PATH_FROM === i) { PATH_FROM = i; b.textContent = t("pathTo"); setStatus(t("pathHint")); return; }
     const a = PATH_FROM; PATH_FROM = null; showPath(a, i);
   });
   return b;
@@ -613,7 +613,7 @@ function setupExport() {
 const LARGE_SHARE_MB = 10;  // Discord's upload limit without Nitro
 
 function setupSaves() {  // PNG, report and shareable map under "More..."
-  $("savePng").addEventListener("click", () => { snapPending = true; });
+  $("savePng").addEventListener("click", snapNow);
   $("saveReport").addEventListener("click", async () => {
     setStatus(t("savingMap"));
     try {
@@ -703,19 +703,21 @@ function restoreView() {
   try {
     view = JSON.parse(sessionStorage.getItem(VIEW_KEY) || "null");
     sessionStorage.removeItem(VIEW_KEY);
-  } catch (e) { return; }
+  } catch (e) { return false; }
   const point = (v) => Array.isArray(v) && v.length === 3 && v.every(Number.isFinite);
-  if (!view || !point(view.cam) || !point(view.target)) return;
+  if (!view || !point(view.cam) || !point(view.target)) return false;
   camera.position.fromArray(view.cam); controls.target.fromArray(view.target); controls.update();
   if (typeof view.note === "string" && view.note) setTimeout(() => setStatus(view.note), 0);
+  return true;
 }
 
 // start-up
-restoreView();
+const restored = restoreView();
 if (DATA.live) setupLive();
 applyText();
 buildPages();
 resize();
+if (!restored) camera.position.copy(homeView());  // every point in view, whatever the window
 $("loading").classList.add("badge");  // thumbnails keep loading behind a small corner note
 animate();
 fillPages();

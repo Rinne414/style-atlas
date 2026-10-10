@@ -105,6 +105,7 @@ function srgbTexture(cv) {  // canvas pixels are sRGB; unmarked, the sprite shad
 const MAX_NAMES = 16;  // the largest groups only: more labels cover the map
 const MAX_NOTES = 40;  // notes drawn on the map (the details show every note)
 const NOTE_COLOR = "#f5f5f5";
+const NOTE_HEIGHT = 0.03;  // of the view's height
 let nameSprites = null;
 let showNames = true;
 
@@ -140,8 +141,11 @@ function drawNames() {
   Object.entries(NOTES).slice(0, MAX_NOTES).forEach(([k, text]) => {  // notes at their images
     const i = Number(k);
     if (!(i >= 0 && i < N) || !text) return;
-    const sp = nameSprite(text, NOTE_COLOR); sp.scale.multiplyScalar(0.7);
-    sp.position.set(pos[i * 3], pos[i * 3 + 1] + 0.07, pos[i * 3 + 2]); sp.userData.note = i;
+    const sp = nameSprite(text, NOTE_COLOR);
+    sp.material.sizeAttenuation = false;  // the same size however close the camera is
+    sp.scale.set(NOTE_HEIGHT * sp.scale.x / sp.scale.y, NOTE_HEIGHT, 1);
+    sp.center.set(0, 0);  // starts at the image and reaches up and right, off its group's name
+    sp.position.set(pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2]); sp.userData.note = i;
     nameSprites.add(sp);
   });
   scene.add(nameSprites);
@@ -193,12 +197,13 @@ async function recordTurn() {
       await new Promise((r) => setTimeout(r, 1000));
     }
     rec.stop(); await stopped;
-    if (hidden || !chunks.length) { $("rec").title = t("recHidden"); return; }  // no broken file
+    if (hidden || !chunks.length) { $("rec").title = t("recHidden"); setStatus(t("recHidden")); return; }  // no broken file
     const blob = new Blob(chunks, { type: type.split(";")[0] });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = `${DATA.title || "style_atlas"}.${type.includes("mp4") ? "mp4" : "webm"}`;
     a.click();
+    setStatus(t("downloaded").replace("{f}", a.download));
     setTimeout(() => URL.revokeObjectURL(a.href), 60000);
   } finally {
     document.removeEventListener("visibilitychange", onHide);
@@ -250,8 +255,21 @@ function drawAxes() {
   scene.add(axisLines);
 }
 
-function homeView() {
-  return (layoutMode === "measures" ? HOME_MEASURES : HOME).clone();
+function homeView() {  // looking at the centre from HOME's direction, every point in view
+  if (layoutMode === "measures") return HOME_MEASURES.clone();
+  const back = HOME.clone().normalize();  // from the centre towards the camera
+  const right = new THREE.Vector3(0, 1, 0).cross(back).normalize();
+  const up = back.clone().cross(right);
+  const tanV = Math.tan((camera.fov * Math.PI) / 360);
+  const tanH = tanV * camera.aspect;
+  const q = new THREE.Vector3();
+  let need = 0;  // the distance at which the last point still fits (a thumbnail's room around it)
+  for (let i = 0; i < N; i++) {
+    q.set(pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2]);
+    const x = Math.abs(q.dot(right)) + pointSize / 2, y = Math.abs(q.dot(up)) + pointSize / 2;
+    need = Math.max(need, q.dot(back) + x / tanH, q.dot(back) + y / tanV);
+  }
+  return back.multiplyScalar(Math.min(HOME_MAX, Math.max(1, need * HOME_MARGIN)));
 }
 
 function setupAxes() {

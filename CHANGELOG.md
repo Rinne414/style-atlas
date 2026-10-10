@@ -59,6 +59,11 @@ New:
   kohya sd-scripts reads the pixels as stored and ignores the EXIF orientation (checked in
   its `library/utils.py`), so a phone photo trains sideways; ai-toolkit and OneTrainer turn
   it upright.
+- Web app, from an explore-and-share test: the home view fits every point whatever the window's
+  shape (it cut off the top and bottom); notes keep a readable size at any zoom and start at
+  their image (in Chinese 備註, apart from 標註 captions); a saved PNG or recording says where it
+  went, and P works in a background tab too; the style path says to pick an end image; the
+  help box closes on a click elsewhere.
 - **Notes on the map** (web app): a short note on an image (type it under the image's buttons,
   Enter) is drawn at its point on the map, kept next to the folder in `notes.json` and carried
   into saved shareable maps, so what someone found while exploring can be shown to others.

@@ -22,6 +22,8 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(50, 1, 0.01, 100);
 const HOME = new THREE.Vector3(0, 0.6, 3.1);
 const HOME_MEASURES = new THREE.Vector3(3.0, 2.2, 4.6);  // the whole axis cube, at an angle
+const HOME_MARGIN = 1.12;  // room for the bars above and below the map
+const HOME_MAX = 9;
 camera.position.copy(HOME);
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
@@ -701,6 +703,9 @@ function showHelp(on) {
   }));
 }
 $("helpBtn").addEventListener("click", () => showHelp($("help").hidden));
+document.addEventListener("pointerdown", (e) => {  // a click elsewhere closes the help
+  if (!$("help").hidden && !$("help").contains(e.target) && e.target !== $("helpBtn")) showHelp(false);
+});
 $("theme").addEventListener("click", () => {
   const root = document.documentElement;
   root.dataset.theme = root.dataset.theme === "light" ? "dark" : "light";
@@ -722,14 +727,16 @@ addEventListener("keydown", (e) => {
   if (DATA.live && selected !== null && (e.key === "l" || e.key === "L")) castVote(selected, true);
   if (DATA.live && selected !== null && (e.key === "d" || e.key === "D")) castVote(selected, false);
   if (DATA.live && selected !== null && (e.key === "x" || e.key === "X")) toggleExclude(selected);
-  if (e.key === "p" || e.key === "P") snapPending = true;
+  if (e.key === "p" || e.key === "P") snapNow();
   if (e.key === "+" || e.key === "=") setSize(pointSize * 1.2);
   if (e.key === "-") setSize(pointSize / 1.2);
 });
 canvas.addEventListener("wheel", (e) => { if (e.altKey) { e.preventDefault(); setSize(pointSize * (e.deltaY < 0 ? 1.1 : 1 / 1.1)); } }, { passive: false });
 function setSize(s) { pointSize = Math.min(0.6, Math.max(0.02, s)); pages.forEach((pg) => (pg.mat.uniforms.uSize.value = pointSize)); }
 
-let snapPending = false;  // save the next frame as a PNG (P, or the button in Advanced)
+// P, or the button in Advanced: draw a frame now and save it, so it works in a background tab too
+// (no animation frames run there); toBlob reads the canvas right after the render
+function snapNow() { renderer.render(scene, camera); saveSnapshot(); }
 function saveSnapshot() {  // right after render(), while the frame is still in the canvas
   canvas.toBlob((blob) => {
     if (!blob) return;
@@ -737,6 +744,7 @@ function saveSnapshot() {  // right after render(), while the frame is still in 
     a.href = URL.createObjectURL(blob);
     a.download = `${(DATA.title || document.title || "style-map").replace(/[\\/:*?"<>|]+/g, "_")}.png`;
     a.click();
+    setStatus(t("downloaded").replace("{f}", a.download));
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }, "image/png");
 }
@@ -753,5 +761,4 @@ function animate() {
   }
   controls.update(Math.min(clock.getDelta(), 0.1));  // real time: same turn speed at any frame rate
   renderer.render(scene, camera);
-  if (snapPending) { snapPending = false; saveSnapshot(); }
 }
