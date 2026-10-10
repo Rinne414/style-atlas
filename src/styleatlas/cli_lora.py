@@ -81,24 +81,7 @@ def cmd_cluster(a: argparse.Namespace) -> int:
 
     out = Path(a.out) if a.out else output_dir(Path(a.folder))
     atlas = _atlas(a, a.folder, exclude=[out]).with_looks(_opts(a), log)
-    dups = None
-    if a.dedupe:  # cluster only the kept copies, so a stack of duplicates cannot pose as a style
-        from styleatlas.cluster import expand_clustering
-        from styleatlas.dataset import duplicate_keepers
-        from styleatlas.duplicates import near_duplicate_groups
-
-        dups = near_duplicate_groups(atlas.style, atlas.content)
-        kept = duplicate_keepers(atlas.paths, dups)
-        aside = len(atlas) - len(kept)
-        log(
-            tr(
-                f"{aside} near-duplicates set aside before grouping",
-                f"{aside} 張近重複圖先放到一邊，不參與分群",
-            )
-        )
-        result = expand_clustering(_cluster(a, atlas.subset(kept)), kept, len(atlas))
-    else:
-        result = _cluster(a, atlas)
+    result, dups = _group(a, atlas)
     folders, tags = _plan(a, atlas, result, dups)
     csv_path, json_path = write_table(atlas, result, out, folders, tags)
     log(tr(f"wrote {csv_path} and {json_path}", f"已寫出 {csv_path} 和 {json_path}"))
@@ -128,6 +111,30 @@ def cmd_cluster(a: argparse.Namespace) -> int:
         )
         log(tr(f"map: {path}", f"地圖：{path}"))
     return 0
+
+
+def _group(a: argparse.Namespace, atlas: Atlas):
+    """The style groups, and with --dedupe the near-duplicate groups (grouping only the kept
+    copies, so a stack of duplicates cannot pose as a style)."""
+    dups = None
+    if a.dedupe:
+        from styleatlas.cluster import expand_clustering
+        from styleatlas.dataset import duplicate_keepers
+        from styleatlas.duplicates import near_duplicate_groups
+
+        dups = near_duplicate_groups(atlas.style, atlas.content)
+        kept = duplicate_keepers(atlas.paths, dups)
+        aside = len(atlas) - len(kept)
+        log(
+            tr(
+                f"{aside} near-duplicates set aside before grouping",
+                f"{aside} 張近重複圖先放到一邊，不參與分群",
+            )
+        )
+        result = expand_clustering(_cluster(a, atlas.subset(kept)), kept, len(atlas))
+    else:
+        result = _cluster(a, atlas)
+    return result, dups
 
 
 def _export(a: argparse.Namespace, atlas: Atlas, folders: list[str], out: Path) -> None:

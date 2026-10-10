@@ -52,19 +52,8 @@ KOHYA_FOLDER = re.compile(r"^(\d+)_(.+)$")  # <repeats>_<name>, as `cluster --la
 
 
 def cmd_sort(a: argparse.Namespace) -> int:
-    new_root, data_root = Path(a.folder).resolve(), Path(a.into).resolve()
-    if new_root == data_root:
-        raise ValueError("the new images and the dataset are the same folder")
-    if (a.trigger_captions or a.strip_tags) and not a.export:
-        raise ValueError("--trigger-captions and --strip-tags only apply with --export copy|link")
     out = Path(a.out) if a.out else output_dir(Path(a.folder))
-    if any(root.is_relative_to(out.resolve()) for root in (new_root, data_root)):
-        raise ValueError("the output folder must not hold the new images or the dataset")
-    # neither side reads the other when one folder holds the other, nor earlier results
-    log(tr(f"dataset: {a.into}", f"資料集：{a.into}"))
-    dataset = _atlas(a, a.into, exclude=[out, *_nested(new_root, data_root)])
-    log(tr(f"new images: {a.folder}", f"新圖：{a.folder}"))
-    new = _atlas(a, a.folder, exclude=[out, *_nested(data_root, new_root)])
+    dataset, new = _both_sides(a, out)
     if len(new) == 0:
         log(tr(f"no readable images in {a.folder}", f"{a.folder} 裡沒有讀得到的圖"))
         return 1
@@ -90,27 +79,48 @@ def cmd_sort(a: argparse.Namespace) -> int:
     if a.by_folder:
         _repeats_notes(clustering, labels, folders)
     if a.export:
-        kohya = all(KOHYA_FOLDER.match(name) for name in labels.values())
-        done = export_folders(
-            new,
-            folders,
-            out / "sorted",
-            mode=a.export,
-            trigger_captions=a.trigger_captions,
-            layout="kohya" if kohya else "plain",
-            strip_tags=parse_tags(a.strip_tags or ""),
-        )
-        log(
-            tr(
-                f"{done.placed} images placed in {done.folder}",
-                f"已放 {done.placed} 張到 {done.folder}",
-            )
-        )
-        for p, why in done.failed:
-            log(tr(f"not placed {p}: {why}", f"沒有放入 {p}：{why}"))
+        _place(a, new, folders, labels, out)
     log(tr("table of every new image:", "每張新圖的結果表："))
     print(table)
     return 0
+
+
+def _both_sides(a: argparse.Namespace, out: Path) -> tuple[Atlas, Atlas]:
+    """The dataset and the new images, checked: neither side reads the other when one folder
+    holds the other, nor earlier results in `out`."""
+    new_root, data_root = Path(a.folder).resolve(), Path(a.into).resolve()
+    if new_root == data_root:
+        raise ValueError("the new images and the dataset are the same folder")
+    if (a.trigger_captions or a.strip_tags) and not a.export:
+        raise ValueError("--trigger-captions and --strip-tags only apply with --export copy|link")
+    if any(root.is_relative_to(out.resolve()) for root in (new_root, data_root)):
+        raise ValueError("the output folder must not hold the new images or the dataset")
+    log(tr(f"dataset: {a.into}", f"資料集：{a.into}"))
+    dataset = _atlas(a, a.into, exclude=[out, *_nested(new_root, data_root)])
+    log(tr(f"new images: {a.folder}", f"新圖：{a.folder}"))
+    return dataset, _atlas(a, a.folder, exclude=[out, *_nested(data_root, new_root)])
+
+
+def _place(a: argparse.Namespace, new: Atlas, folders: list, labels: dict, out: Path) -> None:
+    """--export: the new images (and captions) into <out>/sorted/<group>."""
+    kohya = all(KOHYA_FOLDER.match(name) for name in labels.values())
+    done = export_folders(
+        new,
+        folders,
+        out / "sorted",
+        mode=a.export,
+        trigger_captions=a.trigger_captions,
+        layout="kohya" if kohya else "plain",
+        strip_tags=parse_tags(a.strip_tags or ""),
+    )
+    log(
+        tr(
+            f"{done.placed} images placed in {done.folder}",
+            f"已放 {done.placed} 張到 {done.folder}",
+        )
+    )
+    for p, why in done.failed:
+        log(tr(f"not placed {p}: {why}", f"沒有放入 {p}：{why}"))
 
 
 def _nested(inner: Path, outer: Path) -> list[Path]:
