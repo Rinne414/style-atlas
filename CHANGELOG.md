@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.15.0 - 2026-10-10
 
 - **Look measures**: six readable image statistics per image (brightness, contrast,
   colourfulness, warmth, lines, flatness) that say *how* styles differ. Each image is measured

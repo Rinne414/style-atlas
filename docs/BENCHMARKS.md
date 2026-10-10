@@ -533,8 +533,8 @@ Each matched its name.
 
 **Image size**: 80 of the renders (832 x 1216) were also measured from smaller copies.
 - From a 512 px copy, nothing moved by more than 0.06 SD.
-- From a 192 px copy, which is smaller than the 256 px measuring size, lines rose by 0.44 SD
-  and flatness fell by 0.64 SD.
+- From a 192 px copy, which is smaller than the 256 px measuring size, lines rose by 0.46 SD
+  and flatness fell by 0.66 SD.
 - Enlarging small images to 256 px first did not fix it: at 192 px both lines and flatness fell
   by about 0.3 SD, and at 96 px lines fell by 1.75 SD.
 - So images are only ever shrunk, and the docs say to compare groups of similar sizes.
