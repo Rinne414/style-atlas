@@ -221,6 +221,25 @@ style-atlas taste score "D:\new_batch" --model "D:\my_taste.npz"
 
 支援 png、jpg、webp、bmp、gif；avif 需要 Pillow 本身支援。動圖只看第一格。CPU 預設最多用 8 個執行緒並降低優先權，不會拖垮整台電腦；`--threads 0` 可取消限制。
 
+**指令一覽**（方括號是可省略的部分；每個指令加 `-h` 會列出全部選項）：
+
+| 指令 | 做什麼 |
+|---|---|
+| `style-atlas serve 資料夾` | 打開網頁介面（`StyleAtlas.bat` 做的就是這個） |
+| `style-atlas cluster 資料夾 [--layout kohya --name X] [--dedupe] [--export copy]` | 分畫風群，寫出 CSV／JSON 和地圖，可匯出成資料夾 |
+| `style-atlas sort 新圖資料夾 --into 資料集 [--by-folder] [--export copy]` | 把新圖分進已經分好的資料集 |
+| `style-atlas report 資料夾 [--artists 圖庫]` | 一頁畫風報告（HTML） |
+| `style-atlas search 範例圖 --in 圖庫 [--combine] [--by-folder] [--copy-to 資料夾]` | 以圖找圖；`--by-folder` 列出最像的子資料夾（畫師） |
+| `style-atlas map 資料夾 [--by-folder]` | 3D 畫風地圖（單一 HTML 檔）；`--by-folder` 每位畫師一個點 |
+| `style-atlas audit 資料夾` | 檢查資料集：尺寸、比例、壓縮、放大、標註、浮水印 |
+| `style-atlas duplicates 資料夾` | 近重複的圖 |
+| `style-atlas outliers 資料夾` | 最不像其他圖的幾張 |
+| `style-atlas compare 資料夾A 資料夾B` | 兩組圖的畫風差多少、差在哪裡 |
+| `style-atlas taste train／score` | 個人喜好模型 |
+| `style-atlas embed 資料夾` | 只先算好向量（之後的指令就不用等） |
+| `style-atlas doctor` | 檢查 Python、torch、顯卡、模型下載和磁碟空間 |
+| `style-atlas calibrate`、`bench` | 進階：校準雜訊、用子資料夾當標準答案評分 |
+
 ### 網頁介面與 3D 地圖
 
 - 右側最上方有「① 檢查資料 → ② 整理畫風群 → ③ 匯出」三個步驟，照順序點就能完成訓 LoRA 前的整理。
