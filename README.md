@@ -323,7 +323,9 @@ how a picture is drawn rather than what it shows. On top of those vectors it can
   (`cluster --layout kohya --dedupe`), with group names as folder and trigger names.
 - **Check a batch against the folder**: drop several images (LoRA test renders, newly found
   pictures) and the web app says how many fall inside one of the folder's style groups. On
-  held-out works, 69% of an artist's own landed inside, 15% of other artists'.
+  held-out works, 69% of an artist's own landed inside, 15% of other artists'. Dropped images
+  that are near-duplicates of a folder image are listed first: for LoRA renders, a sign that the
+  LoRA repeats a training image (`compare A B` reports them as `b_copies_of_a`).
 - **Find images in a similar style**: drop one image, or several of one style, into the web app,
   or use `search` (`--combine` learns from several examples, `--copy-to` gathers the matches). A
   "style path" lists the images that lead from one picked style to another.
@@ -341,8 +343,9 @@ how a picture is drawn rather than what it shows. On top of those vectors it can
 - **Check a dataset** (`audit`, `duplicates`, or the web app's Check tab): sizes, aspect ratios,
   captions, near-duplicates, greyscale images mixed into a colour set, images enlarged from a
   smaller original, heavily compressed JPEGs, and captions that mention a watermark, signature
-  or URL (`watermark`, `signature`, `artist name`, `web address` ...). The style map cannot find enlarged images (CSD
-  looks at 224 px), so the check measures their sharpness (BENCHMARKS.md).
+  or URL (`watermark`, `signature`, `artist name`, `web address` ...). The style map cannot
+  find enlarged images (CSD looks at 224 px), so the check measures their sharpness at
+  training size (BENCHMARKS.md).
 - **Style consistency** (Check tab, `cluster`): how spread the folder's style is next to 250
   single Danbooru artists. Folders more spread than 90% of them are flagged as a probable mix;
   this caught 63% of two-artist and 93% of three-artist mixes, and 8% of single artists.
