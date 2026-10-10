@@ -6,7 +6,8 @@ const PTS = DATA.points;
 const N = PTS.length;
 const T = {
   en: { images: "images", clusters: "Styles", selected: "Selected", outliers: "Check",
-    find: "filter by file name", thumbs: "Thumbnails", dots: "Dots", spin: "Rotate", home: "Reset", names: "Names",
+    find: "filter by file name", thumbs: "Thumbnails", dots: "Dots", spin: "Rotate", home: "Reset", names: "Names", rec: "Record a turn", recording: "recording {s}s",
+    recNo: "This browser cannot record video", tipRec: "Record one turn of the map as a video to share (WebM)",
     unassigned: "Unassigned", style: "Style", size: "images", cohesion: "spread",
     pick: "Click an image in the map to see its closest styles.", nearest: "Closest styles",
     members: "Members", cluster: "style", outlierHelp: "Images least like the rest of the set (candidates to drop from a LoRA dataset).",
@@ -74,7 +75,8 @@ const T = {
     tasteCount: "liked {a} · disliked {b}", tasteAuc: "cross-validated AUC {x} (0.5 = guessing). Treat it as a rough filter: it separates liked from disliked, not good from better.",
     tasteTop: "Most likely to like (unrated)", tasteBottom: "Least likely (unrated)", fine: "fine", medium: "medium", coarse: "coarse", auto: "auto (picked from the images)", foot: "Style vectors: CSD ViT-L (Somepalli et al. 2024, CC-BY-4.0). Map layout is for viewing only; groups are computed in the full space." },
   zh: { images: "張圖", clusters: "畫風群", selected: "選取", outliers: "檢查",
-    find: "以檔名篩選", thumbs: "縮圖", dots: "圓點", spin: "旋轉", home: "重置", names: "群名",
+    find: "以檔名篩選", thumbs: "縮圖", dots: "圓點", spin: "旋轉", home: "重置", names: "群名", rec: "錄一圈", recording: "錄影中 {s} 秒",
+    recNo: "這個瀏覽器不支援錄影", tipRec: "把地圖轉一圈錄成影片（WebM），可以直接分享",
     unassigned: "未歸類", style: "畫風", size: "張", cohesion: "分散度",
     pick: "在地圖上點一張圖，看最接近的畫風。", nearest: "最接近的畫風", members: "成員",
     cluster: "畫風群", outlierHelp: "和整組最不像的圖（訓 LoRA 前可考慮剔除）。",
@@ -616,6 +618,8 @@ function applyText() {
   $("mode").textContent = mode === "thumbs" ? t("dots") : t("thumbs");
   $("spin").textContent = t("spin"); $("home").textContent = t("home"); $("names").textContent = t("names");
   $("mode").title = t("tipMode"); $("names").title = t("tipNames"); $("home").title = t("tipHome");
+  if (!recordingNow) $("rec").textContent = t("rec");
+  $("rec").title = t("tipRec");
   $("layoutSel").title = t("tipLayoutSel");
   $("lang").textContent = lang === "zh" ? "EN" : "中";
   $("helpBtn").title = t("keys");
@@ -831,6 +835,45 @@ function fadeNames() {  // names step back with the points: a focused group keep
     sp.material.opacity = on ? 1 : 0.15;
   });
 }
+
+/* ---------- one turn of the map as a video, to share ---------- */
+const RECORD_SECONDS = 8;
+let recordingNow = false;
+
+function recorderType() {
+  if (!canvas.captureStream || typeof MediaRecorder === "undefined") return null;
+  return ["video/webm;codecs=vp9", "video/webm", "video/mp4"].find((m) => MediaRecorder.isTypeSupported(m)) || null;
+}
+
+async function recordTurn() {
+  const type = recorderType();
+  if (!type) { $("rec").textContent = t("recNo"); return; }
+  if (recordingNow) return;
+  recordingNow = true;
+  const chunks = [];
+  const rec = new MediaRecorder(canvas.captureStream(30), { mimeType: type, videoBitsPerSecond: 8e6 });
+  rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+  const stopped = new Promise((r) => { rec.onstop = r; });
+  const was = { auto: controls.autoRotate, speed: controls.autoRotateSpeed };
+  controls.autoRotate = true;
+  controls.autoRotateSpeed = 60 / RECORD_SECONDS;  // OrbitControls: speed 2 = one turn in 30 s
+  rec.start();
+  for (let s = RECORD_SECONDS; s > 0; s--) {
+    $("rec").textContent = t("recording").replace("{s}", s);
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  rec.stop(); await stopped;
+  controls.autoRotate = was.auto; controls.autoRotateSpeed = was.speed;
+  recordingNow = false; $("rec").textContent = t("rec");
+  const blob = new Blob(chunks, { type: type.split(";")[0] });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `${DATA.title || "style_atlas"}.${type.includes("mp4") ? "mp4" : "webm"}`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+  return blob.size;
+}
+$("rec").addEventListener("click", () => { recordTurn(); });
 
 $("names").addEventListener("click", () => {
   showNames = !showNames; $("names").classList.toggle("on", showNames); drawNames();

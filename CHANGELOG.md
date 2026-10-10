@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Record a turn**: one button saves an 8-second video (WebM; MP4 in Safari) of the 3D map
+  turning once, made in the browser, for sharing. It works in the shareable HTML map too.
 - Every control in the web app has a one-line tooltip (Chinese and English), and the form fields
   made on the fly carry names and labels.
 - **Check tab** in the web app (the Outliers tab, renamed): "Check" runs the dataset audit of
