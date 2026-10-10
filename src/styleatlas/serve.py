@@ -53,6 +53,7 @@ from styleatlas.metrics import (
     PLAIN,
     StyleScale,
     StyleSpace,
+    centroid,
     group_difference,
     space_name,
 )
@@ -75,6 +76,7 @@ UNDO_STEPS = 30
 EXPORT_MIN_GROUP = 3  # groups left smaller after set-asides go to _unassigned (as in the CLI)
 MAX_SPLIT = 4000  # splitting runs under the lock; larger groups would stall every request
 COMPARE_ROUNDS = 199  # permutations for a group comparison's p-value (resolution 0.005)
+FIT_PERCENTILE = 90  # a new image fits a group when it is as close as this share of its members
 MIN_SIDE_RANGE = (64, 8192)  # the check tab's smallest-side setting
 MAX_PATH_TEXT = 1000  # longest folder path accepted from the page
 MAX_TAG_TEXT = 200
@@ -318,6 +320,27 @@ class StyleAtlasApp:
         hits = search(self._embed([data]), self.atlas.style, top=top)[0]
         return [{"i": h.index, "cos": round(h.cosine, 4)} for h in hits]
 
+    def fit(self, query: np.ndarray) -> list[dict]:
+        """Where each new image would go: its closest group (by centre) and whether it is as close
+        as FIT_PERCENTILE% of that group's own images are. One artist's held-out works fitted 69%
+        of the time, other artists' 15%: judge a batch by its share, not one image."""
+        with self._lock:
+            groups = [c for c in self.clustering.clusters if c.size >= 2]
+            x = self.atlas.style
+        if not groups:
+            return []
+        cents = np.stack([centroid(x[c.members]) for c in groups])
+        limits = [
+            float(np.percentile(1.0 - x[c.members] @ cents[k], FIT_PERCENTILE))
+            for k, c in enumerate(groups)
+        ]
+        out = []
+        for row in query @ cents.T:
+            k = int(np.argmax(row))
+            dist = 1.0 - float(row[k])
+            out.append({"group": groups[k].id, "dist": round(dist, 3), "fits": dist <= limits[k]})
+        return out
+
     def search_set(self, body: dict) -> dict:
         """Several dropped images searched as one style (as `search --combine`)."""
         images = body.get("images")
@@ -329,7 +352,10 @@ class StyleAtlasApp:
             raise ValueError(f"images must be a list of 1 to {MAX_QUERY_IMAGES} base64 strings")
         query = self._embed([base64.b64decode(s, validate=True) for s in images])
         hits = search(query, self.atlas.style, top=SEARCH_TOP, combine=True)[0]
-        return {"hits": [{"i": h.index, "cos": round(h.cosine, 4)} for h in hits]}
+        return {
+            "hits": [{"i": h.index, "cos": round(h.cosine, 4)} for h in hits],
+            "fit": self.fit(query),
+        }
 
     def _embed(self, datas: list[bytes]):
         """Style vectors of uploaded images, decoded one at a time (each can be large), in the

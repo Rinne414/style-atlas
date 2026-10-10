@@ -637,6 +637,24 @@ This is a pool-based simulation on the same 140 real votes:
 The web app's "rate the most useful next image" therefore uses farthest-first. The model now
 trains from 5 ratings of each kind, down from 8.
 
+## Does a new image fit the folder? (2026-10-10)
+
+When several images are dropped into the web app, each is placed in its closest group (by
+centre) and called *inside* when it is as close as p% of that group's own images. This was
+measured on the 20 ordered pairs of the 5 big Danbooru artists. The dataset was 80% of one
+artist, grouped as the product groups it. The queries were the other 20% of that artist
+and 20 works of another artist.
+
+| Cut | Held-out works of the artist inside | Other artist inside |
+|---|---|---|
+| p80 | 59% | 7% |
+| **p90 (used)** | **69%** | **15%** |
+| p95 | 76% | 23% |
+| p100 (the farthest member) | 81% | 55% |
+
+Single images are noisy, so the page reports the share of a batch. More than half inside reads
+as "mostly this folder's style", and a quarter or less as "mostly unlike it".
+
 ## Tried and rejected
 
 ### Look measures for periods (2026-10-10)

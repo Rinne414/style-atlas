@@ -699,3 +699,16 @@ def test_images_are_found_by_a_caption_tag(tmp_path):
     for bad in ("", "  ", 5, "x" * 300):
         with pytest.raises(ValueError):
             app.tagged({"tag": bad})
+
+
+def test_dropped_images_are_placed_in_a_group_or_called_outside(tmp_path):
+    app, _ = _app(tmp_path, (12, 10))
+    app.regroup({"threshold": 0.5})
+    inside = app.atlas.style[:2]  # images of the first group itself
+    rng = np.random.default_rng(3)
+    stranger = rng.normal(size=(1, inside.shape[1]))
+    stranger /= np.linalg.norm(stranger)
+    got = app.fit(np.vstack([inside, stranger]))
+    first = int(app.clustering.labels[0])
+    assert [g["group"] for g in got[:2]] == [first, first] and got[0]["fits"] and got[1]["fits"]
+    assert not got[2]["fits"]

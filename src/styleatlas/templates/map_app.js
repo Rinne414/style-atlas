@@ -37,30 +37,44 @@ async function searchFiles(fileList) {
   if (!files.length) return;
   setStatus(t("searching"));
   try {
-    const { hits } = files.length === 1
-      ? await post("api/search", files[0], files[0].type)
+    const r = files.length === 1
+      ? await post("api/search", files[0], files[0].type)  // {hits}: one image is no batch
       : await post("api/search_set", JSON.stringify({ images: await Promise.all(files.map(toBase64)) }), "application/json");
     setStatus("");
-    showSearch(files, hits);
+    showSearch(files, r.hits, r.fit);
   } catch (e) { setStatus(String(e.message || e)); }
 }
 
-function showSearch(files, hits) {
+function fitSummary(fit) {  // a batch's verdict: the share that falls inside a group's range
+  const box = document.createElement("div"); box.className = "kv";
+  const fits = fit.filter((f) => f.fits);
+  const counts = {};
+  fits.forEach((f) => { counts[f.group] = (counts[f.group] || 0) + 1; });
+  const where = Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([g, n]) => `${clusterName(Number(g))} ${n}`).join(" · ");
+  const share = fits.length / fit.length;
+  const verdict = share > 0.5 ? "fitYes" : share <= 0.25 ? "fitNo" : "fitSome";  // held-out 69% vs others 15%
+  box.textContent = t("fitLine").replace("{k}", fits.length).replace("{n}", fit.length) + (where ? ` (${where})` : "") + " — " + t(verdict);
+  const note = document.createElement("div"); note.className = "meta"; note.textContent = t("fitNote");
+  return [box, note];
+}
+
+function showSearch(files, hits, fit) {
   selected = null; focusCluster = null; searchHits = new Set(hits.map((h) => h.i)); recolor();
   if (hits.length) focusOn(hits.slice(0, 8).map((h) => h.i));
   const pane = $("pane-selected"); pane.replaceChildren();
   const h = document.createElement("h3");
   h.textContent = files.length > 1 ? t("queries").replace("{n}", files.length) : t("query");
   const qs = document.createElement("div"); if (files.length > 1) qs.className = "grid";
-  files.forEach((f) => {
+  files.forEach((f, k) => {
     const q = document.createElement("img"); q.alt = f.name; q.src = URL.createObjectURL(f);
     if (files.length === 1) q.className = "query";
+    if (fit && fit[k]) q.title = `${f.name} · ${clusterName(fit[k].group)} · ${t(fit[k].fits ? "fitOne" : "fitNotOne")}`;
     qs.append(q);
   });
   const h2 = document.createElement("h3"); h2.textContent = t("nearest");
   const g = document.createElement("div"); g.className = "grid";
   hits.forEach((x) => { const im = thumb(x.i); im.title = `${PTS[x.i].n} · cos ${x.cos.toFixed(3)}`; g.append(im); });
-  pane.append(h, qs, h2, g);
+  pane.append(h, qs, ...(fit && fit.length ? fitSummary(fit) : []), h2, g);
   showPane("selected");
 }
 

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **Check a batch against the folder**: dropping several images now also reports how many fall
+  inside one of the folder's style groups (as close as 90% of that group's own images), with
+  a verdict for the batch and the closest group on each image. Measured on held-out Danbooru
+  works: 69% of an artist's own landed inside, 15% of other artists' (BENCHMARKS.md).
+  Suggested by a Sonnet product review.
 - **Find by caption tag**: `#monochrome` (or any part of a tag, `#mono`) in the web app's filter
   box lights up the images whose captions have it; case, spaces and underscores are ignored.
   Suggested by a Sonnet product review.

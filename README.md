@@ -193,6 +193,7 @@ style-atlas taste score "D:\new_batch" --model "D:\my_taste.npz"
 - 打開一群後，用「和…比較」選另一群，會列出兩群的畫風距離、差異是否明顯，以及外觀差在哪裡（和 `compare` 指令相同）。
 - 只有網頁介面才有的功能：
   - 拖一張圖進畫面就能以圖搜尋。一次拖多張同一種畫風的圖，會當成同一種畫風一起搜尋（3 張以上時用它們訓練的小模型排序）。
+  - 一次拖多張時，還會告訴你這批圖有幾張「落在這個資料夾某一群的範圍內」，例如拿 LoRA 算出來的圖檢查像不像訓練集，或新找到的圖該不該加進來。請看整批的比例：實測同一畫師沒用到的作品有 69% 落在範圍內，其他畫師只有 15%。
   - 畫風漸變：選一張圖按「畫風漸變：從這張開始」，再選另一張按「畫風漸變：到這張」，會列出在畫風上從前一張漸變到後一張的一串圖。適合找兩種畫風之間的過渡風格。
   - 調門檻後重新分群、一鍵匯出資料夾。匯出時可以選一般資料夾或 kohya 格式、填概念名稱、勾選「標註加觸發詞」。
   - 按「匯出時排除」（鍵盤 X）手動剔除不要的圖，清單會存檔，匯出時放到 `_excluded\`。
@@ -293,6 +294,9 @@ how a picture is drawn rather than what it shows. On top of those vectors it can
 - **Prepare LoRA datasets**: split a folder by style, or one artist into periods
   (`--granularity period`), set aside duplicates and outliers, and export kohya-style folders
   (`cluster --layout kohya --dedupe`), with group names as folder and trigger names.
+- **Check a batch against the folder**: drop several images (LoRA test renders, newly found
+  pictures) and the web app says how many fall inside one of the folder's style groups. On
+  held-out works, 69% of an artist's own landed inside, 15% of other artists'.
 - **Find images in a similar style**: drop one image, or several of one style, into the web app,
   or use `search` (`--combine` learns from several examples, `--copy-to` gathers the matches). A
   "style path" lists the images that lead from one picked style to another.
