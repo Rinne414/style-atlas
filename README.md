@@ -166,6 +166,8 @@ style-atlas sort "D:\new" --into "D:\lora\artistX_style_atlas\folders" --by-fold
 style-atlas search ref1.png ref2.png --combine --in "D:\gallery" --top 30
 ```
 
+想同時搜好幾個圖庫：把它們放在同一個上層資料夾底下，`--in` 指那個上層資料夾即可（預設會往子資料夾找）。每張圖算過一次就會記在快取裡（依檔案內容），之後重開或換個方式搜都不用重算；第一次算很多張圖時比較久（CPU 每秒約幾張）。
+
 **這張圖像哪位畫師？** 圖庫 `D:\artists` 底下每位畫師一個資料夾時，列出最像的 5 個資料夾，以及每個資料夾裡最像的那張：
 
 ```bat
