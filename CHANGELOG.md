@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- **Docs from a newcomer's review** (Sonnet, as a LoRA trainer reading the docs for the first time):
+  LORA_GUIDE is pointed to first; manual install creates the `.venv`; a warning before the CLI
+  export that it ignores the web app's hand edits; the same button names in every document;
+  plain words for ARI, AMI, z and hub; a repeats-to-steps example; a new "after training"
+  section (check a batch of LoRA renders); the full `cluster` option list.
+- **Demo images** vary more inside each style (10 near-duplicates of 72 instead of 42), and all
+  screenshots were retaken.
+- A whole drive picked as the folder gets results in `D_style_atlas` instead of `_style_atlas`.
+
 ## 0.22.0 - 2026-10-10
 
 - **Style consistency.** The Check tab and `cluster` say how spread the folder's style is

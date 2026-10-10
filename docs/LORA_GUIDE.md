@@ -1,6 +1,6 @@
 # 用 style-atlas 整理畫風 LoRA 資料集
 
-這是一份實務流程。工具會做的事附上指令。一般建議附上來源，這些來源是 2026-10 查的，請自行判斷是否適用你的模型。
+這是一份實務流程，每一步附上工具的指令。第 5 節的建議來自網路文章（2026-10 查閱），不是本工具的測量結果，請自行判斷是否適用你的模型。
 
 下面的指令請在 `scripts\StyleAtlas-console.bat` 開出的視窗裡輸入，一次貼一行。步驟 2 也可以改成把資料夾拖到 `scripts\StyleAtlas.bat` 上直接開網頁介面；步驟 1、3 的指令則一定要在 console 視窗裡打。
 
@@ -15,8 +15,8 @@ style-atlas audit "D:\lora\artistX" --min-side 768
 修掉或移除下列幾類圖：
 
 - 太小的圖：短邊小於訓練解析度。
-- 小圖放大或很模糊的圖：LoRA 會把模糊也學進去。這種圖在畫風地圖上和原圖幾乎同一點，分群找不到，只有這項檢查會列出。用 AI 放大過的圖通常不會被列出。判斷是以訓練時的大小（約 1024×1024）來看：大畫布上柔和的筆觸，縮小後就沒問題，所以不會列出。
-- 壓縮很重的 JPEG（品質低於 70）：品質 60 的 JPEG 已經會讓畫風向量偏掉約三分之一個「同配方換種子」的距離。
+- 小圖放大或很模糊的圖：LoRA 會把模糊也學進去。這種圖在畫風地圖上和原圖幾乎同一點，分群找不到，只有這項檢查會列出。用 AI 放大過的圖通常不會被列出。檢查時會先把圖縮到訓練尺寸（約 1024×1024）再看，縮小後仍清晰的圖（例如大畫布上柔和的筆觸）不會被列出。
+- 壓縮很重的 JPEG（品質低於 70）：品質 60 以下的 JPEG 會讓畫風判斷明顯失準，能找到原圖就換成原圖。
 - 長寬比極端的圖。
 - 截斷的檔案。
 - 動圖。
@@ -54,13 +54,14 @@ style-atlas serve "D:\lora\artistX" --time name
 style-atlas cluster "D:\lora\artistX" --layout kohya --name artistX --dedupe --drop-outliers 5 --export copy
 ```
 
-- **在網頁上做過移動、合併、拆群或取名時，請改用網頁的「匯出資料夾」**（選 kohya、填概念名稱，必要時勾「標註加觸發詞」）：只有它會用到這些手動修正。上面的 `cluster` 指令會重新分群，只沿用你按 X 排除的圖（放進 `_excluded\`）。
+- **在網頁上做過移動、合併、拆群或取名時，請改用網頁的「匯出資料夾」**（選 kohya、填「LoRA 名稱（資料夾名）」，必要時勾「標註加觸發詞」）：只有它會用到這些手動修正。上面的 `cluster` 指令會重新分群，只沿用你按 X 排除的圖（放進 `_excluded\`）。
 - 每群會匯出成 `<repeats>_artistX_styleNN\` 資料夾（取過名的群用名字），標註檔一起複製。
 - 要按時期拆就加 `--granularity period --time name`。指令會在每群後面印出它在作品時間軸上的位置，例如 `when 9% [3%-28%]` 表示這群的中位數落在最早的 9%（中間一半落在 3%～28%），一看就知道哪群是早期、哪群是近期。
-- repeats 會自動調成「張數 × repeats ≈ 100」，也可以用 `--repeats N` 指定。
-- 某群太多張（例如 300 張）時，加 `--max-per-group 40`（網頁：「每群上限」）只保留 40 張能涵蓋整群變化的圖，其餘放到 `_trimmed\`。
+- repeats 會自動調成「張數 × repeats ≈ 100」，也可以用 `--repeats N` 指定。例如某群 20 張 → repeats 5，每個 epoch 這群看 100 次；batch size 1 時就是 100 步，訓 10 個 epoch 是 1,000 步。張數少的群 repeats 高，各群份量就接近。
+- 某群太多張（例如 300 張）時，加 `--max-per-group 40`（網頁：「每群最多幾張」）只保留 40 張能涵蓋整群變化的圖，其餘放到 `_trimmed\`。
 - 匯出資料夾裡會一起寫一份 `dataset_config.toml`（kohya sd-scripts 用 `--dataset_config` 指定），列出每群的資料夾路徑與 repeats；有勾觸發詞時會設 `keep_tokens = 1`，讓觸發詞在打亂標籤時固定在最前面。解析度與 batch size 請依模型自行調整（SDXL／Illustrious／Anima 用 1024）。
 - 用其他訓練器時：同一個資料夾還有 `diffusion_pipe_dataset.toml`（diffusion-pipe：在訓練設定的 `dataset` 填這個檔；在 WSL 裡要把 `D:\` 改成 `/mnt/d/`）和 `onetrainer_concepts.json`（OneTrainer：複製到 OneTrainer 的 `training_concepts\` 資料夾，再到 concepts 分頁的下拉選單選它）。三份的資料夾與 repeats 都一樣。
+- 標註裡有描述畫風本身的標籤（例如 `sketch`、`monochrome`）時，加 `--strip-tags "sketch, monochrome"`（網頁：「要移除的標籤」）把它們從匯出的標註拿掉，讓觸發詞去學這個畫風。原本的標註不會被改。
 - 被排除的圖放在 `_duplicates\`、`_outliers\`、`_unassigned\`、`_excluded\` 這幾個資料夾。它們沒有數字前綴，所以 kohya 不會拿來訓練。
 - 想**一群訓一個 LoRA**（例如早期、近期畫風分開）：把那一群的資料夾單獨當 train_data_dir。
 - 想**同一個 LoRA 裡分成幾個概念**：保留全部資料夾，並讓每群有自己的觸發詞。注意兩點：
@@ -70,21 +71,27 @@ style-atlas cluster "D:\lora\artistX" --layout kohya --name artistX --dedupe --d
     - 沒標註的圖會新建一個只含觸發詞的標註；
     - 原始標註不會被改。
 
-## 4. 一般實務建議（非本工具的測量結果）
+## 4. 訓練完之後
+
+- 用 LoRA 算一批圖（10 張以上，主題盡量多樣），整批拖進網頁介面。畫面會告訴你這批圖有幾張「和這個資料夾裡某一群的畫風夠接近」：實測同一畫師沒用到的作品約 69% 會落在範圍內，其他畫師約 15%，所以看整批的比例，不要看單張。
+- 想要一個數字：`style-atlas compare "D:\lora\artistX" "D:\lora\test_renders"` 會給畫風距離和 z 值（差距是同一畫風內部雜訊的幾倍），以及外觀差在哪裡（例如「偏冷、線條多」）。
+
+## 5. 一般實務建議（非本工具的測量結果）
 
 - **張數**：畫風 LoRA 的常見建議是 15–30 張就夠，超過約 50 張效果遞減，8–15 張可以先試。畫風要一致，主題（角色、場景、構圖）反而要多樣。
   - 來源：https://help.scenario.com/en/articles/training-a-style-lora 、https://apatero.com/blog/ultimate-guide-lora-training-2025
-- **標註寫內容，不寫畫風**：標註描述畫了什麼，畫風交給 LoRA 去學。2026 年有一篇研究特地把標註改寫成只描述客觀內容，因為描述畫風的字眼會「漏」到標註裡。
+- **標註寫內容，不寫畫風**：標註描述畫了什麼，畫風交給 LoRA 去學。2026 年有一篇研究特地把標註改寫成只描述客觀內容，因為描述畫風的字眼會混進標註裡，模型就不會把畫風學給觸發詞。
   - 來源：https://arxiv.org/pdf/2603.16649
   - Illustrious 一類模型可以用 Danbooru 式 tag：https://offlinecreator.com/guide/illustrious-lora-training-guide
+  - 本工具不產生也不改寫標註內容（`--strip-tags`、`--trigger-captions` 只動匯出的副本），標註請依你的模型慣例準備（Danbooru 標籤或自然語言句子）。
 - **kohya 的 repeats 與標註選項**：資料夾前綴 `N_name`（或 TOML 的 `num_repeats`）決定 repeats；`shuffle_caption` 與 `keep_tokens` 是常用的標註選項。
   - 來源：https://www.mintlify.com/kohya-ss/sd-scripts/quickstart
 - **其他過濾工具**：deepghs 的 imgutils／waifuc 能濾掉單色圖、漫畫頁、多角色圖，也能用 CCIP 認角色，可以和本工具搭配使用。
   - 來源：https://github.com/deepghs
 
-## 5. 要知道的限制
+## 6. 要知道的限制
 
-- 2～5 位畫師混在一起時，分群和畫師的吻合度約 ARI 0.5；畫師越多越低（50 位時約 0.38）。同一畫師拆時期時，「時期」（分 3 段）和發表時間的吻合度明顯比預設的自動門檻好，但整體仍偏弱（13 位測試畫師的平均 AMI 約 0.12）；作品少時分段結果不太穩定。所以分群是**初步整理**，請在地圖上確認。
+- 2～5 位畫師混在一起時，分群和畫師的吻合度約 ARI 0.5（ARI 0～1，1 表示完全吻合）；畫師越多越低（50 位時約 0.38）。同一畫師拆時期時，「時期」（分 3 段）和發表時間的吻合度明顯比預設的自動門檻好，但整體仍偏弱（13 位測試畫師的平均吻合度 AMI 約 0.12，0 是亂分、1 是完全對上）；作品少時分段結果不太穩定。所以分群是**初步整理**，請在地圖上確認。
 - 同一個角色出現在很多畫風時，畫風向量會被角色外觀拉走。遇到這種收藏可以加 `--ignore-characters`（或在網頁「進階…」勾選「忽略角色軸」）；但不要用在混了不同畫師的資料夾。
 - 近重複門檻刻意設得保守（0.95）。在 0.92～0.95 之間，常常是同角色換了姿勢的不同圖，對訓練來說那是有效的圖。
 

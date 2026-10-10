@@ -1,6 +1,6 @@
 # 網頁介面圖解：訓 LoRA 前的三個步驟
 
-把圖片資料夾拖到 `scripts\StyleAtlas.bat` 上（或直接雙擊它再選資料夾），瀏覽器就會打開下面這個畫面。右上方的「① 檢查資料 → ② 整理畫風群 → ③ 匯出」就是整個流程，照順序點即可。
+把圖片資料夾拖到 `scripts\StyleAtlas.bat` 上（或直接雙擊它再選資料夾），瀏覽器就會打開下面這個畫面。右側最上方的「① 檢查資料 → ② 整理畫風群 → ③ 匯出」就是整個流程，照順序點即可。
 
 截圖裡的圖片是 `scripts\make_demo_images.py` 產生的抽象圖，不是任何人的作品。
 
@@ -43,6 +43,8 @@
 
 ![匯出選項：kohya 格式、LoRA 名稱、每群最多幾張、要移除的標籤、標註加觸發詞](images/guide_3_export.jpg)
 
+匯出的結果放在資料夾旁邊的 `<資料夾名稱>_style_atlas\folders\`（例如 `D:\lora\artistX_style_atlas\folders\`），原本的圖和標註都不會被移動或修改。
+
 點「③ 匯出」（或左下的「匯出資料夾…」），會打開匯出選項：
 
 | 選項 | 用途 |
@@ -53,7 +55,7 @@
 | 要移除的標籤 | 例如 `sketch, monochrome`，匯出的標註裡會拿掉這些標籤 |
 | 標註加觸發詞 | 每個標註最前面加上該群的觸發詞 |
 
-按「開始匯出」，結果放在資料夾旁邊的 `<資料夾名稱>_style_atlas\folders\`。原本的圖和標註都不會被移動或修改。
+按「開始匯出」。kohya 格式會同時附上 kohya、diffusion-pipe、OneTrainer 的設定檔（用法見 [LORA_GUIDE.md](LORA_GUIDE.md) 步驟 3）。
 
 ## 其他好用的功能
 

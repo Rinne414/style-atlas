@@ -26,7 +26,7 @@ style-atlas 會看每張圖「怎麼畫」（不是畫了什麼），自動把�
 
 （截圖裡的圖片是 `scripts\make_demo_images.py` 程式產生的四種抽象風格，不是任何人的作品。）
 
-**第一次用網頁介面？** 請看圖解：[docs/WEB_GUIDE.md](docs/WEB_GUIDE.md)（檢查資料 → 整理畫風群 → 匯出）。
+**要訓 LoRA？** 先看完整流程 [docs/LORA_GUIDE.md](docs/LORA_GUIDE.md)，網頁介面的操作看圖解 [docs/WEB_GUIDE.md](docs/WEB_GUIDE.md)（檢查資料 → 整理畫風群 → 匯出）。
 
 ### Windows：三步開始
 
@@ -45,7 +45,7 @@ Windows 跳出「Windows 已保護您的電腦」時，按「其他資訊」→�
 **第一次使用會遇到的事**
 - 開著網頁介面時，**不要關掉黑色的命令視窗**，關掉網頁就停了。瀏覽器沒自動打開的話，手動開 `http://127.0.0.1:8770`（埠號被占用時會往後找，以視窗裡印出的網址為準）。
 - 標註檔請放在圖片旁邊、同檔名的 `.txt`（例如 `001.png` 配 `001.txt`），匯出時會一起複製。子資料夾裡的圖也會一起讀進來，不要的話加 `--no-recursive`。
-- 建議先拿 100 張左右的資料夾試一次，熟悉流程後再跑大量的圖。
+- 建議先拿 100 張左右的資料夾試一次（只用 CPU 約半分鐘；第一次另外要下載模型），熟悉流程後再跑大量的圖。
 
 **幾個名詞**
 - **kohya 格式**：kohya_ss／sd-scripts 訓 LoRA 用的資料夾結構，資料夾名稱像 `10_artistX_style01`，開頭的數字是 repeats。
@@ -58,14 +58,18 @@ Windows 跳出「Windows 已保護您的電腦」時，按「其他資訊」→�
 
 ### 手動安裝
 
-有 NVIDIA 顯卡時，請先依 pytorch.org 的說明裝好 CUDA 版 torch。最後一行是選用的（地圖改用 UMAP 版面）。
+不想用 `setup.bat` 時，可以自己建虛擬環境。有 NVIDIA 顯卡時，請在 `pip install -e .` 之前先依 pytorch.org 的說明裝好 CUDA 版 torch。最後一行是選用的（地圖改用 UMAP 版面）。
 
 ```bat
 git clone https://github.com/Rinne414/style-atlas
 cd style-atlas
+python -m venv .venv
+.venv\Scripts\activate
 pip install -e .
 pip install -e ".[umap]"
 ```
+
+裝在 `.venv` 裡，所以 `StyleAtlas.bat`、`StyleAtlas-console.bat` 都能直接用；自己開命令視窗時，先執行 `.venv\Scripts\activate`。
 
 ### 訓 LoRA 前的建議流程
 
@@ -87,12 +91,13 @@ style-atlas serve "D:\lora\artistX" --time name
 
 **3. 匯出成 kohya 資料夾**。程式會先排除重複圖（每組留解析度最高、有標註的那張），再分群，另外放出最不合群的 5 張，最後依每群張數自動算 repeats。
 
+> **在網頁上移動、合併、拆過群或取過名的話，請直接在網頁按「匯出資料夾…」，不要用下面的指令**：指令會重新分群，只沿用你按 X 排除的圖。
+
 ```bat
 style-atlas cluster "D:\lora\artistX" --layout kohya --name artistX --dedupe --drop-outliers 5 --export copy
 ```
 
 - 步驟 2 按 X 排除的圖，這裡也會放進 `_excluded\`。
-- 步驟 2 在網頁上做的**移動、合併、拆群、取名**，這個指令不會用到（它會重新分群）。想保留這些手動修正，請直接在網頁按「匯出資料夾」（選 kohya 格式），效果和這一步相同。
 
 匯出結果在資料集旁邊的 `D:\lora\artistX_style_atlas\folders\`，不會寫進原本的資料夾：
 
@@ -131,9 +136,9 @@ onetrainer_concepts.json    ← OneTrainer 的 concepts 檔（複製到 OneTrain
 - 少於約 100 張時，分段界線不太穩定，請在網頁上確認。
 
 **其他分群方式**：
-- 預設是 `auto`，依圖片自動挑門檻（最多到 medium 的 0.47）。畫師越多，最佳門檻越低。50～300 位畫師混在一起時，auto 的 ARI 比固定的 medium 高 0.16～0.21，代價是未分群的圖從 1～2% 增加到 5～9%。少數畫師、或資料夾裡有大量近似圖時，兩者差不多。
+- 預設是 `auto`，依圖片自動挑門檻（最多到「中」的 0.47）。畫師越多，最佳門檻越低。50～300 位畫師混在一起時，auto 分出的群和真正的畫師吻合得比固定的「中」好（ARI，0～1，越高越吻合：高 0.16～0.21），代價是未分群的圖從 1～2% 增加到 5～9%。少數畫師、或資料夾裡有大量近似圖時，兩者差不多。
 - 單一畫師、風格變化很大時，auto 可能切出很多小群，這時改用 `--granularity medium` 或 `period`。
-- `fine`／`medium`／`coarse` 是固定門檻；`--k 3` 直接指定群數；`--threshold 0.35` 自己指定切分距離（進階，一般不用）。
+- `fine`／`medium`／`coarse` 是固定門檻，就是網頁分群選單的「細」「中」「粗」；`--k 3` 直接指定群數；`--threshold 0.35` 自己指定切分距離（進階，一般不用）。
 - 網頁介面也能選「自動」或調門檻，再按「重新分群」。
 
 ### 其他用法
@@ -166,7 +171,7 @@ style-atlas duplicates "D:\gallery"
 style-atlas outliers "D:\lora\artistX" --top 20
 ```
 
-**兩組圖是否同一畫風、差在哪裡**：輸出畫風距離、差距是否明顯（z 值越大越不同），以及外觀差異（例如「B 偏冷、線條多」）。
+**兩組圖是否同一畫風、差在哪裡**：輸出畫風距離、差距是否明顯（z 值是「差距是同一畫風內部雜訊的幾倍」，越大越不同），以及外觀差異（例如「B 偏冷、線條多」）。
 
 ```bat
 style-atlas compare "D:\old_works" "D:\new_works"
@@ -208,7 +213,7 @@ style-atlas taste score "D:\new_batch" --model "D:\my_taste.npz"
 - 打開一群後，用「和…比較」選另一群，會列出兩群的畫風距離、差異是否明顯，以及外觀差在哪裡（和 `compare` 指令相同）。
 - 只有網頁介面才有的功能：
   - 拖一張圖進畫面就能以圖搜尋。一次拖多張同一種畫風的圖，會當成同一種畫風一起搜尋（3 張以上時用它們訓練的小模型排序）。
-  - 一次拖多張時，還會告訴你這批圖有幾張「落在這個資料夾某一群的範圍內」，例如拿 LoRA 算出來的圖檢查像不像訓練集，或新找到的圖該不該加進來。請看整批的比例：實測同一畫師沒用到的作品有 69% 落在範圍內，其他畫師只有 15%。
+  - 一次拖多張時，還會告訴你這批圖有幾張「和這個資料夾裡某一群的畫風夠接近」，例如拿 LoRA 算出來的圖檢查像不像訓練集，或新找到的圖該不該加進來。請看整批的比例：實測同一畫師沒用到的作品有 69% 落在範圍內，其他畫師只有 15%。
   - 畫風漸變：選一張圖按「畫風漸變：從這張開始」，再選另一張按「畫風漸變：到這張」，會列出在畫風上從前一張漸變到後一張的一串圖。適合找兩種畫風之間的過渡風格。
   - 調門檻後重新分群。按「匯出資料夾…」會在下方打開匯出選項：一般資料夾或 kohya 格式、LoRA 名稱、每群最多幾張、要移除的標籤、「標註加觸發詞」，再按「開始匯出」。「忽略角色軸」和參考資料夾放在「進階…」裡。
   - 按「匯出時排除」（鍵盤 X）手動剔除不要的圖，清單會存檔，匯出時放到 `_excluded\`。
@@ -278,7 +283,7 @@ Style Gate 的預設門檻是 0.5。在 Danbooru 上，單張圖之間的距離�
 
 - **同一位畫師的時期拆分有用，但沒那麼準。** 測了 13 位作品多的畫師，每位 30～300 張、平均分佈在整段作品史上：
   - 13 位中有 12 位，畫風距離會隨發表時間差而變大，而且顯著。
-  - `period`（分成 3 段）和發表時間的吻合度，跟舊的 0.35 門檻差不多（兩者都遠好於 medium）；差別在舊門檻有 4 位畫師有 36～77% 的圖沒分到任何群，新的幾乎每張圖都有分到。
+  - `period`（分成 3 段）和發表時間的吻合度，跟以前用的固定門檻 0.35 差不多（兩者都遠好於「中」）；差別在 0.35 有 4 位畫師有 36～77% 的圖沒分到任何群，新的幾乎每張圖都有分到。
   - 作品少（約 50 張）時，分段結果不太穩定，請在網頁上看時間分佈，必要時合併或移動。分群結果請當作**初步整理**。
 - **先排除重複圖再分群**，也就是加 `--dedupe`。否則同一張圖的多個版本會自成一群。近重複的門檻刻意設得保守（0.95）：在 0.92～0.95 之間，常常是同一角色換了姿勢的不同圖，對 LoRA 來說那是有效的訓練圖。
 - `compare` 的 z 值門檻（z ≥ 2.3 為「明顯不同」、z < 1.5 為「同一畫風」）來自一位使用者在固定內容的 NovelAI 算圖上的人眼校準，不是通用標準。換了資料，最好先用 `calibrate` 重新校準。
@@ -287,7 +292,7 @@ Style Gate 的預設門檻是 0.5。在 Danbooru 上，單張圖之間的距離�
 
 這個工具整理自一段長時間的畫風研究。以下是會影響使用方式的發現：
 
-1. **畫風向量要「去 hub」**。少數圖在高維空間裡和什麼都很近，用原始 cosine 找最近鄰時，結果常被這幾張佔滿。做了 CSLS 校正之後，檢索與分群都明顯變好。arXiv 2605.09030 也得到相同結論。
+1. **畫風向量要「去 hub」**。少數圖在高維空間裡和什麼都很近（稱為 hub），用原始 cosine 找最近鄰時，結果常被這幾張佔滿。做了 CSLS 校正之後，檢索與分群都明顯變好。arXiv 2605.09030 也得到相同結論。
 2. **單張圖之間的距離雜訊很大**。比較兩種畫風時，應該用多張圖的平均來比（`compare`），並用同一畫風內部的雜訊當尺度（`calibrate`）。
 3. **公開的美學評分模型不等於個人口味**。在一位使用者的實際選擇上，7 個現成評分器的準確率都只有 36–52%，和亂猜差不多。用他自己的喜歡／不喜歡訓練的小模型，交叉驗證 AUC 是 0.76。所以本工具只提供**個人**口味模型，不內建通用美學分數。
 4. **口味模型只適合粗篩**。它分得出喜歡和不喜歡，但分不出「好」和「更好」，換了新的生成來源也可能失準。
@@ -445,6 +450,9 @@ Square brackets mark optional parts; `#` starts a note, not part of the command.
 
 ```text
 style-atlas cluster DIR [--granularity auto|period|fine|medium|coarse | --threshold T | --k N]
+                        [--layout plain|kohya --name X --repeats auto|N] [--dedupe]
+                        [--drop-outliers N] [--max-per-group N] [--strip-tags TAGS]
+                        [--trigger-captions] [--export copy|link] [--no-map] [--no-recursive]
                         [--layout plain|kohya --name X --repeats auto|N]
                         [--dedupe] [--drop-outliers N] [--export copy|link] [-o OUT]
 style-atlas doctor                 # check Python, torch, GPU, model download, disk space

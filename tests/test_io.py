@@ -229,3 +229,11 @@ def test_tags_are_removed_in_the_exported_captions_only(tmp_path):
     text = (done.folder / folders[i0] / "img0.txt").read_text()
     assert text.endswith(", 1girl, smile, monochrome background") and text.startswith("a_style")
     assert src.read_text(encoding="utf-8").startswith("1girl, Monochrome")  # source untouched
+
+
+def test_results_go_next_to_the_folder_never_inside_it(tmp_path):
+    from styleatlas.export import output_dir
+
+    assert output_dir(tmp_path / "artistX") == (tmp_path / "artistX_style_atlas").resolve()
+    drive = output_dir(tmp_path.parents[len(tmp_path.parents) - 1])  # a whole drive has no name
+    assert drive.name.endswith("_style_atlas") and drive.name != "_style_atlas"

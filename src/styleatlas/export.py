@@ -41,7 +41,8 @@ def output_dir(source: Path) -> Path:
     """Default place for results: a sibling of the scanned folder, so the dataset folder itself
     is never written to (kohya and other trainers will not pick up stray copies)."""
     source = Path(source).resolve()
-    return source.parent / f"{source.name}_style_atlas"
+    name = source.name or source.drive.strip(":\\/") or "root"  # a whole drive has no name
+    return source.parent / f"{name}_style_atlas"
 
 
 def _safe_cell(value: object) -> object:
