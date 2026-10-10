@@ -267,3 +267,17 @@ def test_rank_folders_names_the_folder_and_its_closest_image():
     both = rank_folders(x[[0, 1, 2]], x, folders, combine=True)
     assert len(both) == 1 and both[0][0].folder == "artist0"
     assert rank_folders(query, x, folders, exclude=set(range(len(x)))) == [[]]
+    loose = ["" if k == 2 else f for k, f in zip(labels, folders, strict=True)]  # top-level files
+    assert {h.folder for h in rank_folders(query, x, loose, top=5)[0]} == {"artist0", "artist1"}
+
+
+def test_a_large_library_is_whitened_once_and_kept_read_only():
+    from styleatlas.whiten import CACHE_ROWS, whiten
+
+    x, _ = make_blobs([CACHE_ROWS // 2, CACHE_ROWS // 2])
+    first = whiten(x)
+    assert whiten(x) is first and not first.flags.writeable
+    assert whiten(x.copy()) is not first  # another array: computed again
+    np.testing.assert_allclose(whiten(x.copy()), first)
+    small = x[:10]
+    assert whiten(small) is not whiten(small)  # queries are not kept

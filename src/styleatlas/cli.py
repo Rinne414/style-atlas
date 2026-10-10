@@ -132,16 +132,13 @@ def cmd_search(a: argparse.Namespace) -> int:
     return 0
 
 
-TOP_LEVEL = "(top level)"  # images directly in the searched folder, not in a sub-folder
-
-
 def _search_folders(a: argparse.Namespace, atlas, qstyle, names: list[str], same: set) -> int:
     from styleatlas.search import rank_folders
 
     if a.copy_to:
         log("--copy-to copies single images; it is not used with --by-folder")
     folders = labels_from_folders(atlas.paths, atlas.root)
-    if len(set(folders)) < 2:
+    if len(set(folders) - {""}) < 2:
         log(f"{a.within} has no sub-folders to rank; --by-folder compares its sub-folders")
         return 1
     results = rank_folders(qstyle, atlas.style, folders, top=a.top, combine=a.combine, exclude=same)
@@ -149,7 +146,7 @@ def _search_folders(a: argparse.Namespace, atlas, qstyle, names: list[str], same
         {
             "query": names[qi],
             "rank": r + 1,
-            "folder": h.folder or TOP_LEVEL,
+            "folder": h.folder,
             "score": round(h.score, 4),
             "images": h.size,
             "closest": atlas.rel(h.best),

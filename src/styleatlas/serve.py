@@ -72,7 +72,7 @@ from styleatlas.report import (
     with_reference,
     write_payload,
 )
-from styleatlas.search import rank_folders, search, style_path
+from styleatlas.search import rank_folders, search, style_path, warm
 from styleatlas.serve_edits import GroupEdits
 from styleatlas.taste_session import TasteSession
 
@@ -294,10 +294,12 @@ class StyleAtlasApp(GroupEdits):
         return self._thumbs[i]
 
     def prewarm(self, workers: int = 4) -> None:
-        """Read the captions and make every thumbnail in the background, so the page is ready
-        when it is opened (19,554 images: 5.8 s of caption reads on the first page load)."""
+        """Read the captions, prepare search and make every thumbnail in the background, so the
+        page is ready when it is opened (19,554 images: 5.8 s of caption reads on the first page
+        load, about 4 s before the first search)."""
         pool = ThreadPoolExecutor(max_workers=workers, thread_name_prefix="thumbs")
         pool.submit(self._read_tags)
+        pool.submit(warm, self.atlas.style)  # the first search of a large folder is instant too
         for i in range(len(self.atlas)):
             pool.submit(self.thumb, i)
         pool.shutdown(wait=False)
@@ -335,9 +337,11 @@ class StyleAtlasApp(GroupEdits):
     def closest_folders(self, query: np.ndarray, combine: bool = False) -> list[dict]:
         """The opened folder's sub-folders ranked by style, as `search --by-folder` (the first
         query's, or all queries' as one style); empty unless there are two or more."""
-        if len(set(self.folders)) < 2:
+        if len(set(self.folders) - {""}) < 2:
             return []
-        hits = rank_folders(query, self.atlas.style, self.folders, FOLDER_TOP, combine)[0]
+        with self._lock:
+            skip = set(self.excluded)  # a stray the user excluded must not pull its folder's mean
+        hits = rank_folders(query, self.atlas.style, self.folders, FOLDER_TOP, combine, skip)[0]
         return [
             {"folder": h.folder, "score": round(h.score, 3), "size": h.size, "best": h.best}
             for h in hits

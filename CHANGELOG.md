@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **Faster search in the web app.** Each search of a large folder recomputed the library's
+  neighbour density: 4.1 s per search at 20,000 images. It is now kept (and prepared when the
+  app starts), so later searches take milliseconds.
 - **Check: watermarks and signatures.** Images whose caption has a tag such as `watermark`,
   `signature`, `artist name` or `web address` (Danbooru and WD14 tags) are listed: a LoRA
   learns the mark along with the style.
@@ -9,7 +12,8 @@
   (one per artist or style) by their mean style and names each one's closest image. On 284
   Danbooru artists, the right one came first for 74.8% of held-out works, against 63.4% for the
   artist of the closest image (BENCHMARKS.md). The web app lists the closest sub-folders too
-  when you search by image in a folder that has them; a click shows only that folder.
+  when you search by image in a folder that has them; a click shows only that folder. Loose
+  images at the top level and images you excluded do not count.
 
 ## 0.21.0 - 2026-10-10
 

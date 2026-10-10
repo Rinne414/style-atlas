@@ -438,6 +438,9 @@ def test_a_search_names_the_closest_sub_folder(tmp_path, monkeypatch):
     folders = app.search_image(buf.getvalue())["folders"]
     assert [f["folder"] for f in folders] == ["late", "early"]
     assert folders[0]["size"] == 7 and labels[folders[0]["best"]] == 1
+    app.exclude({"i": int(np.flatnonzero(labels == 1)[0])})  # a stray: no longer in the mean
+    again = app.search_image(buf.getvalue())["folders"]
+    assert again[0]["folder"] == "late" and again[0]["size"] == 6
 
 
 def test_the_page_script_parses(tmp_path):

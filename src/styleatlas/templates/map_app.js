@@ -63,12 +63,12 @@ function folderList(folders) {  // which sub-folder (an artist, a style) the que
   const box = document.createElement("div"); box.className = "meta near";
   folders.forEach((f, k) => {
     const a = document.createElement("a"); a.href = "#";
-    a.textContent = `${f.folder || t("topLevel")} (${f.size})`;
+    a.textContent = `${f.folder} (${f.size})`;
     a.title = `${t("folderTip")} · ${f.score.toFixed(3)}`;
     a.addEventListener("click", (e) => {
       e.preventDefault();
-      $("find").value = f.folder ? f.folder + "/" : ""; $("find").dispatchEvent(new Event("input"));
-      focusOn([f.best]);
+      filter = ""; searchHits = null; folderFilter = f.folder; $("find").value = f.folder + "/";
+      recolor(); focusOn([f.best]);
     });
     box.append(...(k ? [" · "] : []), a);
   });

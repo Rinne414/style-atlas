@@ -173,6 +173,7 @@ addEventListener("resize", resize);
 
 /* ---------- interaction ---------- */
 let focusCluster = null, selected = null, filter = "", searchHits = null;
+let folderFilter = null;  // a sub-folder picked from a search's closest folders
 let flyTo = null;
 
 function recolor() {
@@ -181,6 +182,7 @@ function recolor() {
     let on = true;
     if (focusCluster !== null) on = PTS[i].c === focusCluster;
     if (q) on = on && PTS[i].n.toLowerCase().includes(q);
+    if (folderFilter !== null) on = on && PTS[i].n.startsWith(folderFilter + "/");
     if (selected !== null) on = i === selected || PTS[selected].k.includes(i);
     else if (searchHits) on = searchHits.has(i);
     alpha[i] = on ? 1 : 0.12;
@@ -534,6 +536,7 @@ let tagTimer = null;
 $("find").addEventListener("input", (e) => {
   const text = e.target.value.trim();
   clearTimeout(tagTimer);
+  folderFilter = null;
   if (DATA.live && text.startsWith("#")) {  // a caption tag: the server reads the captions
     filter = "";
     if (text.length < 2) { searchHits = null; recolor(); return; }
@@ -561,7 +564,8 @@ $("spin").addEventListener("click", () => {
   controls.autoRotate = !controls.autoRotate; $("spin").classList.toggle("on", controls.autoRotate);
 });
 $("home").addEventListener("click", () => {
-  focusCluster = null; selected = null; searchHits = null; filter = ""; $("find").value = ""; recolor();
+  focusCluster = null; selected = null; searchHits = null; filter = ""; folderFilter = null;
+  $("find").value = ""; recolor();
   flyTo = { target: new THREE.Vector3(), cam: homeView(), k: 0 };
   document.querySelectorAll(".cl").forEach((r) => r.classList.remove("on"));
 });

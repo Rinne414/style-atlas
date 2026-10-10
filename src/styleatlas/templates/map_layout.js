@@ -141,7 +141,7 @@ function drawNames() {
 
 function fadeNames() {  // names step back with the points: a focused group keeps its own
   if (!nameSprites) return;
-  const dimmed = selected !== null || searchHits !== null || filter !== "";
+  const dimmed = selected !== null || searchHits !== null || filter !== "" || folderFilter !== null;
   nameSprites.children.forEach((sp) => {
     const on = focusCluster !== null ? sp.userData.c === focusCluster : !dimmed;
     sp.material.opacity = on ? 1 : 0.15;

@@ -95,6 +95,13 @@ def style_path(
     return path + [b]
 
 
+def warm(base: np.ndarray, hub_k: int = DEFAULT_K) -> None:
+    """Compute what every search of `base` needs (its whitened vectors and their neighbour
+    density) ahead of the first one; later searches of the very same array reuse it."""
+    wb = whiten(base)
+    neighbor_density(wb, wb, k=hub_k, same_set=True)
+
+
 def search(
     queries: np.ndarray,
     base: np.ndarray,
@@ -137,7 +144,7 @@ def search(
 
 @dataclass(frozen=True)
 class FolderHit:
-    folder: str  # first sub-folder under the searched folder; "" for images at its top level
+    folder: str  # first sub-folder under the searched folder
     score: float  # cosine between the query and the folder's mean style (whitened space)
     size: int
     best: int  # index of the folder's image closest to the query
@@ -154,8 +161,10 @@ def rank_folders(
     """Which sub-folder (an artist, a style) does the query look like? Folders are ranked by
     their mean style rather than by their single closest image: on 284 Danbooru artists this
     named the right one first for 74.8% of held-out works, against 63.4% for the artist of the
-    closest image (docs/BENCHMARKS.md)."""
-    keep = np.setdiff1d(np.arange(len(base)), sorted(exclude or set()))
+    closest image (docs/BENCHMARKS.md). Images at the top level (folder "") are left out: loose
+    files are no one style."""
+    loose = {i for i, f in enumerate(folders) if not f}
+    keep = np.setdiff1d(np.arange(len(base)), sorted((exclude or set()) | loose))
     if len(keep) == 0:
         return [[] for _ in range(1 if combine else len(queries))]
     wq, wb = whiten(queries), whiten(base)

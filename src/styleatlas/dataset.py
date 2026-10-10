@@ -75,7 +75,6 @@ MARK_TAGS = frozenset(
         "patreon username",
         "pixiv username",
         "weibo username",
-        "logo",
     }
 )
 
