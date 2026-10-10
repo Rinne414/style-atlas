@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.25.0 - 2026-10-10
 
 - **Copy search results to a folder from the web page**: under the results, "Copy these to a
   folder" puts them with their captions into a new `search_matches` folder next to the folder,
