@@ -13,7 +13,7 @@ from pathlib import Path
 import numpy as np
 
 from styleatlas.atlas import Atlas
-from styleatlas.cluster import METHODS, UNASSIGNED, Clustering
+from styleatlas.cluster import ARTISTS, METHODS, UNASSIGNED, Clustering
 from styleatlas.dataset import clean_group_name
 from styleatlas.metrics import PLAIN, space_name
 
@@ -98,7 +98,7 @@ def _settings(raw: object, n: int) -> dict:
     if not isinstance(raw, dict):
         return {}
     out: dict = {}
-    if raw.get("method") in METHODS:
+    if raw.get("method") in (*METHODS, ARTISTS):
         out["method"] = raw["method"]
     thr = raw.get("threshold")  # null: auto
     if isinstance(thr, (int, float)) and not isinstance(thr, bool) and 0.05 <= thr <= 1.5:

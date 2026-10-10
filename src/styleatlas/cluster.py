@@ -42,6 +42,8 @@ _TREE_CACHE: dict = {}  # last large set: (micro-group per image, linkage tree)
 UNASSIGNED = -1
 FIT_PERCENTILE = 70  # a new image fits a group when it is as close as this share of its members
 FIT_MIN = 3  # smallest group a new image can be placed in
+ARTISTS = "artists"  # the grouping that follows artists in a gallery of many
+ARTISTS_CUT = 0.90  # its cut in the search whitening's space (docs/BENCHMARKS.md)
 
 
 @dataclass
@@ -238,6 +240,19 @@ def _info(x: np.ndarray, cid: int, members: np.ndarray) -> ClusterInfo:
         cohesion=float(d.mean()),
         members=members.tolist(),
     )
+
+
+def cluster_by_artist(style: np.ndarray, min_size: int = 3) -> Clustering:
+    """Groups that follow artists in a gallery of many: average linkage in the search
+    whitening's space at ARTISTS_CUT (plain CSD in, medoids and spreads in plain CSD out). On
+    mixtures of 20 / 50 held-out Danbooru artists it matched them +0.13 / +0.07 ARI better than
+    `auto`, but only +0.02 to +0.04 for 2-5, and whitening turns down the variation inside one
+    artist, so it is an option for galleries, not the default."""
+    from styleatlas.whiten import whiten
+
+    grouped = cluster_styles(whiten(style, keep=False), threshold=ARTISTS_CUT, min_size=min_size)
+    out = from_labels(style, grouped.labels, ARTISTS)
+    return Clustering(out.labels, out.clusters, ARTISTS, grouped.params | {"space": "whitened"})
 
 
 def from_labels(x: np.ndarray, labels: np.ndarray, method: str) -> Clustering:

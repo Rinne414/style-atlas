@@ -408,3 +408,11 @@ def test_sort_suggests_new_kohya_repeats_for_folders_that_grow(capsys):
     err = capsys.readouterr().err
     assert "10_x_style01: 10 + 5 images; rename it 7_x_style01" in err
     assert "5_x_style02" not in err  # 21 images still round to 5 repeats
+
+
+def test_cluster_by_artist_and_its_refused_combinations(lib, tmp_path, capsys):
+    base = ["cluster", str(lib), "--device", "cpu", "--no-map", "-o", str(tmp_path / "o")]
+    assert main([*base, "--granularity", "artists"]) == 0
+    assert "by artist: whitened, cut 0.9" in capsys.readouterr().err
+    assert main([*base, "--granularity", "artists", "--neutralize", "1"]) == 1
+    assert "takes plain style vectors" in capsys.readouterr().err

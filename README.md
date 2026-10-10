@@ -143,6 +143,7 @@ ai_toolkit_datasets.yaml    ← ai-toolkit 的 datasets 段落（貼進訓練設
 **其他分群方式**：
 - 預設是 `auto`，依圖片自動挑門檻（最多到「中」的 0.47）。畫師越多，最佳門檻越低。50～300 位畫師混在一起時，auto 分出的群和真正的畫師吻合得比固定的「中」好（ARI，0～1，越高越吻合：高 0.16～0.21），代價是未分群的圖從 1～2% 增加到 5～9%。少數畫師、或資料夾裡有大量近似圖時，兩者差不多。
 - 單一畫師、風格變化很大時，auto 可能切出很多小群，這時改用 `--granularity medium` 或 `period`。
+- **很多位畫師混在一起的圖庫**（例如收集來的參考圖）：用 `--granularity artists`（網頁選「依畫師（20 位以上的圖庫）」）。它在另一個專門區分畫師的空間裡分群：20 位畫師混在一起時，分出的群和真正畫師的吻合度（ARI）比 auto 高 0.13，50 位時高 0.07；只有幾位畫師時差不多（+0.02～0.04）。同一位畫師分畫風、分時期時不要用，它會把同一位畫師內部的差異壓小。
 - `fine`／`medium`／`coarse` 是固定門檻，就是網頁分群選單的「細」「中」「粗」；`--k 3` 直接指定群數；`--threshold 0.35` 自己指定切分距離（進階，一般不用）。
 - 網頁介面也能選「自動」或調門檻，再按「重新分群」。
 
@@ -501,7 +502,7 @@ the same rule (one undo step).
 Square brackets mark optional parts; `#` starts a note, not part of the command.
 
 ```text
-style-atlas cluster DIR [--granularity auto|period|fine|medium|coarse | --threshold T | --k N]
+style-atlas cluster DIR [--granularity auto|period|artists|fine|medium|coarse | --threshold T | --k N]
                         [--layout plain|kohya --name X --repeats auto|N] [--dedupe]
                         [--drop-outliers N] [--max-per-group N] [--strip-tags TAGS]
                         [--trigger-captions] [--export copy|link] [--no-map] [--no-recursive]

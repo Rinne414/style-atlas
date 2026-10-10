@@ -164,3 +164,14 @@ def test_unassigned_images_are_put_back_only_where_they_fit(tmp_path):
     app.exclude({"items": [0, 15]})
     with pytest.raises(ValueError):  # excluded images are not placed
         app.place_unassigned({"rev": app.revision})
+
+
+def test_the_web_app_can_group_by_artist_and_keeps_it_after_a_restart(tmp_path):
+    app, atlas = _app(tmp_path, (8, 7))
+    app.regroup({"method": "artists"})
+    assert app.clustering.method == "artists" and app.settings["method"] == "artists"
+    again = StyleAtlasApp(atlas, EncodeOptions(device="cpu"), "pca")
+    assert again.settings["method"] == "artists"  # the page selects "by artist" again
+    assert (again.clustering.labels == app.clustering.labels).all()
+    with pytest.raises(ValueError):
+        app.regroup({"method": "spectral"})

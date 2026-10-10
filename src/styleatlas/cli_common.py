@@ -9,7 +9,16 @@ from dataclasses import replace
 from pathlib import Path
 
 from styleatlas.atlas import Atlas, EncodeOptions, build_atlas
-from styleatlas.cluster import GRANULARITY, PERIODS, Clustering, cluster_styles, edit_groups
+from styleatlas.cluster import (
+    ARTISTS,
+    ARTISTS_CUT,
+    GRANULARITY,
+    PERIODS,
+    Clustering,
+    cluster_by_artist,
+    cluster_styles,
+    edit_groups,
+)
 from styleatlas.metrics import (
     CHARACTERS,
     MAX_NEUTRALIZE,
@@ -112,6 +121,8 @@ def _reference(a: argparse.Namespace) -> Atlas | None:
 
 
 def _cluster(a: argparse.Namespace, atlas: Atlas):
+    if a.granularity == ARTISTS:
+        return _cluster_by_artist(a, atlas)
     method, k, threshold = a.method, a.k, a.threshold
     if a.granularity == "period" and threshold is None:
         if method != "agglomerative":
@@ -150,6 +161,18 @@ def saved_groups(
     log("using the groups and names saved by the web app")
     edited = edit_groups(atlas.style, clustering, dict(enumerate(saved.labels.tolist())))
     return edited, carry_names(saved.labels, edited.labels, saved.names)
+
+
+def _cluster_by_artist(a: argparse.Namespace, atlas: Atlas) -> Clustering:
+    if _space(a) != PLAIN or a.threshold is not None or a.k:
+        raise ValueError(
+            "--granularity artists takes plain style vectors and its own cut: leave out "
+            "--neutralize, --ignore-characters, --threshold and --k"
+        )
+    result = cluster_by_artist(atlas.style, min_size=a.min_size)
+    how = f"by artist: whitened, cut {ARTISTS_CUT}"
+    log(f"{result.n_clusters} styles, {result.n_unassigned} unassigned ({how})")
+    return result
 
 
 def web_exclusions(atlas: Atlas, folder: Path) -> list[int]:

@@ -370,3 +370,19 @@ def test_groups_under_three_images_take_no_new_images():
     held = x[:5].mean(axis=0, keepdims=True)
     held /= np.linalg.norm(held)
     assert fit_to_groups(x, groups, held)[0].fits  # a small group still takes its own style
+
+
+def test_grouping_by_artist_runs_in_the_whitened_space_and_reports_in_plain():
+    from styleatlas.cluster import ARTISTS, cluster_by_artist
+
+    x, _ = make_blobs([12, 12, 12])
+    result = cluster_by_artist(x)
+    assert result.method == ARTISTS and result.params["space"] == "whitened"
+    assert sorted(m for c in result.clusters for m in c.members) == sorted(
+        np.flatnonzero(result.labels >= 0).tolist()
+    )
+    for c in result.clusters:  # medoids and spreads come from the plain vectors
+        d = 1.0 - x[c.members] @ (
+            x[c.members].mean(axis=0) / np.linalg.norm(x[c.members].mean(axis=0))
+        )
+        assert c.medoid == c.members[int(np.argmin(d))]

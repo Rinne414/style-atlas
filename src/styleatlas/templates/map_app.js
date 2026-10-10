@@ -512,6 +512,7 @@ function setupRegroup() {  // granularity, cut, periods, the regroup button and 
       const g = $("gran").value;
       const body = g === "period"
         ? { method: "kmeans", k: parseInt($("periods").value, 10) || DATA.live.periods }
+        : g === "artists" ? { method: "artists" }
         : { threshold: g === "auto" ? null : parseFloat($("thr").value) };
       await post("api/regroup", JSON.stringify(body), "application/json");
       location.reload();
@@ -589,14 +590,15 @@ function liveText() {
   $("refPath").placeholder = DATA.reference ? DATA.reference : t("refPath");
   $("refLoad").textContent = DATA.reference && !$("refPath").value.trim() ? t("refClear") : t("refLoad");
   const cur = $("gran").value;
-  $("gran").replaceChildren(...["auto", "period", ...Object.keys(DATA.live.granularity), "custom"].map((k) => {
+  $("gran").replaceChildren(...["auto", "period", "artists", ...Object.keys(DATA.live.granularity), "custom"].map((k) => {
     const o = document.createElement("option"); o.value = k; o.textContent = t(k); return o;
   }));
   const thr = parseFloat($("thr").value);
   const match = Object.entries(DATA.live.granularity).find(([, v]) => Math.abs(v - thr) < 1e-6);
   const s = DATA.live.settings;
   const auto = s.threshold == null && !s.k;
-  const initial = s.method === "kmeans" ? "period" : (auto ? "auto" : (match ? match[0] : "custom"));
+  const initial = s.method === "kmeans" ? "period" : s.method === "artists" ? "artists"
+    : (auto ? "auto" : (match ? match[0] : "custom"));
   $("gran").value = cur && cur !== "custom" ? cur : initial;
   $("periods").title = t("periods");
   showPeriods($("gran").value === "period");

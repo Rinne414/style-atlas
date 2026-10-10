@@ -78,8 +78,8 @@ All of these are in `docs/BENCHMARKS.md`.
 - **Grouping in the whitened space**: a fixed cut of 0.90 there beat the product's `auto` by
   +0.13 / +0.07 ARI on mixtures of 20 / 50 held-out artists but only +0.02 to +0.04 for 2-5, and
   merged a set of AI renders into one group. A cut relative to the folder's median distance did
-  not carry across sizes (BENCHMARKS.md). Possible later: an opt-in for large many-artist
-  galleries.
+  not carry across sizes (BENCHMARKS.md). Offered as `--granularity artists` since 0.43, not
+  the default.
 - **Better embedding**: CSD is the ceiling for every number above. Candidates are fine-tuning on
   style-labelled anime data, or newer style encoders when they appear. Any candidate must beat
   CSD on `style-atlas bench` and on the unseen-character test.

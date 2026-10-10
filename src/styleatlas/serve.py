@@ -23,9 +23,11 @@ import numpy as np
 
 from styleatlas.atlas import LOAD_ERRORS, Atlas, EncodeOptions, build_atlas, get_encoder
 from styleatlas.cluster import (
+    ARTISTS,
     GRANULARITY,
     METHODS,
     PERIODS,
+    cluster_by_artist,
     cluster_styles,
     fit_to_groups,
 )
@@ -168,16 +170,18 @@ class StyleAtlasApp(GroupEdits):
             self._spaces[name] = (self.space, layout)
         self.layout = self._spaces[name][1]
         s = self.settings
-        self.clustering = cluster_styles(
-            self.atlas.style,
-            method=s.get("method", "agglomerative"),
-            threshold=s.get("threshold"),
-            n_clusters=s.get("k"),
+        self.clustering = self._grouped(
+            s.get("method", "agglomerative"), s.get("threshold"), s.get("k")
         )
         self.settings = {key: v for key, v in s.items() if key != "edited"}
         if self.taste is not None:
             self.taste.atlas = self.atlas
             self.taste._refit()
+
+    def _grouped(self, method: str, threshold: float | None, k: int | None):
+        if method == ARTISTS:  # on the plain vectors, whatever the space (cluster_by_artist)
+            return cluster_by_artist(self.raw.style)
+        return cluster_styles(self.atlas.style, method=method, threshold=threshold, n_clusters=k)
 
     def _fitted(self, name: str) -> StyleSpace:
         if name in self._spaces:
@@ -347,8 +351,8 @@ class StyleAtlasApp(GroupEdits):
 
     def regroup(self, body: dict) -> dict:
         method = body.get("method", "agglomerative")
-        if method not in METHODS:
-            raise ValueError(f"method must be one of {METHODS}")
+        if method not in (*METHODS, ARTISTS):
+            raise ValueError(f"method must be one of {(*METHODS, ARTISTS)}")
         threshold = body.get("threshold")  # None: chosen from the data
         k = body.get("k")
         is_number = isinstance(threshold, (int, float)) and not isinstance(threshold, bool)
@@ -357,9 +361,7 @@ class StyleAtlasApp(GroupEdits):
         if k is not None and (type(k) is not int or not 1 <= k <= len(self.atlas)):
             raise ValueError("k must be a whole number between 1 and the image count")
         with self._lock:
-            clustering = cluster_styles(
-                self.atlas.style, method=method, threshold=threshold, n_clusters=k
-            )
+            clustering = self._grouped(method, threshold, k)
             self._remember()
             self._swap(clustering)
             self.settings = {"method": method, "threshold": threshold, "k": k}

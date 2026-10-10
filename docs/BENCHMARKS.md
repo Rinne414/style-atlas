@@ -322,6 +322,12 @@ across folders; the folder's median distance itself grows with the number of art
 for folders of 20 or more artists, and whitening turns down the within-artist variation that
 splitting one artist depends on.
 
+**Offered as an option (0.43).** `--granularity artists` (web: "by artist") groups in the
+whitened space at the fixed cut 0.90, the row above: for galleries of many artists. A gate that
+switched to it on its own when `auto` found 10 or more groups gave the same gains (20 artists
+0.388 -> 0.517, 50 artists 0.349 -> 0.420, 2-5 unchanged) but could also fire on one prolific
+artist, whose sub-styles whitening would merge, so it is a choice, not automatic.
+
 ### Single-image distances (the Style Gate's scale)
 
 Danbooru, deduplicated: plain CSD distance (1 - cosine) between single images.

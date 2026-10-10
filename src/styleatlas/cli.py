@@ -30,7 +30,7 @@ from styleatlas.cli_common import (  # noqa: F401 (re-exported for tests and cal
 from styleatlas.cli_lora import FEW_FOR_LORA, _lora_args, cmd_cluster  # noqa: F401
 from styleatlas.cli_report import cmd_report, report_args
 from styleatlas.cli_sort import cmd_sort, sort_args
-from styleatlas.cluster import GRANULARITY, METHODS, PERIODS, outlier_scores
+from styleatlas.cluster import ARTISTS, GRANULARITY, METHODS, PERIODS, outlier_scores
 from styleatlas.encoder import CROP_MODES, RESOLUTIONS
 from styleatlas.images import TIME_SOURCES, find_images, labels_from_folders
 from styleatlas.look import LOOK_NAMES, describe, difference
@@ -397,9 +397,10 @@ def _grouping_args(p: argparse.ArgumentParser) -> argparse._ArgumentGroup:
     g.add_argument(
         "--granularity",
         default="auto",
-        choices=["auto", "period", *GRANULARITY],
+        choices=["auto", "period", ARTISTS, *GRANULARITY],
         help="auto picks the cut from the data; period splits one artist into --k periods "
-        f"(default {PERIODS}, k-means, every image assigned)",
+        f"(default {PERIODS}, k-means, every image assigned); artists follows artists in a "
+        "gallery of many (20 or more)",
     )
     g.add_argument(
         "--threshold", type=float, help="hub-corrected distance cut (overrides granularity)"

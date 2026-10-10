@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- **Group by artist, for galleries of many artists.** `--granularity artists` (web: "by artist")
+  groups in the search whitening's space at a fixed cut. On mixtures of held-out Danbooru
+  artists it matched the artists better than `auto`: ARI 0.517 against 0.388 for 20 artists and
+  0.420 against 0.349 for 50, about the same for 2-5. It is not for splitting one artist (whitening
+  turns down the differences inside one artist), so it is an option, not the default.
+- Tried and not used: a cut relative to the folder's own distances (BENCHMARKS.md).
+
 ## 0.42.0 - 2026-10-10
 
 - Internal: every Python and page function is under 50 lines and every test file under 800
