@@ -99,6 +99,12 @@ All of these are in `docs/BENCHMARKS.md`.
     raw-image pipeline is released.
   - Mitchins/anime-style-classifier-v5 sorts anime frames into 4 production styles, not
     artists.
+- **Related tools (searched 2026-10-10).** No packaged tool found that groups a LoRA dataset by
+  style vectors. Nearest: Stylebreeder (research: CSD vectors, k-means, one LoRA per cluster;
+  arxiv.org/abs/2406.14599), LoRA Dataset Coach (face identity, quality, pose, duplicates,
+  tagging; github.com/akalavol/LoRA-Dataset-Coach), dghs-imgutils (anime image utilities), and
+  "A LoRA is Worth a Thousand Pictures" (LoRA weights as style features; arxiv.org/abs/2412.12048).
+  The Anima-Style-Embedding card was checked again: it still needs precomputed features.
 
 - **From the v0.24 product critique, not done yet**:
   - Search inside a caption tag is done (0.26). Negative examples were measured and dropped
