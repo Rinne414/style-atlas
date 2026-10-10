@@ -335,8 +335,10 @@ def test_auto_projection_falls_back_to_tsne_without_umap(monkeypatch):
     monkeypatch.setattr(project, "has_umap", lambda: False)
     coords, how = project.project_3d(x, "auto")
     assert how == "tsne" and coords.shape == (40, 3) and np.abs(coords).max() <= 1.0
-    a, b = coords[labels == 0].mean(axis=0), coords[labels == 1].mean(axis=0)
-    assert np.linalg.norm(a - b) > 0.5  # the two styles land apart
+    d = np.linalg.norm(coords[:, None] - coords[None], axis=2)
+    np.fill_diagonal(d, np.inf)
+    nearest = labels[d.argmin(axis=1)]
+    assert (nearest == labels).mean() >= 0.8  # neighbours on the map share a style
     monkeypatch.setattr(project, "TSNE_MAX", 30)
     assert project.project_3d(x, "auto")[1] == "pca"  # too many for t-SNE
     with pytest.raises(ValueError):
