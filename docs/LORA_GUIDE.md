@@ -76,7 +76,8 @@ style-atlas cluster "D:\lora\artistX" --layout kohya --name artistX --dedupe --d
   - 有標註檔時，要把觸發詞寫進每個標註的開頭（可搭配 `keep_tokens`）。加 `--trigger-captions` 會自動幫你做：
     - 匯出的每個標註開頭會加上 `artistX_styleNN, `；
     - 沒標註的圖會新建一個只含觸發詞的標註；
-    - 原始標註不會被改。
+    - 原始標註不會被改；標註原本就有的標籤（例如你自己的 `artistx`）會保留在後面，但只有第一個觸發詞會被 `keep_tokens = 1` 固定；
+    - 匯出後會列出寫進去的觸發詞。群名是中文時觸發詞也會是中文，SD 1.5、SDXL 的文字編碼器對中文支援差，會提醒你群名改用英文。
 
 ## 4. 訓練完之後
 
