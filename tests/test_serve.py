@@ -429,6 +429,17 @@ def test_the_page_script_parses(tmp_path):
     assert result.returncode == 0, result.stderr
 
 
+def test_the_page_script_joins_every_template_script():
+    """A templates/*.js file that page_script leaves out still parses, then fails at run time."""
+    from pathlib import Path
+
+    from styleatlas import report
+
+    script = report.page_script()
+    for f in (Path(report.__file__).parent / "templates").glob("*.js"):
+        assert f.read_text(encoding="utf-8") in script, f.name
+
+
 def test_regroup_without_a_threshold_is_auto(tmp_path):
     app, _ = _app(tmp_path)
     app.regroup({"threshold": 0.5})
