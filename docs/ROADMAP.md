@@ -123,6 +123,8 @@ All of these are in `docs/BENCHMARKS.md`.
   - Comparing selections is done (against a group 0.27, two selections 0.32).
   - The aspect-ratio bucket report is done (0.33), the one-page report too (0.29).
   - Rejected: hiding the taste model. Quantifying taste is one of the owner's goals.
+  - Rejected 2026-10-11: a "far from your ratings" warning on taste scores; distance to the
+    nearest vote did not predict errors (BENCHMARKS.md, Tried and rejected).
 - **Watermarks without captions**: only caption tags are checked. Detecting marks in the pixels
   needs a detector model.
 

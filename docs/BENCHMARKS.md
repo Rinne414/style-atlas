@@ -990,6 +990,25 @@ at the shipped verdict's false-alarm rate (6% of single artists):
 
 Single artists split cleanly too (sub-styles, periods), so the split says little. Not used.
 
+### A "far from your ratings" warning on taste scores (2026-10-11)
+
+Idea (from a product review): flag images far from everything the person rated, since the taste
+model may not know them. Leave-one-out over the owner's 140 like/dislike votes (one generator,
+one character), with the product's `train_taste`: the held-out vote's distance to the nearest
+training vote did not predict whether the model was right.
+
+| Nearest-vote distance (quartile) | Images | Accuracy |
+|---|---|---|
+| 0.054-0.091 | 35 | 0.771 |
+| 0.091-0.120 | 34 | 0.706 |
+| 0.120-0.163 | 36 | 0.694 |
+| 0.163-0.278 | 35 | 0.771 |
+
+Near half 0.739, far half 0.732 (permutation p 0.53). So within one source the distance earns no
+warning. Across sources the model does fail (votes to Pixiv accounts: AUC 0.62), which docs/ACCURACY
+states; that case was not measured here, because the Pixiv data is only handled through its
+own content filter. Not built.
+
 ### Negative examples in search (2026-10-10)
 
 "Like these, but not like those": 15 prolific artists, 5 works of artist A as examples and 5 of
