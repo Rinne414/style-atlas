@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.40.0 - 2026-10-10
 
 - **`sort --by-folder` suggests new kohya repeats.** When new images that fit are added to a
   kohya folder whose repeats were set automatically (images x repeats near 100), it prints the

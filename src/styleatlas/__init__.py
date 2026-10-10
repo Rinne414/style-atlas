@@ -3,4 +3,4 @@
 from styleatlas.metrics import StyleScale
 
 __all__ = ["StyleScale", "__version__"]
-__version__ = "0.39.0"
+__version__ = "0.40.0"
