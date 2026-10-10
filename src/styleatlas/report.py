@@ -63,8 +63,14 @@ def compute_layout(
     progress(f"projected {len(atlas)} images with {used}")
     dups = near_duplicate_groups(atlas.style, atlas.content)
     layout = Layout(coords, used, knn(atlas.style, k=NEIGHBORS), outlier_scores(atlas.style), dups)
+    return with_reference(layout, atlas, reference)
+
+
+def with_reference(layout: Layout, atlas: Atlas, reference: Atlas | None) -> Layout:
+    """The layout with its originality fields measured against `reference` (cleared for None);
+    positions and everything else stay."""
     if reference is None or not len(reference):
-        return layout
+        return replace(layout, ref_dist=None, ref_name=None, ref_title=None)
     dist, which = nearest_reference(atlas.style, reference.style)
     names = [reference.rel(int(j)) for j in which]
     return replace(layout, ref_dist=dist, ref_name=names, ref_title=reference.root.name)

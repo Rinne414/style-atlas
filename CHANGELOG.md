@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+- **Reference folder in the web app**: type a folder of styles you know and press "Load
+  reference" (or clear it). The measures layout gets its originality axis without restarting with
+  `--reference`; groups, edits and positions stay.
+- Fixes from a Sonnet review:
+  - The map turns at the same speed at any frame rate, so a recording is one turn on a
+    120/144 Hz screen too.
+  - Recording stops cleanly if the tab goes to the background (no broken file), always restores
+    rotation, and frees its capture stream; the Record and Rotate buttons are disabled meanwhile.
+  - Check also lists files that can no longer be opened.
+  - The static map's tab is labelled "Outliers" again; "Check" is the web app's.
+
 ## 0.16.0 - 2026-10-10
 
 - **Record a turn**: one button saves an 8-second video (MP4 where the browser can, else WebM) of the 3D map

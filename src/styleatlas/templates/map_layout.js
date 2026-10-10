@@ -155,33 +155,45 @@ function recorderType() {
 
 async function recordTurn() {
   const type = recorderType();
-  if (!type) { $("rec").textContent = t("recNo"); return; }
-  if (recordingNow) return;
+  if (!type || recordingNow) return;
+  if (document.hidden) return;  // a hidden tab draws no frames
   recordingNow = true;
-  const chunks = [];
-  const rec = new MediaRecorder(canvas.captureStream(30), { mimeType: type, videoBitsPerSecond: 8e6 });
-  rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
-  const stopped = new Promise((r) => { rec.onstop = r; });
   const was = { auto: controls.autoRotate, speed: controls.autoRotateSpeed };
-  controls.autoRotate = true;
-  controls.autoRotateSpeed = 60 / RECORD_SECONDS;  // OrbitControls: speed 2 = one turn in 30 s
-  rec.start();
-  for (let s = RECORD_SECONDS; s > 0; s--) {
-    $("rec").textContent = t("recording").replace("{s}", s);
-    await new Promise((r) => setTimeout(r, 1000));
+  $("rec").disabled = true; $("spin").disabled = true;
+  let rec = null;
+  let hidden = false;
+  const onHide = () => { if (document.hidden) hidden = true; };
+  document.addEventListener("visibilitychange", onHide);
+  try {
+    const chunks = [];
+    rec = new MediaRecorder(canvas.captureStream(30), { mimeType: type, videoBitsPerSecond: 8e6 });
+    rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+    const stopped = new Promise((r) => { rec.onstop = r; });
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 60 / RECORD_SECONDS;  // OrbitControls: speed 2 = one turn in 30 s
+    rec.start();
+    for (let s = RECORD_SECONDS; s > 0 && !hidden; s--) {
+      $("rec").textContent = t("recording").replace("{s}", s);
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+    rec.stop(); await stopped;
+    if (hidden || !chunks.length) { $("rec").title = t("recHidden"); return; }  // no broken file
+    const blob = new Blob(chunks, { type: type.split(";")[0] });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `${DATA.title || "style_atlas"}.${type.includes("mp4") ? "mp4" : "webm"}`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+  } finally {
+    document.removeEventListener("visibilitychange", onHide);
+    if (rec) rec.stream.getTracks().forEach((tr) => tr.stop());
+    controls.autoRotate = was.auto; controls.autoRotateSpeed = was.speed;
+    recordingNow = false; $("rec").disabled = false; $("spin").disabled = false;
+    $("rec").textContent = t("rec");
   }
-  rec.stop(); await stopped;
-  controls.autoRotate = was.auto; controls.autoRotateSpeed = was.speed;
-  recordingNow = false; $("rec").textContent = t("rec");
-  const blob = new Blob(chunks, { type: type.split(";")[0] });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = `${DATA.title || "style_atlas"}.${type.includes("mp4") ? "mp4" : "webm"}`;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 60000);
-  return blob.size;
 }
-$("rec").addEventListener("click", () => { recordTurn(); });
+if (!recorderType()) { $("rec").disabled = true; }
+$("rec").addEventListener("click", () => { recordTurn().catch((e) => { $("rec").title = String(e.message || e); }); });
 
 $("names").addEventListener("click", () => {
   showNames = !showNames; $("names").classList.toggle("on", showNames); drawNames();

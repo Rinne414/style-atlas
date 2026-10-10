@@ -257,8 +257,36 @@ function setupUndo() {
   $("undo").addEventListener("click", () => editPost("api/undo", {}));
 }
 
+const LAYOUT_KEY = "style-atlas-layout";  // survives the reload after a reference is loaded
+
+function setupReference() {
+  $("refPath").title = t("tipRef"); $("refLoad").title = t("tipRef");
+  $("refLoad").addEventListener("click", async () => {
+    const folder = DATA.reference && !$("refPath").value.trim() ? "" : $("refPath").value;
+    if (!folder && !DATA.reference) return;
+    $("refLoad").disabled = true; setStatus(t("refBusy"));
+    try {
+      await post("api/reference", JSON.stringify({ folder }), "application/json");
+      try { if (folder) sessionStorage.setItem(LAYOUT_KEY, "measures:ref"); } catch (e) { /* storage off */ }
+      location.reload();
+    } catch (err) { setStatus(String(err.message || err)); $("refLoad").disabled = false; }
+  });
+  $("refPath").addEventListener("input", () => {
+    $("refLoad").textContent = DATA.reference && !$("refPath").value.trim() ? t("refClear") : t("refLoad");
+  });
+  let saved = null;
+  try { saved = sessionStorage.getItem(LAYOUT_KEY); sessionStorage.removeItem(LAYOUT_KEY); } catch (e) { /* storage off */ }
+  if (saved === "measures:ref" && DATA.reference) {
+    setTimeout(() => {  // after applyText has filled the axis menus
+      const sel = $("layoutSel"); sel.value = "measures"; sel.dispatchEvent(new Event("change"));
+      $("axX").value = "ref"; $("axX").dispatchEvent(new Event("change"));
+    }, 0);
+  }
+}
+
 function setupLive() {
   setupUndo();
+  setupReference();
   $("neutral").checked = (DATA.live.space || "plain") !== "plain";
   $("neutral").addEventListener("change", async (e) => {
     setStatus(t("neutralBusy"));
@@ -331,6 +359,8 @@ function liveText() {
   $("expName").placeholder = t("conceptName");
   $("expTrigWrap").querySelector("span").textContent = t("triggerCaptions");
   $("neutralWrap").querySelector("span").textContent = t("neutral");
+  $("refPath").placeholder = DATA.reference ? DATA.reference : t("refPath");
+  $("refLoad").textContent = DATA.reference && !$("refPath").value.trim() ? t("refClear") : t("refLoad");
   const cur = $("gran").value;
   $("gran").replaceChildren(...["auto", "period", ...Object.keys(DATA.live.granularity), "custom"].map((k) => {
     const o = document.createElement("option"); o.value = k; o.textContent = t(k); return o;

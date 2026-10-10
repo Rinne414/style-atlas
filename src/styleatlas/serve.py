@@ -21,7 +21,7 @@ from pathlib import Path
 
 import numpy as np
 
-from styleatlas.atlas import LOAD_ERRORS, Atlas, EncodeOptions, get_encoder
+from styleatlas.atlas import LOAD_ERRORS, Atlas, EncodeOptions, build_atlas, get_encoder
 from styleatlas.cluster import (
     GRANULARITY,
     METHODS,
@@ -61,6 +61,7 @@ from styleatlas.report import (
     default_thumb_px,
     map_payload,
     render_html,
+    with_reference,
     write_payload,
 )
 from styleatlas.search import search, style_path
@@ -73,6 +74,7 @@ EXPORT_MIN_GROUP = 3  # groups left smaller after set-asides go to _unassigned (
 MAX_SPLIT = 4000  # splitting runs under the lock; larger groups would stall every request
 COMPARE_ROUNDS = 199  # permutations for a group comparison's p-value (resolution 0.005)
 MIN_SIDE_RANGE = (64, 8192)  # the check tab's smallest-side setting
+MAX_PATH_TEXT = 1000  # longest folder path accepted from the page
 
 
 class StyleAtlasApp:
@@ -103,6 +105,7 @@ class StyleAtlasApp:
         self._thumbs: dict[int, bytes] = {}
         self._tag_sets: list[set[str]] | None = None
         self._lock = threading.Lock()
+        self._model_lock = threading.Lock()  # one embedding at a time (uploads, a reference)
         self.taste: TasteSession | None = None
         self.group_names: dict[int, str] = {}  # group id -> name, carried across regroupings
         self._history: list[tuple] = []  # earlier (clustering, settings, names, space) for undo
@@ -300,7 +303,7 @@ class StyleAtlasApp:
                 image = load_rgb(io.BytesIO(d))
             except LOAD_ERRORS as e:
                 raise ValueError(f"not a readable image: {e}") from e
-            with self._lock:
+            with self._model_lock:
                 emb = get_encoder(self.opts).encode([image])
             styles.append(emb.style[0])
             contents.append(emb.content[0])
@@ -326,6 +329,31 @@ class StyleAtlasApp:
         hits = search(x[members], x, top=SEARCH_TOP, combine=True, exclude=set(members))[0]
         return {"hits": [{"i": h.index, "group": int(labels[h.index])} for h in hits]}
 
+    def set_reference(self, body: dict) -> dict:
+        """A folder of styles you already know becomes the reference: the measures layout gets
+        an originality axis (distance to the closest reference image). An empty folder clears it.
+        Groups, edits and map positions stay."""
+        folder = body.get("folder", "")
+        if not isinstance(folder, str) or len(folder) > MAX_PATH_TEXT:
+            raise ValueError("folder must be a path")
+        folder = folder.strip().strip('"').strip()
+        ref = None
+        if folder:
+            path = Path(folder).expanduser()
+            if not path.is_dir():
+                raise ValueError(f"not a folder: {folder}")
+            with self._model_lock:  # the first time this embeds every image: not under _lock
+                ref = build_atlas(path, self.opts, self.progress)
+        with self._lock:
+            self.raw_reference = ref
+            view = None
+            if ref is not None:
+                view = replace(ref, style=self.space.apply(ref.style, ref.content))
+            self.layout = with_reference(self.layout, self.atlas, view)
+            self._spaces = {self.space.name: (self.space, self.layout)}  # others: old reference
+            self.revision += 1
+        return {"reference": self.layout.ref_title, "images": 0 if ref is None else len(ref)}
+
     def check(self, body: dict) -> dict:
         """The dataset audit (`style-atlas audit`) for the images on the map, by index: small,
         extreme, animated or truncated images, missing or empty captions, and greyscale images in
@@ -340,9 +368,7 @@ class StyleAtlasApp:
         report = audit(paths, min_side=side, looks=looks)  # file headers only: outside the lock
         index = {str(p): i for i, p in enumerate(paths)}
         issues = {
-            key: [index[f] for f in files if f in index]
-            for key, files in report["files"].items()
-            if key != "unreadable"
+            key: [index[f] for f in files if f in index] for key, files in report["files"].items()
         }
         return {"min_side": side, "issues": issues}
 

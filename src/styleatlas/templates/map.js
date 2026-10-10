@@ -5,9 +5,9 @@ const DATA = JSON.parse(document.getElementById("atlas-data").textContent);
 const PTS = DATA.points;
 const N = PTS.length;
 const T = {
-  en: { images: "images", clusters: "Styles", selected: "Selected", outliers: "Check",
+  en: { images: "images", clusters: "Styles", selected: "Selected", outliers: "Outliers", checkTab: "Check",
     find: "filter by file name", thumbs: "Thumbnails", dots: "Dots", spin: "Rotate", home: "Reset", names: "Names", rec: "Record a turn", recording: "recording {s}s",
-    recNo: "This browser cannot record video", tipRec: "Record one turn of the map as a video to share (MP4, or WebM)",
+    recNo: "This browser cannot record video", recHidden: "Recording stopped: keep this tab in front while it records", tipRec: "Record one turn of the map as a video to share (MP4, or WebM)",
     unassigned: "Unassigned", style: "Style", size: "images", cohesion: "spread",
     pick: "Click an image in the map to see its closest styles.", nearest: "Closest styles",
     members: "Members", cluster: "style", outlierHelp: "Images least like the rest of the set (candidates to drop from a LoRA dataset).",
@@ -29,6 +29,9 @@ const T = {
     exclude: "Exclude from export (X)", included: "Excluded - undo (X)",
     excludedList: "Excluded by you ({n}) - exported to _excluded",
     compareWith: "Compare with…", compareTitle: "{a} compared with {b}",
+    refPath: "reference folder (styles you know)", refLoad: "Load reference", refClear: "Clear reference",
+    refBusy: "loading the reference… the first time, every image in it is embedded (minutes)",
+    tipRef: "A folder of styles you already know (artists, recipes): the measures layout gets an originality axis, the distance to the closest one",
     tipSearch: "Pick one or more images (or drop them on the map) to find this style in the folder",
     tipGran: "How finely to split: auto picks a cut from the images; period splits one artist into N parts",
     tipThr: "The cut used by Regroup: lower = more, smaller groups",
@@ -46,6 +49,7 @@ const T = {
     chk_greyscale_in_colour_set: "Greyscale in a colour set (sketches, comic pages?)",
     chk_no_caption: "No caption file", chk_empty_caption: "Empty caption",
     chk_animated: "Animated (only the first frame is used)", chk_truncated: "Truncated file",
+    chk_unreadable: "Cannot be opened (moved, deleted or damaged since the scan?)",
     cmpDistance: "Style distance", cmpP: "Chance that the difference is noise",
     cmpLook: "How {b} looks next to {a}", cmpLookSame: "about the same look",
     v_same: "same style", v_related: "related", v_different: "clearly different",
@@ -74,9 +78,9 @@ const T = {
     tasteHelp: "Rate images with Like / Dislike (select one on the map, then press L or D). After {n} of each, a model learns your taste from the style vectors and ranks the unrated images.",
     tasteCount: "liked {a} · disliked {b}", tasteAuc: "cross-validated AUC {x} (0.5 = guessing). Treat it as a rough filter: it separates liked from disliked, not good from better.",
     tasteTop: "Most likely to like (unrated)", tasteBottom: "Least likely (unrated)", fine: "fine", medium: "medium", coarse: "coarse", auto: "auto (picked from the images)", foot: "Style vectors: CSD ViT-L (Somepalli et al. 2024, CC-BY-4.0). Map layout is for viewing only; groups are computed in the full space." },
-  zh: { images: "張圖", clusters: "畫風群", selected: "選取", outliers: "檢查",
+  zh: { images: "張圖", clusters: "畫風群", selected: "選取", outliers: "離群", checkTab: "檢查",
     find: "以檔名篩選", thumbs: "縮圖", dots: "圓點", spin: "旋轉", home: "重置", names: "群名", rec: "錄一圈", recording: "錄影中 {s} 秒",
-    recNo: "這個瀏覽器不支援錄影", tipRec: "把地圖轉一圈錄成影片（MP4 或 WebM），可以直接分享",
+    recNo: "這個瀏覽器不支援錄影", recHidden: "錄影中斷：錄影時請讓這個分頁保持在最前面", tipRec: "把地圖轉一圈錄成影片（MP4 或 WebM），可以直接分享",
     unassigned: "未歸類", style: "畫風", size: "張", cohesion: "分散度",
     pick: "在地圖上點一張圖，看最接近的畫風。", nearest: "最接近的畫風", members: "成員",
     cluster: "畫風群", outlierHelp: "和整組最不像的圖（訓 LoRA 前可考慮剔除）。",
@@ -98,6 +102,9 @@ const T = {
     exclude: "匯出時排除 (X)", included: "已排除，取消 (X)",
     excludedList: "你排除的圖（{n}）：匯出時放到 _excluded",
     compareWith: "和…比較", compareTitle: "{a} 和 {b} 比較",
+    refPath: "參考資料夾（已知畫風）", refLoad: "載入參考", refClear: "清除參考",
+    refBusy: "載入參考資料夾中…第一次會嵌入裡面的每張圖，可能要幾分鐘",
+    tipRef: "放已知畫風（畫師作品、配方）的資料夾：量化軸會多一個「離參考集距離（原創度）」",
     tipSearch: "選一張或幾張圖（也可以直接拖到地圖上），在這個資料夾裡找同樣畫風的圖",
     tipGran: "分得多細：自動會依圖片決定；時期會把同一位畫師分成幾段",
     tipThr: "重新分群用的門檻：越小，群越多、越小",
@@ -115,6 +122,7 @@ const T = {
     chk_greyscale_in_colour_set: "混在彩色圖裡的黑白圖（草稿、漫畫頁？）",
     chk_no_caption: "沒有標註檔", chk_empty_caption: "標註是空的",
     chk_animated: "動圖（只看第一格）", chk_truncated: "檔案不完整",
+    chk_unreadable: "無法開啟（掃描後被移動、刪除或損壞？）",
     cmpDistance: "畫風距離", cmpP: "差異只是雜訊的機率",
     cmpLook: "{b} 和 {a} 相比的外觀", cmpLookSame: "外觀差不多",
     v_same: "同一畫風", v_related: "相近", v_different: "明顯不同",
@@ -524,7 +532,7 @@ function buildClusters() {
 }
 
 const CHECK_KEYS = ["smaller_than_min_side", "greyscale_in_colour_set", "extreme_aspect_ratio",
-  "no_caption", "empty_caption", "animated", "truncated"];
+  "no_caption", "empty_caption", "animated", "truncated", "unreadable"];
 let CHECK = null;  // the last dataset check (live app only)
 
 function checkSection() {
@@ -536,7 +544,7 @@ function checkSection() {
   });
   if (CHECK) side.value = String(CHECK.min_side);
   const run = document.createElement("button"); run.textContent = t("checkRun"); run.style.marginLeft = "6px";
-  run.addEventListener("click", () => runCheck(parseInt(side.value, 10)));
+  run.addEventListener("click", () => { run.disabled = true; runCheck(parseInt(side.value, 10)); });
   box.append(h, side, run);
   if (!CHECK) return box;
   const found = CHECK_KEYS.filter((k) => (CHECK.issues[k] || []).length);
@@ -561,8 +569,9 @@ async function runCheck(minSide) {
   setStatus(t("checking"));
   try {
     CHECK = await post("api/check", JSON.stringify({ min_side: minSide }), "application/json");
-    setStatus(""); buildOutliers();
+    setStatus("");
   } catch (e) { setStatus(String(e.message || e)); }
+  buildOutliers();  // also brings the button back
 }
 
 function buildOutliers() {
@@ -625,7 +634,7 @@ function applyText() {
   $("helpBtn").title = t("keys");
   if (!$("help").hidden) showHelp(true);
   const tabs = document.querySelectorAll(".tabs button");
-  tabs[0].textContent = t("clusters"); tabs[1].textContent = t("selected"); tabs[2].textContent = t("outliers");
+  tabs[0].textContent = t("clusters"); tabs[1].textContent = t("selected"); tabs[2].textContent = t(DATA.live ? "checkTab" : "outliers");
   tabs[3].textContent = `${t("dups")}${(DATA.duplicates || []).length ? " " + DATA.duplicates.length : ""}`;
   document.querySelector("footer").textContent = t("foot");
   if (selected === null) {
@@ -695,6 +704,7 @@ addEventListener("keydown", (e) => {
 canvas.addEventListener("wheel", (e) => { if (e.altKey) { e.preventDefault(); setSize(pointSize * (e.deltaY < 0 ? 1.1 : 1 / 1.1)); } }, { passive: false });
 function setSize(s) { pointSize = Math.min(0.6, Math.max(0.02, s)); pages.forEach((pg) => (pg.mat.uniforms.uSize.value = pointSize)); }
 
+const clock = new THREE.Clock();
 function animate() {
   requestAnimationFrame(animate);
   stepMorph();
@@ -704,6 +714,6 @@ function animate() {
     camera.position.lerp(flyTo.cam, flyTo.k);
     if (flyTo.k >= 1) flyTo = null;
   }
-  controls.update();
+  controls.update(Math.min(clock.getDelta(), 0.1));  // real time: same turn speed at any frame rate
   renderer.render(scene, camera);
 }

@@ -181,7 +181,7 @@ style-atlas taste score "D:\new_batch" --model "D:\my_taste.npz"
 - 「檢查」分頁：按「開始檢查」會列出太小的圖、極端長寬比、混在彩色圖裡的黑白圖、沒有標註或標註是空的圖、動圖（和 `audit` 指令相同，不用打指令）；下面是最不合群的圖。「重複」分頁列出近重複圖組。
 - 右上角可以把「版面」從「畫風相似」切到「量化軸」。切換後，三個軸可以各自選一種指標，縮圖會移動到對應位置。可選的指標有：
   - 口味分數：用網頁介面評過分之後才有。
-  - 離參考集距離（原創度）：要先用 `--reference 資料夾` 指定已知的畫風，例如畫師作品或論壇配方。
+  - 離參考集距離（原創度）：要先指定已知畫風的資料夾（例如畫師作品或論壇配方）。在網頁左下第二排填路徑、按「載入參考」即可（第一次會嵌入裡面的圖），或啟動時加 `--reference 資料夾`。
   - 時間。
   - 離群度。
   - 外觀量測：亮度、對比、鮮豔度、冷暖、線條量、平塗度（見下一節）。例如 X 選冷暖、Y 選線條量、Z 選鮮豔度，就能看到整個資料夾在這三個面向上怎麼分布。
@@ -423,7 +423,8 @@ Common options:
 - `--reference DIR` (cluster, map, serve): a folder of styles you already know. It adds an
   originality measure, the distance from each image to its closest reference. The map's
   "measures" layout can then put taste, originality, time and atypicality on the X / Y / Z axes,
-  along with the six look measures (see "Look measures" below).
+  along with the six look measures (see "Look measures" below). In the web app the reference
+  folder can also be loaded (or cleared) from the box at the bottom left.
 - `--ignore-characters` (cluster, map, serve, search): use it when the same characters appear in
   many styles. It finds the characters from the CSD content vectors (no labels needed) and moves
   each character's style vectors to a shared centre. On 16 Anima recipes x 4 characters,

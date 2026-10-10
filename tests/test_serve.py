@@ -597,6 +597,27 @@ def test_the_check_tab_lists_problems_by_index(tmp_path):
     got = app.check({"min_side": 512})
     assert got["min_side"] == 512 and len(got["issues"]["smaller_than_min_side"]) == 15
     assert got["issues"]["empty_caption"] == [1] and 0 not in got["issues"]["no_caption"]
+    (tmp_path / "img2.png").write_bytes(b"gone bad")  # damaged after the scan
+    assert app.check({"min_side": 512})["issues"]["unreadable"] == [2]
     for bad in (10, 100000, "512", True):
         with pytest.raises(ValueError):
             app.check({"min_side": bad})
+
+
+def test_a_reference_folder_can_be_set_and_cleared_live(tmp_path, monkeypatch):
+    app, _ = _app(tmp_path, (8, 7))
+    labels = app.clustering.labels.copy()
+    ref_dir = tmp_path / "known"
+    ref_dir.mkdir()
+    ref_vectors = app.raw.style[:3]
+    fake = Atlas(ref_dir, [ref_dir / f"r{i}.png" for i in range(3)], ref_vectors, ref_vectors, "s")
+    monkeypatch.setattr("styleatlas.serve.build_atlas", lambda path, opts, progress: fake)
+    got = app.set_reference({"folder": f'"{ref_dir}"'})
+    assert got == {"reference": "known", "images": 3}
+    assert app.layout.ref_dist is not None and len(app.layout.ref_dist) == len(app.atlas)
+    assert (app.clustering.labels == labels).all()  # groups stay
+    assert '"reference":"known"' in app.page()
+    assert app.set_reference({"folder": ""}) == {"reference": None, "images": 0}
+    for bad in (str(tmp_path / "missing"), 5, "x" * 2000):
+        with pytest.raises(ValueError):
+            app.set_reference({"folder": bad})
