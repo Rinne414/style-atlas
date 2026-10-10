@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- **Which artist does this look like?** `search --by-folder` ranks the sub-folders of `--in`
+  (one per artist or style) by their mean style and names each one's closest image. On 284
+  Danbooru artists, the right one came first for 74.8% of held-out works, against 63.4% for the
+  artist of the closest image (BENCHMARKS.md).
+
 ## 0.21.0 - 2026-10-10
 
 - **Configs for more trainers.** A kohya-layout export now also writes

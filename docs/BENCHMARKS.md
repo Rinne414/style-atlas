@@ -644,6 +644,28 @@ above: quality 60 already moves the style vector by a third of a seed difference
 unchanged; JPEGs are decoded at a reduced scale that is still at least the training size).
 3,259 images of about 400 px took 4.6 s; the 150 large originals took 2.1 s.
 
+## Which artist? Ranking sub-folders (2026-10-10)
+
+`search --by-folder` ranks the sub-folders of a library instead of single images. Each work was
+held out in turn and the artists were ranked by their other works. The scores are the share of
+works whose own artist came first or in the top 5, by the ranking method:
+
+| Set | Folders, works each | Folder mean (whitened) | Top-3 hits (hub) | Closest image (hub) | Closest image (plain cosine) |
+|---|---|---|---|---|---|
+| Danbooru, 300 artists | 284, ~11 | **74.8%** / 88.9% | 71.5% / 86.0% | 63.4% / 79.8% | 53.8% / 68.9% |
+| Danbooru, artists over time | 18, ~47 | **91.7%** / 98.6% | 91.2% / 98.3% | 86.8% / 97.6% | 82.3% / 96.1% |
+| Danbooru, 5 prolific artists | 5, ~255 | 96.3% / 100% | **97.0%** / 100% | 94.7% / 100% | 94.0% / 100% |
+
+- The folder mean is the cosine between the query and the folder's mean vector, both whitened
+  as in search. It wins or ties on the first two sets and is within a point on the third, so it
+  is the method used. A kNN vote (10 neighbours) scored 66.9%, 89.9% and 97.3%.
+- "Closest image" is what a plain image search shows: the artist of the top hit. The folder mean
+  beats it by 5-11 points where folders hold tens of works or fewer.
+- Artists whose style drifted over the years are the hard cases: a work from one period can sit
+  nearer another artist's mean than its own artist's average of all periods.
+- The 19,554-image Danbooru set is six copies of the 300-artist set (it was built to time large
+  maps), so it cannot be used here: every work has an exact twin.
+
 ## Pixiv: followed AI-illustration accounts (2026-10-09)
 
 - **Data**: 467 all-ages works by 176 AI-illustration accounts (median 2 works each). The

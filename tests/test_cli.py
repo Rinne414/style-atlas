@@ -100,6 +100,18 @@ def test_search_combines_examples_and_copies_the_matches(lib, tmp_path):
     assert len(copied) == 3 and all(name.startswith("red__") for name in copied)
 
 
+def test_search_by_folder_names_the_closest_sub_folder(lib, tmp_path, capsys):
+    query = tmp_path / "query.png"
+    Image.new("RGB", (64, 64), (60, 70, 210)).save(query)  # a bluish picture from elsewhere
+    assert main(["search", str(query), "--in", str(lib), "--by-folder", "--json",
+                 "--device", "cpu"]) == 0  # fmt: skip
+    rows = json.loads(capsys.readouterr().out)
+    assert len(rows) == 3 and rows[0]["folder"] == "blue"
+    assert rows[0]["images"] == 6 and rows[0]["closest"].startswith("blue/")
+    one = lib / "red"  # no sub-folders below it: nothing to rank
+    assert main(["search", str(query), "--in", str(one), "--by-folder", "--device", "cpu"]) == 1
+
+
 def test_audit_duplicates_outliers_and_compare(lib, capsys):
     assert main(["audit", str(lib), "--json", "--device", "cpu"]) == 0
     report = json.loads(capsys.readouterr().out)

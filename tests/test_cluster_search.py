@@ -251,3 +251,19 @@ def test_whitening_keeps_unit_vectors_and_search_can_skip_it(blobs):
     assert all(y[h.index] == y[0] for h in plain + white)
     plain_cos = {round(float(x[0] @ x[i]), 5) for i in range(len(x))}
     assert {round(h.cosine, 5) for h in white} <= plain_cos  # shown cosine stays plain CSD
+
+
+def test_rank_folders_names_the_folder_and_its_closest_image():
+    from styleatlas.search import rank_folders
+
+    x, labels = make_blobs([8, 8, 8], seed=3)
+    folders = [f"artist{k}" for k in labels]
+    query = x[[9]]  # a work of artist1
+    hits = rank_folders(query, x, folders, top=3, exclude={9})[0]
+    assert [h.folder for h in hits][0] == "artist1" and len(hits) == 3
+    assert hits[0].size == 7  # the query itself is left out
+    assert labels[hits[0].best] == 1 and hits[0].best != 9
+    assert hits[0].score > hits[1].score
+    both = rank_folders(x[[0, 1, 2]], x, folders, combine=True)
+    assert len(both) == 1 and both[0][0].folder == "artist0"
+    assert rank_folders(query, x, folders, exclude=set(range(len(x)))) == [[]]

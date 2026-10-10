@@ -107,8 +107,10 @@ def cmd_search(a: argparse.Namespace) -> int:
         qstyle = fitted.apply(qstyle, qcontent)
     query_files = {q.resolve() for q in qkept}
     same = {i for i, p in enumerate(atlas.paths) if p.resolve() in query_files}
-    results = search(qstyle, atlas.style, top=a.top, combine=a.combine, exclude=same)
     names = ["(all queries)"] if a.combine else [str(p) for p in qkept]
+    if a.by_folder:
+        return _search_folders(a, atlas, qstyle, names, same)
+    results = search(qstyle, atlas.style, top=a.top, combine=a.combine, exclude=same)
     rows = [
         {
             "query": names[qi],
@@ -127,6 +129,42 @@ def cmd_search(a: argparse.Namespace) -> int:
             print(f"{row['rank']:3d}  {row['cosine']:.3f}  {row['path']}    <- {row['query']}")
     if a.copy_to:
         _copy_matches(atlas, [h.index for hits in results for h in hits], Path(a.copy_to))
+    return 0
+
+
+TOP_LEVEL = "(top level)"  # images directly in the searched folder, not in a sub-folder
+
+
+def _search_folders(a: argparse.Namespace, atlas, qstyle, names: list[str], same: set) -> int:
+    from styleatlas.search import rank_folders
+
+    if a.copy_to:
+        log("--copy-to copies single images; it is not used with --by-folder")
+    folders = labels_from_folders(atlas.paths, atlas.root)
+    if len(set(folders)) < 2:
+        log(f"{a.within} has no sub-folders to rank; --by-folder compares its sub-folders")
+        return 1
+    results = rank_folders(qstyle, atlas.style, folders, top=a.top, combine=a.combine, exclude=same)
+    rows = [
+        {
+            "query": names[qi],
+            "rank": r + 1,
+            "folder": h.folder or TOP_LEVEL,
+            "score": round(h.score, 4),
+            "images": h.size,
+            "closest": atlas.rel(h.best),
+        }
+        for qi, hits in enumerate(results)
+        for r, h in enumerate(hits)
+    ]
+    if a.json:
+        print(json.dumps(rows, ensure_ascii=False, indent=1))
+        return 0
+    for row in rows:
+        print(
+            f"{row['rank']:3d}  {row['score']:.3f}  {row['folder']} ({row['images']} images,"
+            f" closest {row['closest']})    <- {row['query']}"
+        )
     return 0
 
 
@@ -379,6 +417,11 @@ def _add_inspect_commands(add: Adder) -> None:
     )
     p.add_argument(
         "--copy-to", metavar="DIR", help="copy the matches (with captions) into a new folder here"
+    )
+    p.add_argument(
+        "--by-folder",
+        action="store_true",
+        help="rank the sub-folders of --in (e.g. one per artist) instead of single images",
     )
     _space_args(p)
     p.add_argument("--json", action="store_true")

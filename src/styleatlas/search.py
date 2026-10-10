@@ -133,3 +133,50 @@ def search(
             ]
         )
     return results
+
+
+@dataclass(frozen=True)
+class FolderHit:
+    folder: str  # first sub-folder under the searched folder; "" for images at its top level
+    score: float  # cosine between the query and the folder's mean style (whitened space)
+    size: int
+    best: int  # index of the folder's image closest to the query
+
+
+def rank_folders(
+    queries: np.ndarray,
+    base: np.ndarray,
+    folders: list[str],
+    top: int = 10,
+    combine: bool = False,
+    exclude: set[int] | None = None,
+) -> list[list[FolderHit]]:
+    """Which sub-folder (an artist, a style) does the query look like? Folders are ranked by
+    their mean style rather than by their single closest image: on 284 Danbooru artists this
+    named the right one first for 74.8% of held-out works, against 63.4% for the artist of the
+    closest image (docs/BENCHMARKS.md)."""
+    keep = np.setdiff1d(np.arange(len(base)), sorted(exclude or set()))
+    if len(keep) == 0:
+        return [[] for _ in range(1 if combine else len(queries))]
+    wq, wb = whiten(queries), whiten(base)
+    labels = np.asarray(folders, dtype=object)
+    names = sorted(set(labels[keep]))
+    members = [keep[labels[keep] == n] for n in names]
+    means = np.stack([centroid(wb[m]) for m in members])
+    q = centroid(wq)[None, :] if combine else wq / np.linalg.norm(wq, axis=1, keepdims=True)
+    sims = q @ means.T
+    results = []
+    for row in range(len(q)):
+        order = np.argsort(-sims[row])[:top]
+        results.append(
+            [
+                FolderHit(
+                    names[j],
+                    float(sims[row, j]),
+                    len(members[j]),
+                    int(members[j][np.argmax(wb[members[j]] @ q[row])]),
+                )
+                for j in order
+            ]
+        )
+    return results

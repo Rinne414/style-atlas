@@ -15,6 +15,7 @@ style-atlas 會看每張圖「怎麼畫」（不是畫了什麼），自動把�
 |---|---|
 | **訓 LoRA 前整理資料集**：分出不同畫風，或把同一位畫師分成幾個時期，排除重複圖與離群圖，匯出成 kohya 資料夾 | `cluster --layout kohya --dedupe`（分時期加 `--granularity period`），或網頁介面的「匯出資料夾」 |
 | **找畫風相近的圖**：一張或同畫風的幾張圖當範例，也能把結果直接複製成資料夾 | 網頁介面拖圖進去，或用 `search`（`--combine`、`--copy-to`） |
+| **這張圖像哪位畫師？**：圖庫按畫師（或畫風）分資料夾時，列出最像的資料夾 | `search --by-folder` |
 | **3D 畫風地圖**：縮圖浮在 3D 空間，可轉動，點一下就看最接近的畫風 | `map`，或網頁介面的「存成分享用地圖」（單一 HTML 檔，可直接傳給朋友） |
 | **檢查資料集**：解析度、小圖放大、壓縮太重、極端比例、缺標註、近重複 | `audit`、`duplicates` |
 | **量化畫風與口味**：兩組圖是否同一畫風、差在哪裡（亮度、鮮豔度、線條量等）、個人喜好模型 | `compare`、`taste`、網頁介面的外觀描述與「喜歡／不喜歡」 |
@@ -142,6 +143,14 @@ onetrainer_concepts.json    ← OneTrainer 的 concepts 檔（複製到 OneTrain
 ```bat
 style-atlas search ref1.png ref2.png --combine --in "D:\gallery" --top 30
 ```
+
+**這張圖像哪位畫師？** 圖庫 `D:\artists` 底下每位畫師一個資料夾時，列出最像的 5 個資料夾，以及每個資料夾裡最像的那張：
+
+```bat
+style-atlas search mystery.png --in "D:\artists" --by-folder --top 5
+```
+
+比的是每個資料夾的整體畫風（平均），不是單張最像的圖：在 284 位 Danbooru 畫師上，第一名猜中 74.8%，只看最像那張圖的畫師是 63.4%。
 
 **擴充訓練集**：把範例圖放進一個資料夾，找出 100 張最像的，連同標註複製到 `D:\lora\more\matches\`。範例有 3 張以上時，會用範例訓練一個小模型來排序，比只取範例的平均準（實測：3／5／10 張範例時，平均精確度分別高 0.055／0.066／0.116）。
 
@@ -306,6 +315,9 @@ how a picture is drawn rather than what it shows. On top of those vectors it can
 - **Find images in a similar style**: drop one image, or several of one style, into the web app,
   or use `search` (`--combine` learns from several examples, `--copy-to` gathers the matches). A
   "style path" lists the images that lead from one picked style to another.
+- **Which artist does this look like?** `search --by-folder` ranks the sub-folders of a library
+  (one per artist or style) by their overall style. On 284 Danbooru artists it named the right
+  one first for 74.8% of held-out works, against 63.4% for the artist of the closest image.
 - **Explore a 3D style map** (`map`, or "Save shareable map" in the web app): one HTML file you
   can send to anyone. Group names float at each group's centre ("Names" hides them), and groups
   show their characteristic caption tags. "Record a turn" saves an 8-second video of the map
@@ -434,7 +446,7 @@ style-atlas cluster DIR [--granularity auto|period|fine|medium|coarse | --thresh
 style-atlas doctor                 # check Python, torch, GPU, model download, disk space
 style-atlas serve DIR [--port 8770] [--no-browser] [--time none|name|mtime]
 style-atlas map DIR [-o map.html] [--projection auto|umap|tsne|pca] [--time ...]
-style-atlas search QUERY... --in DIR [--top 20] [--combine] [--copy-to DIR] [--json]
+style-atlas search QUERY... --in DIR [--top 20] [--combine] [--copy-to DIR] [--by-folder] [--json]
 style-atlas audit DIR [--min-side 512] [--max-ratio 2.5] [--json]
 style-atlas duplicates DIR [--threshold 0.95] [--json]
 style-atlas outliers DIR [--top 30]
