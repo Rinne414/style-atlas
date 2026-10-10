@@ -42,7 +42,7 @@ from styleatlas.dataset import (
     read_tags,
     tag_summary,
 )
-from styleatlas.duplicates import DEFAULT_THRESHOLD as SAME_PICTURE
+from styleatlas.duplicates import copies_of
 from styleatlas.export import (
     KOHYA_CONFIG,
     export_folders,
@@ -341,13 +341,8 @@ class StyleAtlasApp(GroupEdits):
         """Dropped images that are near-duplicates of one in the folder (the same picture, a
         crop or a recolour; duplicates.py): a LoRA render that repeats a training image, or a
         found image the folder already has. Plain CSD, where that threshold was set."""
-        score = np.minimum(style @ self.raw.style.T, content @ self.raw.content.T)
-        out = []
-        for k, row in enumerate(score):
-            i = int(np.argmax(row))
-            if row[i] >= SAME_PICTURE:
-                out.append({"q": k, "i": i, "score": round(float(row[i]), 3)})
-        return out
+        found = copies_of(style, content, self.raw.style, self.raw.content)
+        return [{"q": k, "i": i, "score": round(s, 3)} for k, i, s in found]
 
     def closest_folders(self, query: np.ndarray, combine: bool = False) -> list[dict]:
         """The opened folder's sub-folders ranked by style, as `search --by-folder` (the first

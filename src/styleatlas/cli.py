@@ -199,15 +199,20 @@ def cmd_duplicates(a: argparse.Namespace) -> int:
 
 
 def cmd_compare(a: argparse.Namespace) -> int:
+    from styleatlas.duplicates import copies_of
+
     opts = _opts(a)
-    groups, looks = [], []
+    groups, contents, files, looks = [], [], [], []
     for folder in (a.a, a.b):
-        kept, style, _, _ = embed_paths(find_images(Path(folder)), opts, log)
+        kept, style, content, _ = embed_paths(find_images(Path(folder)), opts, log)
         if len(kept) < 2:
             log(f"{folder}: need at least 2 readable images, found {len(kept)}")
             return 1
         groups.append(style)
+        contents.append(content)
+        files.append(kept)
         looks.append(measure_looks(kept, opts, log))
+    copies = copies_of(groups[1], contents[1], groups[0], contents[0])
     dist, p = group_difference(groups[0], groups[1], rounds=a.rounds)
     d = difference(*looks)
     scale = StyleScale(noise_floor=a.noise_floor) if a.noise_floor else StyleScale()
@@ -223,6 +228,11 @@ def cmd_compare(a: argparse.Namespace) -> int:
                     zip(LOOK_NAMES, (round(float(v), 2) for v in d), strict=True)
                 ),
                 "look_words": f"B is {describe(d)}" if describe(d) else "no clear difference",
+                # B images that repeat an A image: e.g. LoRA renders copying a training image
+                "b_copies_of_a": [
+                    {"b": str(files[1][i]), "a": str(files[0][j]), "score": round(s, 3)}
+                    for i, j, s in copies
+                ],
             },
             indent=1,
         )

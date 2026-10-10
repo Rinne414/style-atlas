@@ -6,6 +6,7 @@
   those that are near-duplicates of one in the folder (same picture, crop or recolour; the
   0.95 threshold of `duplicates`) are listed first: for LoRA test renders a sign that the LoRA
   repeats a training image, for found images a sign that the folder already has them.
+  `compare A B` lists them too, as `b_copies_of_a`.
 - **Docs from a newcomer's review** (Sonnet, as a LoRA trainer reading the docs for the first time):
   LORA_GUIDE is pointed to first; manual install creates the `.venv`; a warning before the CLI
   export that it ignores the web app's hand edits; the same button names in every document;

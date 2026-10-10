@@ -171,7 +171,7 @@ style-atlas duplicates "D:\gallery"
 style-atlas outliers "D:\lora\artistX" --top 20
 ```
 
-**兩組圖是否同一畫風、差在哪裡**：輸出畫風距離、差距是否明顯（z 值是「差距是同一畫風內部雜訊的幾倍」，越大越不同），以及外觀差異（例如「B 偏冷、線條多」）。
+**兩組圖是否同一畫風、差在哪裡**：輸出畫風距離、差距是否明顯（z 值是「差距是同一畫風內部雜訊的幾倍」，越大越不同），以及外觀差異（例如「B 偏冷、線條多」）。B 裡有和 A 某張幾乎一樣的圖時（例如 LoRA 算圖重現了訓練圖），會列在 `b_copies_of_a`。
 
 ```bat
 style-atlas compare "D:\old_works" "D:\new_works"

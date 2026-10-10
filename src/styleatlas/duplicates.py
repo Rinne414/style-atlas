@@ -23,6 +23,26 @@ NEIGHBORS = 10
 MAX_SPLIT = 3000
 
 
+def copies_of(
+    style: np.ndarray,
+    content: np.ndarray,
+    base_style: np.ndarray,
+    base_content: np.ndarray,
+    threshold: float = DEFAULT_THRESHOLD,
+) -> list[tuple[int, int, float]]:
+    """(row, base row, score) for each row that is a near-duplicate of some base row (its
+    closest one): a LoRA render repeating a training image, or a found image a folder holds."""
+    out = []
+    for s in range(0, len(style), CHUNK):
+        rows = slice(s, s + CHUNK)
+        score = np.minimum(style[rows] @ base_style.T, content[rows] @ base_content.T)
+        best = np.argmax(score, axis=1)
+        for r, j in enumerate(best):
+            if score[r, j] >= threshold:
+                out.append((s + r, int(j), float(score[r, j])))
+    return out
+
+
 def _root(parent: list[int], i: int) -> int:
     while parent[i] != i:
         parent[i] = parent[parent[i]]
