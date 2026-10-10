@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.36.0 - 2026-10-10
 
 - **Faster embedding**: the next images are opened, measured and scaled on 4 threads while the
   model works, so it no longer waits for files. 20% faster on CPU with large images (519 -> 415
