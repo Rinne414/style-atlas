@@ -154,7 +154,7 @@ ai_toolkit_datasets.yaml    ← ai-toolkit 的 datasets 段落（貼進訓練設
 style-atlas sort "D:\new" --into "D:\lora\artistX_style_atlas\folders" --by-folder --export copy
 ```
 
-- 每張新圖會放進最像的子資料夾。不夠像的放進 `_unsure`：到群中心的距離，要不超過那群七成的圖（每張圖量的是到「其他圖」中心的距離）；和資料集裡某張幾乎一樣的放進 `_already_in_dataset`。結果在 `D:\new_style_atlas\sorted`，`sorted.csv` 列出每張的最近群、距離和重複的對象。
+- 每張新圖會放進最像的子資料夾。不夠像的放進 `_unsure`：到群中心的距離，要不超過那群七成的圖（每張圖量的是到「其他圖」中心的距離）；和資料集裡某張幾乎一樣的放進 `_already_in_dataset`。結果在 `D:\new_style_atlas\sorted`，`sorted.csv` 列出每張的最近群、距離和重複的對象。kohya 資料夾補圖後，它也會提示新的 repeats 前綴（張數 × repeats 維持約 100）。
 - 不加 `--by-folder` 時，改用資料集的畫風群（網頁存過的分群和名稱，沒有就重新自動分群）。
 - 實測（工具沒看過的畫師，資料集是 10 位畫師各一個子資料夾）：新作品放對資料夾 91.5%；被判「符合」的約 69%，其中 99% 放對；其他畫師的圖約 9% 被判符合（每群只有 10 張時 14%）。所以 `_unsure` 裡約有三成其實是同一位畫師的圖，值得看一眼。
 
