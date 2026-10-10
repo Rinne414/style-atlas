@@ -222,7 +222,7 @@ style-atlas taste score "D:\new_batch" --model "D:\my_taste.npz"
 | 平塗度 | 平塗面積多寡：賽璐璐平塗、素色背景越多越高 |
 
 - 用在哪裡：網頁的群卡片文字和「量化軸」、`clusters.csv`（每張圖一欄一個量測）、`clusters.json`（每群和整個資料夾相比的差異與文字）、`compare`（B 減 A，單位是兩組合併的標準差）。
-- 每張圖只算一次，結果存在快取裡；之後新嵌入的圖在嵌入時順便算，不必再讀一次檔。舊版就嵌入過的圖，第一次會花一點時間補算。
+- 每張圖只算一次，結果存在快取裡；之後新嵌入的圖在嵌入時順便算，不必再讀一次檔。舊版就嵌入過的圖，第一次會補算（實測約每秒 70 張 832×1216 的 PNG，1 萬張約 2～3 分鐘）。
 - 單張圖的數值雜訊大，請比較**群的平均**。在 306 位畫師、3,259 張 Danbooru 作品上，各量測有 13～40% 的差異來自「畫師不同」（線條量 0.40、平塗度 0.37、鮮豔度 0.32、亮度 0.32、對比 0.26、冷暖 0.13），其餘來自同一畫師的不同作品（場景、構圖）。冷暖最受場景影響。
 - 這些是影像統計，不是美感分數：「線條多」不代表比較好。
 - 長邊小於 256 px 的小圖會被誤判成「線條多、平塗少」，比較時請用尺寸差不多的圖。大圖之間的尺寸差異則幾乎沒有影響。
@@ -477,7 +477,8 @@ Common options:
   - flatness (share of pixels in flat areas).
 
   Each image is measured once and cached; images analysed by 0.15 or later are measured while they
-  are open for embedding. They appear as words on each group card ("cooler, more line work"),
+  are open for embedding, and older ones are measured on first use (about 70 832 x 1216 PNGs a
+  second on 8 CPU threads). They appear as words on each group card ("cooler, more line work"),
   as axes of the map's "measures" layout, as columns in `clusters.csv`, as a per-group profile
   in `clusters.json`, and as B minus A in `compare`. A single image is noisy: on 3,259 Danbooru
   works by 306 artists, 13-40% of each measure's spread was between artists (lines 0.40,
