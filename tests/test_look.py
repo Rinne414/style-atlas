@@ -72,10 +72,11 @@ def test_looks_are_cached_and_measured_once(tmp_path, monkeypatch):
     assert np.array_equal(measure_looks(paths, opts), first)
 
 
-def test_an_image_that_cannot_be_opened_gets_the_average(tmp_path):
+def test_an_image_that_cannot_be_opened_or_is_gone_gets_the_average(tmp_path):
     good = tmp_path / "good.png"
     Image.new("RGB", (32, 32), "white").save(good)
     bad = tmp_path / "bad.png"
     bad.write_bytes(b"not an image")
-    got = measure_looks([good, bad], EncodeOptions(device="cpu", db_path=tmp_path / "c.sqlite"))
-    assert np.array_equal(got[1], got[0])
+    gone = tmp_path / "gone.png"
+    got = measure_looks([good, bad, gone], EncodeOptions(device="cpu", db_path=tmp_path / "c.db"))
+    assert np.array_equal(got[1], got[0]) and np.array_equal(got[2], got[0])

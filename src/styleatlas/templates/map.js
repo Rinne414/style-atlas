@@ -30,6 +30,12 @@ const T = {
     layoutStyle: "Layout: style similarity", layoutMeasures: "Layout: measures",
     m_map: "(map position)", m_taste: "taste p(like)", m_ref: "distance to reference (originality)",
     m_time: "time", m_outlier: "atypical (outlier)",
+    m_brightness: "brightness", m_contrast: "contrast", m_colourfulness: "colourfulness",
+    m_warmth: "warmth (cool to warm)", m_lines: "line work", m_flatness: "flat colour",
+    w_brightness: ["brighter", "darker"], w_contrast: ["more contrast", "less contrast"],
+    w_colourfulness: ["more colourful", "less colourful"], w_warmth: ["warmer", "cooler"],
+    w_lines: ["more line work", "less line work"], w_flatness: ["flatter colour", "more texture"],
+    lookAverage: "average look", lookTitle: "Look compared with the whole folder (image statistics)",
     pathFrom: "Style path: start here", pathTo: "Style path: end here",
     pathTitle: "Style path (from the start image to this one)",
     neutral: "Ignore the character axis", neutralBusy: "recomputing…",
@@ -68,6 +74,12 @@ const T = {
     layoutStyle: "版面：畫風相似", layoutMeasures: "版面：量化軸",
     m_map: "（地圖位置）", m_taste: "口味分數", m_ref: "離參考集距離（原創度）",
     m_time: "時間", m_outlier: "離群度",
+    m_brightness: "亮度", m_contrast: "對比", m_colourfulness: "鮮豔度",
+    m_warmth: "冷暖（冷到暖）", m_lines: "線條量", m_flatness: "平塗度",
+    w_brightness: ["偏亮", "偏暗"], w_contrast: ["對比強", "對比弱"],
+    w_colourfulness: ["色彩鮮豔", "色彩淡"], w_warmth: ["偏暖", "偏冷"],
+    w_lines: ["線條多", "線條少"], w_flatness: ["色塊平", "質感多"],
+    lookAverage: "外觀接近平均", lookTitle: "和整個資料夾相比的外觀（影像統計）",
     pathFrom: "畫風漸變：從這張開始", pathTo: "畫風漸變：到這張",
     pathTitle: "畫風漸變（從起點到這張）",
     neutral: "忽略角色軸", neutralBusy: "重新計算中…",
@@ -412,6 +424,11 @@ function buildClusters() {
       const tg = document.createElement("div"); tg.className = "meta tags"; tg.textContent = c.tags.join(", ");
       txt.append(tg);
     }
+    const look = lookWords(c.members);
+    if (look) {
+      const lk = document.createElement("div"); lk.className = "meta look"; lk.textContent = look;
+      lk.title = t("lookTitle"); txt.append(lk);
+    }
     const strip = timeStrip(c.members, colorOf(c.id));
     if (strip) txt.append(strip);
     row.append(img, txt);
@@ -577,7 +594,33 @@ function setSize(s) { pointSize = Math.min(0.6, Math.max(0.02, s)); pages.forEac
 let layoutMode = "style";
 let axisLines = null;
 
+const LOOKS = DATA.look_names || [];
+const LOOK_NOTABLE = 0.5;  // as look.NOTABLE: |z| from which a difference is put into words
+
+let LOOK_STATS = null;
+function lookStats() {  // the folder's mean and spread of each measure (they never change)
+  if (LOOK_STATS) return LOOK_STATS;
+  const mean = LOOKS.map((_, j) => PTS.reduce((s, p) => s + p.lk[j], 0) / N);
+  const sd = LOOKS.map((_, j) => Math.sqrt(PTS.reduce((s, p) => s + (p.lk[j] - mean[j]) ** 2, 0) / N));
+  LOOK_STATS = { mean, sd };
+  return LOOK_STATS;
+}
+
+function lookWords(members) {
+  if (!LOOKS.length || !members.length) return "";
+  const st = lookStats();
+  const z = LOOKS.map((_, j) => {
+    const m = members.reduce((s, i) => s + PTS[i].lk[j], 0) / members.length;
+    return st.sd[j] > 1e-9 ? (m - st.mean[j]) / st.sd[j] : 0;
+  });
+  const order = [...z.keys()].sort((a, b) => Math.abs(z[b]) - Math.abs(z[a]));
+  const words = order.filter((j) => Math.abs(z[j]) >= LOOK_NOTABLE).map((j) => t("w_" + LOOKS[j])[z[j] > 0 ? 0 : 1]);
+  return words.join(lang === "zh" ? "、" : ", ") || t("lookAverage");
+}
+
 function measure(key) {
+  const j = LOOKS.indexOf(key);
+  if (j >= 0) return PTS.map((p) => p.lk[j]);
   if (key === "outlier") return PTS.map((p) => p.o);
   if (key === "time") return HAS_TIME ? PTS.map((p) => p.ts) : null;
   if (key === "ref") return DATA.reference ? PTS.map((p) => p.r) : null;
@@ -586,7 +629,7 @@ function measure(key) {
 }
 
 function availableMeasures() {
-  return ["taste", "ref", "time", "outlier"].filter((k) => measure(k));
+  return ["taste", "ref", "time", "outlier", ...LOOKS].filter((k) => measure(k));
 }
 
 function rankNorm(vals) {

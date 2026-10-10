@@ -296,7 +296,7 @@ LARGE_MAP = 8000  # thumbnails make the single-file map ~2 KB per image
 def cmd_map(a: argparse.Namespace) -> int:
     from styleatlas.report import write_map
 
-    atlas = _atlas(a, a.folder)
+    atlas = _atlas(a, a.folder).with_looks(_opts(a), log)
     if len(atlas) > LARGE_MAP:
         log(f"{len(atlas)} images: the HTML file will be large; `style-atlas serve` loads faster")
     result = _cluster(a, atlas)

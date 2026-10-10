@@ -97,6 +97,10 @@ def build_payload(
         }
         for i in range(len(atlas))
     ]
+    if atlas.looks is not None:
+        rows = atlas.looks.astype(np.float64).round(3).tolist()  # float32 would print 0.59100002
+        for pt, row in zip(points, rows, strict=True):
+            pt["lk"] = row
     return {
         "title": title or atlas.root.name or "style atlas",
         "projection": layout.projection,
@@ -117,6 +121,7 @@ def build_payload(
         "duplicates": layout.duplicates,
         "time_source": time_source if any(v is not None for v in times) else "none",
         "reference": layout.ref_title,
+        "look_names": list(LOOK_NAMES) if atlas.looks is not None else [],
     }
 
 

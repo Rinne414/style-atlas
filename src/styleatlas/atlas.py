@@ -178,8 +178,14 @@ def measure_looks(
     were measured then; older ones are opened once more here, in parallel, and cached. An image
     that cannot be opened gets NaN."""
     db = opts.db_path or cache_dir() / "vectors.sqlite"
+    nan = np.full(len(LOOK_NAMES), np.nan, np.float32)
     with VectorStore(db) as store:
-        keys = {p: store.key(p) for p in paths}
+        keys: dict[Path, str] = {}
+        for p in paths:
+            try:
+                keys[p] = store.key(p)
+            except (OSError, ValueError):  # gone or renamed since it was embedded
+                continue
         store.commit()
         have = store.get_looks(keys.values(), LOOK_VERSION)
         todo = list({k: p for p, k in keys.items() if k not in have}.items())
@@ -193,7 +199,7 @@ def measure_looks(
             have.update(found)
     if not paths:
         return np.zeros((0, len(LOOK_NAMES)), np.float32)
-    x = np.stack([have[keys[p]] for p in paths]).astype(np.float32)
+    x = np.stack([have[keys[p]] if p in keys else nan for p in paths]).astype(np.float32)
     bad = np.isnan(x).any(axis=1)
     if bad.any():  # opened for embedding, gone since: show it as an average image
         x[bad] = x[~bad].mean(axis=0) if (~bad).any() else 0.0

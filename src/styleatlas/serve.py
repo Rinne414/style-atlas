@@ -80,6 +80,7 @@ class StyleAtlasApp:
         self.opts = opts
         self.title = title
         self.time_source = time_source
+        atlas = atlas.with_looks(opts, progress)
         self.raw = atlas  # vectors as embedded; `atlas` is the view in the current space
         self.raw_reference = reference
         self.projection = projection

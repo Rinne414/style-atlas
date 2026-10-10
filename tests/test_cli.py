@@ -119,7 +119,8 @@ def test_audit_duplicates_outliers_and_compare(lib, capsys):
 def test_map_and_bench(lib, tmp_path, capsys):
     html = tmp_path / "map.html"
     assert main(["map", str(lib), "-o", str(html), "--projection", "pca", "--device", "cpu"]) == 0
-    assert "atlas-data" in html.read_text(encoding="utf-8")
+    text = html.read_text(encoding="utf-8")
+    assert "atlas-data" in text and '"look_names":["brightness"' in text
     capsys.readouterr()  # map prints where it wrote the file
     assert main(["bench", str(lib), "--trials", "2", "--device", "cpu"]) == 0
     report = json.loads(capsys.readouterr().out)
