@@ -55,6 +55,8 @@
 | 要移除的標籤 | 例如 `sketch, monochrome`，匯出的標註裡會拿掉這些標籤 |
 | 標註加觸發詞 | 每個標註最前面加上該群的觸發詞 |
 
+之後又加了新圖時，用同一個資料夾重新打開即可：取名、移動、合併和排除都會保留，新圖先放在「未分群」。
+
 按「開始匯出」。kohya 格式會同時附上 kohya、diffusion-pipe、OneTrainer、ai-toolkit 的設定檔（用法見 [LORA_GUIDE.md](LORA_GUIDE.md) 步驟 3）。
 
 ## 其他好用的功能

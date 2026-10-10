@@ -63,6 +63,8 @@ style-atlas cluster "D:\lora\artistX" --layout kohya --name artistX --dedupe --d
 - 用其他訓練器時：同一個資料夾還有 `diffusion_pipe_dataset.toml`（diffusion-pipe：在訓練設定的 `dataset` 填這個檔；在 WSL 裡要把 `D:\` 改成 `/mnt/d/`）和 `onetrainer_concepts.json`（OneTrainer：複製到 OneTrainer 的 `training_concepts\` 資料夾，再到 concepts 分頁的下拉選單選它），以及 `ai_toolkit_datasets.yaml`（ai-toolkit：把裡面的項目貼到訓練設定的 `datasets:` 底下）。四份的資料夾與 repeats 都一樣。
 - 標註裡有描述畫風本身的標籤（例如 `sketch`、`monochrome`）時，加 `--strip-tags "sketch, monochrome"`（網頁：「要移除的標籤」）把它們從匯出的標註拿掉，讓觸發詞去學這個畫風。原本的標註不會被改。
 - 被排除的圖放在 `_duplicates\`、`_outliers\`、`_unassigned\`、`_excluded\` 這幾個資料夾。它們沒有數字前綴，所以 kohya 不會拿來訓練。
+- 每次匯出都會在輸出資料夾寫一份 `clusters.csv`：每張圖一列，`folder` 欄寫它去了哪個資料夾。去了 `_duplicates`、`_outliers`、`_excluded`、`_trimmed`、`_unassigned` 的，資料夾名稱就是原因，可以用試算表核對。
+- 之後**又加了新圖**：照樣用 `StyleAtlas.bat` 打開同一個資料夾。之前的取名、移動、合併和排除都會保留，新圖先放在「未分群」，可以手動移進各群，或按「重新分群」。
 - 想**一群訓一個 LoRA**（例如早期、近期畫風分開）：把那一群的資料夾單獨當 train_data_dir。
 - 想**同一個 LoRA 裡分成幾個概念**：保留全部資料夾，並讓每群有自己的觸發詞。注意兩點：
   - kohya 只有在**沒有標註檔**時，才會拿資料夾名（`artistX_styleNN`）當標註。
