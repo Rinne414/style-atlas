@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.19.0 - 2026-10-10
 
 - **Workflow steps** at the top of the web app's side panel: "① Check → ② Sort the styles →
   ③ Export", each jumping to its tab or opening the export panel.
