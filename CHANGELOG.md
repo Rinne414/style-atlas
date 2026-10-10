@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.24.0 - 2026-10-10
 
 - **Map of artists.** `map --by-folder` draws one point per sub-folder (an artist, a style)
   at its mean style, shown by its most typical image. The colours are loose families (cut 0.35,
