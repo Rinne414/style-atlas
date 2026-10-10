@@ -796,6 +796,19 @@ as "mostly this folder's style", and a quarter or less as "mostly unlike it".
 
 ## Tried and rejected
 
+### int8 quantization for CPU speed (2026-10-10)
+
+PyTorch dynamic int8 quantization of the ViT's linear layers, on 64 Danbooru works (batch 8, 8
+threads, below-normal priority):
+
+| Model | Speed | Style cosine to fp32 (min / median) | Same nearest neighbour |
+|---|---|---|---|
+| fp32 | 2.35 img/s | - | - |
+| int8 | 3.84 img/s | 0.651 / 0.818 | 45% |
+
+It is 1.6x faster but moves every vector far more than the differences the tool measures: a
+style cosine of 0.82 is the distance between two different artists. Rejected; CPU runs stay fp32.
+
 ### Look measures for periods (2026-10-10)
 
 This was tested on 13 Danbooru artists (30-299 works), scored by AMI with posting-time quartiles
