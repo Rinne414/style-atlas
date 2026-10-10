@@ -9,6 +9,7 @@ from styleatlas.atlas import Atlas, build_atlas
 from styleatlas.cli_common import _atlas, _opts, _space, log, saved_groups, web_exclusions
 from styleatlas.export import output_dir
 from styleatlas.images import labels_from_folders
+from styleatlas.lang import chinese
 from styleatlas.metrics import PLAIN
 
 CLOSEST = 5  # reference artists listed
@@ -49,7 +50,7 @@ def cmd_report(a: argparse.Namespace) -> int:
         title,
         names=names,
         closest=closest,
-        lang=a.lang,
+        lang=a.lang or ("zh" if chinese() else "en"),
         excluded=excluded,
         renders=renders,
     )
@@ -76,7 +77,9 @@ def report_args(p: argparse.ArgumentParser) -> None:
         "-o", "--out", help="HTML file (default: <folder>_style_atlas/style_report.html)"
     )
     p.add_argument("--title")
-    p.add_argument("--lang", choices=["zh", "en"], default="zh")
+    p.add_argument(
+        "--lang", choices=["zh", "en"], help="the page's language (default: as the messages)"
+    )
     p.add_argument(
         "--fresh",
         action="store_true",

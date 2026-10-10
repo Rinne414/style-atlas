@@ -104,7 +104,7 @@ style-atlas cluster "D:\lora\artistX" --layout kohya --name artistX --dedupe --d
 
 ## 7. 指令輸出的語言
 
-中文 Windows 上，`cluster`、`sort` 等指令的主要訊息（分群結果、一致性、匯出、補新圖的摘要、計算進度）會自動用中文；想看英文就先執行 `set STYLE_ATLAS_LANG=en`（反過來 `zh` 強制中文）。有些較技術的輸出（`audit` 的項目名稱、`search` 的排序說明、錯誤訊息）仍是英文，對照如下：
+中文 Windows 上，`cluster`、`sort` 等指令的主要訊息（分群結果、一致性、匯出、補新圖的摘要、計算進度）會自動用中文；想看英文就先執行 `set STYLE_ATLAS_LANG=en`（反過來 `zh` 強制中文）。有些較技術的輸出（`audit` 的項目名稱、`search` 的排序說明、錯誤訊息）仍是英文。下表是英文訊息（非中文系統，或設了 `STYLE_ATLAS_LANG=en`）的意思；中文系統上，前八列本來就會直接顯示中文：
 
 | 輸出 | 意思 |
 |---|---|

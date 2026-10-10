@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- `report` writes its page in the language of the messages unless `--lang` says otherwise (it
+  was always Chinese).
+- `sort` names the real minimum (groups of 3 or more images take new images); it said 2.
+- API: `cluster.fit_to_groups` takes plain CSD vectors and whitens inside, like `search`,
+  `rank_folders`, `consistency` and `cluster_by_artist` (docs/API.md).
+- Docs: `--fresh`, `.jfif`, the message language and what `-o` means are in the English README
+  too; the LoRA guide's glossary says which lines are already Chinese.
 - Folders unzipped from a Mac no longer report their `__MACOSX` folder and `._name.png`
   metadata files as unreadable images.
 - **Command output in Chinese.** On a Chinese Windows (or a `zh` locale) the main messages of

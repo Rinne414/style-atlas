@@ -216,7 +216,8 @@ def test_calibrate_taste_embed_and_audit_text(lib, tmp_path, capsys):
 
 def test_report_sums_up_a_folder(lib, tmp_path, capsys):
     out = tmp_path / "report.html"
-    assert main(["report", str(lib), "-o", str(out), "--artists", str(lib), "--device", "cpu"]) == 0
+    args = ["report", str(lib), "-o", str(out), "--artists", str(lib), "--lang", "zh"]
+    assert main([*args, "--device", "cpu"]) == 0
     page = out.read_text(encoding="utf-8")
     assert "畫風一致性" in page and "最像的畫師" in page and page.count('<div class="card">') >= 3
     assert "data:image/webp;base64," in page  # thumbnails inside, so the file can be sent alone
@@ -372,7 +373,7 @@ def test_sort_names_small_groups_and_keeps_reserved_names_apart(lib, tmp_path, c
     new = _new_images(lib, tmp_path)
     args = ["sort", str(new), "--into", str(lib), "-o", str(tmp_path / "o"), "--by-folder"]
     assert main([*args, "--device", "cpu"]) == 0
-    assert "too few images (under 2) to sort into: solo" in capsys.readouterr().err
+    assert "too few images (under 3) to sort into: solo" in capsys.readouterr().err
 
 
 def test_sort_judges_a_batch_of_eight_or_more(lib, tmp_path, capsys):
@@ -462,7 +463,8 @@ def test_report_checks_lora_renders_against_the_training_set(lib, tmp_path, caps
     assert "Possibly memorised: 3 renders" in page and "least like the training set first" in page
     assert page.count('<div class="pair">') == 3  # render and training image side by side
     assert "of 8 fall inside a style group of the training set" in page
-    assert main(base) == 0 and "LoRA 算圖檢查" in out.read_text(encoding="utf-8")
+    assert main([*base, "--lang", "zh"]) == 0
+    assert "LoRA 算圖檢查" in out.read_text(encoding="utf-8")
     assert main([*base, "--neutralize", "1"]) == 1
     assert "--renders compares plain style vectors" in capsys.readouterr().err
 

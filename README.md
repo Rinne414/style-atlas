@@ -157,7 +157,7 @@ style-atlas sort "D:\new" --into "D:\lora\artistX_style_atlas\folders" --by-fold
 ```
 
 - 每張新圖會放進最像的子資料夾。不夠像的放進 `_unsure`：到群中心的距離，要不超過那群七成的圖（每張圖量的是到「其他圖」中心的距離）；和資料集裡某張幾乎一樣的放進 `_already_in_dataset`。結果在 `D:\new_style_atlas\sorted`，`sorted.csv` 列出每張的最近群、距離和重複的對象。kohya 資料夾補圖後，它也會提示新的 repeats 前綴（張數 × repeats 維持約 100）。
-- 不加 `--by-folder` 時，改用資料集的畫風群（網頁存過的分群和名稱，沒有就重新自動分群）。
+- 不加 `--by-folder` 時，改用資料集的畫風群（網頁存過的分群和名稱，沒有就重新自動分群；加 `--fresh` 一律重新分群）。少於 3 張的群不會放新圖進去。
 - 實測（工具沒看過的畫師，資料集是 10 位畫師各一個子資料夾）：新作品放對資料夾 91.5%；被判「符合」的約 69%，其中 99% 放對；其他畫師的圖約 9% 被判符合（每群只有 10 張時 14%）。所以 `_unsure` 裡約有三成其實是同一位畫師的圖，值得看一眼。
 
 **以圖找圖**：在圖庫 `D:\gallery` 裡找和兩張範例最像的 30 張。
@@ -493,7 +493,8 @@ original.
 (each measured against the centre of the others), and to
 `_already_in_dataset` when it is a near-copy of a dataset image. `sorted.csv` lists the closest
 group, the distance and the copy for every image. Without `--by-folder` the dataset's style
-groups are used: those saved by the web app, else a fresh grouping. On artists the tool never
+groups are used: those saved by the web app (`--fresh` groups afresh instead), else a fresh
+grouping. Groups of fewer than 3 images take no new images. On artists the tool never
 saw, with 10 of them as sub-folders, 91.5% of their new works went to the right folder, 69%
 fitted (99% of those in the right folder), and 9% of other artists' works were let in (14% when
 each folder held only 10 images; docs/BENCHMARKS.md). In the web app, new images added to the
@@ -511,8 +512,9 @@ style-atlas cluster DIR [--granularity auto|period|artists|fine|medium|coarse | 
                         [--trigger-captions] [--export copy|link] [--no-map] [--no-recursive]
                         [-o OUT]
 style-atlas embed DIR             # embed and cache only
-style-atlas sort NEW --into DATASET [--by-folder] [--export copy|link] [-o OUT]
+style-atlas sort NEW --into DATASET [--by-folder] [--export copy|link] [--fresh] [-o OUT]
 style-atlas report DIR [-o style_report.html] [--artists DIR] [--renders DIR] [--lang zh|en]
+                       [--fresh]
 style-atlas doctor                 # check Python, torch, GPU, model download, disk space
 style-atlas serve DIR [--port 8770] [--no-browser] [--time none|name|mtime]
 style-atlas map DIR [-o map.html] [--projection auto|umap|tsne|pca] [--time ...] [--by-folder]
@@ -527,6 +529,11 @@ style-atlas bench DIR              # sub-folders = labels (e.g. one artist each)
 style-atlas taste train --like DIR --dislike DIR [--model taste_model.npz]
 style-atlas taste score DIR [--model taste_model.npz]
 ```
+
+`-o` is an output folder for `cluster` and `sort` and an HTML file for `report` and `map`;
+`search` copies its results with `--copy-to`. Messages are in Chinese on a Chinese Windows (or
+locale) and in English elsewhere; `set STYLE_ATLAS_LANG=en` (or `zh`) chooses. Image files: png,
+jpg, jfif, webp, bmp, gif, and avif where Pillow supports it.
 
 Common options:
 

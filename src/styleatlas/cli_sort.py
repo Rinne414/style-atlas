@@ -19,6 +19,7 @@ from styleatlas.atlas import Atlas
 from styleatlas.cli_common import _atlas, log, saved_groups, web_exclusions
 from styleatlas.cluster import (
     BATCH_MIN,
+    FIT_MIN,
     UNASSIGNED,
     Clustering,
     Fit,
@@ -70,8 +71,8 @@ def cmd_sort(a: argparse.Namespace) -> int:
     if not fits:
         log(
             tr(
-                f"{a.into} has no style group of 2 or more images to sort into",
-                f"{a.into} 沒有 2 張以上的畫風群可以放新圖",
+                f"{a.into} has no style group of {FIT_MIN} or more images to sort into",
+                f"{a.into} 沒有 {FIT_MIN} 張以上的畫風群可以放新圖",
             )
         )
         return 1
@@ -126,13 +127,14 @@ def _unreserved(labels: dict[int, str]) -> dict[int, str]:
 
 
 def _note_small_groups(clustering: Clustering, labels: dict[int, str], skip: set[int]) -> None:
-    small = [labels[c.id] for c in clustering.clusters if sum(m not in skip for m in c.members) < 2]
+    usable = {c.id: sum(m not in skip for m in c.members) for c in clustering.clusters}
+    small = [labels[g] for g, n in usable.items() if n < FIT_MIN]
     if small:
         names = ", ".join(small)
         log(
             tr(
-                f"too few images (under 2) to sort into: {names}",
-                f"這些群的圖太少（不到 2 張），不會放新圖進去：{names}",
+                f"too few images (under {FIT_MIN}) to sort into: {names}",
+                f"這些群的圖太少（不到 {FIT_MIN} 張），不會放新圖進去：{names}",
             )
         )
 
