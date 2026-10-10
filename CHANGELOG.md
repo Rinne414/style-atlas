@@ -4,7 +4,11 @@
 
 - **Reference folder in the web app**: type a folder of styles you know and press "Load
   reference" (or clear it). The measures layout gets its originality axis without restarting with
-  `--reference`; groups, edits and positions stay.
+  `--reference`; groups, edits and positions stay. Network folders (`\host\share`, mapped
+  network drives) are refused there, since on Windows opening one sends the user's credentials
+  to that host (a Sonnet security review); `--reference` still takes them.
+- A first-time hint in the status line says where to start, when a folder is opened for the
+  first time.
 - Fixes from a Sonnet review:
   - The map turns at the same speed at any frame rate, so a recording is one turn on a
     120/144 Hz screen too.

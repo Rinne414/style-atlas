@@ -77,6 +77,26 @@ MIN_SIDE_RANGE = (64, 8192)  # the check tab's smallest-side setting
 MAX_PATH_TEXT = 1000  # longest folder path accepted from the page
 
 
+DRIVE_REMOTE = 4  # GetDriveTypeW: a mapped network drive
+
+
+def local_folder(text: str) -> Path:
+    """A folder typed into the page, on a local disk. Network paths are refused: on Windows,
+    merely opening \\\\host\\share sends the user's credentials to that host. Give those with
+    --reference when starting instead."""
+    path = Path(text).expanduser()
+    if str(path).startswith(("\\\\", "//")):
+        raise ValueError("network folders are not accepted here; start with --reference instead")
+    if os.name == "nt" and path.drive:
+        import ctypes
+
+        if ctypes.windll.kernel32.GetDriveTypeW(path.drive + "\\") == DRIVE_REMOTE:
+            raise ValueError("network drives are not accepted here; start with --reference instead")
+    if not path.is_dir():
+        raise ValueError(f"not a folder: {text}")
+    return path
+
+
 class StyleAtlasApp:
     """Holds one scanned folder in memory and answers the web page's requests."""
 
@@ -339,9 +359,7 @@ class StyleAtlasApp:
         folder = folder.strip().strip('"').strip()
         ref = None
         if folder:
-            path = Path(folder).expanduser()
-            if not path.is_dir():
-                raise ValueError(f"not a folder: {folder}")
+            path = local_folder(folder)
             with self._model_lock:  # the first time this embeds every image: not under _lock
                 ref = build_atlas(path, self.opts, self.progress)
         with self._lock:

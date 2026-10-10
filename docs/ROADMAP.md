@@ -52,8 +52,9 @@ All of these are in `docs/BENCHMARKS.md`.
 
 ## Ideas not done yet
 
-- **Web app**: change the reference set (`--reference`) at runtime. Done since 0.4.0: moving,
-  merging, splitting and naming groups, the character-axis switch, undo, saved groups.
+- **Web app**: done since 0.4.0: moving, merging, splitting and naming groups, the
+  character-axis switch, undo, saved groups, the dataset check, comparing groups, the reference
+  folder at runtime, recording a turn.
 - **Speed**:
   - fp16 on CUDA;
   - a background thread that loads images. GPU throughput has not been measured here.

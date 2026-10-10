@@ -29,6 +29,7 @@ const T = {
     exclude: "Exclude from export (X)", included: "Excluded - undo (X)",
     excludedList: "Excluded by you ({n}) - exported to _excluded",
     compareWith: "Compare with…", compareTitle: "{a} compared with {b}",
+    firstHint: "Start here: click a style on the right to see its images · the Check tab checks the dataset · ? lists every shortcut",
     refPath: "reference folder (styles you know)", refLoad: "Load reference", refClear: "Clear reference",
     refBusy: "loading the reference… the first time, every image in it is embedded (minutes)",
     tipRef: "A folder of styles you already know (artists, recipes): the measures layout gets an originality axis, the distance to the closest one",
@@ -102,6 +103,7 @@ const T = {
     exclude: "匯出時排除 (X)", included: "已排除，取消 (X)",
     excludedList: "你排除的圖（{n}）：匯出時放到 _excluded",
     compareWith: "和…比較", compareTitle: "{a} 和 {b} 比較",
+    firstHint: "從這裡開始：點右側的畫風群看成員 ·「檢查」分頁可以檢查資料集 · 按 ? 看所有操作",
     refPath: "參考資料夾（已知畫風）", refLoad: "載入參考", refClear: "清除參考",
     refBusy: "載入參考資料夾中…第一次會嵌入裡面的每張圖，可能要幾分鐘",
     tipRef: "放已知畫風（畫師作品、配方）的資料夾：量化軸會多一個「離參考集距離（原創度）」",
@@ -644,6 +646,7 @@ function applyText() {
   buildClusters(); buildOutliers(); buildDups(); liveText(); if (DATA.live) buildTaste();
   if (DATA.live && DATA.clusters.length <= 1 && N > 10) setStatus(t("oneGroup"));
   else if (DATA.live && DATA.live.restored && !$("status").textContent) setStatus(t("restored"));
+  else if (DATA.live && !DATA.live.restored && !$("status").textContent) setStatus(t("firstHint"));
   setupAxes(); if (layoutMode === "measures") drawAxes();
   drawNames();
 }

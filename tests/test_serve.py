@@ -621,3 +621,6 @@ def test_a_reference_folder_can_be_set_and_cleared_live(tmp_path, monkeypatch):
     for bad in (str(tmp_path / "missing"), 5, "x" * 2000):
         with pytest.raises(ValueError):
             app.set_reference({"folder": bad})
+    for network in ("\\\\host\\share", "//host/share"):  # never touched: it would send credentials
+        with pytest.raises(ValueError, match="network"):
+            app.set_reference({"folder": network})
