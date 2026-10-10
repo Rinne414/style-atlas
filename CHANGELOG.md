@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.22.0 - 2026-10-10
 
 - **Style consistency.** The Check tab and `cluster` say how spread the folder's style is
   next to 250 single Danbooru artists, on random 10-image samples. More spread than 90% of
