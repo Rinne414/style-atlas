@@ -7,6 +7,8 @@
   from a pinned Hugging Face revision, and newer torch would shut out older ComfyUI setups.
 - Internal: `cli.py` (782 lines) split into `cli_common.py` (shared helpers) and `cli_lora.py`
   (the `cluster` command); the commands and options are unchanged.
+- Internal: the web app's group edits (move, merge, rename, split, exclude, undo) moved from
+  `serve.py` (711 lines) to `serve_edits.py`.
 
 ## 0.20.0 - 2026-10-10
 
