@@ -75,8 +75,35 @@ measure(pil_image)                              # one image, no cache
 ## The search space
 
 `styleatlas.whiten.whiten(vectors)` maps CSD vectors into the space search ranks in (learned from
-306 Danbooru artists; see BENCHMARKS.md, "Search whitening"). Keep it for ranking: distances
-compared with thresholds (groups, duplicates, the Style Gate) are meant for plain CSD vectors.
+306 Danbooru artists; see BENCHMARKS.md, "Search whitening"). Which space each step expects:
+
+- pass plain CSD vectors to `search`, `rank_folders`, `consistency` and `cluster_by_artist`:
+  they whiten inside;
+- pass whitened vectors to `fit_to_groups` (both the dataset's and the new images');
+- plain CSD is the space of `cluster_styles`, near-duplicates, the Style Gate and `StyleScale`.
+
+## Datasets: consistency, which artist, placing new images
+
+```python
+from styleatlas.cluster import cluster_by_artist, fit_to_groups
+from styleatlas.consistency import consistency
+from styleatlas.images import labels_from_folders
+from styleatlas.search import rank_folders
+from styleatlas.whiten import whiten
+
+c = consistency(atlas.style)            # None under 10 images
+c.percentile, c.verdict                 # vs single artists; "tight" / "like one artist" / "mixed"
+
+folders = labels_from_folders(gallery.paths, gallery.root)       # first sub-folder per image
+hits = rank_folders(atlas.style, gallery.style, folders, top=5, combine=True)[0]
+[(h.folder, round(h.score, 3)) for h in hits]                     # closest artists' folders
+
+new = build_atlas(Path("D:/new"), opts)
+fits = fit_to_groups(whiten(atlas.style), groups, whiten(new.style))
+[(f.group, f.fits) for f in fits]       # closest group per new image, and whether it fits it
+
+by_artist = cluster_by_artist(gallery.style)   # a gallery of 20+ artists (groups follow artists)
+```
 
 ## Comparing two sets of images
 
