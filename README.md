@@ -36,6 +36,8 @@ style-atlas 會看每張圖「怎麼畫」（不是畫了什麼），自動把�
 
 Windows 跳出「Windows 已保護您的電腦」時，按「其他資訊」→「仍要執行」。
 
+**更新到新版**：下載新的 ZIP，解壓縮後**直接覆蓋**到原本的資料夾（保留裡面的 `.venv`），再雙擊一次 `scripts\setup.bat`。torch 已經裝過，不會重新下載，幾十秒就好。用 git 的話是 `git pull` 再跑一次 `setup.bat`。分析結果（每個圖片資料夾旁邊的 `_style_atlas` 資料夾）和向量快取都不會受影響。新版做了什麼見 [CHANGELOG.md](CHANGELOG.md)。
+
 想先試試看：在 `scripts\StyleAtlas-console.bat` 開的視窗裡執行 `python scripts\make_demo_images.py demo_styles`，會產生 72 張四種風格的範例圖；再把 `demo_styles` 資料夾拖到 `StyleAtlas.bat` 上。
 
 **要打指令時**（下面的 `audit`、`cluster`、`search` 等），請雙擊 `scripts\StyleAtlas-console.bat`，它會開一個已經設定好的命令視窗，在裡面輸入指令即可。直接開一般的命令提示字元打 `style-atlas` 會出現「不是內部或外部命令」，因為工具裝在 `.venv` 裡。
@@ -380,6 +382,10 @@ artwork. Run it to get a folder you can try the tool on.)
    torch, about 200 MB), then installs style-atlas.
 3. Drag an image folder onto `scripts\StyleAtlas.bat` (or double-click it and pick the folder).
    The browser opens the web app.
+
+**Updating**: extract the new ZIP over the old folder (keep its `.venv`) and run
+`scripts\setup.bat` again; torch is already installed, so it takes seconds. With git: `git pull`,
+then `setup.bat`. Results next to your image folders and the vector cache are kept.
 
 For commands (`audit`, `cluster`, `search` ...), double-click `scripts\StyleAtlas-console.bat`: it
 opens a console where `style-atlas` works. A plain console does not know the command, because it
