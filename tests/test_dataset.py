@@ -321,3 +321,25 @@ def test_audit_flags_pictures_turned_only_by_exif(tmp_path):
     report = audit(sorted(tmp_path.iterdir()), min_side=512)
     assert [Path(f).name for f in report["files"]["exif_rotated"]] == ["phone.jpg"]
     assert report["summary"]["buckets"]  # sizes as stored, as kohya reads them
+
+
+def test_audit_finds_a_tag_spelt_two_ways(tmp_path):
+    captions = {
+        "a": "artistx_style01, 1girl, long hair, blue eyes",
+        "b": "1girl, long hair, smile",
+        "c": "1girl, long_hair, blue_eyes",  # the less common way for both tags
+        "d": "1girl, blue eyes, ^_^, score_9",
+        "e": "1girl, short hair",
+    }
+    paths = []
+    for name, text in captions.items():
+        paths.append(_img(tmp_path / f"{name}.png", (768, 768)))
+        paths[-1].with_suffix(".txt").write_text(text, encoding="utf-8")
+    files = audit(paths)["files"]
+    assert [Path(f).stem for f in files["tag_spelling_mixed"]] == ["c"]
+
+
+def test_audit_accepts_one_spelling_throughout(tmp_path):
+    for name, text in {"a": "long_hair, blue_eyes", "b": "long_hair, ^_^"}.items():
+        _img(tmp_path / f"{name}.png", (768, 768)).with_suffix(".txt").write_text(text)
+    assert audit(sorted(tmp_path.glob("*.png")))["files"]["tag_spelling_mixed"] == []

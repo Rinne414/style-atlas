@@ -49,6 +49,9 @@ New:
   kohya sd-scripts reads the pixels as stored and ignores the EXIF orientation (checked in
   its `library/utils.py`), so a phone photo trains sideways; ai-toolkit and OneTrainer turn
   it upright.
+- **One tag spelt two ways** (`tag_spelling_mixed` in `audit` and the Check tab): when the
+  captions write the same tag both as `long_hair` and as `long hair`, the captions using the
+  less common way are listed; the text encoder reads the two as different words.
 
 Clearer output (from two first-time-user tests, in English and in Chinese):
 

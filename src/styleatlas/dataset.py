@@ -384,6 +384,7 @@ AUDIT_KEYS = (
     "no_caption",
     "empty_caption",
     "watermark_or_signature",
+    "tag_spelling_mixed",
     "greyscale_in_colour_set",
     "greyscale_untagged",
     "greyscale_tag_on_colour",
@@ -423,9 +424,28 @@ def audit(
     for p, soft in zip(readable, softness_of_files(readable), strict=True):
         if soft is not None and soft < SOFT:
             report["soft_or_enlarged"].append(str(p))
+    report["tag_spelling_mixed"] = mixed_spellings(readable)
     if looks is not None and len(paths):
         report |= _colour_problems(paths, looks[:, LOOK_NAMES.index("colourfulness")])
     return {"summary": _audit_summary(report, len(paths), sizes), "files": report}
+
+
+def mixed_spellings(paths: list[Path]) -> list[str]:
+    """Captions that write a tag the less common way, when the dataset writes that same tag
+    both with underscores and with spaces (`long_hair` here, `long hair` there): the text
+    encoder reads the two as different words, so the tag's meaning is split between them.
+    Which way is more common is counted over all such tags together."""
+    forms: dict[str, dict[str, set[int]]] = {}  # tag -> "_" or " " -> captions using it
+    for i, p in enumerate(paths):
+        for t in read_tags(p):
+            if ("_" in t) != (" " in t):  # one way or the other, not both
+                forms.setdefault(norm_tag(t), {}).setdefault("_" if "_" in t else " ", set()).add(i)
+    split = [f for f in forms.values() if len(f) == 2]
+    if not split:
+        return []
+    under = sum(len(f["_"]) for f in split)
+    rare = "_" if under <= sum(len(f[" "]) for f in split) else " "
+    return [str(paths[i]) for i in sorted(set().union(*(f[rare] for f in split)))]
 
 
 def _colour_problems(paths: list[Path], colour: np.ndarray) -> dict[str, list[str]]:

@@ -250,7 +250,7 @@ style-atlas taste score "D:\new_batch" --model "D:\my_taste.npz"
 - 縮圖浮在 3D 空間中，外框顏色代表畫風群，群名浮在每群中央（右上角「群名」可關掉；最多顯示最大的 16 群）。可以拖曳旋轉、滾輪縮放，`+` / `-` 調整縮圖大小。按 `?`（或右上角的 ? 按鈕）會列出所有快捷鍵。
 - 右上角「錄一圈」會把地圖轉一圈錄成 8 秒的影片（Chrome／Edge 是 MP4，Firefox 是 WebM），可以直接分享。
 - 點右側的畫風群，鏡頭會飛過去並列出成員。點地圖上任一張圖，會列出最接近的 12 張。
-- 「檢查」分頁：按「開始檢查」會列出太小的圖、小圖放大或很模糊的圖、壓縮很重的 JPEG、標註提到浮水印或簽名的圖、極端長寬比、混在彩色圖裡的黑白圖、黑白標籤和圖不一致的標註、沒有標註或標註是空的圖、動圖、只靠 EXIF 標記轉正的照片（和 `audit` 指令相同，不用打指令）；下面是最不合群的圖。「重複」分頁列出近重複圖組。
+- 「檢查」分頁：按「開始檢查」會列出太小的圖、小圖放大或很模糊的圖、壓縮很重的 JPEG、標註提到浮水印或簽名的圖、極端長寬比、混在彩色圖裡的黑白圖、黑白標籤和圖不一致的標註、同一標籤有底線和空格兩種寫法的標註、沒有標註或標註是空的圖、動圖、只靠 EXIF 標記轉正的照片（和 `audit` 指令相同，不用打指令）；下面是最不合群的圖。「重複」分頁列出近重複圖組。
 - 右上角可以把「版面」從「畫風相似」切到「量化軸」。切換後，三個軸可以各自選一種指標，縮圖會移動到對應位置。可選的指標有：
   - 口味分數：用網頁介面評過分之後才有。
   - 離參考集距離（原創度）：要先指定已知畫風的資料夾（例如畫師作品或論壇配方）。在網頁的「進階…」填路徑、按「載入參考」即可（第一次會嵌入裡面的圖），或啟動時加 `--reference 資料夾`。
@@ -369,10 +369,11 @@ how a picture is drawn rather than what it shows. On top of those vectors it can
   captions, near-duplicates, greyscale images mixed into a colour set (and captions whose
   `monochrome` / `greyscale` tags disagree with the picture), images enlarged from a
   smaller original, heavily compressed JPEGs, photos turned only by an EXIF tag (kohya
-  sd-scripts trains them sideways), and captions that mention a watermark, signature
-  or URL (`watermark`, `signature`, `artist name`, `web address` ...). The style map cannot
-  find enlarged images (CSD looks at 224 px), so the check measures their sharpness at
-  training size (BENCHMARKS.md).
+  sd-scripts trains them sideways), one tag spelt two ways across captions (`long_hair` and
+  `long hair`), and captions that mention a watermark, signature or URL (`watermark`,
+  `signature`, `artist name`, `web address` ...). The style map cannot find enlarged images
+  (CSD looks at 224 px), so the check measures their sharpness at training size
+  (BENCHMARKS.md).
 - **Style consistency** (Check tab, `cluster`): how spread the folder's style is next to 114
   single Danbooru artists. Folders more spread than 90% of them are flagged as a probable mix;
   on artists the tool had never seen this caught 49% of two-artist and 85% of three-artist

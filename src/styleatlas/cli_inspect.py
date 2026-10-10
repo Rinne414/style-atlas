@@ -59,6 +59,7 @@ AUDIT_ZH = {
     "no_caption": "沒有標註檔",
     "empty_caption": "標註是空的",
     "watermark_or_signature": "標註提到浮水印或簽名",
+    "tag_spelling_mixed": "同一標籤有底線也有空格",
     "greyscale_in_colour_set": "彩色資料夾裡的灰階圖",
     "greyscale_untagged": "灰階圖的標註沒有 monochrome",
     "greyscale_tag_on_colour": "標了 greyscale 卻是彩色",
