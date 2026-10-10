@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- **Clearer web page** (from a Sonnet product critique): the "Selected" tab is now "Details"
+  (it holds search results, comparisons and the clicked image); the threshold box and the export
+  fields have labels; the style consistency line stands out (accented when the folder looks
+  mixed); the Check tab starts with a count of findings.
+
 ## 0.24.0 - 2026-10-10
 
 - **Map of artists.** `map --by-folder` draws one point per sub-folder (an artist, a style)

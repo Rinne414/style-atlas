@@ -507,6 +507,8 @@ function liveText() {
   $("expName").placeholder = t("conceptName");
   $("expMax").placeholder = t("maxPerGroup");
   $("expStrip").placeholder = t("stripTags");
+  $("expNameLbl").textContent = t("lblName"); $("expMaxLbl").textContent = t("lblMax");
+  $("expStripLbl").textContent = t("lblStrip");
   $("expTrigWrap").querySelector("span").textContent = t("triggerCaptions");
   $("neutralWrap").querySelector("span").textContent = t("neutral");
   $("refPath").placeholder = DATA.reference ? DATA.reference : t("refPath");
@@ -532,6 +534,8 @@ function liveText() {
 // "period" asks for a number of periods instead of a distance cut.
 function showPeriods(on) {
   $("thr").hidden = on; $("periods").hidden = !on;
+  $("thrLbl").textContent = t(on ? "lblPeriods" : "lblCut");
+  $("thrLbl").htmlFor = on ? "periods" : "thr";
 }
 
 // start-up

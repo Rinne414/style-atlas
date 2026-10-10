@@ -426,12 +426,18 @@ function checkSection() {
   if (!CHECK) return box;
   if (CHECK.consistency) {  // how spread the folder's style is, next to single artists
     const c = CHECK.consistency, line = document.createElement("div");
-    line.className = "kv"; line.title = t("consistTip");
+    line.className = c.verdict === "mixed" ? "kv consist mixed" : "kv consist"; line.title = t("consistTip");
     const key = c.percentile >= 99.5 ? "beyond" : c.verdict.replaceAll(" ", "_");  // past every reference artist
     line.textContent = t("consist_" + key).replace("{p}", Math.round(c.percentile));
     box.append(line);
   }
   const found = CHECK_KEYS.filter((k) => (CHECK.issues[k] || []).length);
+  if (found.length) {  // one line first: how much there is to look at
+    const flagged = new Set(found.flatMap((k) => CHECK.issues[k]));
+    const sum = document.createElement("div"); sum.className = "kv";
+    sum.textContent = t("checkSummary").replace("{k}", found.length).replace("{n}", flagged.size);
+    box.append(sum);
+  }
   if (!found.length) {
     const ok = document.createElement("div"); ok.className = "kv"; ok.textContent = t("checkClean"); box.append(ok);
   }

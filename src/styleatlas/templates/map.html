@@ -32,6 +32,7 @@
       <button id="pickBtn"></button>
       <input id="pickFile" type="file" accept="image/*" multiple hidden>
       <select id="gran"></select>
+      <label id="thrLbl" class="lbl" for="thr"></label>
       <input id="thr" type="number" min="0.05" max="1.5" step="0.01">
       <input id="periods" type="number" min="2" max="8" step="1" hidden>
       <button id="regroup"></button>
@@ -44,9 +45,9 @@
       <div id="exportPanel" class="panel" hidden>
         <b id="exportTitle"></b>
         <select id="expLayout"><option value="plain"></option><option value="kohya">kohya</option></select>
-        <input id="expName" type="text">
-        <input id="expMax" type="number" min="1" step="1">
-        <input id="expStrip" type="text">
+        <label class="lbl" for="expName" id="expNameLbl"></label><input id="expName" type="text">
+        <label class="lbl" for="expMax" id="expMaxLbl"></label><input id="expMax" type="number" min="1" step="1">
+        <label class="lbl" for="expStrip" id="expStripLbl"></label><input id="expStrip" type="text">
         <label id="expTrigWrap" class="chip"><input id="expTrig" type="checkbox"> <span></span></label>
         <button id="export" class="primary"></button>
       </div>
