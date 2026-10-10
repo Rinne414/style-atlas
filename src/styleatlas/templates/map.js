@@ -27,6 +27,11 @@ const T = {
     moreLike: "Find more like this", moreLikeTitle: "Outside {g}, most like it (click one to move it)",
     exclude: "Exclude from export (X)", included: "Excluded - undo (X)",
     excludedList: "Excluded by you ({n}) - exported to _excluded",
+    compareWith: "Compare with…", compareTitle: "{a} compared with {b}",
+    cmpDistance: "Style distance", cmpP: "Chance that the difference is noise",
+    cmpLook: "How {b} looks next to {a}", cmpLookSame: "about the same look",
+    v_same: "same style", v_related: "related", v_different: "clearly different",
+    cmpNote: "Distance in z: one person's calibration on fixed-content renders (z >= 2.3 looked clearly different, z < 1.5 the same). Groups the tool split are usually clearly different; the size and the look are what to read.",
     moreLikeThese: "Find more like these", moreLikeTheseHelp: "Strays by another artist: exclude two or three, then find the rest",
     moreLikeExcluded: "Most like the images you excluded (click one, then X to exclude it)",
     layoutStyle: "Layout: style similarity", layoutMeasures: "Layout: measures",
@@ -73,6 +78,11 @@ const T = {
     moreLike: "找更多像這群的", moreLikeTitle: "不在「{g}」裡、但最像它的圖（點一張可移進來）",
     exclude: "匯出時排除 (X)", included: "已排除，取消 (X)",
     excludedList: "你排除的圖（{n}）：匯出時放到 _excluded",
+    compareWith: "和…比較", compareTitle: "{a} 和 {b} 比較",
+    cmpDistance: "畫風距離", cmpP: "差異只是雜訊的機率",
+    cmpLook: "{b} 和 {a} 相比的外觀", cmpLookSame: "外觀差不多",
+    v_same: "同一畫風", v_related: "相近", v_different: "明顯不同",
+    cmpNote: "z 是以一位使用者在固定內容算圖上的校準為尺度（z ≥ 2.3 看起來明顯不同，z < 1.5 看起來相同）。工具分出來的群通常都會「明顯不同」，重點是距離大小與外觀差異。",
     moreLikeThese: "找更多像這些的", moreLikeTheseHelp: "混進來的別人的圖：先排除兩三張，再用這個找出其餘的",
     moreLikeExcluded: "最像你排除的圖（點一張，再按 X 排除）",
     layoutStyle: "版面：畫風相似", layoutMeasures: "版面：量化軸",
@@ -451,6 +461,7 @@ function buildClusters() {
           if (DATA.live && c.id >= 0) {
             const bar = document.createElement("div"); bar.style.cssText = "grid-column:1/-1;margin-bottom:4px";
             bar.append(groupSelect(t("mergeInto"), c.id, false, (into) => editPost("api/merge", { from: c.id, into })));
+            if (DATA.clusters.length >= 2) bar.append(groupSelect(t("compareWith"), c.id, false, (other) => showCompare(c.id, other)));
             const nameBox = document.createElement("input");
             nameBox.placeholder = t("nameGroup"); nameBox.value = (DATA.live.names || {})[String(c.id)] || "";
             nameBox.style.cssText = "margin-left:6px;width:120px;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:5px 8px;font:inherit;font-size:12px";
@@ -623,9 +634,13 @@ function lookWords(members) {
     const m = members.reduce((s, i) => s + PTS[i].lk[j], 0) / members.length;
     return st.sd[j] > 1e-9 ? (m - st.mean[j]) / st.sd[j] : 0;
   });
+  return wordsFor(z) || t("lookAverage");
+}
+
+function wordsFor(z) {  // z in LOOKS order -> "cooler, more line work" (strongest first; "" if none)
   const order = [...z.keys()].sort((a, b) => Math.abs(z[b]) - Math.abs(z[a]));
   const words = order.filter((j) => Math.abs(z[j]) >= LOOK_NOTABLE).map((j) => t("w_" + LOOKS[j])[z[j] > 0 ? 0 : 1]);
-  return words.join(lang === "zh" ? "、" : ", ") || t("lookAverage");
+  return words.join(lang === "zh" ? "、" : ", ");
 }
 
 function measure(key) {
@@ -671,6 +686,7 @@ function targetPositions() {
 }
 
 function applyLayout() {
+  if (nameSprites) nameSprites.visible = false;  // redrawn where the groups land
   morph = { from: pos.slice(), to: targetPositions(), k: 0 };
   drawAxes();
 }
@@ -694,7 +710,10 @@ const MAX_NAMES = 16;  // the largest groups only: more labels cover the map
 let nameSprites = null;
 let showNames = true;
 
-function nameSprite(text, color) {
+const NAME_CHARS = 28;  // longer names are cut, or one label would cover the map
+
+function nameSprite(full, color) {
+  const text = full.length > NAME_CHARS ? full.slice(0, NAME_CHARS - 1) + "…" : full;
   const cv = document.createElement("canvas"); const g = cv.getContext("2d");
   const font = "600 30px system-ui, sans-serif"; g.font = font;
   cv.width = Math.ceil(g.measureText(text).width) + 24; cv.height = 46;
@@ -724,9 +743,13 @@ function drawNames() {
   fadeNames();
 }
 
-function fadeNames() {  // with one group in focus, the other names step back
+function fadeNames() {  // names step back with the points: a focused group keeps its own
   if (!nameSprites) return;
-  nameSprites.children.forEach((sp) => { sp.material.opacity = focusCluster === null || sp.userData.c === focusCluster ? 1 : 0.15; });
+  const dimmed = selected !== null || searchHits !== null || filter !== "";
+  nameSprites.children.forEach((sp) => {
+    const on = focusCluster !== null ? sp.userData.c === focusCluster : !dimmed;
+    sp.material.opacity = on ? 1 : 0.15;
+  });
 }
 
 $("names").addEventListener("click", () => {

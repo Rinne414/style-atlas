@@ -9,6 +9,7 @@ import pytest
 from PIL import Image
 
 from styleatlas.atlas import Atlas, EncodeOptions
+from styleatlas.look import LOOK_NAMES
 from styleatlas.serve import StyleAtlasApp
 from styleatlas.webserver import bind
 
@@ -560,3 +561,19 @@ def test_more_like_the_excluded_images(tmp_path):
         app.exclude({"i": i, "excluded": True})
     hits = [h["i"] for h in app.similar({"excluded": True})["hits"]]
     assert set(hits[:4]) <= set(strays) - set(strays[:2])
+
+
+def test_two_groups_compared(server, tmp_path):
+    app, _ = _app(tmp_path, (10, 10, 10))
+    labels = app.clustering.labels
+    a, b = int(labels[0]), int(labels[-1])
+    got = app.compare({"a": a, "b": b})
+    assert got["verdict"] == "clearly different" and got["p"] < 0.05 and got["sizes"] == [10, 10]
+    assert set(got["look"]) == set(LOOK_NAMES)
+    with pytest.raises(ValueError):
+        app.compare({"a": a, "b": a})
+    port, _ = server
+    hdr = {"X-Style-Atlas": "1", "Content-Type": "application/json"}
+    status, data = request(port, "POST", "/api/compare", json.dumps({"a": 0, "b": 1}), hdr)
+    assert status == 200 and "distance" in json.loads(data)
+    assert request(port, "POST", "/api/compare", json.dumps({"a": 0, "b": 0}), hdr)[0] == 400

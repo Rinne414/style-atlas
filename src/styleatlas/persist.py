@@ -17,9 +17,13 @@ from styleatlas.atlas import Atlas
 
 
 class RelPathMap:
-    def __init__(self, path: Path, atlas: Atlas):
+    def __init__(self, path: Path, atlas: Atlas, read_only: bool = False):
+        """read_only: never rename an unreadable file (a reader such as the CLI must not touch
+        the web app's file); `unreadable` then tells the caller."""
         self.path = Path(path)
         self.atlas = atlas
+        self.read_only = read_only
+        self.unreadable = False
         self.values: dict[int, object] = {}
         self.orphans: dict[str, object] = {}
         self._load()
@@ -34,7 +38,9 @@ class RelPathMap:
         if isinstance(raw, list):  # older format: a plain list of excluded paths
             raw = {str(name): True for name in raw}
         if not isinstance(raw, dict):
-            self._set_aside()
+            self.unreadable = True
+            if not self.read_only:
+                self._set_aside()
             return
         index = {self.atlas.rel(i): i for i in range(len(self.atlas))}
         for rel, value in raw.items():

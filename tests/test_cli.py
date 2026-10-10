@@ -131,6 +131,16 @@ def test_map_and_bench(lib, tmp_path, capsys):
     assert report["whitened"]["top1"] == 1.0 and report["labels"] == 3
 
 
+def test_an_unreadable_web_exclusion_file_is_reported_and_left_alone(lib, tmp_path, capsys):
+    web = tmp_path / "lib_style_atlas"
+    web.mkdir()
+    (web / "excluded.json").write_text("", "utf-8")  # e.g. cut short by a crash
+    out = tmp_path / "out"
+    assert main(["cluster", str(lib), "--device", "cpu", "--no-map", "-o", str(out)]) == 0
+    assert "exclusions are NOT applied" in capsys.readouterr().err
+    assert [p.name for p in web.iterdir()] == ["excluded.json"]  # not renamed to .bad
+
+
 def test_ignore_characters_and_neutralize_are_alternatives(lib, tmp_path, capsys):
     out = tmp_path / "out"
     base = ["cluster", str(lib), "--device", "cpu", "--no-map", "-o", str(out)]

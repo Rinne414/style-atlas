@@ -82,6 +82,38 @@ async function showSimilar(group) {  // a group id, or "excluded": the images ex
   } catch (e) { setStatus(String(e.message || e)); }
 }
 
+const VERDICT_KEYS = { "same style": "v_same", related: "v_related", "clearly different": "v_different" };
+
+async function showCompare(a, b) {
+  setStatus(t("searching"));
+  try {
+    const r = await post("api/compare", JSON.stringify({ a, b }), "application/json");
+    setStatus("");
+    const pane = $("pane-selected"); pane.replaceChildren();
+    const h = document.createElement("h3");
+    h.textContent = t("compareTitle").replace("{a}", clusterName(a)).replace("{b}", clusterName(b));
+    const kv = document.createElement("div"); kv.className = "kv";
+    const zh = lang === "zh";
+    const line = (k, v) => { const d = document.createElement("div"); d.textContent = `${k}${zh ? "：" : ": "}${v}`; kv.append(d); };
+    const verdict = t(VERDICT_KEYS[r.verdict] || "v_related");
+    line(t("cmpDistance"), `${r.distance.toFixed(3)}${zh ? `（z ${r.z}，${verdict}）` : ` (z ${r.z}, ${verdict})`}`);
+    line(t("cmpP"), r.p < 0.01 ? "< 0.01" : r.p.toFixed(2));
+    if (r.look) {
+      const z = LOOKS.map((k) => r.look[k] || 0);
+      line(t("cmpLook").replace("{a}", clusterName(a)).replace("{b}", clusterName(b)), wordsFor(z) || t("cmpLookSame"));
+    }
+    const note = document.createElement("div"); note.className = "meta"; note.textContent = t("cmpNote");
+    const strips = [a, b].map((g) => {
+      const grid = document.createElement("div"); grid.className = "grid";
+      PTS.forEach((p, i) => { if (p.c === g && grid.childElementCount < 6) grid.append(thumb(i)); });
+      const cap = document.createElement("div"); cap.className = "meta"; cap.textContent = clusterName(g);
+      return [cap, grid];
+    }).flat();
+    pane.append(h, kv, ...strips, note);
+    showPane("selected");
+  } catch (e) { setStatus(String(e.message || e)); }
+}
+
 let TASTE = null;
 
 function voteOf(i) { return TASTE && TASTE.votes[String(i)]; }

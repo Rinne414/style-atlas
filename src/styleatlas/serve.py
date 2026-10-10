@@ -43,7 +43,16 @@ from styleatlas.dataset import (
 from styleatlas.export import KOHYA_CONFIG, export_folders, output_dir, write_table
 from styleatlas.groupfile import GROUPS_FILE, SavedGroups, carry_names, load_groups, save_groups
 from styleatlas.images import cached_thumbnail, load_rgb
-from styleatlas.metrics import CHARACTERS, MAX_NEUTRALIZE, PLAIN, StyleSpace, space_name
+from styleatlas.look import LOOK_NAMES, difference
+from styleatlas.metrics import (
+    CHARACTERS,
+    MAX_NEUTRALIZE,
+    PLAIN,
+    StyleScale,
+    StyleSpace,
+    group_difference,
+    space_name,
+)
 from styleatlas.persist import RelPathMap
 from styleatlas.report import (
     build_payload,
@@ -61,6 +70,7 @@ MAX_QUERY_IMAGES = 32
 UNDO_STEPS = 30
 EXPORT_MIN_GROUP = 3  # groups left smaller after set-asides go to _unassigned (as in the CLI)
 MAX_SPLIT = 4000  # splitting runs under the lock; larger groups would stall every request
+COMPARE_ROUNDS = 199  # permutations for a group comparison's p-value (resolution 0.005)
 
 
 class StyleAtlasApp:
@@ -313,6 +323,31 @@ class StyleAtlasApp:
             x = self.atlas.style
         hits = search(x[members], x, top=SEARCH_TOP, combine=True, exclude=set(members))[0]
         return {"hits": [{"i": h.index, "group": int(labels[h.index])} for h in hits]}
+
+    def compare(self, body: dict) -> dict:
+        """Two groups side by side, as `style-atlas compare`: centroid distance, its z and verdict
+        on the default scale, a permutation p-value, and how group b looks next to group a."""
+        with self._lock:
+            a = self._group(body.get("a"), allow_unassigned=False)
+            b = self._group(body.get("b"), allow_unassigned=False)
+            if a == b:
+                raise ValueError("pick two different groups")
+            ma = list(self.clustering.clusters[a].members)
+            mb = list(self.clustering.clusters[b].members)
+            x, looks = self.atlas.style, self.atlas.looks
+        dist, p = group_difference(x[ma], x[mb], rounds=COMPARE_ROUNDS)
+        scale = StyleScale()
+        out = {
+            "distance": round(dist, 4),
+            "z": round(scale.z(dist), 2),
+            "verdict": scale.verdict(dist),
+            "p": round(p, 4),
+            "sizes": [len(ma), len(mb)],
+        }
+        if looks is not None:
+            d = difference(looks[ma], looks[mb])
+            out["look"] = dict(zip(LOOK_NAMES, (round(float(v), 2) for v in d), strict=True))
+        return out
 
     def _group(self, value: object, allow_unassigned: bool) -> int:
         if type(value) is not int:

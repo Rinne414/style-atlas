@@ -211,12 +211,14 @@ def _plan(
 ) -> tuple[list[str], dict]:
     from styleatlas.dataset import plan_folders, tag_summary
 
+    excluded = _web_exclusions(atlas, Path(a.folder))
     outliers = None
-    if a.drop_outliers:
-        outliers = [int(i) for i in np.argsort(-outlier_scores(atlas.style))[: a.drop_outliers]]
+    if a.drop_outliers:  # the N most atypical among the images not already excluded
+        skip = set(excluded)
+        order = [int(i) for i in np.argsort(-outlier_scores(atlas.style))]
+        outliers = [i for i in order if i not in skip][: a.drop_outliers]
     name = a.name or Path(a.folder).resolve().name
     safe = "".join(ch if ch.isalnum() or ch in " -_." else "_" for ch in name).strip() or "style"
-    excluded = _web_exclusions(atlas, Path(a.folder))
     folders = plan_folders(
         atlas.paths,
         result,
@@ -236,8 +238,10 @@ def _web_exclusions(atlas: Atlas, folder: Path) -> list[int]:
     from styleatlas.export import output_dir
     from styleatlas.persist import RelPathMap
 
-    marks = RelPathMap(output_dir(folder) / "excluded.json", atlas).values
-    excluded = sorted(i for i, v in marks.items() if v is True)
+    marks = RelPathMap(output_dir(folder) / "excluded.json", atlas, read_only=True)
+    if marks.unreadable:
+        log(f"warning: could not read {marks.path}; the web app's exclusions are NOT applied")
+    excluded = sorted(i for i, v in marks.values.items() if v is True)
     if excluded:
         log(f"{len(excluded)} image(s) you excluded in the web app go to _excluded")
     return excluded

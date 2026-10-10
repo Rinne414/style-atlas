@@ -2,13 +2,18 @@
 
 ## Unreleased
 
+- **Compare with…** on an open group in the web app: style distance, z and verdict, a
+  permutation p-value, and how the other group looks next to this one, as `compare` does for
+  two folders.
 - **Group names float in the 3D map** at each group's centre (the 16 largest groups; the
   "Names" button hides them). With one group in focus the other names fade.
 - **Find more like these** in the web app's excluded list: exclude two or three strays by
   another artist, and the rest are listed first. From three strays the top 30 held 98% of the
   others, while outlier scores found only half (BENCHMARKS.md).
 - `cluster --export` sends the images you excluded with X in the web app to `_excluded/`, as
-  the web app's own export does. Hand moves, merges and names stay with the web export.
+  the web app's own export does. Hand moves, merges and names stay with the web export. An
+  unreadable `excluded.json` is reported and left as it is (a Sonnet review found that a CLI
+  run used to rename it). `--drop-outliers N` now picks N among the images not already excluded.
 - The "measures" layout frames the whole axis cube when it opens or on Reset, with larger axis
   labels.
 - README and LoRA guide: commands no longer carry trailing `#` notes (Windows cmd passed them on

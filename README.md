@@ -185,6 +185,7 @@ style-atlas taste score "D:\new_batch" --model "D:\my_taste.npz"
   - 離群度。
   - 外觀量測：亮度、對比、鮮豔度、冷暖、線條量、平塗度（見下一節）。例如 X 選冷暖、Y 選線條量、Z 選鮮豔度，就能看到整個資料夾在這三個面向上怎麼分布。
 - 右側每個畫風群的卡片下方，會用一句話說明這群和整個資料夾相比的外觀差異，例如「偏冷、線條多、色彩鮮豔」。
+- 打開一群後，用「和…比較」選另一群，會列出兩群的畫風距離、差異是否明顯，以及外觀差在哪裡（和 `compare` 指令相同）。
 - 只有網頁介面才有的功能：
   - 拖一張圖進畫面就能以圖搜尋。一次拖多張同一種畫風的圖，會當成同一種畫風一起搜尋（3 張以上時用它們訓練的小模型排序）。
   - 畫風漸變：選一張圖按「畫風漸變：從這張開始」，再選另一張按「畫風漸變：到這張」，會列出在畫風上從前一張漸變到後一張的一串圖。適合找兩種畫風之間的過渡風格。
@@ -303,8 +304,9 @@ how a picture is drawn rather than what it shows. On top of those vectors it can
   folder is opened. Names follow their images: after a move, merge, split or regroup a name
   stays with the group that holds most of its images.
   Undo (or Ctrl+Z) steps back through the last 30 edits, regroups and renames.
-- **Quantify style and taste**: say how a group looks ("cooler, more line work"), `compare` two
-  sets, or train a personal like/dislike model in the web app or with `taste`.
+- **Quantify style and taste**: say how a group looks ("cooler, more line work"), compare two
+  groups in the web app ("Compare with…") or two folders with `compare`, or train a personal
+  like/dislike model in the web app or with `taste`.
 
 ![The web app: 72 images grouped into 4 styles, with named groups and how each one looks on the right](docs/images/map.jpg)
 
