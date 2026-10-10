@@ -74,7 +74,7 @@ from styleatlas.report import (
     with_reference,
     write_payload,
 )
-from styleatlas.search import rank_folders, search, style_path, warm
+from styleatlas.search import fold_hits, rank_folders, search, style_path, warm
 from styleatlas.serve_edits import GroupEdits
 from styleatlas.taste_session import TasteSession
 
@@ -330,9 +330,11 @@ class StyleAtlasApp(GroupEdits):
 
     def search_image(self, data: bytes, top: int = SEARCH_TOP) -> dict:
         query, raw = self._embed([data])
-        hits = search(query, self.atlas.style, top=top)[0]
+        found = search(query, self.atlas.style, top=2 * top)[0]
+        hits, folded = fold_hits(found, self.raw.style, self.raw.content, top)
         return {
             "hits": [{"i": h.index, "cos": round(h.cosine, 4)} for h in hits],
+            "folded": folded,
             "folders": self.closest_folders(query),
             "copies": self.copies(*raw),
         }
@@ -390,9 +392,11 @@ class StyleAtlasApp(GroupEdits):
         ):
             raise ValueError(f"images must be a list of 1 to {MAX_QUERY_IMAGES} base64 strings")
         query, raw = self._embed([base64.b64decode(s, validate=True) for s in images])
-        hits = search(query, self.atlas.style, top=SEARCH_TOP, combine=True)[0]
+        found = search(query, self.atlas.style, top=2 * SEARCH_TOP, combine=True)[0]
+        hits, folded = fold_hits(found, self.raw.style, self.raw.content, SEARCH_TOP)
         return {
             "hits": [{"i": h.index, "cos": round(h.cosine, 4)} for h in hits],
+            "folded": folded,
             "fit": self.fit(query),
             "folders": self.closest_folders(query, combine=True),
             "copies": self.copies(*raw),

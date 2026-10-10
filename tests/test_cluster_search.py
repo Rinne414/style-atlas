@@ -292,3 +292,11 @@ def test_copies_of_handles_empty_sets_and_one_off_whitening_is_not_kept():
     assert [(q, i) for q, i, _ in copies_of(x[:2], x[:2], x, x)] == [(0, 0), (1, 1)]
     big, _ = make_blobs([CACHE_ROWS])
     assert whiten(big, keep=False) is not whiten(big, keep=False)
+
+
+def test_fold_copies_keeps_the_first_of_each_picture():
+    from styleatlas.duplicates import fold_copies
+
+    x, _ = make_blobs([3, 3], spread=0.01)  # two pictures, three near-copies each
+    kept, folded = fold_copies([0, 3, 1, 4, 2], x, x)
+    assert kept == [0, 3] and folded == 3

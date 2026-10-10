@@ -472,7 +472,8 @@ style-atlas cluster DIR [--granularity auto|period|fine|medium|coarse | --thresh
 style-atlas doctor                 # check Python, torch, GPU, model download, disk space
 style-atlas serve DIR [--port 8770] [--no-browser] [--time none|name|mtime]
 style-atlas map DIR [-o map.html] [--projection auto|umap|tsne|pca] [--time ...]
-style-atlas search QUERY... --in DIR [--top 20] [--combine] [--copy-to DIR] [--by-folder] [--json]
+style-atlas search QUERY... --in DIR [--top 20] [--combine] [--copy-to DIR] [--by-folder]
+                   [--keep-duplicates] [--json]
 style-atlas audit DIR [--min-side 512] [--max-ratio 2.5] [--json]
 style-atlas duplicates DIR [--threshold 0.95] [--json]
 style-atlas outliers DIR [--top 30]

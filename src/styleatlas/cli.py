@@ -112,6 +112,7 @@ def cmd_search(a: argparse.Namespace) -> int:
         log("no readable query images")
         return 1
     atlas = build_atlas(Path(a.within), opts, log, recursive=not a.no_recursive)
+    plain = atlas.style  # near-copies are judged in plain CSD
     space = _space(a)
     if space != PLAIN:
         atlas, fitted = atlas.in_space(space)
@@ -121,7 +122,10 @@ def cmd_search(a: argparse.Namespace) -> int:
     names = ["(all queries)"] if a.combine else [str(p) for p in qkept]
     if a.by_folder:
         return _search_folders(a, atlas, qstyle, names, same)
-    results = search(qstyle, atlas.style, top=a.top, combine=a.combine, exclude=same)
+    wide = a.top if a.keep_duplicates else 2 * a.top
+    results = search(qstyle, atlas.style, top=wide, combine=a.combine, exclude=same)
+    if not a.keep_duplicates:
+        results = _fold(results, plain, atlas.content, a.top)
     rows = [
         {
             "query": names[qi],
@@ -174,6 +178,19 @@ def _search_folders(a: argparse.Namespace, atlas, qstyle, names: list[str], same
             f" closest {row['closest']})    <- {row['query']}"
         )
     return 0
+
+
+def _fold(results: list, plain: np.ndarray, content: np.ndarray, top: int) -> list:
+    from styleatlas.search import fold_hits
+
+    shown, folded = [], 0
+    for hits in results:
+        kept, n = fold_hits(hits, plain, content, top)
+        shown.append(kept)
+        folded += n
+    if folded:
+        log(f"{folded} near-copies of a better match left out (--keep-duplicates lists them)")
+    return shown
 
 
 def _copy_matches(atlas, indices: list[int], dest: Path) -> None:
@@ -445,6 +462,11 @@ def _add_inspect_commands(add: Adder) -> None:
         "--by-folder",
         action="store_true",
         help="rank the sub-folders of --in (e.g. one per artist) instead of single images",
+    )
+    p.add_argument(
+        "--keep-duplicates",
+        action="store_true",
+        help="also list near-copies of a better match (left out by default)",
     )
     _space_args(p)
     p.add_argument("--json", action="store_true")

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **Search results without near-copies.** A hit that is a near-copy of a better hit (same picture,
+  crop or recolour; the `duplicates` threshold) is left out and the next one moves up, so the
+  results are not filled with variants of one picture. The web page says how many were folded;
+  `search --keep-duplicates` lists them.
 - **Clearer web page** (from a Sonnet product critique): the "Selected" tab is now "Details"
   (it holds search results, comparisons and the clicked image); the threshold box and the export
   fields have labels; the style consistency line stands out (accented when the folder looks

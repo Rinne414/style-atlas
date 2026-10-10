@@ -88,16 +88,22 @@ def test_period_split_and_refused_flag_mix(lib, tmp_path, capsys):
     assert main([*args, "--method", "hdbscan", "--no-map", "-o", str(out)]) == 1
 
 
-def test_search_combines_examples_and_copies_the_matches(lib, tmp_path):
+def test_search_combines_examples_and_copies_the_matches(lib, tmp_path, capsys):
     examples = [str(p) for p in sorted((lib / "red").glob("*.png"))[:3]]
     out = tmp_path / "found"
     code = main(
         ["search", *examples, "--in", str(lib), "--combine", "--top", "3", "--device", "cpu",
-         "--copy-to", str(out)]
+         "--copy-to", str(out), "--keep-duplicates"]
     )  # fmt: skip
     assert code == 0
     copied = sorted(p.name for p in (out / "matches").glob("*.png"))
     assert len(copied) == 3 and all(name.startswith("red__") for name in copied)
+    capsys.readouterr()
+    # the stand-in encoder gives some of one colour's pictures the same vector: they fold
+    assert main(["search", *examples, "--in", str(lib), "--combine", "--top", "3", "--json",
+                 "--device", "cpu"]) == 0  # fmt: skip
+    rows = json.loads(capsys.readouterr().out)
+    assert len(rows) == 3 and sum(Path(r["path"]).name.startswith("red__") for r in rows) < 3
 
 
 def test_search_by_folder_names_the_closest_sub_folder(lib, tmp_path, capsys):

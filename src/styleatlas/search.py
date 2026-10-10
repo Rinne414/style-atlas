@@ -24,6 +24,20 @@ class Hit:
     cosine: float
 
 
+def fold_hits(
+    hits: list[Hit], style: np.ndarray, content: np.ndarray, top: int
+) -> tuple[list[Hit], int]:
+    """The first `top` hits without near-copies of a better hit (duplicates.fold_copies; give
+    plain CSD vectors), and how many were left out to fill them."""
+    from styleatlas.duplicates import fold_copies
+
+    kept, _ = fold_copies([h.index for h in hits], style, content)
+    keep = set(kept[:top])
+    shown = [h for h in hits if h.index in keep]
+    cutoff = hits.index(shown[-1]) + 1 if shown else 0
+    return shown, cutoff - len(shown)
+
+
 def learned_scores(examples: np.ndarray, base: np.ndarray, exclude: set[int]) -> np.ndarray:
     """Logit of "same style as the examples" for every row of `base`: logistic regression of
     the examples against a random sample of the library (rows in `exclude`, the examples' own

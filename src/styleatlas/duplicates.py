@@ -46,6 +46,21 @@ def copies_of(
     return out
 
 
+def fold_copies(
+    order: list[int], style: np.ndarray, content: np.ndarray, threshold: float = DEFAULT_THRESHOLD
+) -> tuple[list[int], int]:
+    """`order` (best first) without the images that repeat one earlier in it, so a search
+    result is not filled with variants of one picture; and how many were folded."""
+    kept: list[int] = []
+    for i in order:
+        if kept:
+            score = np.minimum(style[kept] @ style[i], content[kept] @ content[i])
+            if float(score.max()) >= threshold:
+                continue
+        kept.append(i)
+    return kept, len(order) - len(kept)
+
+
 def _root(parent: list[int], i: int) -> int:
     while parent[i] != i:
         parent[i] = parent[parent[i]]
