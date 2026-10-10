@@ -105,6 +105,15 @@ All of these are in `docs/BENCHMARKS.md`.
   tagging; github.com/akalavol/LoRA-Dataset-Coach), dghs-imgutils (anime image utilities), and
   "A LoRA is Worth a Thousand Pictures" (LoRA weights as style features; arxiv.org/abs/2412.12048).
   The Anima-Style-Embedding card was checked again: it still needs precomputed features.
+- **Related tools, checked again 2026-10-11.** LoRA Dataset Coach (github.com/akalavol/
+  LoRA-Dataset-Coach) now covers face identity, sharpness, pose, expression, duplicates (dHash +
+  face similarity), AI-image detection, bucket balance, CLIP-cluster diversity, "overfit attribute"
+  alerts (a tag in 87% of captions) and exports for many trainers; it does not group by art
+  style and does not check EXIF orientation, tag spelling or greyscale captions. find-image-tag
+  (github.com/ellypaws/find-image-tag) is a terminal tool for kohya captions (missing captions,
+  merging, replacing spaces with underscores). Anima-Style-Embedding is still a release
+  candidate that needs precomputed VAE / DINOv3 / Anima features (no raw-image pipeline), with
+  non-commercial weights, so it still cannot be benched against CSD.
 
 - **From the v0.24 product critique**:
   - Search inside a caption tag is done (0.26). Negative examples were measured and dropped
