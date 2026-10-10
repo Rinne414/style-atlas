@@ -639,6 +639,23 @@ trains from 5 ratings of each kind, down from 8.
 
 ## Tried and rejected
 
+### Look measures for periods (2026-10-10)
+
+This was tested on 13 Danbooru artists (30-299 works), scored by AMI with posting-time quartiles
+and k-means k=3. Each artist's six look measures were standardised and appended to the CSD
+vector at three weights.
+
+| Features | Mean AMI | Better than CSD |
+|---|---|---|
+| CSD (the product) | **0.124** | (n/a) |
+| looks only | 0.030 | 2 of 13 |
+| CSD + looks, weight 0.5 | 0.066 | 1 of 13 |
+| CSD + looks, weight 1 | 0.034 | 1 of 13 |
+| CSD + looks, weight 2 | 0.031 | 2 of 13 |
+
+The measures follow scene and lighting more than an artist's drift over time, so periods stay
+CSD-only.
+
 ### Subtracting the CSD content head (2026-10-09)
 
 CSD outputs a style vector and a content vector. On the Danbooru corpus the two heads carry
