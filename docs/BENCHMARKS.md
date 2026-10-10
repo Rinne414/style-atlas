@@ -692,6 +692,12 @@ The Check tab and `cluster` report how spread a folder's style is, next to singl
   (NAI set 8%, Anima set 7%) although they hold 96 different recipes. The reference is human
   artists, and CSD vectors of one model's renders sit close together; for such folders the
   groups and the map say more than this number.
+- **Per group, rejected**: after automatic grouping, a group's percentile ranks impure groups
+  (under 80% one artist) well within a folder: AUC 0.978 on the 300-artist set, 0.964 on the
+  18 artists over time. But no fixed cut works across folders. Above 30, 81% of impure groups
+  and 0% of pure ones were flagged on the 300-artist set. On the five prolific artists, the
+  pure groups (single periods) scored higher than the impure ones, and 67% were flagged. So the
+  group cards show no such flag.
 
 ## Pixiv: followed AI-illustration accounts (2026-10-09)
 
