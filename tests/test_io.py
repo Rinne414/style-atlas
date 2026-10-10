@@ -268,3 +268,12 @@ def test_folder_atlas_has_one_point_per_sub_folder(tmp_path):
     assert [p.parent.name for p in folders.paths] == ["artist0", "artist1", "artist2"]
     assert folders.style.shape == (3, x.shape[1]) and folders.looks.shape == (3, 6)
     assert np.allclose(np.linalg.norm(folders.style, axis=1), 1.0)
+
+
+def test_docs_have_no_stray_control_characters():
+    """A mangled backslash (\a, \b ...) in an edit leaves a control character behind."""
+    root = Path(__file__).resolve().parents[1]
+    for doc in [root / "README.md", root / "CHANGELOG.md", *sorted((root / "docs").glob("*.md"))]:
+        text = doc.read_text(encoding="utf-8")
+        bad = [i for i, ch in enumerate(text) if ord(ch) < 32 and ch not in "\n\t"]
+        assert not bad, f"{doc.name}: control character near {text[max(0, bad[0] - 30) : bad[0]]!r}"
