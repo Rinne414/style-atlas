@@ -62,6 +62,13 @@ All of these are in `docs/BENCHMARKS.md`.
 - **Better embedding**: CSD is the ceiling for every number above. Candidates are fine-tuning on
   style-labelled anime data, or newer style encoders when they appear. Any candidate must beat
   CSD on `style-atlas bench` and on the unseen-character test.
+  - Looked at on 2026-10-10, not run. Baragi-AI/Anima-Style-Embedding v2 is an anime style
+    encoder (1,024-d, 52M parameters). It needs Anima VAE latents, DINOv3 features and Anima
+    text descriptors as inputs, but the extraction is not bundled. The weights are
+    non-commercial, and the card has no comparison with CSD. Worth a bench run if a full
+    raw-image pipeline is released.
+  - Mitchins/anime-style-classifier-v5 sorts anime frames into 4 production styles, not
+    artists.
 
 ## Tried and rejected
 
