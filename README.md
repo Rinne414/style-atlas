@@ -104,6 +104,8 @@ _unassigned\
 _excluded\            ← 在網頁介面按 X 排除的圖
 _trimmed\             ← 超過每群上限的圖（有用 --max-per-group 時）
 dataset_config.toml   ← kohya sd-scripts 的資料集設定（`--dataset_config`），列出每群的資料夾與 repeats
+diffusion_pipe_dataset.toml ← diffusion-pipe 的資料集設定（訓練設定裡的 `dataset`）
+onetrainer_concepts.json    ← OneTrainer 的 concepts 檔（複製到 OneTrainer 的 training_concepts 資料夾再選）
 ```
 
 - 每群的 repeats 會讓「張數 × repeats」接近 100。也可以用 `--repeats 10` 固定。
@@ -402,6 +404,10 @@ The output goes to `DIR_style_atlas/folders/`, next to the dataset and never ins
   that images x repeats is about 100; use `--repeats N` to fix them.
 - `dataset_config.toml`, a kohya sd-scripts dataset config (`--dataset_config`) with every style
   folder and its repeats; set the resolution and batch size for your model.
+- `diffusion_pipe_dataset.toml` (diffusion-pipe: the training config's `dataset` file) and
+  `onetrainer_concepts.json` (OneTrainer: copy it into OneTrainer's `training_concepts` folder
+  and pick it on the concepts tab), with the same folders and
+  repeats.
 - `_duplicates/`, `_outliers/`, `_unassigned/` and `_excluded/` (images you excluded with X in
   the web app). Kohya skips these because they lack a number prefix.
 - With `--max-per-group N` (web: "Export folders…", "max per style"), a larger style keeps N images that cover

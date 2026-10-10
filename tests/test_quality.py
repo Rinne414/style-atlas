@@ -4,6 +4,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageDraw
 
+from styleatlas import quality
 from styleatlas.dataset import audit
 from styleatlas.quality import LOW_JPEG, SOFT, jpeg_quality, softness, softness_of_file
 
@@ -72,3 +73,21 @@ def test_audit_flags_enlarged_and_heavily_compressed(tmp_path):
     files = {k: [Path(f).name for f in v] for k, v in report["files"].items()}
     assert files["soft_or_enlarged"] == ["enlarged.png"]
     assert files["low_jpeg_quality"] == ["crushed.jpg"]
+
+
+def test_custom_tables_are_not_read_as_quality():
+    im = _reopened(_drawing(), "JPEG", qtables=[[200] * 64] * 2)  # not a scaled libjpeg table
+    assert jpeg_quality(im) is None
+
+
+def test_huge_images_are_not_decoded(monkeypatch):
+    monkeypatch.setattr(quality, "MAX_PIXELS", 1000)
+    assert softness(_drawing()) is None
+
+
+def test_damaged_files_give_none_and_are_not_cached(tmp_path):
+    bad = tmp_path / "bad.png"
+    bad.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * 64)
+    before = quality._softness_of.cache_info().currsize
+    assert softness_of_file(bad) is None
+    assert quality._softness_of.cache_info().currsize == before

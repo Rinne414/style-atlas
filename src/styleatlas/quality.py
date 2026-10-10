@@ -30,27 +30,34 @@ STD_LUMA = np.array(
 )  # fmt: skip
 
 
-def _scaled_sum(quality: int) -> float:
+def _scaled(quality: int) -> np.ndarray:
     scale = 5000 / quality if quality < 50 else 200 - 2 * quality
-    return float(np.clip(np.floor((STD_LUMA * scale + 50) / 100), 1, 255).sum())
+    return np.clip(np.floor((STD_LUMA * scale + 50) / 100), 1, 255)
 
 
-TABLE_SUMS = np.array([_scaled_sum(q) for q in range(1, 101)])
+TABLES = np.stack([_scaled(q) for q in range(1, 101)])
+TABLE_SUMS = TABLES.sum(axis=1)
 
 LOW_JPEG = 70  # below this, a JPEG is flagged
 SOFT = 0.10  # below this softness ratio, an image looks enlarged or blurred
 WINDOW = 1024  # measured on the centre at full size: shrinking first would hide an enlargement
 MIN_WINDOW = 128  # smaller images are not judged
 FLAT = 1.0  # coarse-octave detail below this (grey levels squared): nothing to judge
+MAX_PIXELS = 25_000_000  # larger images are not judged: each is decoded whole, 8 at a time
+STANDARD_FIT = 0.05  # a table further than this (mean relative difference) is not libjpeg's
 
 
 def jpeg_quality(image: Image.Image) -> int | None:
-    """Estimated quality (1-100) of an opened JPEG, or None for other formats."""
+    """Quality (1-100) of an opened JPEG saved with the standard (libjpeg) tables; None for other
+    formats, and for encoders with tables of their own, whose quality cannot be read this way."""
     tables = getattr(image, "quantization", None)
-    if not tables or 0 not in tables:
+    if not tables or 0 not in tables or len(tables[0]) != len(STD_LUMA):
         return None
-    total = float(np.sum(tables[0]))
-    return int(np.argmin(np.abs(TABLE_SUMS - total))) + 1
+    table = np.asarray(tables[0], dtype=np.float64)  # Pillow gives it in natural order
+    best = int(np.argmin(np.abs(TABLE_SUMS - table.sum())))
+    if np.mean(np.abs(table - TABLES[best])) > STANDARD_FIT * np.mean(TABLES[best]):
+        return None
+    return best + 1
 
 
 def _octave(grey: Image.Image, step: int) -> float:
@@ -66,6 +73,8 @@ def softness(image: Image.Image) -> float | None:
     """Finest-octave detail over the detail two octaves coarser, on the centre window at full
     size. None when the image is too small or too flat to judge."""
     w, h = image.size
+    if w * h > MAX_PIXELS:
+        return None
     cw, ch = min(w, WINDOW), min(h, WINDOW)
     cw, ch = cw - cw % 16, ch - ch % 16  # whole pixels at every level
     if min(cw, ch) < MIN_WINDOW:
@@ -80,22 +89,21 @@ def softness(image: Image.Image) -> float | None:
 
 @lru_cache(maxsize=65536)
 def _softness_of(path: str, stamp: tuple[int, int]) -> float | None:
-    try:
-        with Image.open(path) as im:
-            if getattr(im, "is_animated", False):
-                im.seek(0)
-            return softness(im)
-    except (OSError, ValueError, SyntaxError, Image.DecompressionBombError):
-        return None
+    """Cached by path and (mtime, size); a failure raises, so it is not cached."""
+    with Image.open(path) as im:
+        if getattr(im, "is_animated", False):
+            im.seek(0)
+        return softness(im)
 
 
 def softness_of_file(path: Path) -> float | None:
-    """Softness of an image file; cached while the file is unchanged."""
+    """Softness of an image file, cached while the file is unchanged. None when the file cannot
+    be decoded: the check reports such files elsewhere and must not stop on one."""
     try:
         st = os.stat(path)
-    except OSError:
+        return _softness_of(str(path), (st.st_mtime_ns, st.st_size))
+    except Exception:  # noqa: BLE001 - Pillow raises many types on damaged or exotic files
         return None
-    return _softness_of(str(path), (st.st_mtime_ns, st.st_size))
 
 
 def softness_of_files(paths: list[Path]) -> list[float | None]:

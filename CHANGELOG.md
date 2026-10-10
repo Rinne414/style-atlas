@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **Configs for more trainers.** A kohya-layout export now also writes
+  `diffusion_pipe_dataset.toml` (diffusion-pipe, often used for Anima) and
+  `onetrainer_concepts.json` (OneTrainer), with the same folders and repeats as
+  `dataset_config.toml`. Formats checked against both projects' sources.
 - **Check: enlarged and heavily compressed images.** `audit` and the Check tab list images
   enlarged from a smaller original (or blurred) and JPEGs under quality 70. The style map
   cannot find enlarged images: CSD looks at 224 px, and a copy enlarged from half the size sits

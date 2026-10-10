@@ -249,30 +249,48 @@ def export_folders(
             continue
         result.placed += 1
     if layout == "kohya":
-        write_kohya_config(result.folder, folders, trigger_captions)
+        write_trainer_configs(result.folder, folders, trigger_captions)
     return result
 
 
 KOHYA_CONFIG = "dataset_config.toml"
+DIFFUSION_PIPE_CONFIG = "diffusion_pipe_dataset.toml"
+ONETRAINER_CONCEPTS = "onetrainer_concepts.json"
 
 
-def write_kohya_config(root: Path, folders: list[str], trigger: bool = False) -> Path | None:
-    """A kohya sd-scripts dataset config (--dataset_config) listing every style folder with its
-    repeats; set-aside folders are left out. Resolution and batch size are starting points."""
-    subsets = []
+def _style_folders(root: Path, folders: list[str]) -> list[tuple[str, Path, int]]:
+    """(name, absolute path, repeats) of every `N_name` style folder; set-aside folders
+    (`_duplicates` and the like) are left out."""
+    out = []
     for name in sorted(set(folders)):
         head, _, rest = name.partition("_")
         if name.startswith("_") or not head.isdigit() or not rest:
             continue
-        path = json.dumps(str((root / name).resolve()), ensure_ascii=False)  # a TOML basic string
-        subsets.append(
-            f"  [[datasets.subsets]]\n  image_dir = {path}\n  num_repeats = {int(head)}\n"
-        )
-    if not subsets:
-        return None
+        out.append((name, (root / name).resolve(), int(head)))
+    return out
+
+
+def _toml_string(path: Path) -> str:
+    return json.dumps(str(path), ensure_ascii=False)  # a valid TOML basic string
+
+
+def write_trainer_configs(root: Path, folders: list[str], trigger: bool = False) -> list[Path]:
+    """Dataset configs for kohya sd-scripts, diffusion-pipe and OneTrainer, each listing every
+    style folder with its repeats. Resolution and batch size are starting points."""
+    styles = _style_folders(root, folders)
+    if not styles:
+        return []
+    return [
+        _write_kohya(root, styles, trigger),
+        _write_diffusion_pipe(root, styles),
+        _write_onetrainer(root, styles, trigger),
+    ]
+
+
+def _write_kohya(root: Path, styles: list[tuple[str, Path, int]], trigger: bool) -> Path:
     lines = [
         "# Written by style-atlas. Use it with --dataset_config. Set resolution and batch_size",
-        "# for your model (1024 for SDXL / Illustrious, 512 for SD 1.5).",
+        "# for your model (1024 for SDXL / Illustrious / Anima, 512 for SD 1.5).",
         "[general]",
         "shuffle_caption = true",
         'caption_extension = ".txt"',
@@ -284,8 +302,59 @@ def write_kohya_config(root: Path, folders: list[str], trigger: bool = False) ->
         "enable_bucket = true",
         "",
     ]
+    lines += [
+        f"  [[datasets.subsets]]\n  image_dir = {_toml_string(path)}\n  num_repeats = {repeats}\n"
+        for _, path, repeats in styles
+    ]
     path = root / KOHYA_CONFIG
-    path.write_text("\n".join(lines) + "\n" + "\n".join(subsets), encoding="utf-8")
+    path.write_text("\n".join(lines), encoding="utf-8")
+    return path
+
+
+def _write_diffusion_pipe(root: Path, styles: list[tuple[str, Path, int]]) -> Path:
+    """diffusion-pipe's dataset file (the `dataset = ...` entry of its training config)."""
+    lines = [
+        "# Written by style-atlas for diffusion-pipe: the training config's `dataset` file.",
+        "# Paths are as this computer sees them; under WSL, D:\\ becomes /mnt/d/.",
+        "# Set resolutions for your model (1024 for Anima / SDXL-class models).",
+        "resolutions = [1024]",
+        "enable_ar_bucket = true",
+        "min_ar = 0.5",
+        "max_ar = 2.0",
+        "num_ar_buckets = 7",
+        "",
+    ]
+    lines += [
+        f"[[directory]]\npath = {_toml_string(path)}\nnum_repeats = {repeats}\n"
+        for _, path, repeats in styles
+    ]
+    path = root / DIFFUSION_PIPE_CONFIG
+    path.write_text("\n".join(lines), encoding="utf-8")
+    return path
+
+
+def _write_onetrainer(root: Path, styles: list[tuple[str, Path, int]], trigger: bool) -> Path:
+    """OneTrainer concepts (copy into its training_concepts folder). Keys left out keep its
+    defaults; captions come from the .txt next to each image."""
+    concepts = [
+        {
+            "__version": 2,
+            "name": name,
+            "path": str(path),
+            "enabled": True,
+            "balancing": float(repeats),
+            "balancing_strategy": "REPEATS",
+            "text": {
+                "prompt_source": "sample",
+                "enable_tag_shuffling": True,
+                "tag_delimiter": ",",
+                "keep_tags_count": 1 if trigger else 0,
+            },
+        }
+        for name, path, repeats in styles
+    ]
+    path = root / ONETRAINER_CONCEPTS
+    path.write_text(json.dumps(concepts, ensure_ascii=False, indent=2), encoding="utf-8")
     return path
 
 

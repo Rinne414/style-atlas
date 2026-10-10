@@ -644,6 +644,14 @@ def test_a_kohya_export_with_chinese_names_writes_a_valid_dataset_config(tmp_pat
     dirs = [Path(s["image_dir"]) for s in config["datasets"][0]["subsets"]]
     assert all(d.is_dir() for d in dirs) and any("早期 線稿" in d.name for d in dirs)
     assert config["general"]["keep_tokens"] == 1
+    repeats = {Path(s["image_dir"]): s["num_repeats"] for s in config["datasets"][0]["subsets"]}
+    pipe = tomllib.loads((root / "diffusion_pipe_dataset.toml").read_text(encoding="utf-8"))
+    assert {Path(d["path"]): d["num_repeats"] for d in pipe["directory"]} == repeats
+    concepts = json.loads((root / "onetrainer_concepts.json").read_text(encoding="utf-8"))
+    assert {Path(c["path"]): c["balancing"] for c in concepts} == repeats
+    assert all(c["balancing_strategy"] == "REPEATS" for c in concepts)
+    assert all(c["text"]["prompt_source"] == "sample" for c in concepts)
+    assert all(c["text"]["keep_tags_count"] == 1 for c in concepts)
 
 
 def test_each_group_lists_its_closest_groups(tmp_path):
