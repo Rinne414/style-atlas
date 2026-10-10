@@ -16,7 +16,9 @@
 3. **Distribution to friends.** Options, from simplest to most work:
    - Give them repo access and `scripts\setup.bat`. This works today.
    - Publish a portable Windows zip (embedded Python plus wheels) like `sd-image-sorter` does.
-   - Publish to PyPI.
+   - Publish to PyPI. A wheel builds with all its data files (templates, three.js, the
+     whitening map, the look reference), installs, and runs `report` and `map` from the
+     installed package (checked 2026-10-10).
 4. **Integration.** Should style-atlas become a module inside `sd-image-sorter`, which already has
    a gallery, tagging and similarity tools, or stay a separate tool?
 5. **README screenshots.** For now the README shows the real interface on generated abstract
