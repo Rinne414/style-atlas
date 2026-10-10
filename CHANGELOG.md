@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.27.0 - 2026-10-10
 
 - **Compare a selection with a group.** Images picked on the map (Shift+click or Shift+drag)
   can be compared with any group from the selection bar: style distance, z, p-value and how
