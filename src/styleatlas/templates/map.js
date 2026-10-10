@@ -110,6 +110,7 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(50, 1, 0.01, 100);
 const HOME = new THREE.Vector3(0, 0.6, 3.1);
+const HOME_MEASURES = new THREE.Vector3(3.0, 2.2, 4.6);  // the whole axis cube, at an angle
 camera.position.copy(HOME);
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
@@ -547,7 +548,7 @@ $("spin").addEventListener("click", () => {
 });
 $("home").addEventListener("click", () => {
   focusCluster = null; selected = null; searchHits = null; filter = ""; $("find").value = ""; recolor();
-  flyTo = { target: new THREE.Vector3(), cam: HOME.clone(), k: 0 };
+  flyTo = { target: new THREE.Vector3(), cam: homeView(), k: 0 };
   document.querySelectorAll(".cl").forEach((r) => r.classList.remove("on"));
 });
 $("lang").addEventListener("click", () => { lang = lang === "zh" ? "en" : "zh"; applyText(); });
@@ -685,7 +686,7 @@ function label(text, at) {
   g.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--accent");
   g.fillText(text, 8, 42);
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), depthTest: false }));
-  sp.position.copy(at); sp.scale.set(2.4, 0.15, 1);
+  sp.position.copy(at); sp.scale.set(3.6, 0.225, 1);  // read from HOME_MEASURES
   return sp;
 }
 
@@ -713,6 +714,10 @@ function drawAxes() {
   scene.add(axisLines);
 }
 
+function homeView() {
+  return (layoutMode === "measures" ? HOME_MEASURES : HOME).clone();
+}
+
 function setupAxes() {
   const opts = ["map", ...availableMeasures()];
   const defaults = availableMeasures();
@@ -731,6 +736,7 @@ function setupAxes() {
 
 $("layoutSel").addEventListener("change", (e) => {
   layoutMode = e.target.value; $("axes").hidden = layoutMode !== "measures"; applyLayout();
+  flyTo = { target: new THREE.Vector3(), cam: homeView(), k: 0 };
 });
 ["axX", "axY", "axZ"].forEach((id) => $(id).addEventListener("change", applyLayout));
 
