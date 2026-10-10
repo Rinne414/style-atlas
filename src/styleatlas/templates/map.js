@@ -591,7 +591,7 @@ function showHelp(on) {
   box.hidden = !on;
   if (!on) return;
   const rows = [["drag", "keyRotate"], ["wheel", "keyZoom"], ["sizeKeys", "keySize"],
-    ["Esc", "keyHome"], ...(DATA.live ? [["shiftKeys", "keyMark"], ["L / D", "keyVote"], ["X", "keyExclude"], ["Ctrl + Z", "keyUndo"]] : [])];
+    ["Esc", "keyHome"], ["P", "keySnap"], ...(DATA.live ? [["shiftKeys", "keyMark"], ["L / D", "keyVote"], ["X", "keyExclude"], ["Ctrl + Z", "keyUndo"]] : [])];
   box.replaceChildren(...rows.map(([key, what]) => {
     const line = document.createElement("div");
     const b = document.createElement("b"); b.textContent = ["drag", "wheel", "sizeKeys", "shiftKeys"].includes(key) ? t(key) : key;
@@ -621,11 +621,24 @@ addEventListener("keydown", (e) => {
   if (DATA.live && selected !== null && (e.key === "l" || e.key === "L")) castVote(selected, true);
   if (DATA.live && selected !== null && (e.key === "d" || e.key === "D")) castVote(selected, false);
   if (DATA.live && selected !== null && (e.key === "x" || e.key === "X")) toggleExclude(selected);
+  if (e.key === "p" || e.key === "P") snapPending = true;
   if (e.key === "+" || e.key === "=") setSize(pointSize * 1.2);
   if (e.key === "-") setSize(pointSize / 1.2);
 });
 canvas.addEventListener("wheel", (e) => { if (e.altKey) { e.preventDefault(); setSize(pointSize * (e.deltaY < 0 ? 1.1 : 1 / 1.1)); } }, { passive: false });
 function setSize(s) { pointSize = Math.min(0.6, Math.max(0.02, s)); pages.forEach((pg) => (pg.mat.uniforms.uSize.value = pointSize)); }
+
+let snapPending = false;  // save the next frame as a PNG (P, or the button in Advanced)
+function saveSnapshot() {  // right after render(), while the frame is still in the canvas
+  canvas.toBlob((blob) => {
+    if (!blob) return;
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `${(DATA.title || document.title || "style-map").replace(/[\\/:*?"<>|]+/g, "_")}.png`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  }, "image/png");
+}
 
 const clock = new THREE.Clock();
 function animate() {
@@ -639,4 +652,5 @@ function animate() {
   }
   controls.update(Math.min(clock.getDelta(), 0.1));  // real time: same turn speed at any frame rate
   renderer.render(scene, camera);
+  if (snapPending) { snapPending = false; saveSnapshot(); }
 }

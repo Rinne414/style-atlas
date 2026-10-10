@@ -498,6 +498,7 @@ function setupLive() {
       addOpenFolder();
     } catch (e) { setStatus(String(e.message || e)); }
   });
+  $("savePng").addEventListener("click", () => { snapPending = true; });
   $("saveReport").addEventListener("click", async () => {
     setStatus(t("savingMap"));
     try {
@@ -532,6 +533,7 @@ function liveText() {
   $("drop").textContent = t("drop");
   document.querySelectorAll("#steps button").forEach((b) => { b.textContent = t("step_" + b.dataset.step); });
   $("saveMap").textContent = t("saveMap"); $("saveReport").textContent = t("saveReport");
+  $("savePng").textContent = t("savePng");
   $("undo").textContent = t("undo");
   $("expLayout").options[0].textContent = t("plainFolders");
   $("expName").placeholder = t("conceptName");
