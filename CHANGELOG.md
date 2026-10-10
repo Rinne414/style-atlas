@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.26.0 - 2026-10-10
 
 - **Search inside a caption tag.** With `#tag` in the filter box, a search by image only looks at
   the images whose captions have that tag (for example `#solo`); clearing the box searches all.
