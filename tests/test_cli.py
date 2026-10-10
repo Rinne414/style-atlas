@@ -537,3 +537,19 @@ def test_report_puts_each_group_on_the_timeline(lib, tmp_path):
     assert main([*args, "--time", "name"]) == 0  # ids in the file names give the order
     assert "When: median at" in out.read_text(encoding="utf-8")
     assert main(args) == 0 and "When: median at" not in out.read_text(encoding="utf-8")
+
+
+def test_python_dash_m_runs_the_command():
+    import subprocess
+    import sys
+
+    from styleatlas import __version__
+
+    done = subprocess.run(
+        [sys.executable, "-m", "styleatlas", "--version"],
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert done.returncode == 0
+    assert __version__ in done.stdout

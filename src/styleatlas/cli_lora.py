@@ -76,7 +76,12 @@ def cmd_cluster(a: argparse.Namespace) -> int:
 
     parse_repeats(a.repeats)
     if a.trigger_captions and not a.export:
-        raise ValueError("--trigger-captions only applies with --export copy|link")
+        raise ValueError(
+            tr(
+                "--trigger-captions only applies with --export copy|link",
+                "--trigger-captions 只在 --export copy|link 時有用",
+            )
+        )
     from styleatlas.export import output_dir, write_table
     from styleatlas.report import write_map
 

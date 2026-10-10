@@ -97,9 +97,11 @@ def cluster_styles(
     if method == "agglomerative":
         part, tree, dist = _average_tree(x, hub_k)
         if n > MAX_DENSE:
-            params["note"] = (
+            params["note"] = tr(
                 f"{n} images is above {MAX_DENSE}: average linkage joined {MAX_DENSE} k-means "
-                "micro-groups instead of single images"
+                "micro-groups instead of single images",
+                f"{n} 張超過 {MAX_DENSE}：平均連結改成合併 {MAX_DENSE} 個 k-means 小群，"
+                "而不是逐張合併",
             )
         if n_clusters:
             raw = _cut(tree, part, n_clusters=n_clusters)

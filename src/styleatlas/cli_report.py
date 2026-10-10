@@ -20,7 +20,11 @@ def cmd_report(a: argparse.Namespace) -> int:
 
     if a.renders and _space(a) != PLAIN:
         raise ValueError(
-            "--renders compares plain style vectors: leave out --neutralize and --ignore-characters"
+            tr(
+                "--renders compares plain style vectors: leave out --neutralize and "
+                "--ignore-characters",
+                "--renders 比的是原始畫風向量：請拿掉 --neutralize 和 --ignore-characters",
+            )
         )
     atlas = _atlas(a, a.folder).with_looks(_opts(a), log)
     if len(atlas) == 0:
@@ -28,10 +32,20 @@ def cmd_report(a: argparse.Namespace) -> int:
         return 1
     excluded = web_exclusions(atlas, Path(a.folder))
     if len(excluded) == len(atlas):
-        log("every image is excluded in the web app; nothing to report")
+        log(
+            tr(
+                "every image is excluded in the web app; nothing to report",
+                "所有圖都在網頁裡排除了；沒有東西可以做報告",
+            )
+        )
         return 1
     if excluded:
-        log(f"{len(excluded)} image(s) you excluded in the web app are left out")
+        log(
+            tr(
+                f"{len(excluded)} image(s) you excluded in the web app are left out",
+                f"略過你在網頁裡排除的 {len(excluded)} 張圖",
+            )
+        )
     clustering, names = saved_groups(a, atlas, Path(a.folder))
     closest = None
     if a.artists:
@@ -72,7 +86,12 @@ def _closest_artists(a: argparse.Namespace, atlas: Atlas) -> list[tuple[str, flo
     library = build_atlas(Path(a.artists), _opts(a), log)
     folders = labels_from_folders(library.paths, library.root)
     if len(set(folders) - {""}) < 2:
-        log(f"{a.artists} has fewer than 2 sub-folders; no closest artists listed")
+        log(
+            tr(
+                f"{a.artists} has fewer than 2 sub-folders; no closest artists listed",
+                f"{a.artists} 的子資料夾少於 2 個；不列最接近的畫師",
+            )
+        )
         return None
     hits = rank_folders(atlas.style, library.style, folders, top=CLOSEST, combine=True)[0]
     return [(h.folder, h.score) for h in hits]

@@ -74,7 +74,7 @@ pip install -e .
 pip install -e ".[umap]"
 ```
 
-裝在 `.venv` 裡，所以 `StyleAtlas.bat`、`StyleAtlas-console.bat` 都能直接用；自己開命令視窗時，先執行 `.venv\Scripts\activate`。
+裝在 `.venv` 裡，所以 `StyleAtlas.bat`、`StyleAtlas-console.bat` 都能直接用；自己開命令視窗時，先執行 `.venv\Scripts\activate`。找不到 `style-atlas` 指令時（Python 的 Scripts 資料夾不在 PATH），改打 `python -m styleatlas`，後面接一樣的參數。
 
 ### 訓 LoRA 前的建議流程
 
@@ -446,6 +446,9 @@ git clone https://github.com/Rinne414/style-atlas
 cd style-atlas
 pip install -e .
 ```
+
+If `style-atlas` is not found (Python's Scripts folder is not on PATH), `python -m styleatlas`
+takes the same arguments.
 
 ### LoRA workflow
 

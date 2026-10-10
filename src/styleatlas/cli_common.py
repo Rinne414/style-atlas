@@ -130,11 +130,16 @@ def _reference(a: argparse.Namespace) -> Atlas | None:
         return None
     ref = build_atlas(Path(a.reference), _opts(a), log, recursive=True)
     for p, why in ref.failed:
-        log(f"reference skipped {p}: {why}")
+        log(tr(f"reference skipped {p}: {why}", f"參考圖略過 {p}：{why}"))
     space = getattr(a, "fitted_space", None)  # same space as the folder
     if space is not None:
         ref = replace(ref, style=space.apply(ref.style, ref.content))
-    log(f"reference: {len(ref)} images from {a.reference}")
+    log(
+        tr(
+            f"reference: {len(ref)} images from {a.reference}",
+            f"參考圖：{a.reference} 的 {len(ref)} 張",
+        )
+    )
     return ref
 
 
@@ -144,7 +149,12 @@ def _cluster(a: argparse.Namespace, atlas: Atlas):
     method, k, threshold = a.method, a.k, a.threshold
     if a.granularity == "period" and threshold is None:
         if method != "agglomerative":
-            raise ValueError("--granularity period uses k-means; leave out --method")
+            raise ValueError(
+                tr(
+                    "--granularity period uses k-means; leave out --method",
+                    "--granularity period 用的是 k-means；請拿掉 --method",
+                )
+            )
         method, k = "kmeans", a.k or PERIODS
         if len(atlas) < SOFT_PERIODS:
             log(
@@ -166,7 +176,7 @@ def _cluster(a: argparse.Namespace, atlas: Atlas):
     method_zh = METHOD_ZH.get(result.method, result.method)
     log(_groups_line(result, f"{result.method}{how}", f"{method_zh}{how_zh}"))
     if "note" in result.params:
-        log("note: " + result.params["note"])
+        log(tr("note: ", "注意：") + result.params["note"])
     return result
 
 
@@ -197,8 +207,12 @@ def saved_groups(
 def _cluster_by_artist(a: argparse.Namespace, atlas: Atlas) -> Clustering:
     if _space(a) != PLAIN or a.threshold is not None or a.k or a.method != "agglomerative":
         raise ValueError(
-            "--granularity artists takes plain style vectors and its own cut: leave out "
-            "--neutralize, --ignore-characters, --threshold, --k and --method"
+            tr(
+                "--granularity artists takes plain style vectors and its own cut: leave out "
+                "--neutralize, --ignore-characters, --threshold, --k and --method",
+                "--granularity artists 用原始畫風向量和自己的切分：請拿掉 "
+                "--neutralize、--ignore-characters、--threshold、--k 和 --method",
+            )
         )
     result = cluster_by_artist(atlas.style, min_size=a.min_size)
     how = f"by artist: whitened, cut {ARTISTS_CUT}"

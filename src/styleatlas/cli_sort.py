@@ -90,11 +90,26 @@ def _both_sides(a: argparse.Namespace, out: Path) -> tuple[Atlas, Atlas]:
     holds the other, nor earlier results in `out`."""
     new_root, data_root = Path(a.folder).resolve(), Path(a.into).resolve()
     if new_root == data_root:
-        raise ValueError("the new images and the dataset are the same folder")
+        raise ValueError(
+            tr(
+                "the new images and the dataset are the same folder",
+                "新圖和資料集是同一個資料夾",
+            )
+        )
     if (a.trigger_captions or a.strip_tags) and not a.export:
-        raise ValueError("--trigger-captions and --strip-tags only apply with --export copy|link")
+        raise ValueError(
+            tr(
+                "--trigger-captions and --strip-tags only apply with --export copy|link",
+                "--trigger-captions 和 --strip-tags 只在 --export copy|link 時有用",
+            )
+        )
     if any(root.is_relative_to(out.resolve()) for root in (new_root, data_root)):
-        raise ValueError("the output folder must not hold the new images or the dataset")
+        raise ValueError(
+            tr(
+                "the output folder must not hold the new images or the dataset",
+                "輸出資料夾不能包含新圖或資料集",
+            )
+        )
     log(tr(f"dataset: {a.into}", f"資料集：{a.into}"))
     dataset = _atlas(a, a.into, exclude=[out, *_nested(new_root, data_root)])
     log(tr(f"new images: {a.folder}", f"新圖：{a.folder}"))
@@ -147,7 +162,12 @@ def _dataset_groups(a: argparse.Namespace, dataset: Atlas) -> tuple[Clustering, 
     names = labels_from_folders(dataset.paths, dataset.root)
     kept = sorted({n for n in names if n and not n.startswith("_") and not is_unassigned(n)})
     if not kept:
-        raise ValueError(f"{a.into} has no sub-folders to sort into")
+        raise ValueError(
+            tr(
+                f"{a.into} has no sub-folders to sort into",
+                f"{a.into} 沒有可以分進去的子資料夾",
+            )
+        )
     index = {n: k for k, n in enumerate(kept)}
     clustering = from_labels(
         dataset.style, np.array([index.get(n, UNASSIGNED) for n in names]), "folders"

@@ -24,6 +24,8 @@ from sklearn.model_selection import StratifiedKFold
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
+from styleatlas.lang import tr
+
 PCA_DIMS = 20
 MIN_PER_CLASS = 5  # with diverse picks, 10 ratings already gave AUC ~0.69
 
@@ -98,8 +100,8 @@ def cross_val_auc(x: np.ndarray, y: np.ndarray, dims: int, c: float, folds: int 
     if folds < 2:
         return float("nan")
     pred = np.zeros(len(y))
-    for tr, te in StratifiedKFold(folds, shuffle=True, random_state=0).split(x, y):
-        model = _pipeline(min(dims, len(tr) - 1), c).fit(x[tr], y[tr])
+    for fit_rows, te in StratifiedKFold(folds, shuffle=True, random_state=0).split(x, y):
+        model = _pipeline(min(dims, len(fit_rows) - 1), c).fit(x[fit_rows], y[fit_rows])
         pred[te] = model.predict_proba(x[te])[:, 1]
     return float(roc_auc_score(y, pred))
 
@@ -123,7 +125,12 @@ def train_taste(
 ) -> TasteModel:
     like, dislike = _dedupe(like, dislike)
     if len(like) < MIN_PER_CLASS or len(dislike) < MIN_PER_CLASS:
-        raise ValueError(f"need at least {MIN_PER_CLASS} liked and {MIN_PER_CLASS} disliked images")
+        raise ValueError(
+            tr(
+                f"need at least {MIN_PER_CLASS} liked and {MIN_PER_CLASS} disliked images",
+                f"至少要 {MIN_PER_CLASS} 張喜歡和 {MIN_PER_CLASS} 張不喜歡的圖",
+            )
+        )
     x = np.vstack([like, dislike]).astype(np.float64)
     y = np.r_[np.ones(len(like), int), np.zeros(len(dislike), int)]
     dims = min(PCA_DIMS, len(x) - 1)

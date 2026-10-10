@@ -17,6 +17,7 @@ import numpy as np
 from PIL import Image
 
 from styleatlas.cluster import UNASSIGNED, Clustering
+from styleatlas.lang import tr
 from styleatlas.look import GREYSCALE, LOOK_NAMES
 from styleatlas.quality import LOW_JPEG, SOFT, jpeg_quality, softness_of_files
 
@@ -208,7 +209,12 @@ def parse_repeats(repeats: str | int) -> int | None:
     except (TypeError, ValueError):
         n = 0
     if n < 1 or str(n) != str(repeats).strip():
-        raise ValueError(f"repeats must be 'auto' or a whole number >= 1, got {repeats!r}")
+        raise ValueError(
+            tr(
+                f"repeats must be 'auto' or a whole number >= 1, got {repeats!r}",
+                f"repeats 必須是 'auto' 或 >= 1 的整數，收到 {repeats!r}",
+            )
+        )
     return n
 
 
@@ -225,7 +231,12 @@ def clean_group_name(name: str) -> str:
     out = "".join("_" if ch in INVALID_NAME_CHARS else ch for ch in str(name))
     out = out.strip(" ._")[:MAX_NAME].strip(" ._")  # Windows drops trailing dots and spaces
     if not out:
-        raise ValueError("group name is empty after removing characters folders cannot use")
+        raise ValueError(
+            tr(
+                "group name is empty after removing characters folders cannot use",
+                "拿掉資料夾不能用的字元後，群名稱是空的",
+            )
+        )
     stem, dot, rest = out.partition(".")
     if stem.rstrip().upper() in RESERVED_NAMES:  # CON, nul.txt, COM1 ...: Windows refuses them
         out = f"{stem}_{dot}{rest}"

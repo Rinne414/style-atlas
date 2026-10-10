@@ -63,13 +63,29 @@ def cmd_map(a: argparse.Namespace) -> int:
 
         atlas = folder_atlas(atlas)
         if len(atlas) < 3:
-            log(f"{a.folder} has {len(atlas)} sub-folders; --by-folder needs at least 3")
+            log(
+                tr(
+                    f"{a.folder} has {len(atlas)} sub-folders; --by-folder needs at least 3",
+                    f"{a.folder} 只有 {len(atlas)} 個子資料夾；--by-folder 至少要 3 個",
+                )
+            )
             return 1
-        log(f"{len(atlas)} sub-folders, each shown by its most typical image")
+        log(
+            tr(
+                f"{len(atlas)} sub-folders, each shown by its most typical image",
+                f"{len(atlas)} 個子資料夾，每個用最有代表性的一張圖顯示",
+            )
+        )
         if a.granularity == "auto" and a.threshold is None and a.k is None:
             a.threshold = FAMILY_CUT  # the automatic cut lumps folder means into 1-2 groups
     if len(atlas) > LARGE_MAP:
-        log(f"{len(atlas)} images: the HTML file will be large; `style-atlas serve` loads faster")
+        log(
+            tr(
+                f"{len(atlas)} images: the HTML file will be large; "
+                "`style-atlas serve` loads faster",
+                f"{len(atlas)} 張圖：HTML 檔會很大；用 `style-atlas serve` 開會比較快",
+            )
+        )
     result = _cluster(a, atlas)
     out = Path(a.out or Path(a.folder) / "style_atlas_map.html")
     path = write_map(
@@ -94,7 +110,7 @@ def cmd_search(a: argparse.Namespace) -> int:
     qpaths = [p for q in a.query for p in find_images(Path(q))]
     qkept, qstyle, qcontent, failed = embed_paths(qpaths, opts, log)
     if not qkept:
-        log("no readable query images")
+        log(tr("no readable query images", "查詢的圖都讀不了"))
         return 1
     atlas = build_atlas(Path(a.within), opts, log, recursive=not a.no_recursive)
     plain = atlas.style  # near-copies are judged in plain CSD
@@ -136,10 +152,20 @@ def _search_folders(a: argparse.Namespace, atlas, qstyle, names: list[str], same
     from styleatlas.search import rank_folders
 
     if a.copy_to:
-        log("--copy-to copies single images; it is not used with --by-folder")
+        log(
+            tr(
+                "--copy-to copies single images; it is not used with --by-folder",
+                "--copy-to 只複製單張圖，和 --by-folder 一起用時不會作用",
+            )
+        )
     folders = labels_from_folders(atlas.paths, atlas.root)
     if len(set(folders) - {""}) < 2:
-        log(f"{a.within} has no sub-folders to rank; --by-folder compares its sub-folders")
+        log(
+            tr(
+                f"{a.within} has no sub-folders to rank; --by-folder compares its sub-folders",
+                f"{a.within} 沒有可以排名的子資料夾；--by-folder 比的是子資料夾",
+            )
+        )
         return 1
     results = rank_folders(qstyle, atlas.style, folders, top=a.top, combine=a.combine, exclude=same)
     rows = [
@@ -204,7 +230,12 @@ def _fold(results: list, plain: np.ndarray, content: np.ndarray, top: int) -> li
         shown.append(kept)
         folded += n
     if folded:
-        log(f"{folded} near-copies of a better match left out (--keep-duplicates lists them)")
+        log(
+            tr(
+                f"{folded} near-copies of a better match left out (--keep-duplicates lists them)",
+                f"略過 {folded} 張和更好結果幾乎一樣的圖（加 --keep-duplicates 會列出）",
+            )
+        )
     return shown
 
 
@@ -213,9 +244,14 @@ def _copy_matches(atlas, indices: list[int], dest: Path) -> None:
 
     unique = list(dict.fromkeys(indices))  # several queries may find the same image
     done = export_folders(atlas.subset(unique), ["matches"] * len(unique), dest)
-    log(f"copied {done.placed} matches to {done.folder / 'matches'}")
+    log(
+        tr(
+            f"copied {done.placed} matches to {done.folder / 'matches'}",
+            f"已複製 {done.placed} 張結果到 {done.folder / 'matches'}",
+        )
+    )
     for p, why in done.failed:
-        log(f"not copied {p}: {why}")
+        log(tr(f"not copied {p}: {why}", f"沒有複製 {p}：{why}"))
 
 
 def cmd_calibrate(a: argparse.Namespace) -> int:
@@ -229,7 +265,12 @@ def cmd_calibrate(a: argparse.Namespace) -> int:
         if len(idx) >= 4:
             floors[lbl] = round(split_half_noise(style[idx]), 4)
     if not floors:
-        log("need sub-folders with >= 4 images of one style each")
+        log(
+            tr(
+                "need sub-folders with >= 4 images of one style each",
+                "需要子資料夾，每個至少 4 張同一畫風的圖",
+            )
+        )
         return 1
     print(
         json.dumps(
@@ -244,7 +285,12 @@ def cmd_bench(a: argparse.Namespace) -> int:
     from styleatlas.bench import run_bench
 
     if not a.npz and not a.folder:
-        log("give a folder whose sub-folders are the labels, or --npz")
+        log(
+            tr(
+                "give a folder whose sub-folders are the labels, or --npz",
+                "請給一個以子資料夾當標籤的資料夾，或用 --npz",
+            )
+        )
         return 1
     content = None
     if a.npz:

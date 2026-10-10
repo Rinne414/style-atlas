@@ -129,7 +129,12 @@ def cmd_compare(a: argparse.Namespace) -> int:
     for folder in (a.a, a.b):
         kept, style, content, _ = embed_paths(find_images(Path(folder)), opts, log)
         if len(kept) < 2:
-            log(f"{folder}: need at least 2 readable images, found {len(kept)}")
+            log(
+                tr(
+                    f"{folder}: need at least 2 readable images, found {len(kept)}",
+                    f"{folder}：至少要 2 張讀得到的圖，只找到 {len(kept)} 張",
+                )
+            )
             return 1
         groups.append(style)
         contents.append(content)

@@ -19,13 +19,12 @@ New:
   (shown side by side: a sign of memorisation), and the renders least like the training set.
   Chinese and English; one HTML file to keep or send.
 - **Command output in Chinese.** On a Chinese Windows (or a `zh` locale) the messages of
-  `cluster`, `sort`, `report`, `compare`, `duplicates`, `audit` (labels), `doctor`, the
-  embedding progress, errors and the web app's console window (what `StyleAtlas.bat` shows) are
-  in Traditional Chinese, with the look words the web page uses ("偏亮、線條多") and columns
-  aligned by display width. The web page's error lines a person can meet (merge, split, undo,
-  compare, a stale page, a bad folder or image) follow too. `STYLE_ATLAS_LANG=en` or `zh` chooses. `report` writes its page in
-  the same language unless `--lang` says otherwise. LORA_GUIDE section 7 explains the English
-  wording.
+  every command (progress, notes, option errors), `audit` labels, `doctor` and the web app's
+  console window (what `StyleAtlas.bat` shows) are in Traditional Chinese, with the look words
+  the web page uses ("偏亮、線條多") and columns aligned by display width. The web page's error
+  lines a person can meet (merge, split, undo, compare, a stale page, a bad folder or image)
+  follow too. `STYLE_ATLAS_LANG=en` or `zh` chooses. `report` writes its page in the same
+  language unless `--lang` says otherwise. LORA_GUIDE section 7 explains the English wording.
 - **Readable `compare`.** It prints a short summary (verdict, distance, look change,
   near-copies); `--json` keeps every number as before.
 - `sort --export ... --trigger-captions` starts each placed caption with its group's trigger, as
@@ -40,6 +39,7 @@ New:
 - Windows scripts (`setup.bat`, `StyleAtlas.bat`, `StyleAtlas-console.bat`) speak Chinese and
   English; checked with dry runs of every branch they reach.
 - `.jfif` files (what Chrome on Windows often saves JPEGs from X/Twitter as) are found.
+- `python -m styleatlas ...` runs the command when Python's Scripts folder is not on PATH.
 
 Clearer output (from two first-time-user tests, in English and in Chinese):
 
@@ -54,6 +54,8 @@ Clearer output (from two first-time-user tests, in English and in Chinese):
   (CLI, report, web page).
 - `sort` names the dataset and the new folder, says "k of n fit", states the real minimum group
   size (3), and `sorted.csv` has each image's `limit` (it fits when distance <= limit).
+- `outliers` and `taste score` say what their score column means (on stderr, so the table on
+  stdout is unchanged); `taste train` says what its AUC means.
 - `duplicates` lists one file per line with how alike each group is; `audit` lists paths
   relative to the folder, the buckets on one line, and how many files a list leaves out.
 
