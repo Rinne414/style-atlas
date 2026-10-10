@@ -14,3 +14,17 @@ def test_doctor_reports_each_check(tmp_path, monkeypatch, capsys):
     assert "not downloaded" in model  # empty cache folder
     code = doctor.run()
     assert code in (0, 1) and "CSD model" in capsys.readouterr().out
+
+
+def test_a_failed_model_download_explains_the_mirror(monkeypatch, tmp_path):
+    import huggingface_hub
+    import pytest
+
+    from styleatlas import encoder
+
+    def offline(*args, **kwargs):
+        raise OSError("connection refused")
+
+    monkeypatch.setattr(huggingface_hub, "hf_hub_download", offline)
+    with pytest.raises(encoder.ModelDownloadError, match="HF_ENDPOINT"):
+        encoder._extract_weights()

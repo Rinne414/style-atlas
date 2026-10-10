@@ -547,10 +547,12 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    from styleatlas.encoder import ModelDownloadError
+
     args = build_parser().parse_args(argv)
     try:
         return args.fn(args)
-    except (FileNotFoundError, ValueError) as e:
+    except (FileNotFoundError, ValueError, ModelDownloadError) as e:
         log(f"error: {e}")
         return 1
 

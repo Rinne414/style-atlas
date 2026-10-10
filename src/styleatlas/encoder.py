@@ -54,10 +54,25 @@ def _numpy_pickle_globals() -> list:
     return allowed
 
 
+class ModelDownloadError(RuntimeError):
+    """The CSD weights could not be fetched (no network, blocked site, full disk)."""
+
+
+MIRROR_HINT = (
+    "If huggingface.co cannot be reached from here, set the environment variable "
+    "HF_ENDPOINT=https://hf-mirror.com and try again."
+)
+
+
 def _extract_weights() -> dict[str, torch.Tensor]:
     from huggingface_hub import hf_hub_download
 
-    path = hf_hub_download(CSD_REPO, "pytorch_model.bin", revision=CSD_REVISION)
+    try:
+        path = hf_hub_download(CSD_REPO, "pytorch_model.bin", revision=CSD_REVISION)
+    except OSError as e:  # connection, HTTP and missing-file errors of huggingface_hub
+        raise ModelDownloadError(
+            f"could not download the style model ({CSD_REPO}): {e}. {MIRROR_HINT}"
+        ) from e
     with torch.serialization.safe_globals(_numpy_pickle_globals()):
         state = torch.load(path, map_location="cpu", weights_only=True)["model_state_dict"]
     state = {k.removeprefix("module."): v for k, v in state.items()}

@@ -14,6 +14,7 @@ import webbrowser
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+from styleatlas.encoder import ModelDownloadError
 from styleatlas.serve import StyleAtlasApp
 
 MAX_UPLOAD = 40 * 1024 * 1024
@@ -42,7 +43,7 @@ JSON_ROUTES = {  # POST route -> StyleAtlasApp method taking the JSON body
     "api/copy_hits": "copy_hits",
     "api/export": "export",
 }
-REQUEST_ERRORS = (ValueError, OSError, KeyError, TypeError, OverflowError)
+REQUEST_ERRORS = (ValueError, OSError, KeyError, TypeError, OverflowError, ModelDownloadError)
 
 
 class StyleAtlasHandler(BaseHTTPRequestHandler):

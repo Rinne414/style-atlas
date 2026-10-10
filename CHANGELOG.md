@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- A failed model download now says so plainly (no traceback) and suggests
+  `HF_ENDPOINT=https://hf-mirror.com` where huggingface.co cannot be reached; the README says it
+  too. The web page shows the same message.
+- `cluster` lists the groups by style number, and its consistency line is clearer.
+
 ## 0.27.0 - 2026-10-10
 
 - **Compare a selection with a group.** Images picked on the map (Shift+click or Shift+drag)
