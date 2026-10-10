@@ -200,9 +200,9 @@ def _when(pos: np.ndarray | None, members: list[int]) -> str:
 
 
 CONSISTENCY_WORDS = {
-    "tight": "tighter than most single artists",
+    "tight": "very consistent",
     "like one artist": "in the range of a single artist",
-    "mixed": "more spread than 90% of single artists: probably a mix of styles or periods",
+    "mixed": "probably a mix of styles or periods; the groups below split it",
 }
 
 
@@ -225,7 +225,12 @@ def _print_groups(
     pos = _timeline(atlas, time_source)
     if pos is not None:
         log("when = position in the folder's timeline (0% oldest): median [middle half]")
-    for folder, n in sorted(Counter(folders).items()):
+
+    def by_style(item: tuple[str, int]) -> tuple[bool, str]:  # 2_x_style01 before 25_x_style11
+        head, _, rest = item[0].partition("_")
+        return item[0].startswith("_"), rest if head.isdigit() else item[0]
+
+    for folder, n in sorted(Counter(folders).items(), key=by_style):
         members = [i for i, f in enumerate(folders) if f == folder]
         if folder.startswith("_"):
             log(f"  {folder:28s} {n:5d}")
