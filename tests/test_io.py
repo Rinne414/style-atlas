@@ -335,3 +335,33 @@ def test_pad_counts_chinese_characters_as_two_columns():
 
     assert pad("style_01", 12) == "style_01    " and pad("早期畫風", 12) == "早期畫風    "
     assert pad("a_very_long_group_name", 4).endswith(" ")  # always one space after
+
+
+def test_message_language_follows_the_system_unless_set(monkeypatch):
+    from styleatlas import lang
+
+    detect = lang._system_is_chinese.__wrapped__  # without its cache
+    monkeypatch.delenv("STYLE_ATLAS_LANG")
+    monkeypatch.setattr(lang, "_system_is_chinese", lambda: True)
+    assert lang.chinese() and lang.tr("a", "乙") == "乙"
+    monkeypatch.setenv("STYLE_ATLAS_LANG", "en")
+    assert not lang.chinese()
+    monkeypatch.setattr(lang.sys, "platform", "linux")  # elsewhere the locale decides
+    monkeypatch.setattr(lang.locale, "getlocale", lambda: ("zh_TW", "UTF-8"))
+    assert detect()
+    monkeypatch.setattr(lang.locale, "getlocale", lambda: ("en_US", "UTF-8"))
+    assert not detect()
+
+
+def test_wide_grey_modes_are_scaled_to_eight_bits():
+    from styleatlas.images import to_8bit
+
+    ramp = np.linspace(0, 1, 64 * 64).reshape(64, 64)
+    floats = Image.fromarray(ramp.astype(np.float32))  # mode F, 0-1
+    ints = Image.fromarray((ramp * 65535).astype(np.int32))  # mode I, 16-bit values
+    small = Image.fromarray((ramp * 255).astype(np.int32))  # mode I, 8-bit values
+    for im in (floats, ints, small):
+        out = np.asarray(to_8bit(im), dtype=float)
+        assert abs(out.mean() - 127.5) < 1.5, im.mode
+    rgb = Image.new("RGB", (4, 4))
+    assert to_8bit(rgb) is rgb  # other modes untouched
