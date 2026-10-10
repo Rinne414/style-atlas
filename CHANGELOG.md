@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.35.0 - 2026-10-10
 
 - **Consistency reference from unseen artists**: the percentile is now read against 114 artists
   the whitening never saw (it was 250 artists it had seen, which put new single artists at the
