@@ -22,6 +22,7 @@ from PIL import Image
 from torchvision import transforms as T
 
 from styleatlas.cachedir import cache_dir
+from styleatlas.lang import tr
 
 CSD_REPO = "tomg-group-umd/CSD-ViT-L"
 CSD_REVISION = "5bc26a6fb0487f3f00a2a7313135103a005b1b67"
@@ -60,7 +61,11 @@ class ModelDownloadError(RuntimeError):
 
 MIRROR_HINT = (
     "If huggingface.co cannot be reached from here, set the environment variable "
-    "HF_ENDPOINT=https://hf-mirror.com and try again."
+    "HF_ENDPOINT=https://hf-mirror.com and try again (Windows: set HF_ENDPOINT=https://hf-mirror.com)."
+)
+MIRROR_HINT_ZH = (
+    "如果這裡連不上 huggingface.co，請先設定環境變數 HF_ENDPOINT=https://hf-mirror.com 再試一次"
+    "（Windows：set HF_ENDPOINT=https://hf-mirror.com）。"
 )
 
 
@@ -71,7 +76,10 @@ def _extract_weights() -> dict[str, torch.Tensor]:
         path = hf_hub_download(CSD_REPO, "pytorch_model.bin", revision=CSD_REVISION)
     except OSError as e:  # connection, HTTP and missing-file errors of huggingface_hub
         raise ModelDownloadError(
-            f"could not download the style model ({CSD_REPO}): {e}. {MIRROR_HINT}"
+            tr(
+                f"could not download the style model ({CSD_REPO}): {e}. {MIRROR_HINT}",
+                f"無法下載畫風模型（{CSD_REPO}）：{e}。{MIRROR_HINT_ZH}",
+            )
         ) from e
     with torch.serialization.safe_globals(_numpy_pickle_globals()):
         state = torch.load(path, map_location="cpu", weights_only=True)["model_state_dict"]

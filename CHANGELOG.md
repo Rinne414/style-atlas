@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- A failed model download says, in Chinese on a Chinese system, how to use the Hugging Face
+  mirror, with the Windows command (`set HF_ENDPOINT=https://hf-mirror.com`).
 - The web app's console window (what `StyleAtlas.bat` shows) is in Chinese on a Chinese
   system too: layout and thumbnail progress, and the address it runs at.
 - `doctor` shows how big the vector cache and the thumbnail cache have grown, and that the
