@@ -19,11 +19,11 @@ New:
   (shown side by side: a sign of memorisation), and the renders least like the training set.
   Chinese and English; one HTML file to keep or send.
 - **Command output in Chinese.** On a Chinese Windows (or a `zh` locale) the messages of
-  every command (progress, notes, option errors), `audit` labels, `doctor` and the web app's
-  console window (what `StyleAtlas.bat` shows) are in Traditional Chinese, with the look words
-  the web page uses ("偏亮、線條多") and columns aligned by display width. The web page's error
-  lines a person can meet (merge, split, undo, compare, a stale page, a bad folder or image)
-  follow too. `STYLE_ATLAS_LANG=en` or `zh` chooses. `report` writes its page in the same
+  every command (progress, notes, option errors, `--help`), `audit` labels, `doctor` and the
+  web app's console window (what `StyleAtlas.bat` shows) are in Traditional Chinese, with the
+  look words the web page uses ("偏亮、線條多") and columns aligned by display width. The web
+  page's error lines a person can meet (merge, split, undo, compare, a stale page, a bad folder
+  or image) follow too. `STYLE_ATLAS_LANG=en` or `zh` chooses. `report` writes its page in the same
   language unless `--lang` says otherwise. LORA_GUIDE section 7 explains the English wording.
 - **Readable `compare`.** It prints a short summary (verdict, distance, look change,
   near-copies); `--json` keeps every number as before.

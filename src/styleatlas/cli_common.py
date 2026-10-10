@@ -30,21 +30,34 @@ from styleatlas.metrics import (
 )
 
 SOFT_PERIODS = 100  # below this, k-means periods changed with the seed (agreement ARI 0.3-0.7)
-NEUTRALIZE_HELP = (
-    "ignore the N strongest directions of variation (try 1) when the same characters appear in "
-    "many styles (--ignore-characters usually does better); not for a mix of different artists"
-)
-CHARACTERS_HELP = (
-    "when the same characters appear in many styles: find the characters from the picture "
-    "content and compare styles as if all were drawn on the same character; not for a mix of "
-    "different artists"
-)
 
 
-REFERENCE_HELP = (
-    "folder of styles you already know (artists, forum recipes); adds an originality axis: "
-    "distance from each image to its closest reference"
-)
+def neutralize_help() -> str:
+    return tr(
+        "ignore the N strongest directions of variation (try 1) when the same characters appear "
+        "in many styles (--ignore-characters usually does better); not for a mix of different "
+        "artists",
+        "忽略變化最大的 N 個方向（可試 1）；同樣的角色出現在很多畫風裡時用"
+        "（--ignore-characters 通常更好）；混了不同畫師時不要用",
+    )
+
+
+def characters_help() -> str:
+    return tr(
+        "when the same characters appear in many styles: find the characters from the picture "
+        "content and compare styles as if all were drawn on the same character; not for a mix of "
+        "different artists",
+        "同樣的角色出現在很多畫風裡時用：從畫面內容找出角色，再把畫風當成都畫同一個角色來比；"
+        "混了不同畫師時不要用",
+    )
+
+
+def reference_help() -> str:
+    return tr(
+        "folder of styles you already know (artists, forum recipes); adds an originality axis: "
+        "distance from each image to its closest reference",
+        "已知畫風的資料夾（畫師、論壇配方）；多一條原創軸：每張圖到最近參考圖的距離",
+    )
 
 
 def log(msg: str) -> None:

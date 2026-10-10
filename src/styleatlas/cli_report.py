@@ -100,24 +100,40 @@ def _closest_artists(a: argparse.Namespace, atlas: Atlas) -> list[tuple[str, flo
 def report_args(p: argparse.ArgumentParser) -> None:
     p.add_argument("folder")
     p.add_argument(
-        "-o", "--out", help="HTML file (default: <folder>_style_atlas/style_report.html)"
+        "-o",
+        "--out",
+        help=tr(
+            "HTML file (default: <folder>_style_atlas/style_report.html)",
+            "HTML 檔（預設：<資料夾>_style_atlas/style_report.html）",
+        ),
     )
     p.add_argument("--title")
     p.add_argument(
-        "--lang", choices=["zh", "en"], help="the page's language (default: as the messages)"
+        "--lang",
+        choices=["zh", "en"],
+        help=tr("the page's language (default: as the messages)", "頁面的語言（預設：和訊息相同）"),
     )
     p.add_argument(
         "--fresh",
         action="store_true",
-        help="group afresh instead of using the groups the web app saved",
+        help=tr(
+            "group afresh instead of using the groups the web app saved",
+            "重新分群，不沿用網頁介面存的分群",
+        ),
     )
     p.add_argument(
         "--renders",
         metavar="DIR",
-        help="a LoRA's test images: check them against this folder as its training set",
+        help=tr(
+            "a LoRA's test images: check them against this folder as its training set",
+            "某個 LoRA 的算圖：拿這個資料夾當它的訓練集來檢查",
+        ),
     )
     p.add_argument(
         "--artists",
         metavar="DIR",
-        help="a library with one sub-folder per artist: list the closest ones",
+        help=tr(
+            "a library with one sub-folder per artist: list the closest ones",
+            "每位畫師一個子資料夾的圖庫：列出最接近的幾位",
+        ),
     )

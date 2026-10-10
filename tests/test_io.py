@@ -338,6 +338,21 @@ def test_pad_counts_chinese_characters_as_two_columns():
     assert pad("a_very_long_group_name", 4).endswith(" ")  # always one space after
 
 
+def test_wrap_fits_chinese_help_by_display_width():
+    from styleatlas.lang import columns, wrap
+
+    text = "同樣的角色出現在很多畫風裡時用（--ignore-characters 通常更好）；混了不同畫師時不要用"
+    for width in (12, 20, 31, 40):
+        lines = wrap(text, width)
+        for line in lines:  # only kept punctuation, or a word wider than the line, overhangs
+            assert columns(line.rstrip("，；）")) <= width or "--ignore-characters" in line
+        assert "".join(lines).replace(" ", "") == text.replace(" ", "")
+        assert not any(line[0] in "，。；）" for line in lines)
+        assert not any(line[-1] == "（" for line in lines)
+        assert any("--ignore-characters" in line for line in lines)  # words are not split
+    assert wrap("", 10) == []
+
+
 def test_message_language_follows_the_system_unless_set(monkeypatch):
     from styleatlas import lang
 

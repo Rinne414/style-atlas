@@ -13,9 +13,6 @@ import numpy as np
 from styleatlas import __version__
 from styleatlas.atlas import build_atlas, embed_paths
 from styleatlas.cli_common import (  # noqa: F401 (re-exported for tests and callers)
-    CHARACTERS_HELP,
-    NEUTRALIZE_HELP,
-    REFERENCE_HELP,
     SOFT_PERIODS,
     _atlas,
     _cluster,
@@ -25,7 +22,10 @@ from styleatlas.cli_common import (  # noqa: F401 (re-exported for tests and cal
     _positive_int,
     _reference,
     _space,
+    characters_help,
     log,
+    neutralize_help,
+    reference_help,
 )
 from styleatlas.cli_inspect import cmd_audit, cmd_compare, cmd_duplicates, cmd_outliers
 from styleatlas.cli_lora import FEW_FOR_LORA, _lora_args, cmd_cluster  # noqa: F401
@@ -34,7 +34,7 @@ from styleatlas.cli_sort import cmd_sort, sort_args
 from styleatlas.cluster import ARTISTS, GRANULARITY, METHODS, PERIODS
 from styleatlas.encoder import CROP_MODES, RESOLUTIONS
 from styleatlas.images import TIME_SOURCES, find_images, labels_from_folders
-from styleatlas.lang import tr
+from styleatlas.lang import columns, tr, wrap
 from styleatlas.metrics import (
     PLAIN,
     split_half_noise,
@@ -378,15 +378,32 @@ def cmd_serve(a: argparse.Namespace) -> int:
 
 def _common(p: argparse.ArgumentParser) -> None:
     g = p.add_argument_group("embedding")
-    g.add_argument("--device", default="auto", help="auto, cpu or cuda (default auto)")
+    g.add_argument(
+        "--device",
+        default="auto",
+        help=tr("auto, cpu or cuda (default auto)", "auto、cpu 或 cuda（預設 auto）"),
+    )
     g.add_argument("--crop", default="center", choices=CROP_MODES)
     g.add_argument("--resolution", type=int, default=224, choices=RESOLUTIONS)
     g.add_argument("--batch", type=int, default=8)
-    g.add_argument("--threads", type=int, default=8, help="CPU threads cap (0 = all)")
     g.add_argument(
-        "--cache-db", help="vector cache file (default ~/.cache/style-atlas/vectors.sqlite)"
+        "--threads",
+        type=int,
+        default=8,
+        help=tr("CPU threads cap (0 = all)", "CPU 執行緒上限（0 = 不限）"),
     )
-    g.add_argument("--no-recursive", action="store_true", help="do not look into sub-folders")
+    g.add_argument(
+        "--cache-db",
+        help=tr(
+            "vector cache file (default ~/.cache/style-atlas/vectors.sqlite)",
+            "畫風向量快取檔（預設 ~/.cache/style-atlas/vectors.sqlite）",
+        ),
+    )
+    g.add_argument(
+        "--no-recursive",
+        action="store_true",
+        help=tr("do not look into sub-folders", "不找子資料夾裡的圖"),
+    )
 
 
 def _cluster_args(p: argparse.ArgumentParser) -> None:
@@ -396,11 +413,21 @@ def _cluster_args(p: argparse.ArgumentParser) -> None:
         "--time",
         default="none",
         choices=TIME_SOURCES,
-        help="show when each style was made: file-name id (Pixiv/Danbooru) or mtime",
+        help=tr(
+            "show when each style was made: file-name id (Pixiv/Danbooru) or mtime",
+            "顯示各畫風是什麼時候畫的：用檔名裡的編號（Pixiv/Danbooru）或 mtime",
+        ),
     )
     _space_args(g)
-    g.add_argument("--reference", metavar="DIR", help=REFERENCE_HELP)
-    g.add_argument("--thumb", type=int, help="thumbnail px in the map (default 128, 72 above 2k)")
+    g.add_argument("--reference", metavar="DIR", help=reference_help())
+    g.add_argument(
+        "--thumb",
+        type=int,
+        help=tr(
+            "thumbnail px in the map (default 128, 72 above 2k)",
+            "地圖裡的縮圖像素（預設 128，超過 2k 張為 72）",
+        ),
+    )
 
 
 def _grouping_args(p: argparse.ArgumentParser) -> argparse._ArgumentGroup:
@@ -409,16 +436,38 @@ def _grouping_args(p: argparse.ArgumentParser) -> argparse._ArgumentGroup:
         "--granularity",
         default="auto",
         choices=["auto", "period", ARTISTS, *GRANULARITY],
-        help="auto picks the cut from the data; period splits one artist into --k periods "
-        f"(default {PERIODS}, k-means, every image assigned); artists follows artists in a "
-        "gallery of many (20 or more)",
+        help=tr(
+            "auto picks the cut from the data; period splits one artist into --k periods "
+            f"(default {PERIODS}, k-means, every image assigned); artists groups a gallery of many "
+            "artists (20 or more) by artist",
+            "auto 依圖片自動挑切分距離；period 把同一位畫師分成 --k 個時期"
+            f"（預設 {PERIODS}，k-means，每張圖都會分進一段）；artists 依畫師分群，"
+            "給有很多位畫師（20 位以上）的圖庫用",
+        ),
     )
     g.add_argument(
-        "--threshold", type=float, help="hub-corrected distance cut (overrides granularity)"
+        "--threshold",
+        type=float,
+        help=tr(
+            "distance cut, after hub correction (overrides --granularity)",
+            "切分距離，去 hub 校正後（會蓋過 --granularity）",
+        ),
     )
-    g.add_argument("--k", type=int, help="force this many styles (with period: periods)")
+    g.add_argument(
+        "--k",
+        type=int,
+        help=tr(
+            "force this many styles (with period: periods)",
+            "指定分成幾群（搭配 period 時是幾個時期）",
+        ),
+    )
     g.add_argument("--method", default="agglomerative", choices=METHODS)
-    g.add_argument("--min-size", type=int, default=3, help="smaller groups become 'unassigned'")
+    g.add_argument(
+        "--min-size",
+        type=int,
+        default=3,
+        help=tr("smaller groups become 'unassigned'", "比這個小的群歸入「未歸類」"),
+    )
     return g
 
 
@@ -426,116 +475,269 @@ Adder = Callable[..., argparse.ArgumentParser]
 
 
 def _add_folder_commands(add: Adder) -> None:
-    add("embed", cmd_embed, "embed and cache a folder").add_argument("folder")
+    add(
+        "embed", cmd_embed, tr("embed and cache a folder", "算出資料夾的畫風向量並存進快取")
+    ).add_argument("folder")
     p = add(
-        "cluster", cmd_cluster, "group a folder by style; write CSV/JSON, map, optional folders"
+        "cluster",
+        cmd_cluster,
+        tr(
+            "group a folder by style; write CSV/JSON, map, optional folders",
+            "把資料夾依畫風分群；寫出 CSV/JSON、地圖，也可匯出成資料夾",
+        ),
     )
     p.add_argument("folder")
     p.add_argument("-o", "--out")
     p.add_argument("--no-map", action="store_true")
     _lora_args(p)
     _cluster_args(p)
-    p = add("report", cmd_report, "one HTML page that sums up a folder's style (to keep or send)")
+    p = add(
+        "report",
+        cmd_report,
+        tr(
+            "one HTML page that sums up a folder's style (to keep or send)",
+            "一頁 HTML 報告，整理資料夾的畫風（可留存或傳給別人）",
+        ),
+    )
     report_args(p)
     _cluster_args(p)
-    p = add("sort", cmd_sort, "place new images into the style groups of a sorted dataset")
+    p = add(
+        "sort",
+        cmd_sort,
+        tr(
+            "place new images into the style groups of a sorted dataset",
+            "把新圖分進已經分好畫風群的資料集",
+        ),
+    )
     sort_args(p)
     _grouping_args(p)
-    p = add("map", cmd_map, "write the interactive 3D style map (one HTML file)")
+    p = add(
+        "map",
+        cmd_map,
+        tr(
+            "write the interactive 3D style map (one HTML file)",
+            "寫出可互動的 3D 畫風地圖（單一 HTML 檔）",
+        ),
+    )
     p.add_argument("folder")
     p.add_argument("-o", "--out")
     p.add_argument("--title")
     p.add_argument(
         "--by-folder",
         action="store_true",
-        help="one point per sub-folder (e.g. per artist) at its mean style, grouped into families",
+        help=tr(
+            "one point per sub-folder (e.g. per artist) at its mean style, grouped into families",
+            "每個子資料夾（例如每位畫師）一個點，位置是它的平均畫風，並分成幾個家族",
+        ),
     )
     _cluster_args(p)
-    p = add("serve", cmd_serve, "open the interactive map in the browser with live search")
+    p = add(
+        "serve",
+        cmd_serve,
+        tr(
+            "open the interactive map in the browser with live search",
+            "在瀏覽器開啟可互動的地圖，可即時搜尋",
+        ),
+    )
     p.add_argument("folder")
     p.add_argument("--port", type=int, default=8770)
     p.add_argument("--title")
     p.add_argument("--projection", default="auto", choices=PROJECTIONS)
     p.add_argument("--time", default="none", choices=TIME_SOURCES)
     _space_args(p)
-    p.add_argument("--reference", metavar="DIR", help=REFERENCE_HELP)
+    p.add_argument("--reference", metavar="DIR", help=reference_help())
     p.add_argument("--no-browser", action="store_true")
 
 
 def _space_args(p) -> None:
     x = p.add_mutually_exclusive_group()
-    x.add_argument("--ignore-characters", action="store_true", help=CHARACTERS_HELP)
+    x.add_argument("--ignore-characters", action="store_true", help=characters_help())
     x.add_argument(
-        "--neutralize", type=_neutralize_count, default=0, metavar="N", help=NEUTRALIZE_HELP
+        "--neutralize", type=_neutralize_count, default=0, metavar="N", help=neutralize_help()
     )
 
 
 def _add_inspect_commands(add: Adder) -> None:
-    p = add("search", cmd_search, "find images in a folder whose style is closest to the query")
-    p.add_argument("query", nargs="+", help="query image(s) or folder(s)")
-    p.add_argument("--in", dest="within", required=True, help="folder to search")
+    p = add(
+        "search",
+        cmd_search,
+        tr(
+            "find images in a folder whose style is closest to the query",
+            "在資料夾裡找畫風最接近範例的圖",
+        ),
+    )
+    p.add_argument(
+        "query", nargs="+", help=tr("query image(s) or folder(s)", "範例圖或資料夾（可多個）")
+    )
+    p.add_argument(
+        "--in",
+        dest="within",
+        required=True,
+        help=tr("folder to search", "要搜尋的資料夾"),
+    )
     p.add_argument("--top", type=int, default=20)
     p.add_argument(
         "--combine",
         action="store_true",
-        help="treat all queries as one style (from 3 images up, a model learned from them)",
+        help=tr(
+            "treat all queries as one style (from 3 images up, a model learned from them)",
+            "把所有範例當成同一種畫風（3 張以上時，會用它們訓練一個小模型）",
+        ),
     )
     p.add_argument(
-        "--copy-to", metavar="DIR", help="copy the matches (with captions) into a new folder here"
+        "--copy-to",
+        metavar="DIR",
+        help=tr(
+            "copy the matches (with captions) into a new folder here",
+            "把找到的圖（連同標註檔）複製到這裡的新資料夾",
+        ),
     )
     p.add_argument(
         "--by-folder",
         action="store_true",
-        help="rank the sub-folders of --in (e.g. one per artist) instead of single images",
+        help=tr(
+            "rank the sub-folders of --in (e.g. one per artist) instead of single images",
+            "改為排序 --in 的子資料夾（例如每位畫師一個），而不是單張圖",
+        ),
     )
     p.add_argument(
         "--keep-duplicates",
         action="store_true",
-        help="also list near-copies of a better match (left out by default)",
+        help=tr(
+            "also list near-copies of a better match (left out by default)",
+            "也列出和更好結果幾乎一樣的圖（預設略過）",
+        ),
     )
     _space_args(p)
     p.add_argument("--json", action="store_true")
-    p = add("outliers", cmd_outliers, "images least like the rest of a folder")
+    p = add(
+        "outliers",
+        cmd_outliers,
+        tr("images least like the rest of a folder", "資料夾裡最不合群的圖"),
+    )
     p.add_argument("folder")
     p.add_argument("--top", type=int, default=30)
-    p = add("audit", cmd_audit, "check a training folder: sizes, aspect ratios, captions")
-    p.add_argument("folder")
-    p.add_argument("--min-side", type=int, default=512, help="training resolution to check against")
-    p.add_argument("--max-ratio", type=float, default=2.5)
-    p.add_argument("--show", type=int, default=10, help="files to list per problem")
-    p.add_argument("--json", action="store_true")
-    p = add("duplicates", cmd_duplicates, "near-duplicate groups (same picture, crops, frames)")
+    p = add(
+        "audit",
+        cmd_audit,
+        tr(
+            "check a training folder: sizes, aspect ratios, captions",
+            "檢查訓練資料夾：尺寸、長寬比、標註",
+        ),
+    )
     p.add_argument("folder")
     p.add_argument(
-        "--threshold", type=float, default=0.95, help="min(style, content) cosine; 0.92 is looser"
+        "--min-side",
+        type=int,
+        default=512,
+        help=tr("training resolution to check against", "用來對照的訓練解析度"),
+    )
+    p.add_argument("--max-ratio", type=float, default=2.5)
+    p.add_argument(
+        "--show",
+        type=int,
+        default=10,
+        help=tr("files to list per problem", "每種問題列出幾個檔案"),
+    )
+    p.add_argument("--json", action="store_true")
+    p = add(
+        "duplicates",
+        cmd_duplicates,
+        tr(
+            "near-duplicate groups (same picture, crops, frames)",
+            "近重複圖的分組（同一張圖、裁切、影格）",
+        ),
+    )
+    p.add_argument("folder")
+    p.add_argument(
+        "--threshold",
+        type=float,
+        default=0.95,
+        help=tr(
+            "min(style, content) cosine; 0.92 is looser",
+            "min(畫風, 內容) 的餘弦相似度；0.92 較寬鬆",
+        ),
     )
     p.add_argument("--json", action="store_true")
 
 
 def _add_measure_commands(add: Adder) -> None:
-    p = add("compare", cmd_compare, "do two folders differ in style? distance, z units, p-value")
+    p = add(
+        "compare",
+        cmd_compare,
+        tr(
+            "do two folders differ in style? distance, z units, p-value",
+            "兩個資料夾的畫風不同嗎？輸出距離、z 值、p 值",
+        ),
+    )
     p.add_argument("a")
     p.add_argument("b")
     p.add_argument("--rounds", type=int, default=999)
-    p.add_argument("--noise-floor", type=float, help="from `calibrate` (default 0.071)")
-    p.add_argument("--json", action="store_true", help="every number, as JSON")
-    p = add("calibrate", cmd_calibrate, "estimate the noise floor from one-style sub-folders")
+    p.add_argument(
+        "--noise-floor",
+        type=float,
+        help=tr("from `calibrate` (default 0.071)", "取自 `calibrate`（預設 0.071）"),
+    )
+    p.add_argument(
+        "--json", action="store_true", help=tr("every number, as JSON", "所有數字，用 JSON 輸出")
+    )
+    p = add(
+        "calibrate",
+        cmd_calibrate,
+        tr(
+            "estimate the noise floor from one-style sub-folders",
+            "用每個只有一種畫風的子資料夾估計雜訊底線",
+        ),
+    )
     p.add_argument("folder")
-    p = add("bench", cmd_bench, "score retrieval and clustering against sub-folder labels")
+    p = add(
+        "bench",
+        cmd_bench,
+        tr(
+            "score retrieval and clustering against sub-folder labels",
+            "用子資料夾當標籤，替搜尋和分群打分",
+        ),
+    )
     p.add_argument("folder", nargs="?")
-    p.add_argument("--npz", help="precomputed vectors; label = key prefix before --sep")
+    p.add_argument(
+        "--npz",
+        help=tr(
+            "precomputed vectors; label = key prefix before --sep",
+            "算好的畫風向量；標籤 = --sep 之前的鍵名前綴",
+        ),
+    )
     p.add_argument("--labels", choices=["folder", "prefix"], default="folder")
     p.add_argument("--sep", default="__")
-    p.add_argument("--keep-duplicates", action="store_true", help="score duplicates too")
+    p.add_argument(
+        "--keep-duplicates",
+        action="store_true",
+        help=tr("score duplicates too", "近重複圖也一起計分"),
+    )
     p.add_argument("--dup-threshold", type=float, default=0.92)
     p.add_argument("--trials", type=int, default=30)
-    p = add("taste", cmd_taste, "train or apply a personal like/dislike model", common=False)
+    p = add(
+        "taste",
+        cmd_taste,
+        tr(
+            "train or apply a personal like/dislike model",
+            "訓練或套用個人的喜歡/不喜歡口味模型",
+        ),
+        common=False,
+    )
     tsub = p.add_subparsers(dest="taste_cmd", required=True)
-    t1 = tsub.add_parser("train", help="learn from a liked and a disliked folder")
+    t1 = tsub.add_parser(
+        "train",
+        formatter_class=HelpFormatter,
+        help=tr("learn from a liked and a disliked folder", "從一個喜歡、一個不喜歡的資料夾學習"),
+    )
     t1.add_argument("--like", required=True)
     t1.add_argument("--dislike", required=True)
     t1.add_argument("--model", default="taste_model.npz")
-    t2 = tsub.add_parser("score", help="rank a folder with a trained model")
+    t2 = tsub.add_parser(
+        "score",
+        formatter_class=HelpFormatter,
+        help=tr("rank a folder with a trained model", "用訓練好的模型替資料夾排序"),
+    )
     t2.add_argument("folder")
     t2.add_argument("--model", default="taste_model.npz")
     for t in (t1, t2):
@@ -548,13 +750,24 @@ def cmd_doctor(a: argparse.Namespace) -> int:
     return run()
 
 
+class HelpFormatter(argparse.HelpFormatter):
+    """Wraps help by display width, so Chinese help lines fit the terminal."""
+
+    def _split_lines(self, text: str, width: int) -> list[str]:
+        if all(columns(ch) == 1 for ch in text):
+            return super()._split_lines(text, width)  # English: argparse's own wrapping
+        return wrap(text, width)
+
+
 def build_parser() -> argparse.ArgumentParser:
-    ap = argparse.ArgumentParser(prog="style-atlas", description=__doc__)
+    ap = argparse.ArgumentParser(
+        prog="style-atlas", description=__doc__, formatter_class=HelpFormatter
+    )
     ap.add_argument("--version", action="version", version=f"style-atlas {__version__}")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     def add(name: str, fn, help_: str, common: bool = True) -> argparse.ArgumentParser:
-        p = sub.add_parser(name, help=help_, description=help_)
+        p = sub.add_parser(name, help=help_, description=help_, formatter_class=HelpFormatter)
         p.set_defaults(fn=fn)
         if common:
             _common(p)
@@ -563,7 +776,10 @@ def build_parser() -> argparse.ArgumentParser:
     add(
         "doctor",
         cmd_doctor,
-        "check Python, torch, GPU, model download and disk space",
+        tr(
+            "check Python, torch, GPU, model download and disk space",
+            "檢查 Python、torch、GPU、模型下載和磁碟空間",
+        ),
         common=False,
     )
     _add_folder_commands(add)

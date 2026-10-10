@@ -277,32 +277,60 @@ def _repeats_notes(clustering: Clustering, labels: dict[int, str], folders: list
 
 
 def sort_args(p: argparse.ArgumentParser) -> None:
-    p.add_argument("folder", help="the new images")
-    p.add_argument("--into", required=True, metavar="DATASET", help="the dataset already sorted")
-    p.add_argument("-o", "--out", help="output folder (default: <folder>_style_atlas)")
+    p.add_argument("folder", help=tr("the new images", "新圖"))
+    p.add_argument(
+        "--into",
+        required=True,
+        metavar="DATASET",
+        help=tr("the dataset already sorted", "已經分好的資料集"),
+    )
+    p.add_argument(
+        "-o",
+        "--out",
+        help=tr(
+            "output folder (default: <folder>_style_atlas)",
+            "輸出資料夾（預設：<資料夾>_style_atlas）",
+        ),
+    )
     p.add_argument(
         "--fresh",
         action="store_true",
-        help="group afresh instead of using the groups the web app saved",
+        help=tr(
+            "group afresh instead of using the groups the web app saved",
+            "重新分群，不沿用網頁介面存的分群",
+        ),
     )
     p.add_argument(
         "--by-folder",
         action="store_true",
-        help="the dataset's sub-folders are the groups (e.g. an exported kohya dataset)",
+        help=tr(
+            "the dataset's sub-folders are the groups (e.g. an exported kohya dataset)",
+            "資料集的子資料夾就是各群（例如匯出的 kohya 資料集）",
+        ),
     )
     p.add_argument(
         "--export",
         choices=["copy", "link"],
-        help="also place the new images (with captions) into <out>/sorted/<group>",
+        help=tr(
+            "also place the new images (with captions) into <out>/sorted/<group>",
+            "也把新圖（連同標註檔）放進 <out>/sorted/<群>",
+        ),
     )
     p.add_argument(
         "--trigger-captions",
         action="store_true",
-        help="start each placed caption with its group's trigger, as `cluster --trigger-captions` "
-        "does (kohya folders: the name without the repeats)",
+        help=tr(
+            "start each placed caption with its group's trigger, as `cluster --trigger-captions` "
+            "does (kohya folders: the name without the repeats)",
+            "每個放進去的標註開頭加上該群的觸發詞，做法同 `cluster --trigger-captions`"
+            "（kohya 資料夾：去掉重複次數的名稱）",
+        ),
     )
     p.add_argument(
         "--strip-tags",
         metavar="TAGS",
-        help="remove these comma-separated tags from the placed captions, as `cluster` does",
+        help=tr(
+            "remove these comma-separated tags from the placed captions, as `cluster` does",
+            "從放進去的標註中移除這些以逗號分隔的標籤，做法同 `cluster`",
+        ),
     )

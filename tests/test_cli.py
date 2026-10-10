@@ -3,6 +3,7 @@ average colour, so folders of red, green and blue pictures are three clean style
 
 from __future__ import annotations
 
+import argparse
 import json
 from pathlib import Path
 
@@ -553,3 +554,29 @@ def test_python_dash_m_runs_the_command():
     )
     assert done.returncode == 0
     assert __version__ in done.stdout
+
+
+def _all_parsers(parser):
+    """The parser and every sub-parser below it (commands, then the taste sub-commands)."""
+    found = [parser]
+    for action in parser._actions:
+        if isinstance(action, argparse._SubParsersAction):
+            for sub in action.choices.values():
+                found.extend(_all_parsers(sub))
+    return found
+
+
+def test_help_formats_in_both_languages(monkeypatch):
+    import styleatlas.cli as cli
+
+    monkeypatch.setenv("STYLE_ATLAS_LANG", "zh")
+    zh = [p.format_help() for p in _all_parsers(cli.build_parser())]
+    monkeypatch.setenv("STYLE_ATLAS_LANG", "en")
+    en = [p.format_help() for p in _all_parsers(cli.build_parser())]
+
+    assert len(zh) == len(en) > 15  # top, every command, the taste sub-commands
+    assert any("畫風" in text for text in zh)
+    assert any("資料夾" in text for text in zh)
+    assert any("kohya" in text and "重複次數" in text for text in zh)
+    assert "group a folder by style" in "\n".join(en)
+    assert not any("畫風" in text for text in en)

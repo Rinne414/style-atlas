@@ -55,6 +55,7 @@ AUDIT_ZH = {
     "soft_or_enlarged": "模糊或放大過",
     "low_jpeg_quality": "JPEG 壓縮太重",
     "animated": "動圖",
+    "exif_rotated": "只靠 EXIF 轉正",
     "no_caption": "沒有標註檔",
     "empty_caption": "標註是空的",
     "watermark_or_signature": "標註提到浮水印或簽名",

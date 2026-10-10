@@ -29,45 +29,73 @@ FEW_FOR_LORA = 8  # style-LoRA guides suggest starting at 8-15 images (docs/LORA
 def _lora_args(p: argparse.ArgumentParser) -> None:
     g = p.add_argument_group("training dataset")
     g.add_argument(
-        "--export", choices=["copy", "link"], help="also place images into style folders"
+        "--export",
+        choices=["copy", "link"],
+        help=tr("also place images into style folders", "也把圖放進各畫風群的資料夾"),
     )
     g.add_argument(
         "--layout",
         choices=["plain", "kohya"],
         default="plain",
-        help="kohya: <repeats>_<name>_styleNN folders; set-aside folders are skipped",
+        help=tr(
+            "kohya: <repeats>_<name>_styleNN folders; set-aside folders are skipped",
+            "kohya：<重複次數>_<名稱>_styleNN 資料夾；另外放的資料夾會被略過",
+        ),
     )
-    g.add_argument("--name", help="concept name for kohya folders (default: the folder name)")
     g.add_argument(
-        "--repeats", default="auto", help="kohya repeats per style folder, or auto (~100 per epoch)"
+        "--name",
+        help=tr(
+            "concept name for kohya folders (default: the folder name)",
+            "kohya 資料夾用的概念名稱（預設：資料夾名稱）",
+        ),
+    )
+    g.add_argument(
+        "--repeats",
+        default="auto",
+        help=tr(
+            "kohya repeats per style folder, or auto (images x repeats about 100 per epoch)",
+            "kohya 每個畫風資料夾的重複次數，或 auto（每個 epoch 張數 × 重複次數約 100）",
+        ),
     )
     g.add_argument(
         "--trigger-captions",
         action="store_true",
-        help="start every exported caption with its group's trigger word (artistX_style01)",
+        help=tr(
+            "start every exported caption with its group's trigger word (artistX_style01)",
+            "每個匯出的標註開頭加上該群的觸發詞（artistX_style01）",
+        ),
     )
     g.add_argument(
         "--dedupe",
         action="store_true",
-        help="keep the best copy of each near-duplicate group; others go to _duplicates",
+        help=tr(
+            "keep the best copy of each near-duplicate group; others go to _duplicates",
+            "每組近重複圖只留最好的一張，其餘放進 _duplicates",
+        ),
     )
     g.add_argument(
         "--drop-outliers",
         type=int,
         default=0,
         metavar="N",
-        help="move N least typical to _outliers",
+        help=tr("move the N least typical images to _outliers", "把最不典型的 N 張移到 _outliers"),
     )
     g.add_argument(
         "--strip-tags",
         metavar="TAGS",
-        help='remove these caption tags in the exported copies, e.g. "sketch, monochrome"',
+        help=tr(
+            'remove these caption tags in the exported copies, e.g. "sketch, monochrome"',
+            '從匯出的複本標註中移除這些標籤，例如 "sketch, monochrome"',
+        ),
     )
     g.add_argument(
         "--max-per-group",
         type=_positive_int,
         metavar="N",
-        help="keep at most N images per style, chosen to cover it; the rest go to _trimmed",
+        help=tr(
+            "keep at most N images per style, chosen to cover it; the rest go to _trimmed",
+            "每個畫風群最多留 N 張（挑能涵蓋整群的），其餘放進 _trimmed",
+        ),
     )
 
 

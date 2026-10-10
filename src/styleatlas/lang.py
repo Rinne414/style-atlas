@@ -39,6 +39,45 @@ def columns(text: str) -> int:
     return sum(2 if unicodedata.east_asian_width(ch) in "WF" else 1 for ch in text)
 
 
+# punctuation that must not start a line (kinsoku): it stays at the end of the line before
+NO_LINE_START = frozenset("，。、；：？！）」』》〉】,.;:?!)]")
+NO_LINE_END = frozenset("（「『《〈【([")  # and opening brackets move to the next line
+
+
+def wrap(text: str, width: int) -> list[str]:
+    """`text` in lines of at most `width` terminal columns, broken at spaces and between Chinese
+    characters (which have no spaces between them); punctuation never starts a line and an
+    opening bracket never ends one."""
+    lines, line, gap = [], "", False
+    for token in _tokens(" ".join(text.split())):
+        if token == " ":
+            gap = True
+            continue
+        piece = (" " if gap and line else "") + token
+        gap = False
+        if line and columns(line + piece) > width and token not in NO_LINE_START:
+            carry = line[-1] if line[-1] in NO_LINE_END and len(line) > 1 else ""
+            lines.append(line[: len(line) - len(carry)])
+            line = carry + token
+        else:
+            line += piece
+    return [*lines, line] if line else lines
+
+
+def _tokens(text: str) -> list[str]:
+    """Each Chinese character alone, runs of other characters together, single spaces."""
+    out, word = [], ""
+    for ch in text:
+        if ch == " " or columns(ch) == 2:
+            if word:
+                out.append(word)
+                word = ""
+            out.append(ch)
+        else:
+            word += ch
+    return [*out, word] if word else out
+
+
 def pad(text: str, width: int) -> str:
     """`text` padded to `width` terminal columns (at least one space), so Chinese group names
     line up where plain format widths would not."""
