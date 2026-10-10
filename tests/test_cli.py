@@ -175,3 +175,28 @@ def test_cluster_can_cap_each_group(lib, tmp_path, capsys):
     assert len(list((out / "folders" / "_trimmed").glob("*.png"))) == 6  # 2 of each colour
     with pytest.raises(SystemExit):
         main([*args, "--max-per-group", "0"])
+
+
+def test_calibrate_taste_embed_and_audit_text(lib, tmp_path, capsys):
+    assert main(["calibrate", str(lib), "--device", "cpu"]) == 0
+    floors = json.loads(capsys.readouterr().out)
+    assert set(floors["per_group"]) == {"red", "green", "blue"} and floors["noise_floor"] >= 0
+    assert main(["calibrate", str(lib / "red"), "--device", "cpu"]) == 1  # no sub-folders
+
+    votes = tmp_path / "votes"  # shades, so that no two pictures share a vector
+    for name, (r, g, b) in (("like", (220, 40, 40)), ("dislike", (40, 60, 220))):
+        (votes / name).mkdir(parents=True)
+        for i in range(6):
+            shade = (r - 9 * i, g + 7 * i, b - 5 * i)
+            Image.new("RGB", (64, 64), shade).save(votes / name / f"{i}.png")
+    model = tmp_path / "taste.npz"
+    train = ["--like", str(votes / "like"), "--dislike", str(votes / "dislike")]
+    assert main(["taste", "train", *train, "--model", str(model), "--device", "cpu"]) == 0
+    assert main(["taste", "score", str(lib), "--model", str(model), "--device", "cpu"]) == 0
+    ranked = [line.split()[1] for line in capsys.readouterr().out.strip().splitlines()]
+    assert ranked[0].startswith("red/") and ranked[-1].startswith("blue/")
+
+    assert main(["embed", str(lib), "--device", "cpu"]) == 0
+    assert main(["audit", str(lib), "--device", "cpu"]) == 0
+    out = capsys.readouterr().out
+    assert "smaller_than_min_side" in out and "[smaller_than_min_side]" in out
