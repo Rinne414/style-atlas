@@ -47,6 +47,8 @@ async function searchFiles(fileList) {
   } catch (e) { setStatus(String(e.message || e)); }
 }
 
+const FIT_BATCH = 8;
+
 function fitSummary(fit) {  // a batch's verdict: the share that falls inside a group's range
   const box = document.createElement("div"); box.className = "kv";
   const fits = fit.filter((f) => f.fits);
@@ -54,7 +56,8 @@ function fitSummary(fit) {  // a batch's verdict: the share that falls inside a 
   fits.forEach((f) => { counts[f.group] = (counts[f.group] || 0) + 1; });
   const where = Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([g, n]) => `${clusterName(Number(g))} ${n}`).join(" · ");
   const share = fits.length / fit.length;
-  const verdict = share > 0.5 ? "fitYes" : share <= 0.25 ? "fitNo" : "fitSome";  // held-out 69% vs others 15%
+  // as `sort`: under FIT_BATCH images the share says little (docs/BENCHMARKS.md)
+  const verdict = fit.length < FIT_BATCH ? "fitFew" : share > 0.5 ? "fitYes" : share <= 0.25 ? "fitNo" : "fitSome";
   box.textContent = t("fitLine").replace("{k}", fits.length).replace("{n}", fit.length) + (where ? ` (${where})` : "") + " — " + t(verdict);
   const note = document.createElement("div"); note.className = "meta"; note.textContent = t("fitNote");
   return [box, note];

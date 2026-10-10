@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Web app: a batch of fewer than 8 dropped images gets its count but no verdict ("too few
+  images to judge the batch"), as `sort` does.
+
 ## 0.40.0 - 2026-10-10
 
 - **`sort --by-folder` suggests new kohya repeats.** When new images that fit are added to a
