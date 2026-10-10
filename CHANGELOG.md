@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- `cluster --export` sends the images you excluded with X in the web app to `_excluded/`, as
+  the web app's own export does. Hand moves, merges and names stay with the web export.
+- The "measures" layout frames the whole axis cube when it opens or on Reset, with larger axis
+  labels.
+- README and LoRA guide: commands no longer carry trailing `#` notes (Windows cmd passed them on
+  as arguments), and the docs say that `serve` keeps its console busy, which edits need the
+  web export, and where `taste_model.npz` comes from.
+
 ## 0.15.0 - 2026-10-10
 
 - **Look measures**: six readable image statistics per image (brightness, contrast,
