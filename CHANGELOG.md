@@ -6,6 +6,10 @@
   `HF_ENDPOINT=https://hf-mirror.com` where huggingface.co cannot be reached; the README says it
   too. The web page shows the same message.
 - `cluster` lists the groups by style number, and its consistency line is clearer.
+- Fixes from a review (Sonnet): the count of folded near-copies was too low when fewer results
+  than asked for remained; a search inside a #tag ranks against the whole folder before keeping
+  the tagged images (the learned model's negatives were limited to the tag); a selection is
+  compared with the rest of a group it belongs to; copying search results skips excluded images.
 
 ## 0.27.0 - 2026-10-10
 

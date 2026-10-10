@@ -279,9 +279,11 @@ class StyleAtlasApp(GroupEdits):
     def copy_hits(self, body: dict) -> dict:
         """Copy images ("items", e.g. search results) with their captions into a new
         `search_matches` folder in the output folder, as `search --copy-to` does."""
-        items = self._indices(body)
         with self._lock:
+            items = [i for i in self._indices(body) if i not in self.excluded]
             subset = self.raw.subset(items)
+        if not items:
+            raise ValueError("all of these images are excluded")
         result = export_folders(subset, ["matches"] * len(items), self.out_dir / "search_matches")
         return {
             "placed": result.placed,
@@ -408,10 +410,12 @@ class StyleAtlasApp(GroupEdits):
             raise ValueError(f"images must be a list of 1 to {MAX_QUERY_IMAGES} base64 strings")
         query, raw = self._embed([base64.b64decode(s, validate=True) for s in images])
         only = body.get("only")
-        skip = None
-        if only is not None:
-            skip = set(range(len(self.atlas))) - set(self._indices({"items": only}))
-        found = search(query, self.atlas.style, top=2 * SEARCH_TOP, combine=True, exclude=skip)[0]
+        if only is None:
+            found = search(query, self.atlas.style, top=2 * SEARCH_TOP, combine=True)[0]
+        else:  # rank against the whole library (the learned model's negatives), then keep the tag
+            allowed = set(self._indices({"items": only}))
+            ranked = search(query, self.atlas.style, top=len(self.atlas), combine=True)[0]
+            found = [h for h in ranked if h.index in allowed][: 2 * SEARCH_TOP]
         hits, folded = fold_hits(found, self.raw.style, self.raw.content, SEARCH_TOP)
         return {
             "hits": [{"i": h.index, "cos": round(h.cosine, 4)} for h in hits],
@@ -518,8 +522,9 @@ class StyleAtlasApp(GroupEdits):
             mb = list(self.clustering.clusters[b].members)
             if "items" in body:
                 ma = self._indices({"items": body.get("items")})
-                if len(ma) < 2:
-                    raise ValueError("pick at least 2 images to compare")
+                mb = [m for m in mb if m not in set(ma)]  # the picked images against the rest
+                if len(ma) < 2 or len(mb) < 2:
+                    raise ValueError("pick at least 2 images, and leave at least 2 in the group")
             else:
                 a = self._group(body.get("a"), allow_unassigned=False)
                 if a == b:

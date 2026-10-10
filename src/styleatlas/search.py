@@ -34,7 +34,9 @@ def fold_hits(
     kept, _ = fold_copies([h.index for h in hits], style, content)
     keep = set(kept[:top])
     shown = [h for h in hits if h.index in keep]
-    cutoff = hits.index(shown[-1]) + 1 if shown else 0
+    if len(kept) <= top:  # every hit was looked at: all the rest were folded
+        return shown, len(hits) - len(shown)
+    cutoff = hits.index(shown[-1]) + 1
     return shown, cutoff - len(shown)
 
 

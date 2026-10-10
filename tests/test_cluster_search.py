@@ -300,3 +300,14 @@ def test_fold_copies_keeps_the_first_of_each_picture():
     x, _ = make_blobs([3, 3], spread=0.01)  # two pictures, three near-copies each
     kept, folded = fold_copies([0, 3, 1, 4, 2], x, x)
     assert kept == [0, 3] and folded == 3
+
+
+def test_fold_hits_counts_every_folded_hit():
+    from styleatlas.search import Hit, fold_hits
+
+    x, _ = make_blobs([2, 1], spread=0.001)  # 0 and 1 are near-copies, 2 is another picture
+    hits = [Hit(i, 1.0 - i / 10, 0.9) for i in range(3)]
+    shown, folded = fold_hits(hits, x, x, top=5)  # fewer hits than asked for
+    assert [h.index for h in shown] == [0, 2] and folded == 1
+    shown, folded = fold_hits(hits, x, x, top=1)
+    assert [h.index for h in shown] == [0] and folded == 0  # hit 1 lies past the cut

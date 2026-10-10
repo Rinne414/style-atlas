@@ -467,6 +467,9 @@ def test_search_results_can_be_copied_to_a_new_folder(tmp_path):
     ]  # fmt: skip
     again = Path(app.copy_hits({"items": [1]})["folder"])
     assert again.parent != folder.parent  # every copy goes to a fresh folder
+    app.exclude({"i": 1})
+    with pytest.raises(ValueError):  # only excluded images: nothing to copy
+        app.copy_hits({"items": [1]})
     for bad in ({"items": []}, {"items": [99]}, {"items": ["1"]}):
         with pytest.raises(ValueError):
             app.copy_hits(bad)
