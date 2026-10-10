@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **Select several images at once**: Shift+click (map or lists) or Shift+drag a box on the
+  map, then exclude, un-exclude or move them all from the bar that appears; a batch move is
+  one undo step, and Esc clears the selection. `api/exclude` and `api/move` take `items`.
+  Suggested by a Sonnet product review.
 - **Cap per style** (`--max-per-group N`; web: "max per style" in the export row): a larger
   group keeps N images that cover it, picked by farthest-point sampling from its most central
   image; the rest go to `_trimmed/`, after duplicates, outliers and exclusions, and repeats

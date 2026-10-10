@@ -489,12 +489,14 @@ class StyleAtlasApp:
         self.group_names = carry_names(saved.labels, self.clustering.labels, saved.names)
 
     def move(self, body: dict) -> dict:
-        """Hand edit: put one image into another group (or unassigned)."""
-        i = self._index(body)
+        """Hand edit: put one image ("i") or several ("items") into another group (or
+        unassigned), as one undo step."""
+        items = self._indices(body)
         with self._lock:
             self._check_revision(body)
             target = self._group(body.get("to"), allow_unassigned=True)
-            return self._edited(edit_groups(self.atlas.style, self.clustering, {i: target}))
+            moves = dict.fromkeys(items, target)
+            return self._edited(edit_groups(self.atlas.style, self.clustering, moves))
 
     def merge(self, body: dict) -> dict:
         """Hand edit: merge one group into another."""
@@ -541,6 +543,20 @@ class StyleAtlasApp:
                 raise ValueError("group too large to split here; regroup into smaller groups")
             return self._edited(split_group(self.atlas.style, self.clustering, group))
 
+    def _indices(self, body: dict) -> list[int]:
+        """The images an edit applies to: "items" (a list of indices) or the single "i"."""
+        items = body.get("items")
+        if items is None:
+            return [self._index(body)]
+        n = len(self.atlas)
+        if (
+            not isinstance(items, list)
+            or not 1 <= len(items) <= n
+            or not all(type(i) is int and 0 <= i < n for i in items)
+        ):
+            raise ValueError("items must be a list of image indices")
+        return sorted(set(items))
+
     def _index(self, body: dict) -> int:
         i = body.get("i")
         if type(i) is not int or not 0 <= i < len(self.atlas):
@@ -548,15 +564,15 @@ class StyleAtlasApp:
         return i
 
     def exclude(self, body: dict) -> dict:
-        i = self._index(body)
+        items = self._indices(body)
         excluded = body.get("excluded", True)
         if not isinstance(excluded, bool):
             raise ValueError("excluded must be true or false")
         with self._lock:
             if excluded:
-                self.excluded.add(i)
+                self.excluded.update(items)
             else:
-                self.excluded.discard(i)
+                self.excluded.difference_update(items)
             self._excluded.values = {j: True for j in self.excluded}
             self._excluded.save()
             return {"excluded": sorted(self.excluded)}

@@ -29,6 +29,9 @@ const T = {
     exclude: "Exclude from export (X)", included: "Excluded - undo (X)",
     excludedList: "Excluded by you ({n}) - exported to _excluded",
     compareWith: "Compare with…", compareTitle: "{a} compared with {b}",
+    marked: "{n} selected", markExclude: "Exclude all", markInclude: "Un-exclude all", markClear: "Clear",
+    markExcluded: "Excluded {n}.", markIncluded: "Un-excluded {n}.",
+    shiftKeys: "Shift + click / drag", keyMark: "select several images, then exclude or move them at once",
     maxPerGroup: "max per style", trimmedNote: "{n} beyond the cap went to _trimmed.",
     tipMax: "Optional: keep at most this many images per style, picked to cover it (15-50 is common for a LoRA); the rest go to _trimmed",
     nearGroups: "closest:", nearTip: "Open that group (the number is the style distance between the groups' centres)",
@@ -107,6 +110,9 @@ const T = {
     exclude: "匯出時排除 (X)", included: "已排除，取消 (X)",
     excludedList: "你排除的圖（{n}）：匯出時放到 _excluded",
     compareWith: "和…比較", compareTitle: "{a} 和 {b} 比較",
+    marked: "已選 {n} 張", markExclude: "全部排除", markInclude: "全部取消排除", markClear: "清除選取",
+    markExcluded: "已排除 {n} 張。", markIncluded: "已取消排除 {n} 張。",
+    shiftKeys: "Shift + 點／拖曳", keyMark: "選多張圖，再一次排除或移到別群",
     maxPerGroup: "每群上限", trimmedNote: "超過上限的 {n} 張放到 _trimmed。",
     tipMax: "選填：每群最多保留幾張，會挑能涵蓋整群的（LoRA 常用 15～50 張）；其餘放到 _trimmed",
     nearGroups: "最接近：", nearTip: "打開那一群（數字是兩群中心的畫風距離）",
@@ -333,6 +339,7 @@ let flyTo = null;
 function recolor() {
   const q = filter.toLowerCase();
   for (let i = 0; i < N; i++) {
+    if (MARKED.size) { alpha[i] = MARKED.has(i) ? 1 : 0.5; continue; }  // the rest stay clickable
     let on = true;
     if (focusCluster !== null) on = PTS[i].c === focusCluster;
     if (q) on = on && PTS[i].n.toLowerCase().includes(q);
@@ -384,7 +391,8 @@ canvas.addEventListener("pointerdown", (e) => { downAt = [e.clientX, e.clientY];
 canvas.addEventListener("pointerup", (e) => {
   if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 5) return;
   const i = pick(e);
-  if (i >= 0) select(i); else { selected = null; recolor(); }
+  if (i >= 0 && e.shiftKey && DATA.live) toggleMark(i);
+  else if (i >= 0) select(i); else { selected = null; recolor(); }
 });
 canvas.addEventListener("pointermove", (e) => {
   const tip = $("tip");
@@ -438,7 +446,7 @@ function clusterName(c) {
 function thumb(i, onClick) {
   const img = document.createElement("img");
   img.src = PTS[i].t; img.alt = PTS[i].n; img.title = PTS[i].n; img.loading = "lazy";
-  img.addEventListener("click", onClick || (() => select(i)));
+  img.addEventListener("click", onClick || ((e) => (e.shiftKey && DATA.live ? toggleMark(i) : select(i))));
   return img;
 }
 
@@ -701,10 +709,10 @@ function showHelp(on) {
   box.hidden = !on;
   if (!on) return;
   const rows = [["drag", "keyRotate"], ["wheel", "keyZoom"], ["sizeKeys", "keySize"],
-    ["Esc", "keyHome"], ...(DATA.live ? [["L / D", "keyVote"], ["X", "keyExclude"], ["Ctrl + Z", "keyUndo"]] : [])];
+    ["Esc", "keyHome"], ...(DATA.live ? [["shiftKeys", "keyMark"], ["L / D", "keyVote"], ["X", "keyExclude"], ["Ctrl + Z", "keyUndo"]] : [])];
   box.replaceChildren(...rows.map(([key, what]) => {
     const line = document.createElement("div");
-    const b = document.createElement("b"); b.textContent = ["drag", "wheel", "sizeKeys"].includes(key) ? t(key) : key;
+    const b = document.createElement("b"); b.textContent = ["drag", "wheel", "sizeKeys", "shiftKeys"].includes(key) ? t(key) : key;
     line.append(b, document.createTextNode(t(what)));
     return line;
   }));
@@ -723,7 +731,11 @@ addEventListener("keydown", (e) => {
   }
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (e.key === "?") showHelp($("help").hidden);
-  if (e.key === "Escape") { RATING = false; PATH_FROM = null; setStatus(""); showHelp(false); $("home").click(); }
+  if (e.key === "Escape") {
+    RATING = false; PATH_FROM = null; setStatus(""); showHelp(false);
+    if (MARKED.size) { MARKED = new Set(); showMarks(); }
+    $("home").click();
+  }
   if (DATA.live && selected !== null && (e.key === "l" || e.key === "L")) castVote(selected, true);
   if (DATA.live && selected !== null && (e.key === "d" || e.key === "D")) castVote(selected, false);
   if (DATA.live && selected !== null && (e.key === "x" || e.key === "X")) toggleExclude(selected);

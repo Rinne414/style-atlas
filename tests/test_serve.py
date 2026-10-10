@@ -668,3 +668,21 @@ def test_the_web_export_can_cap_each_group(tmp_path):
     for bad in (0, "4", 1.5, True):
         with pytest.raises(ValueError):
             app.export({"mode": "copy", "max_per_group": bad})
+
+
+def test_several_images_are_excluded_or_moved_at_once(tmp_path):
+    app, _ = _app(tmp_path, (8, 7))
+    app.regroup({"threshold": 0.5})
+    assert app.exclude({"items": [1, 2, 2, 3]})["excluded"] == [1, 2, 3]
+    assert app.exclude({"items": [2, 3], "excluded": False})["excluded"] == [1]
+    for bad in ([], [99], ["1"], [True], "1,2"):
+        with pytest.raises(ValueError):
+            app.exclude({"items": bad})
+    target = int(app.clustering.labels[-1])
+    moved = [0, 1, 2]
+    app.move({"items": moved, "to": target, "rev": app.revision})
+    labels = app.clustering.labels  # group ids are renumbered after an edit
+    assert all(labels[i] == labels[-1] for i in moved)
+    app.undo({"rev": app.revision})  # the whole batch is one step
+    labels = app.clustering.labels
+    assert all(labels[i] != labels[-1] for i in moved)

@@ -114,6 +114,73 @@ async function showCompare(a, b) {
   } catch (e) { setStatus(String(e.message || e)); }
 }
 
+/* ---------- several images at once: Shift+click, Shift+drag a box ---------- */
+let MARKED = new Set();
+
+function toggleMark(i) {
+  if (MARKED.has(i)) MARKED.delete(i); else MARKED.add(i);
+  showMarks();
+}
+
+function showMarks() {
+  selected = null; searchHits = null; recolor();
+  let bar = $("markBar");
+  if (!MARKED.size) { if (bar) bar.remove(); return; }
+  if (!bar) { bar = document.createElement("div"); bar.id = "markBar"; $("stage").append(bar); }
+  const items = () => [...MARKED];
+  const button = (key, fn) => { const b = document.createElement("button"); b.textContent = t(key); b.addEventListener("click", fn); return b; };
+  const count = document.createElement("span"); count.textContent = t("marked").replace("{n}", MARKED.size);
+  bar.replaceChildren(count,
+    button("markExclude", () => batchExclude(items(), true)),
+    button("markInclude", () => batchExclude(items(), false)),
+    groupSelect(t("moveTo"), null, true, (to) => editPost("api/move", { items: items(), to })),
+    button("markClear", () => { MARKED = new Set(); showMarks(); }));
+}
+
+async function batchExclude(items, excluded) {
+  try {
+    const r = await post("api/exclude", JSON.stringify({ items, excluded }), "application/json");
+    EXCLUDED = new Set(r.excluded); buildOutliers();
+    setStatus(t(excluded ? "markExcluded" : "markIncluded").replace("{n}", items.length));
+    MARKED = new Set(); showMarks();
+  } catch (e) { setStatus(String(e.message || e)); }
+}
+
+function setupMarking() {  // Shift+drag on the map draws a box; OrbitControls must not pan meanwhile
+  const box = document.createElement("div"); box.id = "boxSel"; $("stage").append(box);
+  let start = null;
+  canvas.addEventListener("pointerdown", (e) => {
+    if (!e.shiftKey || e.button !== 0) return;
+    e.stopImmediatePropagation();
+    downAt = [e.clientX, e.clientY];  // a Shift+click is still a click (map.js picks and marks)
+    start = [e.clientX, e.clientY];
+    try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* no live pointer */ }
+  }, { capture: true });
+  canvas.addEventListener("pointermove", (e) => {
+    if (!start) return;
+    const r = $("stage").getBoundingClientRect();
+    Object.assign(box.style, { display: "block",
+      left: `${Math.min(start[0], e.clientX) - r.left}px`, top: `${Math.min(start[1], e.clientY) - r.top}px`,
+      width: `${Math.abs(e.clientX - start[0])}px`, height: `${Math.abs(e.clientY - start[1])}px` });
+  });
+  canvas.addEventListener("pointerup", (e) => {
+    if (!start) return;
+    const [sx, sy] = start; start = null; box.style.display = "none";
+    if (Math.hypot(e.clientX - sx, e.clientY - sy) < 6) return;
+    const r = canvas.getBoundingClientRect();
+    const x0 = Math.min(sx, e.clientX) - r.left, x1 = Math.max(sx, e.clientX) - r.left;
+    const y0 = Math.min(sy, e.clientY) - r.top, y1 = Math.max(sy, e.clientY) - r.top;
+    for (let i = 0; i < N; i++) {
+      if (alpha[i] < 0.5) continue;  // only what can be seen
+      ray.set(pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2]).project(camera);
+      if (ray.z > 1) continue;
+      const px = (ray.x + 1) / 2 * r.width, py = (1 - ray.y) / 2 * r.height;
+      if (px >= x0 && px <= x1 && py >= y0 && py <= y1) MARKED.add(i);
+    }
+    showMarks();
+  });
+}
+
 let TASTE = null;
 
 function voteOf(i) { return TASTE && TASTE.votes[String(i)]; }
@@ -286,6 +353,7 @@ function setupReference() {
 
 function setupLive() {
   setupUndo();
+  setupMarking();
   setupReference();
   $("neutral").checked = (DATA.live.space || "plain") !== "plain";
   $("neutral").addEventListener("change", async (e) => {

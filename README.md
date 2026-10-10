@@ -195,6 +195,7 @@ style-atlas taste score "D:\new_batch" --model "D:\my_taste.npz"
   - 畫風漸變：選一張圖按「畫風漸變：從這張開始」，再選另一張按「畫風漸變：到這張」，會列出在畫風上從前一張漸變到後一張的一串圖。適合找兩種畫風之間的過渡風格。
   - 調門檻後重新分群、一鍵匯出資料夾。匯出時可以選一般資料夾或 kohya 格式、填概念名稱、勾選「標註加觸發詞」。
   - 按「匯出時排除」（鍵盤 X）手動剔除不要的圖，清單會存檔，匯出時放到 `_excluded\`。
+  - 一次處理很多張：按住 Shift 點圖（地圖或清單裡都可以），或按住 Shift 在地圖上拖一個框，選好後用上方的「全部排除」或「移到其他群…」一次完成；移動算一步，可以復原。Esc 清除選取。
   - 資料夾裡混了別的畫師的圖時：先把看到的兩三張按 X 排除，再到「檢查」分頁的排除清單按「找更多像這些的」，其餘的通常都會排在最前面（實測：3 張當範例時，前 30 名找回 98%）。
   - 手動修正分群，修正會反映在之後的匯出：
     - 選取一張圖，用「移到其他群…」把它改放到別群；
@@ -303,6 +304,8 @@ how a picture is drawn rather than what it shows. On top of those vectors it can
 - **Fix groups by hand** in the web app: "Find more like this" lists the images outside a group
   that look most like it; move an image to another group, merge two groups,
   split a group in two, or exclude images (X), which are then exported to `_excluded/`.
+  Shift+click (on the map or in a list) or Shift+drag a box on the map to select several
+  images, then exclude or move them all at once (one undo step); Esc clears the selection.
   Strays by another artist: exclude two or three, then "Find more like these" in the excluded
   list ranks the rest first (from three, the top 30 held 98% of them).
   Groups, edits, names and the character-axis switch are saved and restored the next time the
