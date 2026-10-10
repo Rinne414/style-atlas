@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **Fix: 16-bit grey PNGs.** Pillow clips them when converting to RGB, so such an image was read
+  as nearly all white (mean 254 instead of 127), and its style vector, look and softness were
+  wrong. They are now scaled to 8 bits first (also 32-bit and float grey images). Vectors cached
+  by an earlier version stay in the cache: to redo them, delete `vectors.sqlite` in the cache
+  folder (`style-atlas doctor` shows where); everything is then embedded again once.
 - Windows scripts (`setup.bat`, `StyleAtlas.bat`, `StyleAtlas-console.bat`) speak Chinese and
   English; checked with dry runs of every branch they reach.
 - `cluster` without `--export` says the folder names are a plan and how to write them.

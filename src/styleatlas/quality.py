@@ -20,6 +20,8 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
+from styleatlas.images import to_8bit
+
 # The JPEG standard's example luminance table (Annex K). Encoders built on libjpeg scale it by
 # the quality setting; comparing sums makes the estimate independent of the table's order.
 STD_LUMA = np.array(
@@ -109,7 +111,7 @@ def _softness_of(path: str, stamp: tuple[int, int]) -> float | None:
             im.seek(0)
         if im.format == "JPEG":  # decode at a reduced scale that is still >= the training size
             im.draft("L", training_size(*im.size))
-        return softness(im)
+        return softness(to_8bit(im))
 
 
 def softness_of_file(path: Path) -> float | None:

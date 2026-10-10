@@ -298,3 +298,16 @@ def test_a_failed_load_stops_the_loop_ahead(tmp_path):
 
     with pytest.raises(MemoryError):
         list(_ahead(list(range(10)), 4, load, 2))
+
+
+def test_sixteen_bit_grey_images_are_scaled_not_clipped(tmp_path):
+    from styleatlas.quality import softness_of_file
+
+    ramp = np.linspace(0, 65535, 512 * 512).reshape(512, 512).astype(np.uint16)
+    wide, narrow = tmp_path / "wide.png", tmp_path / "narrow.png"
+    Image.fromarray(ramp).save(wide)  # opens as I;16
+    Image.fromarray((ramp // 257).astype(np.uint8)).save(narrow)
+    assert Image.open(wide).mode.startswith("I")
+    a, b = np.asarray(load_rgb(wide), dtype=float), np.asarray(load_rgb(narrow), dtype=float)
+    assert abs(a.mean() - b.mean()) < 1.0  # was 254.5 against 127 before
+    assert softness_of_file(wide) == pytest.approx(softness_of_file(narrow), abs=0.02)

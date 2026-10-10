@@ -12,6 +12,7 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import BinaryIO
 
+import numpy as np
 from PIL import Image, ImageOps
 
 from styleatlas.cachedir import cache_dir
@@ -23,6 +24,7 @@ OUTPUT_SUFFIX = "_style_atlas"  # default result folders (export.output_dir) are
 
 # A 164 KB PNG can decode to 500 MB; CSD looks at 224 px anyway. 100 M pixels is 10,000 x 10,000.
 MAX_PIXELS = 100_000_000
+WIDE_GREY = ("I;16", "I;16B", "I;16L", "I;16N", "I", "F")  # more than 8 bits per pixel
 
 
 def find_images(
@@ -66,13 +68,27 @@ def load_rgb(
             raise ValueError(f"image too large to open safely ({im.width} x {im.height})")
         if max_side and im.format == "JPEG":
             im.draft("RGB", (max_side, max_side))
-        im = ImageOps.exif_transpose(im)
+        im = to_8bit(ImageOps.exif_transpose(im))
         if im.mode in ("RGBA", "LA") or (im.mode == "P" and "transparency" in im.info):
             rgba = im.convert("RGBA")
             flat = Image.new("RGB", rgba.size, background)
             flat.paste(rgba, mask=rgba.getchannel("A"))
             return flat
         return im.convert("RGB")
+
+
+def to_8bit(im: Image.Image) -> Image.Image:
+    """Grey images with more than 8 bits per pixel (16-bit PNGs) as 8-bit grey. Pillow's own
+    conversion clips them instead of scaling: a 16-bit grey PNG came out nearly all white."""
+    if im.mode not in WIDE_GREY:
+        return im
+    a = np.asarray(im, dtype=np.float64)
+    top = float(a.max(initial=0.0))
+    if im.mode.startswith("I;16") or (im.mode == "I" and top > 255):
+        a = a / 257.0  # 0-65535 to 0-255
+    elif im.mode == "F" and top <= 1.0:
+        a = a * 255.0  # 0-1 floats
+    return Image.fromarray(np.clip(np.rint(a), 0, 255).astype(np.uint8))
 
 
 def thumbnail_bytes(path: Path, size: int = 96, quality: int = 70) -> bytes:
