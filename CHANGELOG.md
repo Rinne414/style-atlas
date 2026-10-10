@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- The web app's console window (what `StyleAtlas.bat` shows) is in Chinese on a Chinese
+  system too: layout and thumbnail progress, and the address it runs at.
 - `doctor` shows how big the vector cache and the thumbnail cache have grown, and that the
   thumbnails can be deleted at any time.
 - `report` writes its page in the language of the messages unless `--lang` says otherwise (it

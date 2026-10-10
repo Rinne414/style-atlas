@@ -17,6 +17,7 @@ from styleatlas.cluster import Clustering, outlier_scores
 from styleatlas.dataset import distinctive_tags, tag_summary
 from styleatlas.duplicates import near_duplicate_groups
 from styleatlas.images import file_time, thumbnail_data_url
+from styleatlas.lang import tr
 from styleatlas.look import LOOK_NAMES
 from styleatlas.metrics import centroid
 from styleatlas.project import project_3d
@@ -60,7 +61,9 @@ def compute_layout(
     reference: Atlas | None = None,
 ) -> Layout:
     coords, used = project_3d(atlas.style, projection)
-    progress(f"projected {len(atlas)} images with {used}")
+    progress(
+        tr(f"projected {len(atlas)} images with {used}", f"已排好 {len(atlas)} 張的位置（{used}）")
+    )
     dups = near_duplicate_groups(atlas.style, atlas.content)
     layout = Layout(coords, used, knn(atlas.style, k=NEIGHBORS), outlier_scores(atlas.style), dups)
     return with_reference(layout, atlas, reference)
@@ -185,7 +188,7 @@ def map_payload(
 
     def thumb_of(i: int) -> str:
         if (i + 1) % 500 == 0:
-            progress(f"thumbnails {i + 1}/{len(atlas)}")
+            progress(tr(f"thumbnails {i + 1}/{len(atlas)}", f"縮圖 {i + 1}/{len(atlas)}"))
         try:
             return thumbnail_data_url(atlas.paths[i], size=px)
         except LOAD_ERRORS:

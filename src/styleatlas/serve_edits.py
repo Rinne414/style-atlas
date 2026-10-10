@@ -20,6 +20,7 @@ from styleatlas.cluster import (
 )
 from styleatlas.dataset import clean_group_name
 from styleatlas.groupfile import GROUPS_FILE, SavedGroups, carry_names, save_groups
+from styleatlas.lang import tr
 from styleatlas.metrics import StyleSpace
 from styleatlas.persist import RelPathMap
 
@@ -116,7 +117,9 @@ class GroupEdits:
                 self.group_names,
             )
         except OSError as e:  # the edit itself worked; only the copy on disk is behind
-            self.progress(f"could not save {self._groups_path}: {e}")
+            self.progress(
+                tr(f"could not save {self._groups_path}: {e}", f"無法儲存 {self._groups_path}：{e}")
+            )
 
     def _restore(self, saved: SavedGroups) -> None:
         """Saved groups (new images start unassigned), with their names."""

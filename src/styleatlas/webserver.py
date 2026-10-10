@@ -15,6 +15,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from styleatlas.encoder import ModelDownloadError
 from styleatlas.images import IMAGE_TYPES
+from styleatlas.lang import tr
 from styleatlas.serve import StyleAtlasApp
 
 MAX_UPLOAD = 40 * 1024 * 1024
@@ -193,7 +194,13 @@ def serve(app: StyleAtlasApp, port: int = 8770, open_browser: bool = True) -> No
     server = bind(app, port)
     app.prewarm()
     url = f"http://127.0.0.1:{server.server_address[1]}/"
-    print(f"style-atlas is running at {url}  (Ctrl+C to stop)", flush=True)
+    print(
+        tr(
+            f"style-atlas is running at {url}  (Ctrl+C to stop)",
+            f"style-atlas 已開啟：{url}（關掉這個視窗或按 Ctrl+C 結束）",
+        ),
+        flush=True,
+    )
     if open_browser:
         webbrowser.open(url)
     try:
