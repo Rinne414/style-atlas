@@ -100,3 +100,24 @@ style-atlas cluster "D:\lora\artistX" --layout kohya --name artistX --dedupe --d
 - 近重複門檻刻意設得保守（0.95）。在 0.92～0.95 之間，常常是同角色換了姿勢的不同圖，對訓練來說那是有效的圖。
 
 詳細數字見 [BENCHMARKS.md](BENCHMARKS.md)。
+
+## 7. 指令輸出的英文怎麼看
+
+指令（`cluster`、`sort`、`audit` 等）的訊息是英文，網頁介面和 `report` 有中文。常見的字句：
+
+| 輸出 | 意思 |
+|---|---|
+| `5 styles, 2 unassigned (agglomerative, cut 0.47 (auto))` | 分成 5 群，2 張沒有分進任何群；切分距離 0.47 是自動選的 |
+| `style consistency: spread 0.74, more spread than 64% of single artists` | 畫風一致性：比 64% 的單一畫師分散（越高越可能混了不同畫風） |
+| `(few images)` | 這群張數少，訓練時可能不夠 |
+| `[brighter, less colourful, more line work]` | 這群和整個資料夾比：偏亮、色彩淡、線條多 |
+| `when 9% [3%-28%]` | 這群在作品時間軸上的位置：中位數在最早的 9%（加 `--time name` 才有） |
+| `one epoch = 400 steps at batch size 1` | batch size 1 時，每個 epoch 約 400 步 |
+| `note: style 03 kept too few images ...` | 第 3 群的圖都被當成重複或離群而拿掉，所以沒有資料夾（編號跳過） |
+| `N near-duplicates set aside before grouping` | 有 N 張近重複圖先放到一邊，不參與分群 |
+| `_unsure`、`_already_in_dataset`（`sort`） | 不夠像任何一群；和資料集裡的某張幾乎一樣 |
+| `X% fit their group: mostly the dataset's styles` | 新圖有 X% 符合某一群：大多是資料集的畫風 |
+| `smaller_than_min_side`、`no_caption`、`soft_or_enlarged`（`audit`） | 短邊太小、沒有標註檔、像是放大過的圖 |
+| `low_jpeg_quality`、`watermark_or_signature` | JPEG 壓縮太重、標註裡提到浮水印或簽名 |
+| `buckets (kohya, 1024)` | 圖片會分進哪些 kohya 長寬比 bucket，各幾張 |
+| `ranked by style match in the search space ...`（`search`） | 名次依畫風相似度排序；旁邊的數字是一般的相似度，所以不一定照大小排 |

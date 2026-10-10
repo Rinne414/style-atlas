@@ -100,6 +100,8 @@ def cmd_cluster(a: argparse.Namespace) -> int:
     _print_groups(atlas, result, folders, tags, a.time)
     if a.export:
         _export(a, atlas, folders, out)
+    else:
+        log("the folder names above are the plan; add --export copy (or link) to write the folders")
     if not a.no_map:
         path = write_map(
             atlas,

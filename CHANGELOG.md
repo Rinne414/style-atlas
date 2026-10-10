@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- `cluster` without `--export` says the folder names are a plan and how to write them.
+- LoRA guide: a table that explains the English command output in Chinese.
 - **Clearer command output** (from a first-time-user test):
   - `search` prints each query once and says that the list is ranked in the search space while
     the number shown is the plain cosine (so it is not always in order).
