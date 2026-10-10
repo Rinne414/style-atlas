@@ -1,12 +1,18 @@
 # Changelog
 
+## 0.30.0 - 2026-10-10
+
+- **Style report from the web app**: "Save style report" in the "Advanced…" panel writes the
+  same page as `style-atlas report`, with the groups and names as they are on the page.
+- The README is shorter: how it works, accuracy and research findings moved to
+  `docs/ACCURACY.md` (nothing was cut).
+
 ## 0.29.0 - 2026-10-10
 
 - **One-page style report.** `style-atlas report DIR` writes one HTML file: style consistency,
   the folder's look next to 278 Danbooru artists ("brighter than 89% of artists"), the closest
   artists of a reference library (`--artists LIB`), and each group's most typical images. It
-  uses the groups and names saved by the web app. `--lang en` for English. The web app's
-  "Advanced…" panel has "Save style report" too.
+  uses the groups and names saved by the web app. `--lang en` for English.
 
 ## 0.28.0 - 2026-10-10
 
