@@ -275,6 +275,19 @@ class StyleAtlasApp(GroupEdits):
         payload["names"] = names
         return {"file": str(write_payload(payload, out))}
 
+    def copy_hits(self, body: dict) -> dict:
+        """Copy images ("items", e.g. search results) with their captions into a new
+        `search_matches` folder in the output folder, as `search --copy-to` does."""
+        items = self._indices(body)
+        with self._lock:
+            subset = self.raw.subset(items)
+        result = export_folders(subset, ["matches"] * len(items), self.out_dir / "search_matches")
+        return {
+            "placed": result.placed,
+            "failed": len(result.failed),
+            "folder": str(result.folder / "matches"),
+        }
+
     def open_output(self, body: dict) -> dict:
         """Show the output folder (exports, saved map) in the file manager. Only this one fixed
         folder can be opened."""

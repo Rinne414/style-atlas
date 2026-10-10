@@ -103,8 +103,22 @@ function showSearch(files, hits, fit, folders, copies, folded) {
   hits.forEach((x) => { const im = thumb(x.i); im.title = `${PTS[x.i].n} · cos ${x.cos.toFixed(3)}`; g.append(im); });
   pane.append(h, qs, ...(copies && copies.length ? copyList(files, copies) : []),
     ...(fit && fit.length ? fitSummary(fit) : []),
-    ...(folders && folders.length ? folderList(folders) : []), h2, g);
+    ...(folders && folders.length ? folderList(folders) : []), h2, ...(hits.length ? [copyButton(hits)] : []), g);
   showPane("selected");
+}
+
+function copyButton(hits) {  // gather the results into a folder, e.g. to grow a training set
+  const copy = document.createElement("button"); copy.textContent = t("copyHits").replace("{n}", hits.length);
+  copy.title = t("tipCopyHits"); copy.style.margin = "2px 0 6px";
+  copy.addEventListener("click", async () => {
+    copy.disabled = true;
+    try {
+      const r = await post("api/copy_hits", JSON.stringify({ items: hits.map((x) => x.i) }), "application/json");
+      setStatus(t("exported").replace("{n}", r.placed).replace("{f}", r.folder)); addOpenFolder();
+    } catch (e) { setStatus(String(e.message || e)); }
+    copy.disabled = false;
+  });
+  return copy;
 }
 
 async function showSimilar(group) {  // a group id, or "excluded": the images excluded by hand

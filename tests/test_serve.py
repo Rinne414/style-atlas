@@ -3,6 +3,7 @@ from __future__ import annotations
 import http.client
 import json
 import threading
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -443,6 +444,21 @@ def test_a_search_names_the_closest_sub_folder(tmp_path, monkeypatch):
     app.exclude({"i": int(np.flatnonzero(labels == 1)[0])})  # a stray: no longer in the mean
     again = app.search_image(buf.getvalue())["folders"]
     assert again[0]["folder"] == "late" and again[0]["size"] == 6
+
+
+def test_search_results_can_be_copied_to_a_new_folder(tmp_path):
+    app, _ = _app(tmp_path, (8, 7))
+    (tmp_path / "img3.txt").write_text("1girl", encoding="utf-8")
+    first = app.copy_hits({"items": [3, 5, 3]})
+    folder = Path(first["folder"])
+    assert first["placed"] == 2 and sorted(p.name for p in folder.iterdir()) == [
+        "img3.png", "img3.txt", "img5.png"
+    ]  # fmt: skip
+    again = Path(app.copy_hits({"items": [1]})["folder"])
+    assert again.parent != folder.parent  # every copy goes to a fresh folder
+    for bad in ({"items": []}, {"items": [99]}, {"items": ["1"]}):
+        with pytest.raises(ValueError):
+            app.copy_hits(bad)
 
 
 def test_the_page_script_parses(tmp_path):

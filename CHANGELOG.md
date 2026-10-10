@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **Copy search results to a folder from the web page**: under the results, "Copy these to a
+  folder" puts them with their captions into a new `search_matches` folder next to the folder,
+  as `search --copy-to` does.
 - **Search results without near-copies.** A hit that is a near-copy of a better hit (same picture,
   crop or recolour; the `duplicates` threshold) is left out and the next one moves up, so the
   results are not filled with variants of one picture. The web page says how many were folded;
