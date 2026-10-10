@@ -87,7 +87,8 @@ All of these are in `docs/BENCHMARKS.md`.
     artists.
 
 - **From the v0.24 product critique, not done yet**:
-  - Negative examples in search ("not like this"). Search inside a caption tag is done (0.26).
+  - Search inside a caption tag is done (0.26). Negative examples were measured and dropped
+    (BENCHMARKS.md, "Tried and rejected").
   - Caption checks against the image, for example `monochrome` on a colourful picture.
   - Comparing two free selections (a selection against a group is done, 0.27).
   - An aspect-ratio bucket report as the trainer will see it.

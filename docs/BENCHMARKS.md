@@ -796,6 +796,19 @@ as "mostly this folder's style", and a quarter or less as "mostly unlike it".
 
 ## Tried and rejected
 
+### Negative examples in search (2026-10-10)
+
+"Like these, but not like those": 15 prolific artists, 5 works of artist A as examples and 5 of
+A's closest artist B as extra negatives in the learned search model (whitened):
+
+| Negatives | AP of A's other works | B's works in the top 50 |
+|---|---|---|
+| none (random library sample only) | 0.720 | 3.6 |
+| B's 5, weight 1 | 0.721 | 3.5 |
+| B's 5, weight 10 | 0.723 | 2.9 |
+
+Five hand-picked negatives barely change the ranking, so `search` has no `--not` option.
+
 ### int8 quantization for CPU speed (2026-10-10)
 
 PyTorch dynamic int8 quantization of the ViT's linear layers, on 64 Danbooru works (batch 8, 8
