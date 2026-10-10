@@ -103,7 +103,17 @@ def _both_sides(a: argparse.Namespace, out: Path) -> tuple[Atlas, Atlas]:
 
 def _place(a: argparse.Namespace, new: Atlas, folders: list, labels: dict, out: Path) -> None:
     """--export: the new images (and captions) into <out>/sorted/<group>."""
-    kohya = all(KOHYA_FOLDER.match(name) for name in labels.values())
+    matches = [bool(KOHYA_FOLDER.match(name)) for name in labels.values()]
+    kohya = all(matches)
+    if a.trigger_captions and any(matches) and not kohya:
+        log(
+            tr(
+                "note: only some folders are named <repeats>_<name>; the triggers keep each "
+                "folder's "
+                "full name",
+                "注意：只有部分資料夾是 <repeats>_<名稱> 的格式；觸發詞會用各資料夾的完整名稱",
+            )
+        )
     done = export_folders(
         new,
         folders,

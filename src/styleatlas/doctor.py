@@ -55,14 +55,26 @@ def _cache_lines(root: Path) -> list[tuple[str, str, str]]:
     """How big the caches have grown: vectors are kept (they take minutes to recompute), the
     thumbnails can be deleted at any time (they are remade when a page asks for them)."""
     rows = []
-    vectors = sum(f.stat().st_size for f in root.glob("vectors.sqlite*") if f.is_file())
+    vectors = _size(root.glob("vectors.sqlite*"))
     if vectors:
         rows.append((OK, "vector cache", f"{vectors / 1e6:.0f} MB ({root / 'vectors.sqlite'})"))
     thumbs = root / "thumbs"
     if thumbs.is_dir():
-        size = sum(f.stat().st_size for f in thumbs.rglob("*") if f.is_file())
+        size = _size(thumbs.rglob("*"))
         rows.append((OK, "thumbnails", f"{size / 1e6:.0f} MB; {thumbs} can be deleted any time"))
     return rows
+
+
+def _size(files) -> int:
+    """Total bytes; a file removed meanwhile (e.g. by a running web app) is skipped."""
+    total = 0
+    for f in files:
+        try:
+            if f.is_file():
+                total += f.stat().st_size
+        except OSError:
+            continue
+    return total
 
 
 def checks() -> list[tuple[str, str, str]]:

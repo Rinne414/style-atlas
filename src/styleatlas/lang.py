@@ -15,9 +15,9 @@ LANG_CHINESE = 0x04  # Windows primary language id
 
 def chinese() -> bool:
     choice = os.environ.get("STYLE_ATLAS_LANG", "").strip().lower()
-    if choice:
+    if choice.startswith(("zh", "en")):
         return choice.startswith("zh")
-    return _system_is_chinese()
+    return _system_is_chinese()  # unset, "auto" or anything else
 
 
 @lru_cache(maxsize=1)

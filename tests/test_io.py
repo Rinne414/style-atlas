@@ -366,3 +366,12 @@ def test_wide_grey_modes_are_scaled_to_eight_bits():
         assert abs(out.mean() - 127.5) < 1.5, im.mode
     rgb = Image.new("RGB", (4, 4))
     assert to_8bit(rgb) is rgb  # other modes untouched
+
+
+def test_an_unknown_language_setting_falls_back_to_the_system(monkeypatch):
+    from styleatlas import lang
+
+    monkeypatch.setattr(lang, "_system_is_chinese", lambda: True)
+    for value, chinese in (("auto", True), ("zh-TW", True), ("en", False), ("", True)):
+        monkeypatch.setenv("STYLE_ATLAS_LANG", value)
+        assert lang.chinese() is chinese, value

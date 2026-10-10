@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+Changed output (scripts that parse the text should use `--json`):
+
+- `compare` prints a readable summary by default; the JSON it printed before needs `--json`.
+- `duplicates` prints a header line per group and one file per line (was one line per group).
+- On a Chinese system `audit` adds the meaning to each item name (`no_caption（沒有標註檔）`).
+- `cluster.fit_to_groups` takes plain CSD vectors and whitens them itself: code that passed
+  whitened vectors must pass the plain ones now (docs/API.md).
+
 New:
 
 - **LoRA render check in the report.** `style-atlas report TRAIN --renders RENDERS` adds a section
