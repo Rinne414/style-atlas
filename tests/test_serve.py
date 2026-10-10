@@ -641,3 +641,16 @@ def test_a_kohya_export_with_chinese_names_writes_a_valid_dataset_config(tmp_pat
     dirs = [Path(s["image_dir"]) for s in config["datasets"][0]["subsets"]]
     assert all(d.is_dir() for d in dirs) and any("早期 線稿" in d.name for d in dirs)
     assert config["general"]["keep_tokens"] == 1
+
+
+def test_each_group_lists_its_closest_groups(tmp_path):
+    from styleatlas.report import nearest_groups
+
+    app, _ = _app(tmp_path, (8, 7, 6))
+    app.regroup({"threshold": 0.5})
+    near = nearest_groups(app.atlas, app.clustering)
+    ids = {c.id for c in app.clustering.clusters}
+    for gid, rows in near.items():
+        assert gid not in [r[0] for r in rows] and {r[0] for r in rows} <= ids
+        assert [r[1] for r in rows] == sorted(r[1] for r in rows)
+    assert '"near":[[' in app.page()

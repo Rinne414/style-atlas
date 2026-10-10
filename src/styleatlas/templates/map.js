@@ -29,6 +29,7 @@ const T = {
     exclude: "Exclude from export (X)", included: "Excluded - undo (X)",
     excludedList: "Excluded by you ({n}) - exported to _excluded",
     compareWith: "Compare with…", compareTitle: "{a} compared with {b}",
+    nearGroups: "closest:", nearTip: "Open that group (the number is the style distance between the groups' centres)",
     manyGroups: "Many small groups. If this folder is one artist's work, pick 'medium' or 'period' in the grouping menu (bottom left), then Regroup.",
     firstHint: "Start here: click a style on the right to see its images · the Check tab checks the dataset · ? lists every shortcut",
     refPath: "reference folder (styles you know)", refLoad: "Load reference", refClear: "Clear reference",
@@ -104,6 +105,7 @@ const T = {
     exclude: "匯出時排除 (X)", included: "已排除，取消 (X)",
     excludedList: "你排除的圖（{n}）：匯出時放到 _excluded",
     compareWith: "和…比較", compareTitle: "{a} 和 {b} 比較",
+    nearGroups: "最接近：", nearTip: "打開那一群（數字是兩群中心的畫風距離）",
     manyGroups: "分出很多小群。如果這是同一位畫師的資料夾，可以把左下的分群選單改成「中」或「時期」，再按重新分群。",
     firstHint: "從這裡開始：點右側的畫風群看成員 ·「檢查」分頁可以檢查資料集 · 按 ? 看所有操作",
     refPath: "參考資料夾（已知畫風）", refLoad: "載入參考", refClear: "清除參考",
@@ -476,7 +478,7 @@ function buildClusters() {
   PTS.forEach((p, i) => (p.c >= 0 ? groups[p.c].members : un.members).push(i));
   un.size = un.members.length; if (un.size) un.medoid = un.members[0];
   for (const c of [...groups, ...(un.size ? [un] : [])]) {
-    const row = document.createElement("div"); row.className = "cl";
+    const row = document.createElement("div"); row.className = "cl"; row.dataset.id = String(c.id);
     const img = document.createElement("img"); img.src = PTS[c.medoid]?.t || ""; img.alt = "";
     img.style.borderColor = colorOf(c.id);
     const txt = document.createElement("div");
@@ -487,6 +489,22 @@ function buildClusters() {
     if (c.tags && c.tags.length) {
       const tg = document.createElement("div"); tg.className = "meta tags"; tg.textContent = c.tags.join(", ");
       txt.append(tg);
+    }
+    if (c.near && c.near.length) {
+      const nr = document.createElement("div"); nr.className = "meta near";
+      nr.append(`${t("nearGroups")} `);
+      c.near.forEach(([id, d], k) => {
+        const a = document.createElement("a"); a.href = "#"; a.textContent = `${clusterName(id)} (${d.toFixed(2)})`;
+        a.title = t("nearTip");
+        a.addEventListener("click", (e) => {
+          e.preventDefault(); e.stopPropagation();
+          const target = [...pane.querySelectorAll(".cl")].find((r) => r.dataset.id === String(id));
+          if (target) { target.scrollIntoView({ block: "nearest" }); target.click(); }
+        });
+        if (k) nr.append(" · ");
+        nr.append(a);
+      });
+      txt.append(nr);
     }
     const look = lookWords(c.members);
     if (look) {

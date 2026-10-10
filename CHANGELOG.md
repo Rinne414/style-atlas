@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Each group card lists its 3 closest groups (style distance between the groups' centres),
+  linked: handy for deciding what to merge, and for seeing which styles are related.
 - When "auto" cuts a folder into many small groups (more than 12, and more than one per 8
   images), the web app suggests "medium" or "period" for a single artist's folder. The varied
   artist that auto had cut into 46 groups now gets this hint.

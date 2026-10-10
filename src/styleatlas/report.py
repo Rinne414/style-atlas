@@ -76,6 +76,24 @@ def with_reference(layout: Layout, atlas: Atlas, reference: Atlas | None) -> Lay
     return replace(layout, ref_dist=dist, ref_name=names, ref_title=reference.root.name)
 
 
+NEAR_GROUPS = 3
+
+
+def nearest_groups(atlas: Atlas, clustering: Clustering) -> dict[int, list[list]]:
+    """For each group, the closest other groups: [[id, centroid distance], ...]."""
+    groups = [c for c in clustering.clusters if c.size]
+    if len(groups) < 2:
+        return {}
+    cents = np.stack([centroid(atlas.style[c.members]) for c in groups])
+    dist = 1.0 - cents @ cents.T
+    np.fill_diagonal(dist, np.inf)
+    out = {}
+    for row, c in enumerate(groups):
+        order = np.argsort(dist[row])[: min(NEAR_GROUPS, len(groups) - 1)]  # never itself
+        out[c.id] = [[groups[j].id, round(float(dist[row, j]), 3)] for j in order]
+    return out
+
+
 def build_payload(
     atlas: Atlas,
     clustering: Clustering,
@@ -88,6 +106,7 @@ def build_payload(
 ) -> dict:
     times = [file_time(p, time_source) for p in atlas.paths]
     group_tags = group_tags or {}
+    near = nearest_groups(atlas, clustering)
     points = [
         {
             "p": layout.coords[i].round(4).tolist(),
@@ -120,6 +139,7 @@ def build_payload(
                 "medoid": c.medoid,
                 "cohesion": round(c.cohesion, 4),
                 "tags": group_tags.get(c.id, []),
+                "near": near.get(c.id, []),
             }
             for c in clustering.clusters
         ],
