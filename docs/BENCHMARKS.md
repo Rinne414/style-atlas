@@ -221,6 +221,9 @@ pairs of the 5 big artists: one artist (deduplicated, 95-299 works) plus 15 work
   - one clicked stray had 63% of the other strays among its 12 nearest images (86% among 30);
   - three strays searched as one set (`--combine`) put 98% of the rest in the top 30 (worst
     pair 75%).
+  - held out (2026-10-10): on 16 artists the search whitening never saw, 240 pairs of an
+    artist's ~40 works plus 8 strays of another, two or three excluded strays put 100% of the
+    other strays in the top 30.
 - So the web app's excluded list has **Find more like these**: exclude two or three strays
   with X, then the button lists the images most like them.
 
