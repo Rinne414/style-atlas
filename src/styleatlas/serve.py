@@ -14,6 +14,7 @@ import os
 import subprocess
 import sys
 import threading
+from collections import Counter
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
@@ -637,6 +638,61 @@ class StyleAtlasApp(GroupEdits):
             raise ValueError(f"max_per_group must be empty or a whole number from {low} to {high}")
         return layout, trigger, name, strip, cap
 
+    def _plan(self, layout: str, name: str, cap: int | None) -> list[str]:
+        """Each image's export folder, as the export would place it (call under the lock)."""
+        return plan_folders(
+            self.atlas.paths,
+            self.clustering,
+            layout=layout,
+            name=name,
+            duplicate_groups=self.layout.duplicates,
+            excluded=sorted(self.excluded),
+            group_names=self.names_by_group(),
+            min_size=EXPORT_MIN_GROUP,
+            max_per_group=cap,
+            style=self.atlas.style,
+        )
+
+    def _plan_summary(self, folders: list[str], layout: str, trigger: bool) -> dict:
+        """What an export of `folders` gives: groups too small to keep, how many images train,
+        the trigger words and the steps per epoch."""
+        labels = self.clustering.labels
+        small = {
+            int(labels[i]) for i, f in enumerate(folders) if labels[i] >= 0 and is_unassigned(f)
+        }
+        return {
+            "small_groups": len(small),  # left with < EXPORT_MIN_GROUP images: in unassigned
+            "small_ids": sorted(small),
+            # the rest go to the set-aside folders (_duplicates, _excluded, unassigned ...)
+            "training": sum(not (f.startswith("_") or is_unassigned(f)) for f in folders),
+            "triggers": sorted(
+                {t for f in folders if trigger and (t := trigger_of(f, layout)) is not None}
+            ),
+            "trimmed": sum(f == SET_ASIDE["trimmed"] for f in folders),
+            "steps": steps_per_epoch(folders) if layout == "kohya" else None,
+        }
+
+    def export_plan(self, body: dict) -> dict:
+        """The export's plan without writing anything: one row per folder (images, and the
+        repeats of a kohya folder), and the same summary as an export."""
+        layout, trigger, name, _, cap = self._export_options(body)
+        with self._lock:
+            folders = self._plan(layout, name, cap)
+        rows = []
+        for folder, n in sorted(Counter(folders).items()):
+            head, _, rest = folder.partition("_")
+            kohya = layout == "kohya" and head.isdigit() and bool(rest)
+            training = not (folder.startswith("_") or is_unassigned(folder))
+            rows.append(
+                {
+                    "folder": folder,
+                    "images": n,
+                    "repeats": int(head) if kohya else None,
+                    "training": training,
+                }
+            )
+        return {"rows": rows, **self._plan_summary(folders, layout, trigger)}
+
     def export(self, body: dict) -> dict:
         mode = body.get("mode", "copy")
         layout, trigger, name, strip, cap = self._export_options(body)
@@ -646,18 +702,7 @@ class StyleAtlasApp(GroupEdits):
         out = self.out_dir
         respell = spelling_fixes(self.atlas.paths) if fix else None  # reads captions: no lock
         with self._lock:
-            folders = plan_folders(
-                self.atlas.paths,
-                self.clustering,
-                layout=layout,
-                name=name,
-                duplicate_groups=self.layout.duplicates,
-                excluded=sorted(self.excluded),
-                group_names=self.names_by_group(),
-                min_size=EXPORT_MIN_GROUP,
-                max_per_group=cap,
-                style=self.atlas.style,
-            )
+            folders = self._plan(layout, name, cap)
             write_table(self.atlas, self.clustering, out, folders)
             result = export_folders(
                 self.atlas,
@@ -669,28 +714,16 @@ class StyleAtlasApp(GroupEdits):
                 strip_tags=parse_tags(strip),
                 respell=respell,
             )
-            trimmed = sum(f == SET_ASIDE["trimmed"] for f in folders)
-            labels = self.clustering.labels
-            small = {
-                int(labels[i]) for i, f in enumerate(folders) if labels[i] >= 0 and is_unassigned(f)
-            }
+            summary = self._plan_summary(folders, layout, trigger)
         return {
             "placed": result.placed,
             "failed": len(result.failed),
             "folder": str(result.folder),
-            "small_groups": len(small),  # left with < EXPORT_MIN_GROUP images: in unassigned
-            "small_ids": sorted(small),
-            # the rest go to the set-aside folders (_duplicates, _excluded, unassigned ...)
-            "training": sum(not (f.startswith("_") or is_unassigned(f)) for f in folders),
             "upright": result.upright,
             "respelt": sorted(respell.values()) if respell else [],
             "small_training": result.small_training,
-            "triggers": sorted(
-                {t for f in folders if trigger and (t := trigger_of(f, layout)) is not None}
-            ),
-            "trimmed": trimmed,
             "config": (result.folder / KOHYA_CONFIG).exists(),
-            "steps": steps_per_epoch(folders) if layout == "kohya" else None,
+            **summary,
         }
 
 

@@ -46,6 +46,7 @@ JSON_ROUTES = {  # POST route -> StyleAtlasApp method taking the JSON body
     "api/open_output": "open_output",
     "api/copy_hits": "copy_hits",
     "api/export": "export",
+    "api/export_plan": "export_plan",
 }
 REQUEST_ERRORS = (ValueError, OSError, KeyError, TypeError, OverflowError, ModelDownloadError)
 

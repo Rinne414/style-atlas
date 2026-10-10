@@ -545,19 +545,51 @@ function restoreExportOptions() {  // an edit reloads the page: the bar comes ba
   if (options.open && $("exportPanel").hidden) $("exportOpen").click();
 }
 
+function exportBody() {  // the export bar's options, as the server reads them
+  const cap = parseInt($("expMax").value, 10);
+  return { mode: "copy", layout: $("expLayout").value, name: $("expName").value.trim(),
+    trigger: $("expTrig").checked, fix_spelling: $("expSpell").checked, max_per_group: cap > 0 ? cap : null,
+    strip_tags: $("expStrip").value.trim() };
+}
+
+async function showExportPlan() {  // what the export would write, before it writes anything
+  try {
+    const r = await post("api/export_plan", JSON.stringify(exportBody()), "application/json");
+    const pane = $("pane-selected"); pane.replaceChildren();
+    const h = document.createElement("h3"); h.textContent = t("planTitle");
+    const table = document.createElement("table"); table.className = "plan";
+    const head = document.createElement("tr");
+    [t("planFolder"), t("planImages"), t("planRepeats")].forEach((x) => { const th = document.createElement("th"); th.textContent = x; head.append(th); });
+    table.append(head);
+    r.rows.forEach((row) => {
+      const tr = document.createElement("tr"); if (!row.training) tr.className = "aside";
+      [row.folder, row.images, row.repeats ?? ""].forEach((x) => { const td = document.createElement("td"); td.textContent = String(x); tr.append(td); });
+      table.append(tr);
+    });
+    const kv = document.createElement("div"); kv.className = "kv";
+    const lines = [t("planTraining").replace("{k}", r.training)];
+    if (r.steps) lines.push(t("stepsNote").replace("{n}", r.steps) + " " + t("repeatsNote"));
+    if (r.small_groups) {
+      const groups = r.small_ids.map(clusterName).join(lang === "zh" ? "、" : ", ");
+      lines.push(t("smallGroups").replace("{n}", r.small_groups).replace("{g}", groups));
+    }
+    if (r.triggers.length) lines.push(t("triggersNote").replace("{w}", r.triggers.join(", ")));
+    kv.textContent = lines.join(" ");
+    pane.append(h, kv, table);
+    showPane("selected");
+  } catch (e) { setStatus(String(e.message || e)); }
+}
+
 function setupExport() {
   [...EXPORT_FIELDS, "expTrig", "expSpell"].forEach((id) => {
     $(id).addEventListener("change", saveExportOptions); $(id).addEventListener("input", saveExportOptions);
   });
   $("exportOpen").addEventListener("click", saveExportOptions);  // after setupPanels toggled it
   restoreExportOptions();
+  $("exportPreview").addEventListener("click", showExportPlan);
   $("export").addEventListener("click", async () => {
     try {
-      const cap = parseInt($("expMax").value, 10);
-      const body = { mode: "copy", layout: $("expLayout").value, name: $("expName").value.trim(),
-        trigger: $("expTrig").checked, fix_spelling: $("expSpell").checked, max_per_group: cap > 0 ? cap : null,
-        strip_tags: $("expStrip").value.trim() };
-      const r = await post("api/export", JSON.stringify(body), "application/json");
+      const r = await post("api/export", JSON.stringify(exportBody()), "application/json");
       const groups = (r.small_ids || []).map(clusterName).join(lang === "zh" ? "、" : ", ");
       const small = r.small_groups ? " " + t("smallGroups").replace("{n}", r.small_groups).replace("{g}", groups) : "";
       const config = r.config ? " " + t("configWritten") : "";
@@ -609,7 +641,7 @@ function setupDrop() {  // images dropped anywhere on the page are searched
 function liveText() {
   if (!DATA.live) return;
   $("pickBtn").textContent = t("searchImg"); $("regroup").textContent = t("regroup");
-  $("export").textContent = t("exportGo"); $("exportOpen").textContent = t("exportOpen");
+  $("export").textContent = t("exportGo"); $("exportPreview").textContent = t("exportPreview"); $("exportOpen").textContent = t("exportOpen");
   $("exportTitle").textContent = t("exportTitle"); $("moreOpen").textContent = t("moreOpen");
   $("drop").textContent = t("drop");
   document.querySelectorAll("#steps button").forEach((b) => { b.textContent = t("step_" + b.dataset.step); });
@@ -641,7 +673,7 @@ function liveText() {
   $("periods").title = t("periods");
   showPeriods($("gran").value === "period");
   const tips = { exportOpen: "tipExport", moreOpen: "tipMore", expMax: "tipMax", expStrip: "tipStrip", pickBtn: "tipSearch", gran: "tipGran", thr: "tipThr", regroup: "tipRegroup", undo: "tipUndo",
-    expLayout: "tipLayout", expName: "tipName", expTrigWrap: "tipTrig", expSpellWrap: "tipSpell", export: "tipExport",
+    expLayout: "tipLayout", expName: "tipName", expTrigWrap: "tipTrig", expSpellWrap: "tipSpell", exportPreview: "tipPreview", export: "tipExport",
     saveMap: "tipSaveMap", neutralWrap: "tipNeutral", saveReport: "tipSaveReport" };
   Object.entries(tips).forEach(([id, key]) => { $(id).title = t(key); });
 }

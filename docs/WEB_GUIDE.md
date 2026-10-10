@@ -63,7 +63,7 @@
 
 之後又加了新圖時，用同一個資料夾重新打開即可：取名、移動、合併和排除都會保留，新圖先放在「未歸類」：點開它，按「各自放進最像的畫風」，夠像的圖會放進最像的群（要和那群七成的圖一樣接近群中心），其餘留著讓你手動處理；這一步可以復原。
 
-按「開始匯出」。kohya 格式會同時附上 kohya、diffusion-pipe、OneTrainer、ai-toolkit 的設定檔（用法見 [LORA_GUIDE.md](LORA_GUIDE.md) 步驟 3）。
+按「預覽」可以先看這次會寫出哪些資料夾、各幾張、repeats 多少，以及哪些圖會被放到 `_duplicates`、`_excluded` 等，不會寫入任何檔案。確認後按「開始匯出」。kohya 格式會同時附上 kohya、diffusion-pipe、OneTrainer、ai-toolkit 的設定檔（用法見 [LORA_GUIDE.md](LORA_GUIDE.md) 步驟 3）。
 
 匯出完成的訊息會說明：
 

@@ -59,6 +59,9 @@ New:
   kohya sd-scripts reads the pixels as stored and ignores the EXIF orientation (checked in
   its `library/utils.py`), so a phone photo trains sideways; ai-toolkit and OneTrainer turn
   it upright.
+- **Export preview** (web: 「預覽」 next to 開始匯出): the folders, image counts and repeats an export
+  would write, the set-aside folders, small groups, trigger words and steps per epoch, without
+  writing anything (`cluster` without `--export` already prints its plan).
 - **Common tags in the check** (`audit`, the Check tab; JSON `frequent_tags`): the tags in half or
   more of the captions with their share, since content in nearly every training image (one
   character, one outfit) is learned along with the style.

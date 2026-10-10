@@ -75,6 +75,10 @@
   #help b { display: inline-block; min-width: 108px; margin-right: 10px; color: var(--muted); font-weight: 600; }
   #help p.about { margin: 0 0 8px; line-height: 1.5; }
   .grid img.excluded { opacity: .35; }
+  table.plan { border-collapse: collapse; font-size: 12px; margin-top: 6px; width: 100%; }
+  table.plan th, table.plan td { text-align: left; padding: 2px 6px; border-bottom: 1px solid var(--line); }
+  table.plan td:nth-child(n+2), table.plan th:nth-child(n+2) { text-align: right; }
+  table.plan tr.aside td { color: var(--muted); }
   .kv .verdict { font-size: 14px; margin-bottom: 4px; }
   #help p.about:last-of-type { padding-bottom: 8px; border-bottom: 1px solid var(--line); }
   #tip { position: absolute; pointer-events: none; display: none; background: var(--panel);

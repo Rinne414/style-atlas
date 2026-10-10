@@ -180,3 +180,21 @@ def test_the_web_app_can_group_by_artist_and_keeps_it_after_a_restart(tmp_path):
     assert (again.clustering.labels == app.clustering.labels).all()
     with pytest.raises(ValueError):
         app.regroup({"method": "spectral"})
+
+
+def test_the_export_preview_writes_nothing_and_matches_the_export(tmp_path):
+    app, _ = _app(tmp_path)
+    app.regroup({"threshold": 0.5})
+    for i in app.clustering.clusters[1].members[2:]:  # leave 2 images in the smaller group
+        app.move({"i": i, "to": -1, "rev": app.revision})
+    body = {"layout": "kohya", "name": "artistx", "trigger": True}
+    plan = app.export_plan(body)
+    assert not list(app.out_dir.glob("folders*"))  # nothing exported yet
+    assert sum(r["images"] for r in plan["rows"]) == len(app.atlas)
+    trained = [r for r in plan["rows"] if r["training"]]
+    assert trained and all(
+        r["repeats"] and r["folder"].startswith(f"{r['repeats']}_") for r in trained
+    )
+    done = app.export({"mode": "copy", **body})
+    for key in ("small_ids", "training", "triggers", "steps"):
+        assert plan[key] == done[key], key
