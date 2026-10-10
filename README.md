@@ -65,7 +65,7 @@ pip install -e ".[umap]"    # 選用：地圖改用 UMAP 版面
 以下的 `style-atlas ...` 指令都在 `scripts\StyleAtlas-console.bat` 開的視窗裡輸入。
 
 ```bash
-# 1. 檢查：太小的圖、極端長寬比、動圖、缺標註或標註是空的
+# 1. 檢查：太小的圖、極端長寬比、動圖、缺標註或標註是空的、混在彩色圖裡的黑白圖
 style-atlas audit "D:\lora\artistX" --min-side 768
 
 # 2. 在網頁介面先看一遍：哪些是重複圖（「重複」分頁）、哪些離群（「離群」分頁），分群是否合理
@@ -319,7 +319,7 @@ pip install -e .          # install the CUDA build of torch first for GPU use; "
 ### LoRA workflow
 
 ```bash
-style-atlas audit DIR --min-side 768        # small / extreme / animated images, missing captions
+style-atlas audit DIR --min-side 768        # small / extreme / animated / stray greyscale images, captions
 style-atlas serve DIR --time name           # review duplicates, outliers and groups in the browser
 style-atlas cluster DIR --layout kohya --name artistX --dedupe --drop-outliers 5 --export copy
 ```

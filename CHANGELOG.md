@@ -11,6 +11,9 @@
     `cluster` prints the words per group; `compare` reports B minus A in pooled SDs.
   - Chosen on 3,259 Danbooru works by 306 artists: 13-40% of each measure's spread is between
     artists; three candidates were dropped as near-duplicates of the others (BENCHMARKS.md).
+- `audit` lists greyscale images mixed into a colour set (sketches, comic pages), unless most of
+  the folder is greyscale. 8% of the Danbooru works were greyscale, with a clear gap at
+  colourfulness 0.02.
 
 ## 0.14.0 - 2026-10-10
 

@@ -69,6 +69,9 @@ WORDS = {  # (above the collection, below it)
     "flatness": ("flatter colour", "more texture"),
 }
 NOTABLE = 0.5  # |z| from which a difference is worth putting into words
+# Below this colourfulness an image is greyscale (or nearly): on 3,259 Danbooru works, 269 were
+# under 0.01 and only 33 more under 0.02, so the gap is clear.
+GREYSCALE = 0.02
 
 
 def describe(z: np.ndarray) -> str:

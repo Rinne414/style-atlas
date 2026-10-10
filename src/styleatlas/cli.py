@@ -278,7 +278,9 @@ def _print_groups(
 def cmd_audit(a: argparse.Namespace) -> int:
     from styleatlas.dataset import audit
 
-    report = audit(find_images(Path(a.folder)), min_side=a.min_side, max_ratio=a.max_ratio)
+    paths = find_images(Path(a.folder))
+    looks = measure_looks(paths, _opts(a), log)
+    report = audit(paths, min_side=a.min_side, max_ratio=a.max_ratio, looks=looks)
     if a.json:
         print(json.dumps(report, ensure_ascii=False, indent=1))
         return 0

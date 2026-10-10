@@ -17,6 +17,7 @@ import numpy as np
 from PIL import Image
 
 from styleatlas.cluster import UNASSIGNED, Clustering
+from styleatlas.look import GREYSCALE, LOOK_NAMES
 
 CAPTION_SUFFIXES = (".txt", ".caption")
 LAYOUTS = ("plain", "kohya")
@@ -251,8 +252,14 @@ def plan_folders(
     return folders
 
 
-def audit(paths: list[Path], min_side: int = 512, max_ratio: float = 2.5) -> dict:
-    """Problems a trainer would hit: small or extreme images, animations, missing captions."""
+def audit(
+    paths: list[Path],
+    min_side: int = 512,
+    max_ratio: float = 2.5,
+    looks: np.ndarray | None = None,
+) -> dict:
+    """Problems a trainer would hit: small or extreme images, animations, missing captions, and
+    (given the look measures of `paths`) greyscale images mixed into a colour set."""
     report: dict[str, list[str]] = {
         "unreadable": [],
         "truncated": [],
@@ -261,6 +268,7 @@ def audit(paths: list[Path], min_side: int = 512, max_ratio: float = 2.5) -> dic
         "animated": [],
         "no_caption": [],
         "empty_caption": [],
+        "greyscale_in_colour_set": [],
     }
     sides = []
     for p in paths:
@@ -282,6 +290,10 @@ def audit(paths: list[Path], min_side: int = 512, max_ratio: float = 2.5) -> dic
             report["no_caption"].append(str(p))
         elif not read_tags(p):
             report["empty_caption"].append(str(p))
+    if looks is not None and len(paths):
+        grey = looks[:, LOOK_NAMES.index("colourfulness")] < GREYSCALE
+        if grey.mean() < 0.5:  # a mostly greyscale folder is a monochrome artist, not a mistake
+            report["greyscale_in_colour_set"] = [str(paths[i]) for i in np.flatnonzero(grey)]
     summary = {k: len(v) for k, v in report.items()}
     summary["images"] = len(paths)
     if sides:
