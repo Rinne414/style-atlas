@@ -686,3 +686,16 @@ def test_several_images_are_excluded_or_moved_at_once(tmp_path):
     app.undo({"rev": app.revision})  # the whole batch is one step
     labels = app.clustering.labels
     assert all(labels[i] != labels[-1] for i in moved)
+
+
+def test_images_are_found_by_a_caption_tag(tmp_path):
+    app, _ = _app(tmp_path, (8, 7))
+    (tmp_path / "img0.txt").write_text("1girl, Monochrome, greyscale", encoding="utf-8")
+    (tmp_path / "img1.txt").write_text("1girl, rough_sketch", encoding="utf-8")
+    (tmp_path / "img2.txt").write_text("1girl, colorful", encoding="utf-8")
+    assert app.tagged({"tag": "mono"})["hits"] == [0]
+    assert app.tagged({"tag": "Rough Sketch"})["hits"] == [1]  # spaces = underscores
+    assert app.tagged({"tag": "1girl"})["hits"] == [0, 1, 2]
+    for bad in ("", "  ", 5, "x" * 300):
+        with pytest.raises(ValueError):
+            app.tagged({"tag": bad})

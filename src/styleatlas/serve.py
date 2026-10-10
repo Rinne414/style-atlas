@@ -77,6 +77,7 @@ MAX_SPLIT = 4000  # splitting runs under the lock; larger groups would stall eve
 COMPARE_ROUNDS = 199  # permutations for a group comparison's p-value (resolution 0.005)
 MIN_SIDE_RANGE = (64, 8192)  # the check tab's smallest-side setting
 MAX_PATH_TEXT = 1000  # longest folder path accepted from the page
+MAX_TAG_TEXT = 200
 
 
 DRIVE_REMOTE = 4  # GetDriveTypeW: a mapped network drive
@@ -226,6 +227,20 @@ class StyleAtlasApp:
         with self._lock:
             if self._tag_sets is None:
                 self._tag_sets = tags
+
+    def tagged(self, body: dict) -> dict:
+        """Images whose caption has a tag containing the text (case, spaces and underscores
+        ignored): "#mono" finds monochrome and greyscale-monochrome alike."""
+        text = body.get("tag")
+        if not isinstance(text, str) or not text.strip() or len(text) > MAX_TAG_TEXT:
+            raise ValueError("tag must be some text")
+        want = _norm_tag(text)
+        if self._tag_sets is None:
+            self._read_tags()
+        with self._lock:
+            sets = self._tag_sets or []
+        hits = [i for i, tags in enumerate(sets) if any(want in _norm_tag(t) for t in tags)]
+        return {"hits": hits}
 
     def _group_tags(self) -> dict[int, list[str]]:
         """Each group's characteristic caption tags (captions are read once per session)."""
@@ -646,6 +661,10 @@ class StyleAtlasApp:
             "trimmed": trimmed,
             "config": (result.folder / KOHYA_CONFIG).exists(),
         }
+
+
+def _norm_tag(tag: str) -> str:
+    return " ".join(tag.lower().replace("_", " ").split())
 
 
 def _tags_or_none(path: Path) -> set[str]:

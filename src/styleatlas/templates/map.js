@@ -29,6 +29,7 @@ const T = {
     exclude: "Exclude from export (X)", included: "Excluded - undo (X)",
     excludedList: "Excluded by you ({n}) - exported to _excluded",
     compareWith: "Compare with…", compareTitle: "{a} compared with {b}",
+    findLive: "filter by name, or #tag", tagHits: "{n} images have a caption tag with \"{t}\".",
     marked: "{n} selected", markExclude: "Exclude all", markInclude: "Un-exclude all", markClear: "Clear",
     markExcluded: "Excluded {n}.", markIncluded: "Un-excluded {n}.",
     shiftKeys: "Shift + click / drag", keyMark: "select several images, then exclude or move them at once",
@@ -110,6 +111,7 @@ const T = {
     exclude: "匯出時排除 (X)", included: "已排除，取消 (X)",
     excludedList: "你排除的圖（{n}）：匯出時放到 _excluded",
     compareWith: "和…比較", compareTitle: "{a} 和 {b} 比較",
+    findLive: "以檔名或 #標籤 篩選", tagHits: "{n} 張圖的標註裡有含「{t}」的標籤。",
     marked: "已選 {n} 張", markExclude: "全部排除", markInclude: "全部取消排除", markClear: "清除選取",
     markExcluded: "已排除 {n} 張。", markIncluded: "已取消排除 {n} 張。",
     shiftKeys: "Shift + 點／拖曳", keyMark: "選多張圖，再一次排除或移到別群",
@@ -657,7 +659,7 @@ function applyText() {
   $("title").querySelector(".sub").textContent =
     `${N} ${t("images")} · ${DATA.clusters.length} ${t("clusters").toLowerCase()} · ${methodText()}` +
     (DATA.params && DATA.params.edited ? ` · ${t("edited")}` : "");
-  $("find").placeholder = t("find");
+  $("find").placeholder = t(DATA.live ? "findLive" : "find");
   $("mode").textContent = mode === "thumbs" ? t("dots") : t("thumbs");
   $("spin").textContent = t("spin"); $("home").textContent = t("home"); $("names").textContent = t("names");
   $("mode").title = t("tipMode"); $("names").title = t("tipNames"); $("home").title = t("tipHome");
@@ -686,7 +688,26 @@ function applyText() {
 }
 
 
-$("find").addEventListener("input", (e) => { filter = e.target.value.trim(); recolor(); });
+let tagTimer = null;
+$("find").addEventListener("input", (e) => {
+  const text = e.target.value.trim();
+  clearTimeout(tagTimer);
+  if (DATA.live && text.startsWith("#")) {  // a caption tag: the server reads the captions
+    filter = "";
+    if (text.length < 2) { searchHits = null; recolor(); return; }
+    tagTimer = setTimeout(() => findTag(text.slice(1)), 300);
+    return;
+  }
+  filter = text; searchHits = null; recolor();
+});
+
+async function findTag(tag) {
+  try {
+    const r = await post("api/tagged", JSON.stringify({ tag }), "application/json");
+    selected = null; searchHits = new Set(r.hits); recolor();
+    setStatus(t("tagHits").replace("{n}", r.hits.length).replace("{t}", tag));
+  } catch (e) { setStatus(String(e.message || e)); }
+}
 $("mode").addEventListener("click", () => {
   mode = mode === "thumbs" ? "dots" : "thumbs";
   pages.forEach((pg) => (pg.mat.uniforms.uMode.value = mode === "dots" ? 1 : 0));

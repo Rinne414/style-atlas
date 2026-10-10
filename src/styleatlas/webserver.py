@@ -35,6 +35,7 @@ JSON_ROUTES = {  # POST route -> StyleAtlasApp method taking the JSON body
     "api/compare": "compare",
     "api/check": "check",
     "api/reference": "set_reference",
+    "api/tagged": "tagged",
     "api/search_set": "search_set",
     "api/save_map": "save_map",
     "api/open_output": "open_output",

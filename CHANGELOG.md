@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **Find by caption tag**: `#monochrome` (or any part of a tag, `#mono`) in the web app's filter
+  box lights up the images whose captions have it; case, spaces and underscores are ignored.
+  Suggested by a Sonnet product review.
 - **Select several images at once**: Shift+click (map or lists) or Shift+drag a box on the
   map, then exclude, un-exclude or move them all from the bar that appears; a batch move is
   one undo step, and Esc clears the selection. `api/exclude` and `api/move` take `items`.

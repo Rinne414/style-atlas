@@ -188,6 +188,7 @@ style-atlas taste score "D:\new_batch" --model "D:\my_taste.npz"
   - 離群度。
   - 外觀量測：亮度、對比、鮮豔度、冷暖、線條量、平塗度（見下一節）。例如 X 選冷暖、Y 選線條量、Z 選鮮豔度，就能看到整個資料夾在這三個面向上怎麼分布。
 - 右側每個畫風群的卡片下方，會用一句話說明這群和整個資料夾相比的外觀差異，例如「偏冷、線條多、色彩鮮豔」。
+- 上方的篩選框可以打檔名，或打 `#` 加標註裡的標籤（例如 `#monochrome`、`#sketch`），只亮出那些圖；配合 Shift 拖框可以一次排除。
 - 每群的卡片會列出「最接近」的 3 群（括號裡是畫風距離），點一下就跳過去；想合併相近的群時很方便。
 - 打開一群後，用「和…比較」選另一群，會列出兩群的畫風距離、差異是否明顯，以及外觀差在哪裡（和 `compare` 指令相同）。
 - 只有網頁介面才有的功能：
@@ -304,6 +305,8 @@ how a picture is drawn rather than what it shows. On top of those vectors it can
 - **Fix groups by hand** in the web app: "Find more like this" lists the images outside a group
   that look most like it; move an image to another group, merge two groups,
   split a group in two, or exclude images (X), which are then exported to `_excluded/`.
+  Type `#tag` in the filter box (`#monochrome`, `#sketch`) to light up the images whose captions
+  have that tag.
   Shift+click (on the map or in a list) or Shift+drag a box on the map to select several
   images, then exclude or move them all at once (one undo step); Esc clears the selection.
   Strays by another artist: exclude two or three, then "Find more like these" in the excluded
