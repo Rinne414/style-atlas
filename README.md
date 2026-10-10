@@ -17,9 +17,9 @@ style-atlas 會用 CSD 風格嵌入模型，把每張圖轉成一個「畫風向
 | **找畫風相近的圖**：一張或同畫風的幾張圖當範例，也能把結果直接複製成資料夾 | 網頁介面拖圖進去，或用 `search`（`--combine`、`--copy-to`） |
 | **3D 畫風地圖**：縮圖浮在 3D 空間，可轉動，點一下就看最接近的畫風 | `map`，或網頁介面的「存成分享用地圖」（單一 HTML 檔，可直接傳給朋友） |
 | **檢查資料集**：解析度、極端比例、缺標註、近重複 | `audit`、`duplicates` |
-| **量化畫風與口味**：兩組圖是否同一畫風、個人喜好模型 | `compare`、`taste`、網頁介面的「喜歡／不喜歡」 |
+| **量化畫風與口味**：兩組圖是否同一畫風、差在哪裡（亮度、鮮豔度、線條量等）、個人喜好模型 | `compare`、`taste`、網頁介面的外觀描述與「喜歡／不喜歡」 |
 
-![網頁介面：72 張圖自動分成 4 個畫風群，右側是群組清單與名稱](docs/images/map.jpg)
+![網頁介面：72 張圖自動分成 4 個畫風群，右側是群組清單、名稱和外觀描述（例如「對比弱、線條少、色塊平」）](docs/images/map.jpg)
 
 ![點開一群：其他群淡出，可以取名、合併、拆群，或「找更多像這群的」](docs/images/group.jpg)
 
@@ -259,7 +259,8 @@ how a picture is drawn rather than what it shows. On top of those vectors it can
   "style path" lists the images that lead from one picked style to another.
 - **Explore a 3D style map** (`map`, or "Save shareable map" in the web app): one HTML file you
   can send to anyone. Groups show their characteristic caption tags.
-- **Check a dataset** (`audit`, `duplicates`): sizes, aspect ratios, captions, near-duplicates.
+- **Check a dataset** (`audit`, `duplicates`): sizes, aspect ratios, captions, near-duplicates,
+  greyscale images mixed into a colour set.
 - **Fix groups by hand** in the web app: "Find more like this" lists the images outside a group
   that look most like it; move an image to another group, merge two groups,
   split a group in two, or exclude images (X), which are then exported to `_excluded/`.
@@ -267,10 +268,10 @@ how a picture is drawn rather than what it shows. On top of those vectors it can
   folder is opened. Names follow their images: after a move, merge, split or regroup a name
   stays with the group that holds most of its images.
   Undo (or Ctrl+Z) steps back through the last 30 edits, regroups and renames.
-- **Quantify style and taste**: `compare` two sets, or train a personal like/dislike model in
-  the web app or with `taste`.
+- **Quantify style and taste**: say how a group looks ("cooler, more line work"), `compare` two
+  sets, or train a personal like/dislike model in the web app or with `taste`.
 
-![The web app: 72 images grouped into 4 styles, with named groups on the right](docs/images/map.jpg)
+![The web app: 72 images grouped into 4 styles, with named groups and how each one looks on the right](docs/images/map.jpg)
 
 (The pictures are four abstract styles made by `scripts/make_demo_images.py`, not anyone's
 artwork. Run it to get a folder you can try the tool on.)
