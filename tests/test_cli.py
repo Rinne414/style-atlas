@@ -258,3 +258,15 @@ def test_vectors_are_saved_when_the_last_batch_fails_entirely(lib, tmp_path):
     kept, _, _, failed = embed_paths(paths, opts)
     again = embed_paths(paths, opts)  # everything that worked was saved
     assert len(kept) == len(paths) - 1 and again[0] == kept and len(again[3]) == 1
+
+
+def test_report_refuses_a_folder_whose_images_are_all_excluded(lib, tmp_path, capsys):
+    from styleatlas.images import find_images
+
+    web = tmp_path / "lib_style_atlas"
+    web.mkdir()
+    marks = {p.relative_to(lib).as_posix(): True for p in find_images(lib)}
+    (web / "excluded.json").write_text(json.dumps(marks), "utf-8")
+    out = tmp_path / "report.html"
+    assert main(["report", str(lib), "-o", str(out), "--device", "cpu"]) == 1
+    assert "every image is excluded" in capsys.readouterr().err and not out.exists()

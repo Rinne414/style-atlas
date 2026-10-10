@@ -324,3 +324,20 @@ def test_a_map_of_one_or_two_images_lays_out_without_warnings():
         one, how = project_3d(x[:1])
         two, _ = project_3d(x)
     assert one.shape == (1, 3) and how == "none" and np.isfinite(two).all()
+
+
+def test_auto_projection_falls_back_to_tsne_without_umap(monkeypatch):
+    import pytest
+
+    from styleatlas import project
+
+    x, labels = make_blobs([20, 20])
+    monkeypatch.setattr(project, "has_umap", lambda: False)
+    coords, how = project.project_3d(x, "auto")
+    assert how == "tsne" and coords.shape == (40, 3) and np.abs(coords).max() <= 1.0
+    a, b = coords[labels == 0].mean(axis=0), coords[labels == 1].mean(axis=0)
+    assert np.linalg.norm(a - b) > 0.5  # the two styles land apart
+    monkeypatch.setattr(project, "TSNE_MAX", 30)
+    assert project.project_3d(x, "auto")[1] == "pca"  # too many for t-SNE
+    with pytest.raises(ValueError):
+        project.project_3d(x, "mds")
