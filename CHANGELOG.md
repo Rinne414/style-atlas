@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- `audit` adds the meaning in Chinese to each item on a Chinese system (`no_caption（沒有標註檔）`),
+  aligned by display width.
 - A failed model download says, in Chinese on a Chinese system, how to use the Hugging Face
   mirror, with the Windows command (`set HF_ENDPOINT=https://hf-mirror.com`).
 - The web app's console window (what `StyleAtlas.bat` shows) is in Chinese on a Chinese

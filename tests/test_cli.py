@@ -490,5 +490,7 @@ def test_messages_are_in_chinese_when_asked(lib, tmp_path, monkeypatch, capsys):
     assert main(base) == 0
     err = capsys.readouterr().err
     assert "群，" in err and "張未分群" in err and "上面的資料夾名稱只是規劃" in err
+    assert main(["audit", str(lib), "--device", "cpu"]) == 0
+    assert "images（圖片數）" in capsys.readouterr().out
     monkeypatch.setenv("STYLE_ATLAS_LANG", "en")
     assert not chinese()

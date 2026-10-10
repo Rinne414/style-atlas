@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import unicodedata
 from collections.abc import Callable
 from pathlib import Path
 
@@ -33,7 +34,7 @@ from styleatlas.cli_sort import cmd_sort, sort_args
 from styleatlas.cluster import ARTISTS, GRANULARITY, METHODS, PERIODS, outlier_scores
 from styleatlas.encoder import CROP_MODES, RESOLUTIONS
 from styleatlas.images import TIME_SOURCES, find_images, labels_from_folders
-from styleatlas.lang import tr
+from styleatlas.lang import chinese, tr
 from styleatlas.look import LOOK_NAMES, describe, difference
 from styleatlas.metrics import (
     PLAIN,
@@ -64,14 +65,52 @@ def cmd_audit(a: argparse.Namespace) -> int:
     for key, value in report["summary"].items():
         if key == "buckets":
             value = " · ".join(f"{b} {n}" for b, n in value.items())
-            key = "buckets (kohya, 1024)"
-        print(f"{key:24s} {value}")
+        print(f"{_pad(_audit_label(key), 34)} {value}")
     for key, files in report["files"].items():
         for f in files[: a.show]:
             print(f"  [{key}] {_short(f, root)}")
         if len(files) > a.show:
-            print(f"  [{key}] ... and {len(files) - a.show} more (--show N, or --json for all)")
+            more = len(files) - a.show
+            print(
+                f"  [{key}] "
+                + tr(
+                    f"... and {more} more (--show N, or --json for all)",
+                    f"……還有 {more} 張（--show N 列更多，或 --json 列全部）",
+                )
+            )
     return 0
+
+
+AUDIT_ZH = {
+    "unreadable": "讀不到",
+    "truncated": "檔案不完整",
+    "smaller_than_min_side": "短邊太小",
+    "extreme_aspect_ratio": "長寬比太極端",
+    "soft_or_enlarged": "模糊或放大過",
+    "low_jpeg_quality": "JPEG 壓縮太重",
+    "animated": "動圖",
+    "no_caption": "沒有標註檔",
+    "empty_caption": "標註是空的",
+    "watermark_or_signature": "標註提到浮水印或簽名",
+    "greyscale_in_colour_set": "彩色資料夾裡的灰階圖",
+    "images": "圖片數",
+    "buckets": "kohya 的 1024 bucket",
+    "short_side_median": "短邊中位數",
+    "short_side_p10": "短邊第 10 百分位",
+}
+
+
+def _pad(text: str, width: int) -> str:
+    """`text` padded to `width` terminal columns (a Chinese character takes two)."""
+    shown = sum(2 if unicodedata.east_asian_width(ch) in "WF" else 1 for ch in text)
+    return text + " " * max(1, width - shown)
+
+
+def _audit_label(key: str) -> str:
+    """The audit's summary key, with its meaning in Chinese when messages are in Chinese."""
+    if key == "buckets" and not chinese():
+        return "buckets (kohya, 1024)"
+    return f"{key}（{AUDIT_ZH[key]}）" if chinese() and key in AUDIT_ZH else key
 
 
 def _short(path: str, root: Path) -> str:
