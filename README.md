@@ -57,7 +57,7 @@ Windows 跳出「Windows 已保護您的電腦」時，按「其他資訊」→�
 
 **第一次分析前**，程式會從 Hugging Face 下載 CSD 模型。下載量 2.4 GB，之後另存成 1.2 GB 的精簡檔，存在 `%USERPROFILE%\.cache\style-atlas`，只會下載一次。C 槽空間不夠時，可以先設定環境變數 `STYLE_ATLAS_CACHE`（例如 `D:\style-atlas-cache`）改存到別處。連不上 Hugging Face 時（例如在中國大陸），先設定環境變數 `HF_ENDPOINT=https://hf-mirror.com` 改從鏡像站下載。同一個資料夾也存放向量與縮圖快取（每張圖約幾 KB），刪掉不影響原始檔案，之後會重新產生。下載時畫面可能停很久，這是正常的。
 
-速度參考：只用 CPU 時，8 執行緒約每秒 4 張，1,000 張約 4 分鐘（實測）。有 NVIDIA 顯卡通常會快很多，但這點沒有實測過。每張圖的向量都會快取，第二次開同一個資料夾就不用重算向量。
+速度參考：只用 CPU 時，8 執行緒約每秒 2.5–4 張，1,000 張約 4–7 分鐘（實測，大圖較慢）。有 NVIDIA 顯卡通常會快很多，但這點沒有實測過。每張圖的向量都會快取，第二次開同一個資料夾就不用重算向量。
 
 ### 手動安裝
 
@@ -398,7 +398,7 @@ The first analysis downloads the CSD model once from Hugging Face (2.4 GB). It i
 
 Speed:
 
-- 8 CPU threads embed about 4 images per second (measured).
+- 8 CPU threads embed about 2.5-4 images per second (measured; large images are slower).
 - An NVIDIA GPU is usually much faster (not benchmarked here).
 - Vectors are cached by file content, so reopening a folder does not re-embed anything.
 

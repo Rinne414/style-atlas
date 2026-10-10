@@ -841,6 +841,25 @@ and 20 works of another artist.
 Single images are noisy, so the page reports the share of a batch. More than half inside reads
 as "mostly this folder's style", and a quarter or less as "mostly unlike it".
 
+## Embedding speed: loading images ahead (2026-10-10)
+
+64 Danbooru works of 8.7 megapixels on average, CPU only (8 threads, below-normal priority),
+batch 8, empty vector cache each run. Where the time went per image before the change: opening
+the file 85 ms, the look measures 19 ms, cropping and scaling for the model 35 ms, the model
+364 ms. Since 0.36 these first three run on separate threads for the next batch while the model
+works on the current one:
+
+| Embedding | ms per image |
+|---|---|
+| one after another (0.35) | 519 |
+| loading ahead, 1 thread | 432 |
+| loading ahead, 2 threads | 417 |
+| loading ahead, 4 threads (default) | 415 |
+
+The vectors are identical bit for bit. On a CPU the model sets the pace, so more loading threads
+add little. On a GPU the model takes a fraction of the time and loading would set the pace, which
+is why 4 threads load; GPU speed has not been measured here.
+
 ## Tried and rejected
 
 ### Negative examples in search (2026-10-10)

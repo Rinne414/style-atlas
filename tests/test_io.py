@@ -277,3 +277,24 @@ def test_docs_have_no_stray_control_characters():
         text = doc.read_text(encoding="utf-8")
         bad = [i for i, ch in enumerate(text) if ord(ch) < 32 and ch not in "\n\t"]
         assert not bad, f"{doc.name}: control character near {text[max(0, bad[0] - 30) : bad[0]]!r}"
+
+
+def test_images_are_loaded_ahead_in_batches_and_in_order():
+    from styleatlas.atlas import _ahead
+
+    out = list(_ahead(list(range(10)), 4, lambda x: x * x, 3))
+    assert [batch for batch, _ in out] == [[0, 1, 2, 3], [4, 5, 6, 7], [8, 9]]
+    assert [loaded for _, loaded in out] == [[0, 1, 4, 9], [16, 25, 36, 49], [64, 81]]
+    assert list(_ahead([], 4, abs, 2)) == []
+
+
+def test_a_failed_load_stops_the_loop_ahead(tmp_path):
+    from styleatlas.atlas import _ahead
+
+    def load(x):
+        if x == 5:
+            raise MemoryError("too big")
+        return x
+
+    with pytest.raises(MemoryError):
+        list(_ahead(list(range(10)), 4, load, 2))

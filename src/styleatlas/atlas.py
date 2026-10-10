@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field, replace
+from functools import partial
 from pathlib import Path
 
 import numpy as np
@@ -20,6 +21,7 @@ from styleatlas.store import VectorStore
 Progress = Callable[[str], None]
 LOAD_ERRORS = (OSError, ValueError, Image.DecompressionBombError, SyntaxError)
 LOOK_CHUNK = 500  # images measured between cache saves
+LOADERS = 4  # threads that open and prepare the next images while the model runs
 
 
 @dataclass
@@ -167,22 +169,19 @@ def _embed_missing(
     failed: list[tuple[Path, str]] = []
     pending: dict[str, tuple[np.ndarray, np.ndarray]] = {}
     looks: dict[str, np.ndarray] = {}  # measured while each image is open anyway
-    done = 0
-    for start in range(0, len(todo), opts.batch_size):
-        ims, owners = [], []
-        for p in todo[start : start + opts.batch_size]:
-            try:
-                ims.append(load_rgb(p))
-                owners.append(p)
-            except LOAD_ERRORS as e:
-                failed.append((p, f"cannot open: {e}"))
-        if ims:
-            emb = encoder.encode(ims)
-            for i, p in enumerate(owners):
+    done = seen = 0
+    load = partial(_prepare, encoder)
+    for batch, loaded in _ahead(todo, opts.batch_size, load, LOADERS):
+        ok = [(p, r) for p, r in zip(batch, loaded, strict=True) if not isinstance(r, str)]
+        failed += [(p, r) for p, r in zip(batch, loaded, strict=True) if isinstance(r, str)]
+        if ok:
+            emb = encoder.encode_prepared([inputs for _, (inputs, _) in ok])
+            for i, (p, (_, look)) in enumerate(ok):
                 pending[keys[p]] = (emb.style[i], emb.content[i])
-                looks[keys[p]] = measure(ims[i])
-        done += len(ims)
-        if len(pending) >= opts.save_every or start + opts.batch_size >= len(todo):
+                looks[keys[p]] = look
+        done += len(ok)
+        seen += len(batch)
+        if len(pending) >= opts.save_every or seen == len(todo):
             store.put(pending, encoder.signature)
             store.put_looks(looks, LOOK_VERSION)
             looks = {}
@@ -190,6 +189,29 @@ def _embed_missing(
             pending = {}
             progress(f"embedded {done}/{len(todo)}")
     return failed
+
+
+def _prepare(encoder: CSDEncoder, path: Path) -> tuple[list, np.ndarray] | str:
+    """(model inputs, look measures) for one image, or why it cannot be opened."""
+    try:
+        im = load_rgb(path)
+        return encoder.prepare(im), measure(im)
+    except LOAD_ERRORS as e:
+        return f"cannot open: {e}"
+
+
+def _ahead(items: list, size: int, load: Callable, workers: int) -> Iterator[tuple[list, list]]:
+    """(batch, load(x) for x in batch) in order, in batches of `size`. The next batch is loaded
+    on `workers` threads while the caller works on this one, so at most two are in memory."""
+    pool = ThreadPoolExecutor(workers)
+    try:
+        ahead = [pool.submit(load, x) for x in items[:size]]
+        for start in range(0, len(items), size):
+            current = ahead
+            ahead = [pool.submit(load, x) for x in items[start + size : start + 2 * size]]
+            yield items[start : start + size], [f.result() for f in current]
+    finally:
+        pool.shutdown(cancel_futures=True)
 
 
 def _measure_file(path: Path) -> np.ndarray:

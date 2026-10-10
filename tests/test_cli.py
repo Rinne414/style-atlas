@@ -33,6 +33,12 @@ class FakeEncoder:
         s = np.stack(rows)
         return Embeddings(s, s)
 
+    def prepare(self, im: Image.Image) -> Image.Image:
+        return im
+
+    def encode_prepared(self, prepared: list[Image.Image]) -> Embeddings:
+        return self.encode(prepared)
+
 
 @pytest.fixture
 def lib(tmp_path, monkeypatch):
@@ -226,3 +232,15 @@ def test_report_leaves_out_images_excluded_in_the_web_app(lib, tmp_path, capsys)
     assert main(["report", str(lib), "-o", str(out), "--lang", "en", "--device", "cpu"]) == 0
     assert "1 excluded images left out" in out.read_text(encoding="utf-8")
     assert "1 image(s) you excluded in the web app are left out" in capsys.readouterr().err
+
+
+def test_a_broken_image_is_listed_as_failed_and_the_rest_keep_their_order(lib, tmp_path):
+    from styleatlas.atlas import EncodeOptions, embed_paths
+    from styleatlas.images import find_images
+
+    (lib / "red" / "broken.png").write_bytes(b"not a png")
+    paths = find_images(lib)
+    opts = EncodeOptions(device="cpu", batch_size=4, db_path=tmp_path / "v.sqlite")
+    kept, style, _, failed = embed_paths(paths, opts)
+    assert [p.name for p, _ in failed] == ["broken.png"] and "cannot open" in failed[0][1]
+    assert kept == [p for p in paths if p.name != "broken.png"] and len(style) == len(kept)

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **Faster embedding**: the next images are opened, measured and scaled on 4 threads while the
+  model works, so it no longer waits for files. 20% faster on CPU with large images (519 -> 415
+  ms per image); the vectors are identical bit for bit. On a GPU, where loading was the slow part,
+  the gain should be larger (not measured here).
 - **The style report leaves out excluded images**: images excluded by hand (X) in the web app no
   longer count in the report's consistency, look, closest artists or group sizes, whether it is
   saved from the web app or made with `style-atlas report`; the header says how many were left

@@ -49,11 +49,10 @@ All of these are in `docs/BENCHMARKS.md`.
 - **Strays by another artist** in one artist's folder: neither the grouping nor the outlier
   scores find them reliably (about half). From two or three that the user excludes, "Find more
   like these" lists the rest first (98% in the top 30).
-
 - **Style consistency**: on artists the whitening never saw, two-artist mixes are caught 49% of
-  the time (three 85%, five 100%), with 11% false alarms on single artists;
-  with 8% false alarms on single artists. AI renders from one model with fixed characters always
-  read "tight". A per-group version was rejected: no cut carries across folders.
+  the time (three 85%, five 100%), with 11% false alarms on single artists. AI renders from one
+  model with fixed characters always read "tight". A per-group version was rejected: no cut
+  carries across folders.
 - **Enlarged images**: 2x enlargements (relative to the training size) are caught 92-100% of the
   time, 1.5x mostly not. AI upscalers were not tested.
 - **Families of artists** (`map --by-folder`): loose, with a split-half ARI of 0.32 at the default
@@ -64,9 +63,8 @@ All of these are in `docs/BENCHMARKS.md`.
 - **Web app**: done since 0.4.0: moving, merging, splitting and naming groups, the
   character-axis switch, undo, saved groups, the dataset check, comparing groups, the reference
   folder at runtime, recording a turn.
-- **Speed**:
-  - fp16 on CUDA;
-  - a background thread that loads images. GPU throughput has not been measured here.
+- **Speed**: images are loaded ahead on 4 threads since 0.36 (20% faster on CPU,
+  BENCHMARKS.md). Still open: fp16 on CUDA. GPU throughput has not been measured here.
 - **Large galleries (50k+)**: grouping above 8,000 images is done (k-means micro-groups, 0.5.0).
   Still open: a server-side tiled map instead of one HTML file with every thumbnail. Search does
   not need an approximate index yet: one query against 50,000 vectors is a single matrix product.

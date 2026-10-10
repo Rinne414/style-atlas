@@ -201,12 +201,17 @@ class CSDEncoder:
         feats = self.visual(batch.to(self.device))
         return feats @ self.style_head, feats @ self.content_head
 
+    def prepare(self, image: Image.Image) -> list[torch.Tensor]:
+        """The model inputs for one image (one per crop). Safe to call from several threads,
+        so the next images can be prepared while the model runs."""
+        return [self.to_tensor(c) for c in square_crops(image, self.crop, self.px)]
+
     def encode(self, images: list[Image.Image]) -> Embeddings:
-        crops, owner = [], []
-        for i, im in enumerate(images):
-            for c in square_crops(im, self.crop, self.px):
-                crops.append(self.to_tensor(c))
-                owner.append(i)
+        return self.encode_prepared([self.prepare(im) for im in images])
+
+    def encode_prepared(self, prepared: list[list[torch.Tensor]]) -> Embeddings:
+        crops = [c for inputs in prepared for c in inputs]
+        owner = [i for i, inputs in enumerate(prepared) for _ in inputs]
         style_rows, content_rows = [], []
         for s in range(0, len(crops), self.batch_size):
             st, ct = self._run(torch.stack(crops[s : s + self.batch_size]))
@@ -214,8 +219,8 @@ class CSDEncoder:
             content_rows.append(torch.nn.functional.normalize(ct, dim=1).cpu())
         owner_t = torch.tensor(owner)
         return Embeddings(
-            style=_pool(torch.cat(style_rows), owner_t, len(images)),
-            content=_pool(torch.cat(content_rows), owner_t, len(images)),
+            style=_pool(torch.cat(style_rows), owner_t, len(prepared)),
+            content=_pool(torch.cat(content_rows), owner_t, len(prepared)),
         )
 
 
