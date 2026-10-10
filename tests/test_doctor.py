@@ -28,3 +28,12 @@ def test_a_failed_model_download_explains_the_mirror(monkeypatch, tmp_path):
     monkeypatch.setattr(huggingface_hub, "hf_hub_download", offline)
     with pytest.raises(encoder.ModelDownloadError, match="HF_ENDPOINT"):
         encoder._extract_weights()
+
+
+def test_doctor_shows_how_big_the_caches_are(tmp_path, monkeypatch):
+    monkeypatch.setenv("STYLE_ATLAS_CACHE", str(tmp_path))
+    (tmp_path / "vectors.sqlite").write_bytes(b"x" * 3_000_000)
+    (tmp_path / "thumbs" / "ab").mkdir(parents=True)
+    (tmp_path / "thumbs" / "ab" / "t.webp").write_bytes(b"x" * 2_000_000)
+    rows = {name: detail for _, name, detail in doctor.checks()}
+    assert rows["vector cache"].startswith("3 MB") and rows["thumbnails"].startswith("2 MB")

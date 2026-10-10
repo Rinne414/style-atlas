@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- `doctor` shows how big the vector cache and the thumbnail cache have grown, and that the
+  thumbnails can be deleted at any time.
 - `report` writes its page in the language of the messages unless `--lang` says otherwise (it
   was always Chinese).
 - `sort` names the real minimum (groups of 3 or more images take new images); it said 2.

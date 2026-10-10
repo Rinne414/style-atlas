@@ -5,6 +5,7 @@ from __future__ import annotations
 import platform
 import shutil
 import sys
+from pathlib import Path
 
 from styleatlas import __version__
 from styleatlas.cachedir import cache_dir
@@ -40,11 +41,26 @@ def _model_lines() -> list[tuple[str, str, str]]:
         rows.append(
             (WARN, "CSD model", f"not downloaded yet: the first run downloads {MODEL_GB} GB")
         )
+    rows += _cache_lines(root)
     free_gb = shutil.disk_usage(root).free / 1e9
     need = 0.5 if slim.exists() else MODEL_GB + 1.5
     rows.append(
         (OK if free_gb > need else FAIL, "free disk", f"{free_gb:.1f} GB (need ~{need:.1f} GB)")
     )
+    return rows
+
+
+def _cache_lines(root: Path) -> list[tuple[str, str, str]]:
+    """How big the caches have grown: vectors are kept (they take minutes to recompute), the
+    thumbnails can be deleted at any time (they are remade when a page asks for them)."""
+    rows = []
+    vectors = sum(f.stat().st_size for f in root.glob("vectors.sqlite*") if f.is_file())
+    if vectors:
+        rows.append((OK, "vector cache", f"{vectors / 1e6:.0f} MB ({root / 'vectors.sqlite'})"))
+    thumbs = root / "thumbs"
+    if thumbs.is_dir():
+        size = sum(f.stat().st_size for f in thumbs.rglob("*") if f.is_file())
+        rows.append((OK, "thumbnails", f"{size / 1e6:.0f} MB; {thumbs} can be deleted any time"))
     return rows
 
 
