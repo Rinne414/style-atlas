@@ -582,6 +582,52 @@ Pairs were checked by eye at each score of min(style cos, content cos):
 The product default is **0.95**, which is conservative so that it never drops valid training
 images. `bench` removes near-duplicates at 0.92 to keep benchmark numbers honest.
 
+## Low-quality images: enlarged and heavily compressed (2026-10-10)
+
+The check (`audit` and the Check tab) flags two kinds of images that teach a LoRA the wrong
+thing. Both measures are in `quality.py`.
+
+**The style vector does not see them.** 14 Anima renders were each compared with a degraded
+copy of themselves. The yardstick is the distance between two seeds of the same recipe and
+character, a median of 0.139 (cosine distance):
+
+| Copy | Distance to the original (median) | Next to the seed difference |
+|---|---|---|
+| Enlarged x1.5 / x2 / x3 | 0.0005 / 0.0006 / 0.0030 | 0.00x / 0.00x / 0.02x |
+| JPEG quality 90 | 0.0054 | 0.05x |
+| JPEG quality 75 | 0.0225 | 0.19x |
+| JPEG quality 60 | 0.0369 | 0.31x |
+| JPEG quality 40 | 0.0487 | 0.47x |
+| JPEG quality 25 | 0.0625 | 0.57x (14% beyond their seed twin) |
+
+CSD looks at 224 px, so an image enlarged from a quarter of its pixels sits on top of the
+original on the map. Grouping and outlier scores cannot find these images; only a separate check
+can. Heavy JPEG compression does move the vector: by a third of a seed difference at quality 60.
+
+**Softness**: the finest octave's detail over the detail two octaves coarser, measured at full
+size on the centre (at most 1024 px). Shrinking first would hide an enlargement. The copies were
+shrunk with Lanczos and enlarged back with bicubic. Share flagged at a softness below **0.10**:
+
+| Set (images) | Originals | x1.5 | x2 | x3 | JPEG q40 |
+|---|---|---|---|---|---|
+| NAI renders, 832 px (192) | 0% | 1.0% | 100% | 100% | 0% |
+| Anima renders, 1024 px (156) | 0% | 0% | 100% | 100% | 0% |
+| Danbooru, 5 artists, ~384 px (800) | 0% | 1.6% | 97.2% | 100% | 0.1% |
+| Danbooru, 300 artists, ~366 px (800) | 0% | 1.2% | 94.2% | 100% | 0% |
+
+The lowest original scored 0.105 (an old Danbooru work at 384 px); most originals sit at
+0.3-0.9. On the whole 3,259-image Danbooru set, one image was flagged, and on inspection it is an
+enlarged anime frame with soft lines. Enlargement by 1.5x mostly passes. So do enlargements by
+an AI upscaler, which adds detail of its own; the measure was not tested on those.
+
+**JPEG quality** is read from the file's quantisation table, without decoding. It matched the
+saved quality exactly for Pillow (libjpeg) files at quality 40, 60, 69 and 90. Other encoders use
+other tables, so for them it is an estimate. Images under quality **70** are flagged, by the table
+above: quality 60 already moves the style vector by a third of a seed difference.
+
+**Cost**: the softness check decodes every image (8 threads, cached while the file is
+unchanged). 3,259 images of about 400 px took 5.5 s the first time and 1.4 s after.
+
 ## Pixiv: followed AI-illustration accounts (2026-10-09)
 
 - **Data**: 467 all-ages works by 176 AI-illustration accounts (median 2 works each). The

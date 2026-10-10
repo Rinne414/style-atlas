@@ -10,6 +10,7 @@ from PIL import Image
 
 from styleatlas.atlas import Atlas, EncodeOptions
 from styleatlas.look import LOOK_NAMES
+from styleatlas.quality import LOW_JPEG
 from styleatlas.serve import StyleAtlasApp
 from styleatlas.webserver import bind
 
@@ -596,6 +597,8 @@ def test_the_check_tab_lists_problems_by_index(tmp_path):
     (tmp_path / "img1.txt").write_text("", encoding="utf-8")
     got = app.check({"min_side": 512})
     assert got["min_side"] == 512 and len(got["issues"]["smaller_than_min_side"]) == 15
+    assert got["low_jpeg"] == LOW_JPEG
+    assert got["issues"]["soft_or_enlarged"] == []  # 16 px: too small to judge
     assert got["issues"]["empty_caption"] == [1] and 0 not in got["issues"]["no_caption"]
     (tmp_path / "img2.png").write_bytes(b"gone bad")  # damaged after the scan
     assert app.check({"min_side": 512})["issues"]["unreadable"] == [2]

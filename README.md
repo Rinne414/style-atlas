@@ -16,7 +16,7 @@ style-atlas 會看每張圖「怎麼畫」（不是畫了什麼），自動把�
 | **訓 LoRA 前整理資料集**：分出不同畫風，或把同一位畫師分成幾個時期，排除重複圖與離群圖，匯出成 kohya 資料夾 | `cluster --layout kohya --dedupe`（分時期加 `--granularity period`），或網頁介面的「匯出資料夾」 |
 | **找畫風相近的圖**：一張或同畫風的幾張圖當範例，也能把結果直接複製成資料夾 | 網頁介面拖圖進去，或用 `search`（`--combine`、`--copy-to`） |
 | **3D 畫風地圖**：縮圖浮在 3D 空間，可轉動，點一下就看最接近的畫風 | `map`，或網頁介面的「存成分享用地圖」（單一 HTML 檔，可直接傳給朋友） |
-| **檢查資料集**：解析度、極端比例、缺標註、近重複 | `audit`、`duplicates` |
+| **檢查資料集**：解析度、小圖放大、壓縮太重、極端比例、缺標註、近重複 | `audit`、`duplicates` |
 | **量化畫風與口味**：兩組圖是否同一畫風、差在哪裡（亮度、鮮豔度、線條量等）、個人喜好模型 | `compare`、`taste`、網頁介面的外觀描述與「喜歡／不喜歡」 |
 
 ![網頁介面：72 張圖自動分成 4 個畫風群，右側是群組清單、名稱和外觀描述（例如「對比弱、線條少、色塊平」）](docs/images/map.jpg)
@@ -184,7 +184,7 @@ style-atlas taste score "D:\new_batch" --model "D:\my_taste.npz"
 - 縮圖浮在 3D 空間中，外框顏色代表畫風群，群名浮在每群中央（右上角「群名」可關掉；最多顯示最大的 16 群）。可以拖曳旋轉、滾輪縮放，`+` / `-` 調整縮圖大小。按 `?`（或右上角的 ? 按鈕）會列出所有快捷鍵。
 - 右上角「錄一圈」會把地圖轉一圈錄成 8 秒的影片（Chrome／Edge 是 MP4，Firefox 是 WebM），可以直接分享。
 - 點右側的畫風群，鏡頭會飛過去並列出成員。點地圖上任一張圖，會列出最接近的 12 張。
-- 「檢查」分頁：按「開始檢查」會列出太小的圖、極端長寬比、混在彩色圖裡的黑白圖、沒有標註或標註是空的圖、動圖（和 `audit` 指令相同，不用打指令）；下面是最不合群的圖。「重複」分頁列出近重複圖組。
+- 「檢查」分頁：按「開始檢查」會列出太小的圖、小圖放大或很模糊的圖、壓縮很重的 JPEG、極端長寬比、混在彩色圖裡的黑白圖、沒有標註或標註是空的圖、動圖（和 `audit` 指令相同，不用打指令）；下面是最不合群的圖。「重複」分頁列出近重複圖組。
 - 右上角可以把「版面」從「畫風相似」切到「量化軸」。切換後，三個軸可以各自選一種指標，縮圖會移動到對應位置。可選的指標有：
   - 口味分數：用網頁介面評過分之後才有。
   - 離參考集距離（原創度）：要先指定已知畫風的資料夾（例如畫師作品或論壇配方）。在網頁的「進階…」填路徑、按「載入參考」即可（第一次會嵌入裡面的圖），或啟動時加 `--reference 資料夾`。
@@ -309,7 +309,9 @@ how a picture is drawn rather than what it shows. On top of those vectors it can
   show their characteristic caption tags. "Record a turn" saves an 8-second video of the map
   turning once (MP4 in Chrome and Edge, WebM in Firefox), for sharing.
 - **Check a dataset** (`audit`, `duplicates`, or the web app's Check tab): sizes, aspect ratios,
-  captions, near-duplicates, greyscale images mixed into a colour set.
+  captions, near-duplicates, greyscale images mixed into a colour set, images enlarged from a
+  smaller original, and heavily compressed JPEGs. The style map cannot find enlarged images (CSD
+  looks at 224 px), so the check measures their sharpness (BENCHMARKS.md).
 - **Fix groups by hand** in the web app: "Find more like this" lists the images outside a group
   that look most like it; move an image to another group, merge two groups,
   split a group in two, or exclude images (X), which are then exported to `_excluded/`.

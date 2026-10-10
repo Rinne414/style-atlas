@@ -405,7 +405,8 @@ function buildClusters() {
   }
 }
 
-const CHECK_KEYS = ["smaller_than_min_side", "greyscale_in_colour_set", "extreme_aspect_ratio",
+const CHECK_KEYS = ["smaller_than_min_side", "soft_or_enlarged", "low_jpeg_quality",
+  "greyscale_in_colour_set", "extreme_aspect_ratio",
   "no_caption", "empty_caption", "animated", "truncated", "unreadable"];
 let CHECK = null;  // the last dataset check (live app only)
 
@@ -429,7 +430,7 @@ function checkSection() {
     const list = CHECK.issues[k];
     const sub = document.createElement("div"); sub.className = "meta";
     const many = list.length > 0.9 * N;  // e.g. a folder without any captions: say so, no grid
-    sub.textContent = `${t("chk_" + k).replace("{n}", CHECK.min_side)}: ${many ? t("checkAll").replace("{n}", list.length) : list.length}`;
+    sub.textContent = `${t("chk_" + k).replace("{n}", CHECK.min_side).replace("{q}", CHECK.low_jpeg)}: ${many ? t("checkAll").replace("{n}", list.length) : list.length}`;
     box.append(sub);
     if (!many) {
       const pick = document.createElement("button"); pick.textContent = t("selectThese");

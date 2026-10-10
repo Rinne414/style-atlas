@@ -18,6 +18,7 @@ from PIL import Image
 
 from styleatlas.cluster import UNASSIGNED, Clustering
 from styleatlas.look import GREYSCALE, LOOK_NAMES
+from styleatlas.quality import LOW_JPEG, SOFT, jpeg_quality, softness_of_files
 
 CAPTION_SUFFIXES = (".txt", ".caption")
 LAYOUTS = ("plain", "kohya")
@@ -76,6 +77,7 @@ class ImageInfo:
     frames: int
     file_size: int
     truncated: bool = False
+    jpeg_quality: int | None = None
 
 
 END_MARKERS = {"JPEG": b"\xff\xd9", "PNG": b"IEND"}
@@ -99,7 +101,8 @@ def image_info(path: Path) -> ImageInfo | None:
         with Image.open(path) as im:
             frames = 2 if getattr(im, "is_animated", False) else 1
             cut = _looks_truncated(Path(path), im.format)
-            return ImageInfo(im.width, im.height, frames, Path(path).stat().st_size, cut)
+            size = Path(path).stat().st_size
+            return ImageInfo(im.width, im.height, frames, size, cut, jpeg_quality(im))
     except (OSError, ValueError, SyntaxError, Image.DecompressionBombError):
         return None
 
@@ -298,26 +301,33 @@ def audit(
     max_ratio: float = 2.5,
     looks: np.ndarray | None = None,
 ) -> dict:
-    """Problems a trainer would hit: small or extreme images, animations, missing captions, and
-    (given the look measures of `paths`) greyscale images mixed into a colour set."""
+    """Problems a trainer would hit: small, extreme, enlarged or heavily compressed images,
+    animations, missing captions, and (given the look measures of `paths`) greyscale images
+    mixed into a colour set. Finding enlarged images decodes every image (in parallel)."""
     report: dict[str, list[str]] = {
         "unreadable": [],
         "truncated": [],
         "smaller_than_min_side": [],
         "extreme_aspect_ratio": [],
+        "soft_or_enlarged": [],
+        "low_jpeg_quality": [],
         "animated": [],
         "no_caption": [],
         "empty_caption": [],
         "greyscale_in_colour_set": [],
     }
     sides = []
+    readable = []
     for p in paths:
         info = image_info(p)
         if info is None:
             report["unreadable"].append(str(p))
             continue
+        readable.append(p)
         if info.truncated:
             report["truncated"].append(str(p))
+        if info.jpeg_quality is not None and info.jpeg_quality < LOW_JPEG:
+            report["low_jpeg_quality"].append(str(p))
         sides.append(min(info.width, info.height))
         if min(info.width, info.height) < min_side:
             report["smaller_than_min_side"].append(str(p))
@@ -330,6 +340,9 @@ def audit(
             report["no_caption"].append(str(p))
         elif not read_tags(p):
             report["empty_caption"].append(str(p))
+    for p, soft in zip(readable, softness_of_files(readable), strict=True):
+        if soft is not None and soft < SOFT:
+            report["soft_or_enlarged"].append(str(p))
     if looks is not None and len(paths):
         grey = looks[:, LOOK_NAMES.index("colourfulness")] < GREYSCALE
         if grey.mean() < 0.5:  # a mostly greyscale folder is a monochrome artist, not a mistake

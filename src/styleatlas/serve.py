@@ -62,6 +62,7 @@ from styleatlas.metrics import (
     space_name,
 )
 from styleatlas.persist import RelPathMap
+from styleatlas.quality import LOW_JPEG
 from styleatlas.report import (
     build_payload,
     compute_layout,
@@ -422,8 +423,8 @@ class StyleAtlasApp(GroupEdits):
 
     def check(self, body: dict) -> dict:
         """The dataset audit (`style-atlas audit`) for the images on the map, by index: small,
-        extreme, animated or truncated images, missing or empty captions, and greyscale images in
-        a colour set."""
+        extreme, enlarged, heavily compressed, animated or truncated images, missing or empty
+        captions, and greyscale images in a colour set."""
         side = body.get("min_side", 512)
         if type(side) is not int or not MIN_SIDE_RANGE[0] <= side <= MIN_SIDE_RANGE[1]:
             raise ValueError(
@@ -431,12 +432,12 @@ class StyleAtlasApp(GroupEdits):
             )
         with self._lock:
             paths, looks = list(self.raw.paths), self.raw.looks
-        report = audit(paths, min_side=side, looks=looks)  # file headers only: outside the lock
+        report = audit(paths, min_side=side, looks=looks)  # decodes every image: outside the lock
         index = {str(p): i for i, p in enumerate(paths)}
         issues = {
             key: [index[f] for f in files if f in index] for key, files in report["files"].items()
         }
-        return {"min_side": side, "issues": issues}
+        return {"min_side": side, "low_jpeg": LOW_JPEG, "issues": issues}
 
     def compare(self, body: dict) -> dict:
         """Two groups side by side, as `style-atlas compare`: centroid distance, its z and verdict

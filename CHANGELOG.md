@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **Check: enlarged and heavily compressed images.** `audit` and the Check tab list images
+  enlarged from a smaller original (or blurred) and JPEGs under quality 70. The style map
+  cannot find enlarged images: CSD looks at 224 px, and a copy enlarged from half the size sits
+  0.0006 from its original, against 0.139 between two seeds of one recipe. Softness (the finest
+  octave's detail over two octaves coarser, at full size) below 0.10 flagged 0 of 1,948 clean
+  images and 94-100% of 2x and 100% of 3x enlargements (BENCHMARKS.md).
 - Pillow 10.3 or newer is required (CVE-2024-28219 was fixed there; the images a folder holds
   are untrusted input). torch stays at 2.4+: the CSD weights are loaded with `weights_only=True`
   from a pinned Hugging Face revision, and newer torch would shut out older ComfyUI setups.
