@@ -267,8 +267,18 @@ def _families_line(result: Clustering, min_size: int) -> str:
 def export_notes(done, folders: list[str], layout: str, trigger: bool) -> None:
     """After an export: photos written upright, and the trigger words in the captions (with a
     warning when one is not plain ASCII)."""
-    from styleatlas.export import trigger_of
+    from styleatlas.export import SMALL_FOR_TRAINING, trigger_of
 
+    if done.small_training:
+        log(
+            tr(
+                f"{done.small_training} training image(s) have a short side under "
+                f"{SMALL_FOR_TRAINING} px: a 1024 training size enlarges them (blurry); "
+                "`style-atlas audit` lists them",
+                f"有 {done.small_training} 張訓練圖短邊小於 {SMALL_FOR_TRAINING} px："
+                "用 1024 訓練時會被放大（會模糊）；`style-atlas audit` 會列出它們",
+            )
+        )
     if done.upright:
         log(
             tr(

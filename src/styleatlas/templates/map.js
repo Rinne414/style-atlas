@@ -290,6 +290,7 @@ function clusterName(c) {
 function thumb(i, onClick) {
   const img = document.createElement("img");
   img.src = PTS[i].t; img.alt = PTS[i].n; img.title = PTS[i].n; img.loading = "lazy";
+  if (EXCLUDED.has(i)) { img.classList.add("excluded"); img.title += ` · ${t("excludedMark")}`; }
   img.addEventListener("click", onClick || ((e) => (e.shiftKey && DATA.live ? toggleMark(i) : select(i))));
   return img;
 }
@@ -362,7 +363,9 @@ function clusterText(c, pane) {  // name, size, typical tags, closest groups, lo
   const txt = document.createElement("div");
   const nm = document.createElement("div"); nm.className = "name"; nm.textContent = clusterName(c.id);
   const mt = document.createElement("div"); mt.className = "meta";
-  mt.textContent = `${c.size} ${t("size")}` + (c.cohesion !== undefined ? ` · ${t("cohesion")} ${c.cohesion.toFixed(3)}` : "");
+  const out = c.members.filter((i) => EXCLUDED.has(i)).length;
+  mt.textContent = `${c.size} ${t("size")}` + (out ? t("excludedOf").replace("{n}", out) : "") +
+    (c.cohesion !== undefined ? ` · ${t("cohesion")} ${c.cohesion.toFixed(3)}` : "");
   txt.append(nm, mt);
   if (c.tags && c.tags.length) {
     const tg = document.createElement("div"); tg.className = "meta tags"; tg.textContent = c.tags.join(", ");
@@ -497,7 +500,9 @@ function bucketLine(buckets) {  // kohya's aspect-ratio buckets
 function issueBlock(k, list) {  // one kind of problem: its count, and the images unless nearly all
   const sub = document.createElement("div"); sub.className = "meta";
   const many = list.length > 0.9 * N;  // e.g. a folder without any captions: say so, no grid
-  sub.textContent = `${t("chk_" + k).replace("{n}", CHECK.min_side).replace("{q}", CHECK.low_jpeg)}${lang === "zh" ? "：" : ": "}${many ? t("checkAll").replace("{n}", list.length) : list.length}`;
+  const tags = k === "tag_spelling_mixed" && CHECK.spelt_two_ways && CHECK.spelt_two_ways.length
+    ? (lang === "zh" ? `（${CHECK.spelt_two_ways.join("、")}）` : ` (${CHECK.spelt_two_ways.join(", ")})`) : "";
+  sub.textContent = `${t("chk_" + k).replace("{n}", CHECK.min_side).replace("{q}", CHECK.low_jpeg)}${tags}${lang === "zh" ? "：" : ": "}${many ? t("checkAll").replace("{n}", list.length) : list.length}`;
   if (many) {
     const why = T[lang]["checkAllWhy_" + k];
     if (!why) return [sub];

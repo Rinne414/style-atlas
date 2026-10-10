@@ -534,6 +534,7 @@ class StyleAtlasApp(GroupEdits):
             "min_side": side,
             "low_jpeg": LOW_JPEG,
             "issues": issues,
+            "spelt_two_ways": report["tags_spelt_two_ways"],
             "buckets": report["summary"]["buckets"],
             "consistency": None
             if tight is None
@@ -668,6 +669,7 @@ class StyleAtlasApp(GroupEdits):
             # the rest go to the set-aside folders (_duplicates, _excluded, unassigned ...)
             "training": sum(not (f.startswith("_") or is_unassigned(f)) for f in folders),
             "upright": result.upright,
+            "small_training": result.small_training,
             "triggers": sorted(
                 {t for f in folders if trigger and (t := trigger_of(f, layout)) is not None}
             ),

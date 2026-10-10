@@ -76,8 +76,11 @@ def _atlas(tmp_path, sizes):
 def test_export_copies_captions_and_avoids_name_collisions(tmp_path):
     atlas = _atlas(tmp_path, [6, 5])
     result = cluster_styles(atlas.style)
-    placed = export_folders(atlas, plan_folders(atlas.paths, result), tmp_path / "out")
+    folders = plan_folders(atlas.paths, result)
+    placed = export_folders(atlas, folders, tmp_path / "out")
     assert placed.placed == len(atlas) and not placed.failed
+    training = sum(not (f.startswith("_") or f == "unassigned") for f in folders)
+    assert placed.small_training == training  # the test images are tiny
     files = [p for p in (tmp_path / "out").rglob("*") if p.is_file()]
     names = sorted(p.name for p in files)
     assert "same.png" in names and "same_2.png" in names

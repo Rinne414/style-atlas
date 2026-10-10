@@ -88,6 +88,11 @@ Clearer output (from three first-time-user tests: English, Chinese, and searchin
   by itself; an image search shows each sub-folder's score next to its name.
 - Web app: the export bar keeps its settings (layout, name, trigger, open or closed) across
   the reload that follows an edit.
+- From a LoRA-preparation web test: the tag-spelling check names the tags (`audit` prints them,
+  JSON `tags_spelt_two_ways`); excluded images are faded in every image list and counted on
+  their group's card; exports say how many training images have a short side under 512 px
+  (a 1024 training size enlarges them) and how repeats are balanced (about 100 images per group
+  per epoch).
 - Each style group says which sub-folders its images come from ("來自：dayama 9"), in the report
   and on the web map, when the folder has several: a gallery sorted by artist shows which group
   is which artist.

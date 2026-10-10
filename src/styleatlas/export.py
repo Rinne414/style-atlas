@@ -36,6 +36,7 @@ class ExportResult:
     placed: int = 0
     failed: list[tuple[Path, str]] = field(default_factory=list)
     upright: int = 0  # images turned only by EXIF, written upright
+    small_training: int = 0  # training images with a short side under SMALL_FOR_TRAINING
 
 
 def output_dir(source: Path) -> Path:
@@ -150,6 +151,21 @@ def _place(src: Path, dst: Path, mode: str) -> bool:
 
 
 UPRIGHT_JPEG_QUALITY = 95
+SMALL_FOR_TRAINING = 512  # short side under which a 1024 training size means 2x enlargement
+
+
+def small_for_training(paths: list[Path], folders: list[str]) -> int:
+    """Images bound for a training folder (not set aside) whose short side is under
+    SMALL_FOR_TRAINING: the trainer enlarges them and the LoRA learns the blur."""
+    from styleatlas.dataset import image_info, is_unassigned
+
+    count = 0
+    for path, folder in zip(paths, folders, strict=True):
+        if folder.startswith("_") or is_unassigned(folder):
+            continue
+        info = image_info(path)
+        count += info is not None and min(info.width, info.height) < SMALL_FOR_TRAINING
+    return count
 
 
 def _write_upright(src: Path, dst: Path) -> bool:
@@ -289,6 +305,7 @@ def export_folders(
         result.placed += 1
     if layout == "kohya":
         write_trainer_configs(result.folder, folders, trigger_captions)
+    result.small_training = small_for_training(atlas.paths, folders)
     return result
 
 

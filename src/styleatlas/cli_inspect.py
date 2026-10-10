@@ -32,6 +32,11 @@ def cmd_audit(a: argparse.Namespace) -> int:
         if key == "buckets":
             value = " · ".join(f"{b} {n}" for b, n in value.items())
         print(f"{pad(_audit_label(key), width)}{value}")
+    if report["tags_spelt_two_ways"]:
+        log(
+            tr("tags written both with _ and with spaces: ", "同時有底線和空格兩種寫法的標籤：")
+            + ", ".join(report["tags_spelt_two_ways"])
+        )
     for key, files in report["files"].items():
         for f in files[: a.show]:
             print(f"  [{key}] {_short(f, root)}")

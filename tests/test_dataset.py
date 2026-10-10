@@ -335,8 +335,9 @@ def test_audit_finds_a_tag_spelt_two_ways(tmp_path):
     for name, text in captions.items():
         paths.append(_img(tmp_path / f"{name}.png", (768, 768)))
         paths[-1].with_suffix(".txt").write_text(text, encoding="utf-8")
-    files = audit(paths)["files"]
-    assert [Path(f).stem for f in files["tag_spelling_mixed"]] == ["c"]
+    report = audit(paths)
+    assert [Path(f).stem for f in report["files"]["tag_spelling_mixed"]] == ["c"]
+    assert report["tags_spelt_two_ways"] == ["blue eyes", "long hair"]
 
 
 def test_audit_accepts_one_spelling_throughout(tmp_path):

@@ -561,12 +561,13 @@ function setupExport() {
       const small = r.small_groups ? " " + t("smallGroups").replace("{n}", r.small_groups).replace("{g}", groups) : "";
       const config = r.config ? " " + t("configWritten") : "";
       const trimmed = r.trimmed ? " " + t("trimmedNote").replace("{n}", r.trimmed) : "";
-      const steps = r.steps ? " " + t("stepsNote").replace("{n}", r.steps) : "";
+      const steps = r.steps ? " " + t("stepsNote").replace("{n}", r.steps) + " " + t("repeatsNote") : "";
+      const tiny = r.small_training ? " " + t("smallTraining").replace("{n}", r.small_training) : "";
       const done = t("exported").replace("{n}", r.placed).replace("{f}", r.folder).replace("{k}", r.training);
       const upright = r.upright ? " " + t("uprightNote").replace("{n}", r.upright) : "";
       const words = r.triggers && r.triggers.length ? " " + t("triggersNote").replace("{w}", r.triggers.join(", ")) : "";
       const ascii = (r.triggers || []).some((w) => /[^\x00-\x7f]/.test(w)) ? " " + t("nonAsciiTrigger") : "";
-      setStatus(done + small + trimmed + steps + upright + words + ascii + config);
+      setStatus(done + small + trimmed + steps + tiny + upright + words + ascii + config);
       addOpenFolder();
     } catch (e) { setStatus(String(e.message || e)); }
   });
