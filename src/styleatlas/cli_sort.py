@@ -9,6 +9,7 @@ images into a dataset")."""
 from __future__ import annotations
 
 import argparse
+import re
 from collections import Counter
 from pathlib import Path
 
@@ -17,7 +18,7 @@ import numpy as np
 from styleatlas.atlas import Atlas
 from styleatlas.cli_common import _atlas, log, saved_groups, web_exclusions
 from styleatlas.cluster import UNASSIGNED, Clustering, Fit, fit_to_groups, from_labels
-from styleatlas.dataset import group_labels, is_unassigned
+from styleatlas.dataset import auto_repeats, group_labels, is_unassigned
 from styleatlas.duplicates import copies_of
 from styleatlas.export import export_folders, output_dir, write_csv
 from styleatlas.images import labels_from_folders
@@ -28,6 +29,7 @@ ALREADY = "_already_in_dataset"  # a near-copy of an image the dataset already h
 RESERVED = {UNSURE.casefold(), ALREADY.casefold()}
 MOSTLY_IN, MOSTLY_OUT = 0.5, 0.25  # share of a batch that fits (docs/BENCHMARKS.md)
 MIN_BATCH = 8  # below this many new images the share says little: no verdict on the batch
+KOHYA_FOLDER = re.compile(r"^(\d+)_(.+)$")  # <repeats>_<name>, as `cluster --layout kohya` writes
 
 
 def cmd_sort(a: argparse.Namespace) -> int:
@@ -59,6 +61,8 @@ def cmd_sort(a: argparse.Namespace) -> int:
     folders = [_destination(i, f, labels, copies) for i, f in enumerate(fits)]
     table = write_csv(out / "sorted.csv", _rows(new, dataset, fits, labels, copies, folders))
     _summary(fits, labels, folders)
+    if a.by_folder:
+        _repeats_notes(clustering, labels, folders)
     if a.export:
         done = export_folders(new, folders, out / "sorted", mode=a.export)
         log(f"{done.placed} images placed in {done.folder}")
@@ -152,6 +156,23 @@ def _summary(fits: list[Fit], labels: dict[int, str], folders: list[str]) -> Non
     else:
         verdict = "partly the dataset's styles"
     log(f"{share:.0%} fit their group: {verdict}; the rest go to {UNSURE} for a look")
+
+
+def _repeats_notes(clustering: Clustering, labels: dict[int, str], folders: list[str]) -> None:
+    """kohya folders whose automatic repeats (images x repeats near 100) change once the new
+    images that fit are added: the new folder name to keep each style's weight per epoch."""
+    added = Counter(folders)
+    for c in clustering.clusters:
+        name = labels[c.id]
+        match = KOHYA_FOLDER.match(name)
+        if not match or not added[name] or int(match[1]) != auto_repeats(c.size):
+            continue  # not a kohya folder, nothing added, or repeats set by hand
+        new = auto_repeats(c.size + added[name])
+        if new != int(match[1]):
+            log(
+                f"{name}: {c.size} + {added[name]} images; rename it {new}_{match[2]} to keep "
+                "images x repeats near 100 (the trainer config files list the old repeats)"
+            )
 
 
 def sort_args(p: argparse.ArgumentParser) -> None:

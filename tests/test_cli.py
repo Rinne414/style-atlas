@@ -394,3 +394,17 @@ def test_sort_judges_a_batch_of_eight_or_more(lib, tmp_path, capsys):
     args = ["sort", str(greys), "--into", str(lib), "-o", str(tmp_path)]
     assert main([*args, "--device", "cpu"]) == 1
     assert "must not hold the new images" in capsys.readouterr().err
+
+
+def test_sort_suggests_new_kohya_repeats_for_folders_that_grow(capsys):
+    from styleatlas.cli_sort import UNSURE, _repeats_notes
+    from styleatlas.cluster import from_labels
+
+    x = np.eye(30, 8, dtype=np.float32) + 0.01
+    labels = np.array([0] * 10 + [1] * 20)  # 10 images at 10 repeats, 20 at 5: auto repeats
+    groups = from_labels(x, labels, "folders")
+    names = {c.id: ("10_x_style01" if c.size == 10 else "5_x_style02") for c in groups.clusters}
+    _repeats_notes(groups, names, ["10_x_style01"] * 5 + ["5_x_style02", UNSURE])
+    err = capsys.readouterr().err
+    assert "10_x_style01: 10 + 5 images; rename it 7_x_style01" in err
+    assert "5_x_style02" not in err  # 21 images still round to 5 repeats

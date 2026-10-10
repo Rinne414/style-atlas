@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- **`sort --by-folder` suggests new kohya repeats.** When new images that fit are added to a
+  kohya folder whose repeats were set automatically (images x repeats near 100), it prints the
+  new folder name, e.g. `10_x_style01: 10 + 5 images; rename it 7_x_style01`.
+- Docs: a command table in the Chinese part of the README.
+
 ## 0.39.0 - 2026-10-10
 
 - **A fairer "fits" rule, now the same in `sort` and the web app.** A new image fits a group
