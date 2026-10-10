@@ -471,7 +471,9 @@ original.
 group, the distance and the copy for every image. Without `--by-folder` the dataset's style
 groups are used: those saved by the web app, else a fresh grouping. On artists the tool never
 saw, with 10 of them as sub-folders, 91.5% of their new works went to the right folder, and 6% of
-other artists' works were let in (docs/BENCHMARKS.md).
+other artists' works were let in (docs/BENCHMARKS.md). In the web app, new images added to the
+folder start as "Unassigned"; open that row and press "Put each in its closest style" to apply
+the same rule (one undo step).
 
 ### Commands
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- **Web app: put unassigned images in their closest style.** New images added to a folder start
+  as unassigned; a button on the Unassigned row now moves each one that fits its closest style
+  (the rule `sort` uses: whitened CSD, as close to the centre as 90% of the style's own images)
+  and leaves the rest. One undo step.
+
 ## 0.37.0 - 2026-10-10
 
 - **`style-atlas sort`: add new images to a sorted dataset.** Each new image goes to the dataset

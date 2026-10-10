@@ -64,7 +64,7 @@ style-atlas cluster "D:\lora\artistX" --layout kohya --name artistX --dedupe --d
 - 標註裡有描述畫風本身的標籤（例如 `sketch`、`monochrome`）時，加 `--strip-tags "sketch, monochrome"`（網頁：「要移除的標籤」）把它們從匯出的標註拿掉，讓觸發詞去學這個畫風。原本的標註不會被改。
 - 被排除的圖放在 `_duplicates\`、`_outliers\`、`_unassigned\`、`_excluded\` 這幾個資料夾。它們沒有數字前綴，所以 kohya 不會拿來訓練。
 - 每次匯出都會在輸出資料夾寫一份 `clusters.csv`：每張圖一列，`folder` 欄寫它去了哪個資料夾。去了 `_duplicates`、`_outliers`、`_excluded`、`_trimmed`、`_unassigned` 的，資料夾名稱就是原因，可以用試算表核對。
-- 之後**又加了新圖**：照樣用 `StyleAtlas.bat` 打開同一個資料夾。之前的取名、移動、合併和排除都會保留，新圖先放在「未分群」，可以手動移進各群，或按「重新分群」。
+- 之後**又加了新圖**：照樣用 `StyleAtlas.bat` 打開同一個資料夾。之前的取名、移動、合併和排除都會保留，新圖先放在「未歸類」。點開「未歸類」按「各自放進最像的畫風」，夠像的會自動放進最像的群（和 `sort` 同一套規則，可以復原）；剩下的手動移，或按「重新分群」。
 - 新圖放在**另一個資料夾**、想直接分進已匯出的資料夾：`style-atlas sort "D:\new" --into "D:\lora\artistX_style_atlas\folders" --by-folder --export copy`。每張會放進最像的那群（例如 `10_artistX_style01\`），不夠像的放 `_unsure\`，和資料集重複的放 `_already_in_dataset\`，再把它們搬進對應資料夾即可。實測同畫師的新作品約 72% 會被判符合（其中 98% 放對群），其他畫師約 6%。
 - 想**一群訓一個 LoRA**（例如早期、近期畫風分開）：把那一群的資料夾單獨當 train_data_dir。
 - 想**同一個 LoRA 裡分成幾個概念**：保留全部資料夾，並讓每群有自己的觸發詞。注意兩點：

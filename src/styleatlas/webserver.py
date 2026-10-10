@@ -23,6 +23,7 @@ POST_HEADER = "X-Style-Atlas"
 JSON_ROUTES = {  # POST route -> StyleAtlasApp method taking the JSON body
     "api/regroup": "regroup",
     "api/move": "move",
+    "api/place_unassigned": "place_unassigned",
     "api/split": "split",
     "api/merge": "merge",
     "api/exclude": "exclude",

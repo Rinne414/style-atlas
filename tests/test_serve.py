@@ -825,3 +825,25 @@ def test_dropped_images_are_placed_in_a_group_or_called_outside(tmp_path):
     first = int(app.clustering.labels[0])
     assert [g["group"] for g in got[:2]] == [first, first] and got[0]["fits"] and got[1]["fits"]
     assert not got[2]["fits"]
+
+
+def test_unassigned_images_are_put_back_only_where_they_fit(tmp_path):
+    x, _ = make_blobs([8, 7, 1])
+    x[0] = x[1:8].mean(axis=0) / np.linalg.norm(x[1:8].mean(axis=0))  # the heart of style A
+    paths = []
+    for i in range(len(x)):
+        p = tmp_path / f"img{i}.png"
+        Image.new("RGB", (16, 16), (i, 0, 0)).save(p)
+        paths.append(p)
+    app = StyleAtlasApp(Atlas(tmp_path, paths, x, x, "sig"), EncodeOptions(device="cpu"), "pca")
+    app.move({"items": [0], "to": -1, "rev": app.revision})
+    assert app.clustering.labels[0] == -1 and app.clustering.labels[15] == -1  # 15: style C alone
+    result = app.place_unassigned({"rev": app.revision})
+    assert result["moved"] == 1 and result["left"] == 1
+    assert app.clustering.labels[0] == app.clustering.labels[1] != -1
+    assert app.clustering.labels[15] == -1
+    app.undo({"rev": app.revision})
+    assert app.clustering.labels[0] == -1
+    app.exclude({"items": [0, 15]})
+    with pytest.raises(ValueError):  # excluded images are not placed
+        app.place_unassigned({"rev": app.revision})

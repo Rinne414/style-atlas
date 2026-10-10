@@ -300,6 +300,14 @@ async function editPost(url, body) {
   catch (e) { setStatus(String(e.message || e)); }
 }
 
+async function placeUnassigned() {  // fitting images move; a reload shows the new groups
+  try {
+    const r = await post("api/place_unassigned", JSON.stringify({ rev: DATA.live.revision }), "application/json");
+    if (r.moved) location.reload();
+    else setStatus(t("placedNone").replace("{n}", r.left));
+  } catch (e) { setStatus(String(e.message || e)); }
+}
+
 let PATH_FROM = null;
 
 async function showPath(a, b) {

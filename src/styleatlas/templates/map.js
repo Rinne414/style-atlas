@@ -398,6 +398,12 @@ function buildClusters() {
               bar.append(sp);
             }
             grid.append(bar);
+          } else if (DATA.live && DATA.clusters.length) {  // unassigned: place what fits a group
+            const bar = document.createElement("div"); bar.style.cssText = "grid-column:1/-1;margin-bottom:4px";
+            const place = document.createElement("button"); place.textContent = t("placeUnassigned");
+            place.title = t("placeUnassignedTip");
+            place.addEventListener("click", (e) => { e.stopPropagation(); placeUnassigned(); });
+            bar.append(place); grid.append(bar);
           }
           c.members.slice(0, 120).forEach((j) => grid.append(thumb(j)));
         }

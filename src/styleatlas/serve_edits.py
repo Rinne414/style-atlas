@@ -7,12 +7,15 @@ import threading
 from collections.abc import Callable
 from pathlib import Path
 
+import numpy as np
+
 from styleatlas.atlas import Atlas
-from styleatlas.cluster import UNASSIGNED, Clustering, edit_groups, split_group
+from styleatlas.cluster import UNASSIGNED, Clustering, edit_groups, fit_to_groups, split_group
 from styleatlas.dataset import clean_group_name
 from styleatlas.groupfile import GROUPS_FILE, SavedGroups, carry_names, save_groups
 from styleatlas.metrics import StyleSpace
 from styleatlas.persist import RelPathMap
+from styleatlas.whiten import whiten
 
 UNDO_STEPS = 30
 MAX_SPLIT = 4000  # splitting runs under the lock; larger groups would stall every request
@@ -23,6 +26,7 @@ class GroupEdits:
     """Mixed into StyleAtlasApp, which sets these attributes."""
 
     atlas: Atlas
+    raw: Atlas
     clustering: Clustering
     settings: dict
     group_names: dict[int, str]
@@ -118,6 +122,27 @@ class GroupEdits:
             target = self._group(body.get("to"), allow_unassigned=True)
             moves = dict.fromkeys(items, target)
             return self._edited(edit_groups(self.atlas.style, self.clustering, moves))
+
+    def place_unassigned(self, body: dict) -> dict:
+        """Hand edit, as one undo step: each unassigned image (not excluded) that fits its
+        closest group moves there, by the rule `style-atlas sort` uses (whitened CSD, as close as
+        90% of the group's own images); the others stay unassigned."""
+        with self._lock:
+            self._check_revision(body)
+            rows = [
+                int(i)
+                for i in np.flatnonzero(self.clustering.labels == UNASSIGNED)
+                if i not in self.excluded
+            ]
+            if not rows:
+                raise ValueError("no unassigned images")
+            x = whiten(self.raw.style)
+            fits = fit_to_groups(x, self.clustering, x[rows], set(self.excluded))
+            moves = {i: f.group for i, f in zip(rows, fits, strict=False) if f.fits}
+            if not moves:
+                return {"moved": 0, "left": len(rows), "revision": self.revision}
+            done = self._edited(edit_groups(self.atlas.style, self.clustering, moves))
+            return {**done, "moved": len(moves), "left": len(rows) - len(moves)}
 
     def merge(self, body: dict) -> dict:
         """Hand edit: merge one group into another."""
