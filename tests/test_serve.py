@@ -4,6 +4,7 @@ import http.client
 import json
 import threading
 
+import numpy as np
 import pytest
 from PIL import Image
 
@@ -548,3 +549,14 @@ def test_uploads_move_by_their_own_character_and_a_failed_switch_leaves_no_undo(
     with pytest.raises(ValueError):
         app.set_space({"space": "neutralize-1"})
     assert len(app._history) == steps and app.space.name == "characters"
+
+
+def test_more_like_the_excluded_images(tmp_path):
+    app, _ = _app(tmp_path, (12, 6))  # a main set and six strays
+    with pytest.raises(ValueError):
+        app.similar({"excluded": True})
+    strays = [int(i) for i in np.flatnonzero(app.clustering.labels == app.clustering.labels[-1])]
+    for i in strays[:2]:
+        app.exclude({"i": i, "excluded": True})
+    hits = [h["i"] for h in app.similar({"excluded": True})["hits"]]
+    assert set(hits[:4]) <= set(strays) - set(strays[:2])

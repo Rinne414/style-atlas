@@ -27,6 +27,8 @@ const T = {
     moreLike: "Find more like this", moreLikeTitle: "Outside {g}, most like it (click one to move it)",
     exclude: "Exclude from export (X)", included: "Excluded - undo (X)",
     excludedList: "Excluded by you ({n}) - exported to _excluded",
+    moreLikeThese: "Find more like these", moreLikeTheseHelp: "Strays by another artist: exclude two or three, then find the rest",
+    moreLikeExcluded: "Most like the images you excluded (click one, then X to exclude it)",
     layoutStyle: "Layout: style similarity", layoutMeasures: "Layout: measures",
     m_map: "(map position)", m_taste: "taste p(like)", m_ref: "distance to reference (originality)",
     m_time: "time", m_outlier: "atypical (outlier)",
@@ -71,6 +73,8 @@ const T = {
     moreLike: "找更多像這群的", moreLikeTitle: "不在「{g}」裡、但最像它的圖（點一張可移進來）",
     exclude: "匯出時排除 (X)", included: "已排除，取消 (X)",
     excludedList: "你排除的圖（{n}）：匯出時放到 _excluded",
+    moreLikeThese: "找更多像這些的", moreLikeTheseHelp: "混進來的別人的圖：先排除兩三張，再用這個找出其餘的",
+    moreLikeExcluded: "最像你排除的圖（點一張，再按 X 排除）",
     layoutStyle: "版面：畫風相似", layoutMeasures: "版面：量化軸",
     m_map: "（地圖位置）", m_taste: "口味分數", m_ref: "離參考集距離（原創度）",
     m_time: "時間", m_outlier: "離群度",
@@ -481,7 +485,10 @@ function buildOutliers() {
     const h = document.createElement("h3"); h.textContent = t("excludedList").replace("{n}", EXCLUDED.size);
     const eg = document.createElement("div"); eg.className = "grid";
     [...EXCLUDED].forEach((i) => eg.append(thumb(i)));
-    pane.append(h, eg);
+    const more = document.createElement("button"); more.textContent = t("moreLikeThese");
+    more.title = t("moreLikeTheseHelp"); more.style.margin = "2px 0 6px";
+    more.addEventListener("click", () => showSimilar("excluded"));
+    pane.append(h, more, eg);
   }
 }
 

@@ -298,10 +298,17 @@ class StyleAtlasApp:
 
     def similar(self, body: dict) -> dict:
         """Images outside a group that look most like it (a model learned from the group, as in
-        `search --combine`): strays that belong in it, or more of the same style."""
+        `search --combine`): strays that belong in it, or more of the same style. With
+        {"excluded": true} the images excluded by hand are the examples: from three strays by
+        another artist, the top 30 held 98% of the rest of them (docs/BENCHMARKS.md)."""
         with self._lock:
-            group = self._group(body.get("group"), allow_unassigned=False)
-            members = list(self.clustering.clusters[group].members)
+            if body.get("excluded") is True:
+                members = sorted(self.excluded)
+                if not members:
+                    raise ValueError("no image is excluded yet")
+            else:
+                group = self._group(body.get("group"), allow_unassigned=False)
+                members = list(self.clustering.clusters[group].members)
             labels = self.clustering.labels.copy()
             x = self.atlas.style
         hits = search(x[members], x, top=SEARCH_TOP, combine=True, exclude=set(members))[0]

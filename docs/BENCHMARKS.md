@@ -207,6 +207,23 @@ over their history, deduplicated):
 - **Advice:** for one artist's folder, if auto returns many small groups, use `medium` (or
   `period` to split by time).
 
+**Finding the strays instead (2026-10-10).** The setup was the same, run on all 20 ordered
+pairs of the 5 big artists: one artist (deduplicated, 95-299 works) plus 15 works of another.
+- **Automatic** (no help):
+  - auto grouping reached ARI 0.18 on average;
+  - outlier scores found half of the strays in their top 30 (kNN k=10 50%, k=30 55%, distance
+    to the centroid 56%). The strays look like each other, so none of them is "unlike its
+    neighbours";
+  - the most separated k-means sub-group held most strays in 11 of 20 pairs. In the others the
+    artist's own period was as far from the rest (separation 0.16-0.26) as the strays were.
+    Another artist and another period are about equally far apart in CSD.
+- **From strays the user has spotted**:
+  - one clicked stray had 63% of the other strays among its 12 nearest images (86% among 30);
+  - three strays searched as one set (`--combine`) put 98% of the rest in the top 30 (worst
+    pair 75%).
+- So the web app's excluded list has **Find more like these**: exclude two or three strays
+  with X, then the button lists the images most like them.
+
 **Limits of this evidence** (from a Sonnet review):
 - All of it is one Danbooru corpus with about 10 works per artist, and the 306-artist row is a
   single draw on the data the offset was tuned on.

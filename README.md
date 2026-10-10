@@ -190,6 +190,7 @@ style-atlas taste score "D:\new_batch" --model "D:\my_taste.npz"
   - 畫風漸變：選一張圖按「畫風漸變：從這張開始」，再選另一張按「畫風漸變：到這張」，會列出在畫風上從前一張漸變到後一張的一串圖。適合找兩種畫風之間的過渡風格。
   - 調門檻後重新分群、一鍵匯出資料夾。匯出時可以選一般資料夾或 kohya 格式、填概念名稱、勾選「標註加觸發詞」。
   - 按「匯出時排除」（鍵盤 X）手動剔除不要的圖，清單會存檔，匯出時放到 `_excluded\`。
+  - 資料夾裡混了別的畫師的圖時：先把看到的兩三張按 X 排除，再到「離群」分頁的排除清單按「找更多像這些的」，其餘的通常都會排在最前面（實測：3 張當範例時，前 30 名找回 98%）。
   - 手動修正分群，修正會反映在之後的匯出：
     - 選取一張圖，用「移到其他群…」把它改放到別群；
     - 打開一個群，用「把這群合併到…」併進另一群，或按「拆成兩群」。
@@ -295,6 +296,8 @@ how a picture is drawn rather than what it shows. On top of those vectors it can
 - **Fix groups by hand** in the web app: "Find more like this" lists the images outside a group
   that look most like it; move an image to another group, merge two groups,
   split a group in two, or exclude images (X), which are then exported to `_excluded/`.
+  Strays by another artist: exclude two or three, then "Find more like these" in the excluded
+  list ranks the rest first (from three, the top 30 held 98% of them).
   Groups, edits, names and the character-axis switch are saved and restored the next time the
   folder is opened. Names follow their images: after a move, merge, split or regroup a name
   stays with the group that holds most of its images.

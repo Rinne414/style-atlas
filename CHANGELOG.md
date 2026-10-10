@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **Find more like these** in the web app's excluded list: exclude two or three strays by
+  another artist, and the rest are listed first. From three strays the top 30 held 98% of the
+  others, while outlier scores found only half (BENCHMARKS.md).
 - `cluster --export` sends the images you excluded with X in the web app to `_excluded/`, as
   the web app's own export does. Hand moves, merges and names stay with the web export.
 - The "measures" layout frames the whole axis cube when it opens or on Reset, with larger axis

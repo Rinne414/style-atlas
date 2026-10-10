@@ -64,15 +64,17 @@ function showSearch(files, hits) {
   showPane("selected");
 }
 
-async function showSimilar(group) {
+async function showSimilar(group) {  // a group id, or "excluded": the images excluded by hand
   setStatus(t("searching"));
+  const body = group === "excluded" ? { excluded: true } : { group };
   try {
-    const { hits } = await post("api/similar", JSON.stringify({ group }), "application/json");
+    const { hits } = await post("api/similar", JSON.stringify(body), "application/json");
     setStatus("");
     selected = null; searchHits = new Set(hits.map((h) => h.i)); recolor();
     if (hits.length) focusOn(hits.slice(0, 8).map((h) => h.i));
     const pane = $("pane-selected"); pane.replaceChildren();
-    const h = document.createElement("h3"); h.textContent = t("moreLikeTitle").replace("{g}", clusterName(group));
+    const h = document.createElement("h3");
+    h.textContent = group === "excluded" ? t("moreLikeExcluded") : t("moreLikeTitle").replace("{g}", clusterName(group));
     const g = document.createElement("div"); g.className = "grid";
     hits.forEach((x) => { const im = thumb(x.i); im.title = `${PTS[x.i].n} · ${clusterName(x.group)}`; g.append(im); });
     pane.append(h, g);
