@@ -82,6 +82,7 @@ RENDER_TEXT = {
             "out": "大多不像訓練集",
         },
         "fit_note": "實測：同一畫師沒用到的作品約 61% 落在範圍內，其他畫師約 1%。",
+        "no_groups": "訓練集沒有 3 張以上的畫風群，不判斷算圖落在範圍內的比例。",
         "look": "外觀（算圖和訓練集比）：{w}",
         "look_same": "沒有明顯差異",
         "copies": "可能背下的訓練圖：{n} 張算圖和某張訓練圖幾乎一樣"
@@ -107,6 +108,8 @@ RENDER_TEXT = {
         },
         "fit_note": "Measured: 61% of an artist's unused works fall inside, 1% of another "
         "artist's.",
+        "no_groups": "The training set has no style group of 3 images or more, so the share of "
+        "renders inside one is not judged.",
         "look": "Look (renders against the training set): {w}",
         "look_same": "no clear difference",
         "copies": "Possibly memorised: {n} renders nearly repeat a training image (render left, "
@@ -226,13 +229,15 @@ def _looks_section(looks: np.ndarray, t: dict, lang: str) -> str:
 def _renders_section(check: RenderCheck, train: Atlas, lang: str) -> str:
     """The LoRA render check: distance, fit share, look change, memorised pairs, the farthest."""
     r, e = RENDER_TEXT[lang], html.escape
-    n = len(check.fits)
+    n = len(check.renders)
     p = "< 0.01" if check.p < 0.01 else f"{check.p:.2f}"
     verdict = r["verdict"].get(check.verdict, check.verdict)
-    lines = [
-        r["distance"].format(d=check.distance, z=check.z, v=verdict, p=p),
-        r["fit"].format(k=check.fitting, n=n, v=r["batch"][batch_verdict(check.fitting / n, n)]),
-    ]
+    lines = [r["distance"].format(d=check.distance, z=check.z, v=verdict, p=p)]
+    if check.fits:  # empty when no training group has 3 images or more
+        reading = r["batch"][batch_verdict(check.fitting / n, n)]
+        lines.append(r["fit"].format(k=check.fitting, n=n, v=reading))
+    else:
+        lines.append(r["no_groups"])
     if check.look is not None:
         lines.append(r["look"].format(w=_look_change(check.look, lang) or r["look_same"]))
     out = [f"<section><h2>{e(r['title'].format(n=n))}</h2>"]
@@ -245,9 +250,10 @@ def _renders_section(check: RenderCheck, train: Atlas, lang: str) -> str:
         out.append(f'<div class="thumbs">{cells}</div>')
     else:
         out.append(f"<p>{e(r['no_copies'])}</p>")
-    farthest = np.argsort([-f.dist for f in check.fits])[:RENDER_THUMBS]
-    out.append(f"<h3>{e(r['far'])}</h3>")
-    out.append(_thumb_grid([check.renders.paths[i] for i in farthest]))
+    if check.fits:
+        farthest = np.argsort([-f.dist for f in check.fits])[:RENDER_THUMBS]
+        out.append(f"<h3>{e(r['far'])}</h3>")
+        out.append(_thumb_grid([check.renders.paths[i] for i in farthest]))
     return "".join(out) + "</section>"
 
 

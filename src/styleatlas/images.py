@@ -92,13 +92,15 @@ def to_8bit(im: Image.Image) -> Image.Image:
     conversion clips them instead of scaling: a 16-bit grey PNG came out nearly all white."""
     if im.mode not in WIDE_GREY:
         return im
-    a = np.asarray(im, dtype=np.float64)
-    top = float(a.max(initial=0.0))
-    if im.mode.startswith("I;16") or (im.mode == "I" and top > 255):
-        a = a / 257.0  # 0-65535 to 0-255
-    elif im.mode == "F" and top <= 1.0:
-        a = a * 255.0  # 0-1 floats
-    return Image.fromarray(np.clip(np.rint(a), 0, 255).astype(np.uint8))
+    if im.mode == "F":
+        a = np.asarray(im, dtype=np.float32)
+        if float(a.max(initial=0.0)) <= 1.0:
+            a = a * 255.0  # 0-1 floats
+        return Image.fromarray(np.clip(np.rint(a), 0, 255).astype(np.uint8))
+    a = np.asarray(im)  # integers: 16-bit, or 32-bit holding 8- or 16-bit values
+    if im.mode.startswith("I;16") or int(a.max(initial=0)) > 255:
+        a = np.clip(a, 0, 65535) >> 8  # 0-65535 to 0-255 without float copies
+    return Image.fromarray(np.clip(a, 0, 255).astype(np.uint8))
 
 
 def thumbnail_bytes(path: Path, size: int = 96, quality: int = 70) -> bytes:

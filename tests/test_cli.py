@@ -465,3 +465,15 @@ def test_report_checks_lora_renders_against_the_training_set(lib, tmp_path, caps
     assert main(base) == 0 and "LoRA 算圖檢查" in out.read_text(encoding="utf-8")
     assert main([*base, "--neutralize", "1"]) == 1
     assert "--renders compares plain style vectors" in capsys.readouterr().err
+
+
+def test_render_check_without_any_training_group_of_three(lib, tmp_path):
+    small = tmp_path / "small"
+    small.mkdir()
+    for colour in ("red", "blue"):
+        for p in sorted((lib / colour).glob("*.png"))[:2]:
+            (small / p.name).write_bytes(p.read_bytes())
+    out = tmp_path / "r.html"
+    args = ["report", str(small), "-o", str(out), "--renders", str(lib / "green"), "--lang", "en"]
+    assert main([*args, "--device", "cpu"]) == 0  # was a ZeroDivisionError
+    assert "no style group of 3 images or more" in out.read_text(encoding="utf-8")
