@@ -24,7 +24,7 @@ def cmd_report(a: argparse.Namespace) -> int:
         )
     atlas = _atlas(a, a.folder).with_looks(_opts(a), log)
     if len(atlas) == 0:
-        log(f"no readable images in {a.folder}")
+        log(tr(f"no readable images in {a.folder}", f"{a.folder} 裡沒有讀得到的圖"))
         return 1
     excluded = web_exclusions(atlas, Path(a.folder))
     if len(excluded) == len(atlas):

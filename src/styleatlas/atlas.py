@@ -292,7 +292,12 @@ def build_atlas(
     root = Path(root)
     paths = find_images(root, recursive=recursive, exclude=exclude)
     if not paths:
-        raise FileNotFoundError(f"no images found under {root}")
+        raise FileNotFoundError(
+            tr(
+                f"no images found under {root}",
+                f"{root} 裡找不到圖片（png、jpg、jfif、webp、bmp、gif、avif）",
+            )
+        )
     kept, style, content, failed = embed_paths(paths, opts, progress)
     base = root if root.is_dir() else root.parent
     return Atlas(base, kept, style, content, encoder_signature(opts.crop, opts.resolution), failed)
