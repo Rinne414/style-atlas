@@ -150,7 +150,28 @@ def _place(src: Path, dst: Path, mode: str) -> bool:
     return False
 
 
-UPRIGHT_JPEG_QUALITY = 95
+UPRIGHT_JPEG_QUALITY = 95  # only when a JPEG's own tables cannot be read
+
+
+def _same_encoding(im) -> dict:
+    """Save options that keep an image's encoding when it is written again: a JPEG's
+    quantisation tables and chroma subsampling, a PNG's text chunks."""
+    from PIL import JpegImagePlugin, PngImagePlugin
+
+    if im.format == "JPEG":
+        sampling = JpegImagePlugin.get_sampling(im)
+        tables = getattr(im, "quantization", None)
+        if tables and sampling >= 0:
+            return {"qtables": tables, "subsampling": sampling}
+        return {"quality": UPRIGHT_JPEG_QUALITY}
+    if im.format == "PNG" and getattr(im, "text", None):
+        info = PngImagePlugin.PngInfo()
+        for key, value in im.text.items():
+            info.add_text(key, value)
+        return {"pnginfo": info}
+    return {}
+
+
 SMALL_FOR_TRAINING = 512  # short side under which a 1024 training size means 2x enlargement
 
 
@@ -171,8 +192,10 @@ def small_for_training(paths: list[Path], folders: list[str]) -> int:
 def _write_upright(src: Path, dst: Path) -> bool:
     """An image turned only by its EXIF orientation is written with its pixels turned and the
     tag removed: kohya sd-scripts reads the pixels as stored and would train it sideways. The
-    source is never changed (a link could not be turned, so these are always copies). False,
-    writing nothing, for every other image."""
+    source is never changed (a link could not be turned, so these are always copies). A JPEG
+    keeps its own quantisation tables and chroma subsampling, a PNG its text chunks (prompts).
+    False, writing nothing, for every other image and for animations (one frame would be lost).
+    """
     from PIL import Image, ImageOps
 
     from styleatlas.dataset import EXIF_ORIENTATION
@@ -181,11 +204,13 @@ def _write_upright(src: Path, dst: Path) -> bool:
         with Image.open(src) as im:
             if im.getexif().get(EXIF_ORIENTATION, 1) not in range(2, 9):
                 return False
+            if getattr(im, "is_animated", False):
+                return False
             fmt = im.format
+            extra = _same_encoding(im)
             out = ImageOps.exif_transpose(im)
     except Exception:  # noqa: BLE001 - unreadable or odd EXIF: copy the file as it is
         return False
-    extra = {"quality": UPRIGHT_JPEG_QUALITY} if fmt == "JPEG" else {}
     if out.info.get("icc_profile"):
         extra["icc_profile"] = out.info["icc_profile"]
     exif = out.getexif()

@@ -119,6 +119,34 @@ def test_export_writes_photos_turned_only_by_exif_upright(tmp_path, mode):
     assert photo.read_bytes() == before  # the source is untouched
 
 
+def test_writing_upright_keeps_the_encoding_and_leaves_animations_alone(tmp_path):
+    from PIL import JpegImagePlugin, PngImagePlugin
+
+    from styleatlas.export import _write_upright
+
+    exif = Image.Exif()
+    exif[0x0112] = 6
+    jpeg = tmp_path / "fine.jpg"
+    Image.new("RGB", (40, 30), (200, 40, 40)).save(jpeg, quality=100, subsampling=0, exif=exif)
+    assert _write_upright(jpeg, tmp_path / "fine_out.jpg")
+    with Image.open(tmp_path / "fine_out.jpg") as out:
+        assert out.size == (30, 40) and JpegImagePlugin.get_sampling(out) == 0  # still 4:4:4
+
+    png = tmp_path / "prompt.png"
+    text = PngImagePlugin.PngInfo()
+    text.add_text("parameters", "1girl, masterpiece")
+    Image.new("RGB", (40, 30)).save(png, pnginfo=text, exif=exif)
+    assert _write_upright(png, tmp_path / "prompt_out.png")
+    with Image.open(tmp_path / "prompt_out.png") as out:
+        assert out.text.get("parameters") == "1girl, masterpiece"
+
+    anim = tmp_path / "moving.webp"
+    frames = [Image.new("RGB", (40, 30), c) for c in ((255, 0, 0), (0, 0, 255))]
+    frames[0].save(anim, save_all=True, append_images=frames[1:], exif=exif)
+    assert not _write_upright(anim, tmp_path / "moving_out.webp")  # copied as it is instead
+    assert not (tmp_path / "moving_out.webp").exists()
+
+
 def test_the_upright_copy_wins_a_tie_between_duplicates(tmp_path):
     from styleatlas.dataset import best_in_group
 

@@ -663,7 +663,8 @@ function restoreView() {
     view = JSON.parse(sessionStorage.getItem(VIEW_KEY) || "null");
     sessionStorage.removeItem(VIEW_KEY);
   } catch (e) { return; }
-  if (!view || !Array.isArray(view.cam) || !Array.isArray(view.target)) return;
+  const point = (v) => Array.isArray(v) && v.length === 3 && v.every(Number.isFinite);
+  if (!view || !point(view.cam) || !point(view.target)) return;
   camera.position.fromArray(view.cam); controls.target.fromArray(view.target); controls.update();
   if (typeof view.note === "string" && view.note) setTimeout(() => setStatus(view.note), 0);
 }
