@@ -40,8 +40,8 @@ def columns(text: str) -> int:
 
 
 # punctuation that must not start a line (kinsoku): it stays at the end of the line before
-NO_LINE_START = frozenset("，。、；：？！）」』》〉】,.;:?!)]")
-NO_LINE_END = frozenset("（「『《〈【([")  # and opening brackets move to the next line
+NO_LINE_START = frozenset("，。、；：？！）」』》〉】”’…,.;:?!)]")
+NO_LINE_END = frozenset("（「『《〈【“‘([")  # and opening brackets move to the next line
 
 
 def wrap(text: str, width: int) -> list[str]:
@@ -55,7 +55,7 @@ def wrap(text: str, width: int) -> list[str]:
             continue
         piece = (" " if gap and line else "") + token
         gap = False
-        if line and columns(line + piece) > width and token not in NO_LINE_START:
+        if line and columns(line + piece) > width and token[0] not in NO_LINE_START:
             carry = line[-1] if line[-1] in NO_LINE_END and len(line) > 1 else ""
             lines.append(line[: len(line) - len(carry)])
             line = carry + token

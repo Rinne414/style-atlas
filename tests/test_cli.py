@@ -619,3 +619,21 @@ def test_compare_refuses_the_same_folder_twice(lib, capsys):
     red = str(lib / "red")
     assert main(["compare", red, red, "--device", "cpu"]) == 1
     assert "same folder" in capsys.readouterr().err
+
+
+def test_combined_search_json_names_the_query_the_same_in_every_language(lib, monkeypatch, capsys):
+    examples = [str(p) for p in sorted((lib / "red").glob("*.png"))[:2]]
+    monkeypatch.setenv("STYLE_ATLAS_LANG", "zh")
+    args = ["search", *examples, "--in", str(lib), "--combine", "--top", "2", "--json"]
+    assert main([*args, "--device", "cpu"]) == 0
+    assert {r["query"] for r in json.loads(capsys.readouterr().out)} == {"(all queries)"}
+    with pytest.raises(SystemExit):  # --top must be 1 or more
+        main(["search", *examples, "--in", str(lib), "--top", "0", "--device", "cpu"])
+
+
+def test_wrap_keeps_curly_quotes_and_brackets_with_their_text():
+    from styleatlas.lang import wrap
+
+    lines = wrap("ab “中文中文” …… 中文，中文。", 6)
+    assert not any(line[0] in "”…，。" for line in lines)
+    assert not any(line[-1] == "“" for line in lines)

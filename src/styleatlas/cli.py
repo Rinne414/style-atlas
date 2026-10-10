@@ -133,9 +133,7 @@ def cmd_search(a: argparse.Namespace) -> int:
         qstyle = fitted.apply(qstyle, qcontent)
     query_files = {q.resolve() for q in qkept}
     same = {i for i, p in enumerate(atlas.paths) if p.resolve() in query_files}
-    names = (
-        [tr("(all queries)", "（全部查詢圖合在一起）")] if a.combine else [str(p) for p in qkept]
-    )
+    names = [ALL_QUERIES] if a.combine else [str(p) for p in qkept]
     if a.by_folder:
         return _search_folders(a, atlas, qstyle, names, same)
     if a.keep_duplicates:
@@ -230,25 +228,33 @@ SEARCH_ORDER_ZH = (
 )
 
 
+ALL_QUERIES = "(all queries)"  # the "query" of a combined search, in JSON in every language
+
+
 def _print_by_query(rows: list[dict], line: Callable[[dict], str]) -> None:
     """Each query's name once, then its results."""
     query = None
     for row in rows:
         if row["query"] != query:
             query = row["query"]
-            print(query + tr(":", "：") if query.startswith(("(", "（")) else f"{query}:")
+            print(
+                tr(f"{ALL_QUERIES}:", "（全部查詢圖合在一起）：")
+                if query == ALL_QUERIES
+                else f"{query}:"
+            )
         print(line(row))
 
 
 def _search_folded(a: argparse.Namespace, atlas, qstyle, plain: np.ndarray, same: set) -> list:
     """Each query's hits without near-copies of a better hit, looking further down the ranking
-    until every query has --top hits or the folder runs out."""
+    until every query has --top hits or the folder runs out. The search ranks every image once;
+    only the folding is repeated, on longer slices of that ranking."""
     from styleatlas.search import fold_hits, search
 
+    ranked = search(qstyle, atlas.style, top=len(atlas), combine=a.combine, exclude=same)
     wide = 2 * a.top
     while True:
-        results = search(qstyle, atlas.style, top=wide, combine=a.combine, exclude=same)
-        folded = [fold_hits(hits, plain, atlas.content, a.top) for hits in results]
+        folded = [fold_hits(hits[:wide], plain, atlas.content, a.top) for hits in ranked]
         if all(len(kept) >= a.top for kept, _ in folded) or wide >= len(atlas):
             break
         wide = min(2 * wide, len(atlas))
@@ -682,7 +688,10 @@ def _add_inspect_commands(add: Adder) -> None:
         help=tr("folder to search", "要搜尋的資料夾"),
     )
     p.add_argument(
-        "--top", type=int, default=20, help=tr("results per query", "每張查詢圖列出幾個結果")
+        "--top",
+        type=_positive_int,
+        default=20,
+        help=tr("results per query", "每張查詢圖列出幾個結果"),
     )
     p.add_argument(
         "--combine",
@@ -726,7 +735,7 @@ def _add_inspect_commands(add: Adder) -> None:
         tr("images least like the rest of a folder", "資料夾裡最不合群的圖"),
     )
     p.add_argument("folder")
-    p.add_argument("--top", type=int, default=30, help=tr("how many to list", "列出幾張"))
+    p.add_argument("--top", type=_positive_int, default=30, help=tr("how many to list", "列出幾張"))
     p = add(
         "audit",
         cmd_audit,
@@ -900,6 +909,11 @@ class HelpFormatter(argparse.HelpFormatter):
         if all(columns(ch) == 1 for ch in text):
             return super()._split_lines(text, width)  # English: argparse's own wrapping
         return wrap(text, width)
+
+    def _fill_text(self, text: str, width: int, indent: str) -> str:
+        if all(columns(ch) == 1 for ch in text):
+            return super()._fill_text(text, width, indent)
+        return "\n".join(indent + line for line in wrap(text, width - len(indent)))
 
 
 def build_parser() -> argparse.ArgumentParser:
