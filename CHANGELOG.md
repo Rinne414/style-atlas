@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.41.0 - 2026-10-10
 
 - Web page: the map area is the page's main landmark and the page has a description
   (Lighthouse accessibility, best practices and SEO all at 100).
