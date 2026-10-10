@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Workflow steps** at the top of the web app's side panel: "① Check → ② Sort the styles →
+  ③ Export", each jumping to its tab or opening the export panel.
 - **A calmer bottom bar** (a Sonnet review of screenshots at 1366x768): one row with search,
   grouping, "Export folders…", "Save shareable map" and "More…". The export options open in a
   panel above it, ending in "Export now"; the character-axis switch and the reference folder

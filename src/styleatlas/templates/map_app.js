@@ -385,9 +385,20 @@ function setupPanels() {  // export options and the advanced switches open above
   }
 }
 
+function setupSteps() {  // the LoRA workflow at a glance: check, sort the groups, export
+  const box = $("steps"); box.hidden = false;
+  const go = {
+    check: () => showPane("outliers"),
+    groups: () => showPane("clusters"),
+    export: () => { if ($("exportPanel").hidden) $("exportOpen").click(); $("expName").focus(); },
+  };
+  box.querySelectorAll("button").forEach((b) => b.addEventListener("click", go[b.dataset.step]));
+}
+
 function setupLive() {
   setupUndo();
   setupPanels();
+  setupSteps();
   setupMarking();
   setupReference();
   $("neutral").checked = (DATA.live.space || "plain") !== "plain";
@@ -461,6 +472,7 @@ function liveText() {
   $("export").textContent = t("exportGo"); $("exportOpen").textContent = t("exportOpen");
   $("exportTitle").textContent = t("exportTitle"); $("moreOpen").textContent = t("moreOpen");
   $("drop").textContent = t("drop");
+  document.querySelectorAll("#steps button").forEach((b) => { b.textContent = t("step_" + b.dataset.step); });
   $("saveMap").textContent = t("saveMap");
   $("undo").textContent = t("undo");
   $("expLayout").options[0].textContent = t("plainFolders");
