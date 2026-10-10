@@ -37,6 +37,7 @@ from styleatlas.dataset import (
     MAX_PER_GROUP_RANGE,
     SET_ASIDE,
     audit,
+    caption_of,
     clean_group_name,
     distinctive_tags,
     is_unassigned,
@@ -255,6 +256,12 @@ class StyleAtlasApp(GroupEdits):
         with self._lock:
             if self._tag_sets is None:
                 self._tag_sets = tags
+
+    def caption(self, body: dict) -> dict:
+        """One image's caption tags, in the caption's order (none without a caption file)."""
+        i = self._index(body)
+        side = caption_of(self.atlas.paths[i])
+        return {"tags": read_tags(self.atlas.paths[i]), "file": side.name if side else None}
 
     def tagged(self, body: dict) -> dict:
         """Images whose caption has a tag containing the text (case, spaces and underscores

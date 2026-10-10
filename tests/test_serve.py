@@ -722,3 +722,12 @@ def test_originals_are_served_with_their_image_type(tmp_path):
     finally:
         srv.shutdown()
         srv.server_close()
+
+
+def test_an_images_caption_is_read_for_its_details(tmp_path):
+    app, atlas = _app(tmp_path)
+    atlas.paths[0].with_suffix(".txt").write_text("artistx, 1girl, long_hair", encoding="utf-8")
+    assert app.caption({"i": 0}) == {"tags": ["artistx", "1girl", "long_hair"], "file": "img0.txt"}
+    assert app.caption({"i": 1}) == {"tags": [], "file": None}
+    with pytest.raises(ValueError):
+        app.caption({"i": len(atlas)})

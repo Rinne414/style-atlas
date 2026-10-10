@@ -295,6 +295,14 @@ function thumb(i, onClick) {
   return img;
 }
 
+function captionLine(i) {  // live app: the caption's tags, filled in when they arrive
+  const box = document.createElement("div"); box.className = "meta tags";
+  post("api/caption", JSON.stringify({ i }), "application/json").then((r) => {
+    box.textContent = r.file ? `${r.file}${lang === "zh" ? "：" : ": "}${r.tags.join(", ") || t("captionEmpty")}` : t("captionNone");
+  }).catch(() => { box.textContent = ""; });
+  return box;
+}
+
 function select(i) {
   selected = i; searchHits = null; recolor();
   focusOn([i, ...PTS[i].k.slice(0, 4)]);
@@ -313,7 +321,7 @@ function select(i) {
   const a = document.createElement("a"); a.href = PTS[i].f; a.target = "_blank"; a.rel = "noopener";
   a.textContent = t("open"); a.style.color = "var(--accent)"; kv.append(a);
   pane.append(kv);
-  if (DATA.live) pane.append(voteButtons(i));
+  if (DATA.live) pane.append(voteButtons(i), captionLine(i));
   const h = document.createElement("h3"); h.textContent = t("nearest"); pane.append(h);
   const g = document.createElement("div"); g.className = "grid";
   PTS[i].k.forEach((j) => g.append(thumb(j)));
