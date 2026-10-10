@@ -50,6 +50,14 @@ All of these are in `docs/BENCHMARKS.md`.
   scores find them reliably (about half). From two or three that the user excludes, "Find more
   like these" lists the rest first (98% in the top 30).
 
+- **Style consistency**: two-artist mixes are caught 63% of the time (three or more: 93-100%),
+  with 8% false alarms on single artists. AI renders from one model with fixed characters always
+  read "tight". A per-group version was rejected: no cut carries across folders.
+- **Enlarged images**: 2x enlargements (relative to the training size) are caught 92-100% of the
+  time, 1.5x mostly not. AI upscalers were not tested.
+- **Families of artists** (`map --by-folder`): loose, with a split-half ARI of 0.32 at the default
+  cut; the positions on the map mean more than the colours.
+
 ## Ideas not done yet
 
 - **Web app**: done since 0.4.0: moving, merging, splitting and naming groups, the
@@ -77,6 +85,16 @@ All of these are in `docs/BENCHMARKS.md`.
     raw-image pipeline is released.
   - Mitchins/anime-style-classifier-v5 sorts anime frames into 4 production styles, not
     artists.
+
+- **From the v0.24 product critique, not done yet**:
+  - Style search combined with a caption tag (`#1girl`), and negative examples.
+  - Caption checks against the image, for example `monochrome` on a colourful picture.
+  - Comparing any two selections on the map, not only two named groups.
+  - An aspect-ratio bucket report as the trainer will see it.
+  - A one-page report for a folder (consistency, looks, nearest artists, originality).
+  - Rejected: hiding the taste model. Quantifying taste is one of the owner's goals.
+- **Watermarks without captions**: only caption tags are checked. Detecting marks in the pixels
+  needs a detector model.
 
 ## Tried and rejected
 
