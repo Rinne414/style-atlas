@@ -336,39 +336,7 @@ function buildClusters() {
     const row = document.createElement("div"); row.className = "cl"; row.dataset.id = String(c.id);
     const img = document.createElement("img"); img.src = PTS[c.medoid]?.t || ""; img.alt = "";
     img.style.borderColor = colorOf(c.id);
-    const txt = document.createElement("div");
-    const nm = document.createElement("div"); nm.className = "name"; nm.textContent = clusterName(c.id);
-    const mt = document.createElement("div"); mt.className = "meta";
-    mt.textContent = `${c.size} ${t("size")}` + (c.cohesion !== undefined ? ` · ${t("cohesion")} ${c.cohesion.toFixed(3)}` : "");
-    txt.append(nm, mt);
-    if (c.tags && c.tags.length) {
-      const tg = document.createElement("div"); tg.className = "meta tags"; tg.textContent = c.tags.join(", ");
-      txt.append(tg);
-    }
-    if (c.near && c.near.length) {
-      const nr = document.createElement("div"); nr.className = "meta near";
-      nr.append(`${t("nearGroups")} `);
-      c.near.forEach(([id, d], k) => {
-        const a = document.createElement("a"); a.href = "#"; a.textContent = `${clusterName(id)} (${d.toFixed(2)})`;
-        a.title = t("nearTip");
-        a.addEventListener("click", (e) => {
-          e.preventDefault(); e.stopPropagation();
-          const target = [...pane.querySelectorAll(".cl")].find((r) => r.dataset.id === String(id));
-          if (target) { target.scrollIntoView({ block: "nearest" }); target.click(); }
-        });
-        if (k) nr.append(" · ");
-        nr.append(a);
-      });
-      txt.append(nr);
-    }
-    const look = lookWords(c.members);
-    if (look) {
-      const lk = document.createElement("div"); lk.className = "meta look"; lk.textContent = look;
-      lk.title = t("lookTitle"); txt.append(lk);
-    }
-    const strip = timeStrip(c.members, colorOf(c.id));
-    if (strip) txt.append(strip);
-    row.append(img, txt);
+    row.append(img, clusterText(c, pane));
     const grid = document.createElement("div"); grid.className = "grid"; grid.style.display = "none";
     grid.style.margin = "4px 0 10px";
     row.addEventListener("click", () => {
@@ -376,42 +344,81 @@ function buildClusters() {
       focusCluster = on ? c.id : null; selected = null; recolor();
       pane.querySelectorAll(".cl").forEach((r) => r.classList.remove("on"));
       pane.querySelectorAll(".grid").forEach((g) => (g.style.display = "none"));
-      if (on) {
-        row.classList.add("on"); grid.style.display = "grid";
-        if (!grid.childElementCount) {
-          if (DATA.live && c.id >= 0) {
-            const bar = document.createElement("div"); bar.style.cssText = "grid-column:1/-1;margin-bottom:4px";
-            bar.append(groupSelect(t("mergeInto"), c.id, false, (into) => editPost("api/merge", { from: c.id, into })));
-            if (DATA.clusters.length >= 2) bar.append(groupSelect(t("compareWith"), c.id, false, (other) => showCompare(c.id, other)));
-            const nameBox = document.createElement("input"); nameBox.name = "groupName"; nameBox.setAttribute("aria-label", t("nameGroup"));
-            nameBox.placeholder = t("nameGroup"); nameBox.value = (DATA.live.names || {})[String(c.id)] || "";
-            nameBox.style.cssText = "margin-left:6px;width:120px;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:5px 8px;font:inherit;font-size:12px";
-            nameBox.addEventListener("click", (e) => e.stopPropagation());
-            nameBox.addEventListener("keydown", (e) => { e.stopPropagation(); if (e.key === "Enter") editPost("api/rename", { group: c.id, name: nameBox.value }); });
-            bar.append(nameBox);
-            const more = document.createElement("button"); more.textContent = t("moreLike"); more.style.marginLeft = "6px";
-            more.addEventListener("click", (e) => { e.stopPropagation(); showSimilar(c.id); });
-            bar.append(more);
-            if (c.size >= 2) {
-              const sp = document.createElement("button"); sp.textContent = t("splitGroup"); sp.style.marginLeft = "6px";
-              sp.addEventListener("click", (e) => { e.stopPropagation(); editPost("api/split", { group: c.id }); });
-              bar.append(sp);
-            }
-            grid.append(bar);
-          } else if (DATA.live && DATA.clusters.length) {  // unassigned: place what fits a group
-            const bar = document.createElement("div"); bar.style.cssText = "grid-column:1/-1;margin-bottom:4px";
-            const place = document.createElement("button"); place.textContent = t("placeUnassigned");
-            place.title = t("placeUnassignedTip");
-            place.addEventListener("click", (e) => { e.stopPropagation(); placeUnassigned(); });
-            bar.append(place); grid.append(bar);
-          }
-          c.members.slice(0, 120).forEach((j) => grid.append(thumb(j)));
-        }
-        focusOn(c.members);
+      if (!on) return;
+      row.classList.add("on"); grid.style.display = "grid";
+      if (!grid.childElementCount) {
+        const bar = groupBar(c);
+        if (bar) grid.append(bar);
+        c.members.slice(0, 120).forEach((j) => grid.append(thumb(j)));
       }
+      focusOn(c.members);
     });
     pane.append(row, grid);
   }
+}
+
+function clusterText(c, pane) {  // name, size, typical tags, closest groups, look, time strip
+  const txt = document.createElement("div");
+  const nm = document.createElement("div"); nm.className = "name"; nm.textContent = clusterName(c.id);
+  const mt = document.createElement("div"); mt.className = "meta";
+  mt.textContent = `${c.size} ${t("size")}` + (c.cohesion !== undefined ? ` · ${t("cohesion")} ${c.cohesion.toFixed(3)}` : "");
+  txt.append(nm, mt);
+  if (c.tags && c.tags.length) {
+    const tg = document.createElement("div"); tg.className = "meta tags"; tg.textContent = c.tags.join(", ");
+    txt.append(tg);
+  }
+  if (c.near && c.near.length) txt.append(nearLinks(c, pane));
+  const look = lookWords(c.members);
+  if (look) {
+    const lk = document.createElement("div"); lk.className = "meta look"; lk.textContent = look;
+    lk.title = t("lookTitle"); txt.append(lk);
+  }
+  const strip = timeStrip(c.members, colorOf(c.id));
+  if (strip) txt.append(strip);
+  return txt;
+}
+
+function nearLinks(c, pane) {  // the closest groups, each a link that opens it
+  const nr = document.createElement("div"); nr.className = "meta near";
+  nr.append(`${t("nearGroups")} `);
+  c.near.forEach(([id, d], k) => {
+    const a = document.createElement("a"); a.href = "#"; a.textContent = `${clusterName(id)} (${d.toFixed(2)})`;
+    a.title = t("nearTip");
+    a.addEventListener("click", (e) => {
+      e.preventDefault(); e.stopPropagation();
+      const target = [...pane.querySelectorAll(".cl")].find((r) => r.dataset.id === String(id));
+      if (target) { target.scrollIntoView({ block: "nearest" }); target.click(); }
+    });
+    if (k) nr.append(" · ");
+    nr.append(a);
+  });
+  return nr;
+}
+
+function groupBar(c) {  // live app only: the edits for a group, or placing the unassigned ones
+  if (!DATA.live || (c.id < 0 && !DATA.clusters.length)) return null;
+  const bar = document.createElement("div"); bar.style.cssText = "grid-column:1/-1;margin-bottom:4px";
+  const button = (label, onClick) => {
+    const b = document.createElement("button"); b.textContent = label; b.style.marginLeft = "6px";
+    b.addEventListener("click", (e) => { e.stopPropagation(); onClick(); });
+    return b;
+  };
+  if (c.id < 0) {
+    const place = button(t("placeUnassigned"), placeUnassigned);
+    place.style.marginLeft = ""; place.title = t("placeUnassignedTip");
+    bar.append(place);
+    return bar;
+  }
+  bar.append(groupSelect(t("mergeInto"), c.id, false, (into) => editPost("api/merge", { from: c.id, into })));
+  if (DATA.clusters.length >= 2) bar.append(groupSelect(t("compareWith"), c.id, false, (other) => showCompare(c.id, other)));
+  const nameBox = document.createElement("input"); nameBox.name = "groupName"; nameBox.setAttribute("aria-label", t("nameGroup"));
+  nameBox.placeholder = t("nameGroup"); nameBox.value = (DATA.live.names || {})[String(c.id)] || "";
+  nameBox.style.cssText = "margin-left:6px;width:120px;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:5px 8px;font:inherit;font-size:12px";
+  nameBox.addEventListener("click", (e) => e.stopPropagation());
+  nameBox.addEventListener("keydown", (e) => { e.stopPropagation(); if (e.key === "Enter") editPost("api/rename", { group: c.id, name: nameBox.value }); });
+  bar.append(nameBox, button(t("moreLike"), () => showSimilar(c.id)));
+  if (c.size >= 2) bar.append(button(t("splitGroup"), () => editPost("api/split", { group: c.id })));
+  return bar;
 }
 
 const CHECK_KEYS = ["smaller_than_min_side", "soft_or_enlarged", "low_jpeg_quality",
@@ -431,22 +438,8 @@ function checkSection() {
   run.addEventListener("click", () => { run.disabled = true; runCheck(parseInt(side.value, 10)); });
   box.append(h, side, run);
   if (!CHECK) return box;
-  if (CHECK.consistency) {  // how spread the folder's style is, next to single artists
-    const c = CHECK.consistency, line = document.createElement("div");
-    line.className = c.verdict === "mixed" ? "kv consist mixed" : "kv consist"; line.title = t("consistTip");
-    const key = c.percentile >= 99.5 ? "beyond" : c.verdict.replaceAll(" ", "_");  // past every reference artist
-    line.textContent = t("consist_" + key).replace("{p}", Math.round(c.percentile));
-    box.append(line);
-  }
-  if (CHECK.buckets && Object.keys(CHECK.buckets).length) {  // kohya's aspect-ratio buckets
-    const entries = Object.entries(CHECK.buckets);
-    const sparse = entries.filter(([, n]) => n < 4).length;
-    const line = document.createElement("div"); line.className = "kv"; line.title = t("bucketTip");
-    line.textContent = t("bucketLine").replace("{k}", entries.length)
-      .replace("{top}", entries.slice(0, 3).map(([b, n]) => `${b.replace("x", "×")} ${n}`).join(" · "))
-      + (sparse ? " " + t("bucketSparse").replace("{s}", sparse) : "");
-    box.append(line);
-  }
+  if (CHECK.consistency) box.append(consistencyLine(CHECK.consistency));
+  if (CHECK.buckets && Object.keys(CHECK.buckets).length) box.append(bucketLine(CHECK.buckets));
   const found = CHECK_KEYS.filter((k) => (CHECK.issues[k] || []).length);
   if (found.length) {  // one line first: how much there is to look at
     const flagged = new Set(found.flatMap((k) => CHECK.issues[k]));
@@ -457,21 +450,38 @@ function checkSection() {
   if (!found.length) {
     const ok = document.createElement("div"); ok.className = "kv"; ok.textContent = t("checkClean"); box.append(ok);
   }
-  found.forEach((k) => {
-    const list = CHECK.issues[k];
-    const sub = document.createElement("div"); sub.className = "meta";
-    const many = list.length > 0.9 * N;  // e.g. a folder without any captions: say so, no grid
-    sub.textContent = `${t("chk_" + k).replace("{n}", CHECK.min_side).replace("{q}", CHECK.low_jpeg)}: ${many ? t("checkAll").replace("{n}", list.length) : list.length}`;
-    box.append(sub);
-    if (!many) {
-      const pick = document.createElement("button"); pick.textContent = t("selectThese");
-      pick.style.cssText = "margin:2px 0 4px";
-      pick.addEventListener("click", () => { MARKED = new Set(list); showMarks(); });  // then exclude at once
-      const g = document.createElement("div"); g.className = "grid"; list.slice(0, 60).forEach((i) => g.append(thumb(i)));
-      box.append(pick, g);
-    }
-  });
+  found.forEach((k) => box.append(...issueBlock(k, CHECK.issues[k])));
   return box;
+}
+
+function consistencyLine(c) {  // how spread the folder's style is, next to single artists
+  const line = document.createElement("div");
+  line.className = c.verdict === "mixed" ? "kv consist mixed" : "kv consist"; line.title = t("consistTip");
+  const key = c.percentile >= 99.5 ? "beyond" : c.verdict.replaceAll(" ", "_");  // past every reference artist
+  line.textContent = t("consist_" + key).replace("{p}", Math.round(c.percentile));
+  return line;
+}
+
+function bucketLine(buckets) {  // kohya's aspect-ratio buckets
+  const entries = Object.entries(buckets);
+  const sparse = entries.filter(([, n]) => n < 4).length;
+  const line = document.createElement("div"); line.className = "kv"; line.title = t("bucketTip");
+  line.textContent = t("bucketLine").replace("{k}", entries.length)
+    .replace("{top}", entries.slice(0, 3).map(([b, n]) => `${b.replace("x", "×")} ${n}`).join(" · "))
+    + (sparse ? " " + t("bucketSparse").replace("{s}", sparse) : "");
+  return line;
+}
+
+function issueBlock(k, list) {  // one kind of problem: its count, and the images unless nearly all
+  const sub = document.createElement("div"); sub.className = "meta";
+  const many = list.length > 0.9 * N;  // e.g. a folder without any captions: say so, no grid
+  sub.textContent = `${t("chk_" + k).replace("{n}", CHECK.min_side).replace("{q}", CHECK.low_jpeg)}: ${many ? t("checkAll").replace("{n}", list.length) : list.length}`;
+  if (many) return [sub];
+  const pick = document.createElement("button"); pick.textContent = t("selectThese");
+  pick.style.cssText = "margin:2px 0 4px";
+  pick.addEventListener("click", () => { MARKED = new Set(list); showMarks(); });  // then exclude at once
+  const g = document.createElement("div"); g.className = "grid"; list.slice(0, 60).forEach((i) => g.append(thumb(i)));
+  return [sub, pick, g];
 }
 
 async function runCheck(minSide) {

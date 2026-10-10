@@ -473,6 +473,17 @@ function setupLive() {
   setupSteps();
   setupMarking();
   setupReference();
+  setupSpace();
+  TASTE = DATA.live.taste;
+  EXCLUDED = new Set(DATA.live.excluded || []);
+  $("live").style.display = "flex";
+  setupRegroup();
+  setupExport();
+  setupSaves();
+  setupDrop();
+}
+
+function setupSpace() {  // the "ignore the character axis" switch
   $("neutral").checked = (DATA.live.space || "plain") !== "plain";
   $("neutral").addEventListener("change", async (e) => {
     setStatus(t("neutralBusy"));
@@ -482,9 +493,9 @@ function setupLive() {
       location.reload();
     } catch (err) { setStatus(String(err.message || err)); }
   });
-  TASTE = DATA.live.taste;
-  EXCLUDED = new Set(DATA.live.excluded || []);
-  $("live").style.display = "flex";
+}
+
+function setupRegroup() {  // granularity, cut, periods, the regroup button and the file picker
   const s = DATA.live.settings;
   $("thr").value = (s.threshold ?? DATA.live.cut ?? DATA.live.granularity.medium).toFixed(2);
   $("pickBtn").addEventListener("click", () => $("pickFile").click());
@@ -506,6 +517,9 @@ function setupLive() {
       location.reload();
     } catch (e) { setStatus(String(e.message || e)); }
   });
+}
+
+function setupExport() {
   $("export").addEventListener("click", async () => {
     try {
       const cap = parseInt($("expMax").value, 10);
@@ -521,6 +535,9 @@ function setupLive() {
       addOpenFolder();
     } catch (e) { setStatus(String(e.message || e)); }
   });
+}
+
+function setupSaves() {  // PNG, report and shareable map under "More..."
   $("savePng").addEventListener("click", () => { snapPending = true; });
   $("saveReport").addEventListener("click", async () => {
     setStatus(t("savingMap"));
@@ -538,6 +555,9 @@ function setupLive() {
       addOpenFolder();
     } catch (e) { setStatus(String(e.message || e)); }
   });
+}
+
+function setupDrop() {  // images dropped anywhere on the page are searched
   let depth = 0;
   addEventListener("dragenter", (e) => { e.preventDefault(); depth++; document.body.classList.add("dragging"); });
   addEventListener("dragleave", () => { if (--depth <= 0) { depth = 0; document.body.classList.remove("dragging"); } });
