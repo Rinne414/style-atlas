@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.21.0 - 2026-10-10
 
 - **Configs for more trainers.** A kohya-layout export now also writes
   `diffusion_pipe_dataset.toml` (diffusion-pipe, often used for Anima) and
