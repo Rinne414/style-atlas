@@ -43,7 +43,14 @@ from styleatlas.dataset import (
     read_tags,
     tag_summary,
 )
-from styleatlas.export import KOHYA_CONFIG, export_folders, output_dir, write_table
+from styleatlas.export import (
+    KOHYA_CONFIG,
+    export_folders,
+    norm_tag,
+    output_dir,
+    parse_tags,
+    write_table,
+)
 from styleatlas.groupfile import GROUPS_FILE, SavedGroups, carry_names, load_groups, save_groups
 from styleatlas.images import cached_thumbnail, load_rgb
 from styleatlas.look import LOOK_NAMES, difference
@@ -236,12 +243,12 @@ class StyleAtlasApp:
         text = body.get("tag")
         if not isinstance(text, str) or not text.strip() or len(text) > MAX_TAG_TEXT:
             raise ValueError("tag must be some text")
-        want = _norm_tag(text)
+        want = norm_tag(text)
         if self._tag_sets is None:
             self._read_tags()
         with self._lock:
             sets = self._tag_sets or []
-        hits = [i for i, tags in enumerate(sets) if any(want in _norm_tag(t) for t in tags)]
+        hits = [i for i, tags in enumerate(sets) if any(want in norm_tag(t) for t in tags)]
         return {"hits": hits}
 
     def _group_tags(self) -> dict[int, list[str]]:
@@ -647,6 +654,9 @@ class StyleAtlasApp:
         if layout not in LAYOUTS or not isinstance(trigger, bool):
             raise ValueError(f"layout must be one of {LAYOUTS}; trigger must be true or false")
         name = clean_group_name(body.get("name") or self.atlas.root.name or "style")
+        strip = body.get("strip_tags") or ""
+        if not isinstance(strip, str) or len(strip) > MAX_TAG_TEXT * 10:
+            raise ValueError("strip_tags must be a comma-separated list of tags")
         cap = body.get("max_per_group")
         low, high = MAX_PER_GROUP_RANGE
         if cap is not None and (type(cap) is not int or not low <= cap <= high):
@@ -673,6 +683,7 @@ class StyleAtlasApp:
                 mode=mode,
                 trigger_captions=trigger,
                 layout=layout,
+                strip_tags=parse_tags(strip),
             )
             trimmed = sum(f == SET_ASIDE["trimmed"] for f in folders)
             labels = self.clustering.labels
@@ -687,10 +698,6 @@ class StyleAtlasApp:
             "trimmed": trimmed,
             "config": (result.folder / KOHYA_CONFIG).exists(),
         }
-
-
-def _norm_tag(tag: str) -> str:
-    return " ".join(tag.lower().replace("_", " ").split())
 
 
 def _tags_or_none(path: Path) -> set[str]:

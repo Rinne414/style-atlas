@@ -110,6 +110,7 @@ dataset_config.toml   ← kohya sd-scripts 的資料集設定（`--dataset_confi
   - 匯出的標註開頭會自動加上該群名稱，例如 `artistX_style01, `；
   - 原始標註不會被改。
   - 完整流程見 [docs/LORA_GUIDE.md](docs/LORA_GUIDE.md)。
+- 想把描述畫風本身的標籤（例如 `sketch`、`monochrome`）從匯出的標註拿掉，讓觸發詞去學這個畫風：加 `--strip-tags "sketch, monochrome"`（網頁：匯出列的「移除標籤」）。只比對完整標籤，原本的標註不會被改。
 
   ```bat
   style-atlas cluster "D:\lora\artistX" --layout kohya --name artistX --dedupe --drop-outliers 5 --export copy --trigger-captions

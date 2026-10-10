@@ -145,9 +145,22 @@ def trigger_of(folder: str, layout: str = "plain") -> str | None:
     return folder
 
 
-def _write_caption(side: Path | None, dst: Path, trigger: str) -> None:
-    """New caption in the export: trigger first, then the original text (never a link, so
-    the source caption is never touched). Images without a caption get the trigger alone."""
+def norm_tag(tag: str) -> str:
+    """Tags compare without case, and with spaces and underscores alike."""
+    return " ".join(tag.lower().replace("_", " ").split())
+
+
+def parse_tags(text: str) -> frozenset[str]:
+    """A comma-separated tag list ("sketch, monochrome") as normalised tags."""
+    return frozenset(t for t in (norm_tag(part) for part in text.split(",")) if t)
+
+
+def _write_caption(
+    side: Path | None, dst: Path, trigger: str | None, strip: frozenset[str] = frozenset()
+) -> None:
+    """New caption in the export (never a link, so the source caption is never touched): the
+    tags in `strip` removed, then the trigger first. Images without a caption get the trigger
+    alone."""
     if dst.exists():
         raise FileExistsError(f"{dst} already exists")
     text = ""
@@ -157,29 +170,40 @@ def _write_caption(side: Path | None, dst: Path, trigger: str) -> None:
         except UnicodeDecodeError:  # not UTF-8 (e.g. Big5 / GBK): keep it byte-for-byte
             shutil.copy2(side, dst)
             return
-    if text == trigger or text.startswith(trigger + ","):
-        new = text  # already tagged (re-export)
+    if strip:
+        kept = (part.strip() for part in text.split(","))
+        text = ", ".join(part for part in kept if part and norm_tag(part) not in strip)
+    if not trigger or text == trigger or text.startswith(trigger + ","):
+        new = text  # no trigger, or already tagged (re-export)
     else:
         new = f"{trigger}, {text}" if text else trigger
     dst.write_text(new, encoding="utf-8")
 
 
 def _place_sidecars(
-    src: Path, folder: Path, stem: str, mode: str, trigger: str | None
+    src: Path,
+    folder: Path,
+    stem: str,
+    mode: str,
+    trigger: str | None,
+    strip: frozenset[str] = frozenset(),
 ) -> list[Path]:
-    """Place the sidecars of one image; returns the files written."""
+    """Place the sidecars of one image; returns the files written. Captions are written anew
+    when a trigger is added or tags are removed."""
     written = []
     captions = [e for e in (".txt", ".caption") if src.with_suffix(e).exists()]
+    rewrite = bool(trigger or strip)
     for ext in SIDECARS:
         side = src.with_suffix(ext)
-        if not side.exists() or (trigger and ext in captions):
+        if not side.exists() or (rewrite and ext in captions):
             continue
         _place(side, folder / f"{stem}{ext}", mode)
         written.append(folder / f"{stem}{ext}")
-    if trigger:
-        for ext in captions or [".txt"]:  # every caption file gets the trigger
+    if rewrite:
+        targets = captions or ([".txt"] if trigger else [])  # a new caption only for a trigger
+        for ext in targets:
             side = src.with_suffix(ext) if ext in captions else None
-            _write_caption(side, folder / f"{stem}{ext}", trigger)
+            _write_caption(side, folder / f"{stem}{ext}", trigger, strip)
             written.append(folder / f"{stem}{ext}")
     return written
 
@@ -191,6 +215,7 @@ def export_folders(
     mode: str = "copy",
     trigger_captions: bool = False,
     layout: str = "plain",
+    strip_tags: frozenset[str] = frozenset(),
 ) -> ExportResult:
     """Copy or hard-link each image (and its sidecars) into its planned folder (see
     dataset.plan_folders) inside a fresh output folder. With trigger_captions, every exported
@@ -214,7 +239,7 @@ def export_folders(
         try:
             folder.mkdir(parents=True, exist_ok=True)
             trigger = trigger_of(folders[i], layout) if trigger_captions else None
-            _place_sidecars(src, folder, stem, mode, trigger)
+            _place_sidecars(src, folder, stem, mode, trigger, strip_tags)
             _place(src, folder / f"{stem}{src.suffix}", mode)
         except OSError as e:  # long path, permissions, full disk: report and keep going
             result.failed.append((src, str(e)))

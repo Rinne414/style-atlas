@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **Remove tags in the exported captions** (`--strip-tags "sketch, monochrome"`; web: "remove tags"
+  in the export row): whole tags only, case, spaces and underscores ignored; your own captions
+  are never changed. Useful with trigger captions, so the trigger takes the style.
 - **Check a batch against the folder**: dropping several images now also reports how many fall
   inside one of the folder's style groups (as close as 90% of that group's own images), with
   a verdict for the batch and the closest group on each image. Measured on held-out Danbooru

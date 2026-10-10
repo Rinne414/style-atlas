@@ -191,7 +191,7 @@ def cmd_cluster(a: argparse.Namespace) -> int:
 
 
 def _export(a: argparse.Namespace, atlas: Atlas, folders: list[str], out: Path) -> None:
-    from styleatlas.export import export_folders
+    from styleatlas.export import export_folders, parse_tags
 
     done = export_folders(
         atlas,
@@ -200,6 +200,7 @@ def _export(a: argparse.Namespace, atlas: Atlas, folders: list[str], out: Path) 
         mode=a.export,
         trigger_captions=a.trigger_captions,
         layout=a.layout,
+        strip_tags=parse_tags(a.strip_tags or ""),
     )
     log(f"{a.export}: {done.placed} images into {done.folder}")
     for p, why in done.failed:
@@ -622,6 +623,11 @@ def _lora_args(p: argparse.ArgumentParser) -> None:
         default=0,
         metavar="N",
         help="move N least typical to _outliers",
+    )
+    g.add_argument(
+        "--strip-tags",
+        metavar="TAGS",
+        help='remove these caption tags in the exported copies, e.g. "sketch, monochrome"',
     )
     g.add_argument(
         "--max-per-group",

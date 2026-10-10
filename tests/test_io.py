@@ -202,3 +202,30 @@ def test_cluster_output_places_each_group_on_the_timeline(tmp_path):
     assert pos[0] == 0.0 and pos[-1] == 1.0
     assert _when(pos, [0, 1, 2]).strip().startswith("when  20%")
     assert _timeline(atlas, "none") is None and _when(None, [0]) == ""
+
+
+def test_tags_are_removed_in_the_exported_captions_only(tmp_path):
+    from styleatlas.export import parse_tags
+
+    atlas = _atlas(tmp_path, [6, 5])
+    src = tmp_path / "src" / "img0.txt"
+    src.write_text("1girl, Monochrome, rough_sketch, smile, monochrome background", "utf-8")
+    result = cluster_styles(atlas.style)
+    strip = parse_tags("monochrome, rough sketch")
+    i0 = next(i for i, p in enumerate(atlas.paths) if p.name == "img0.png")
+    i1 = next(i for i, p in enumerate(atlas.paths) if p.name == "img1.png")
+
+    folders = plan_folders(atlas.paths, result)
+    done = export_folders(atlas, folders, tmp_path / "plain", strip_tags=strip)
+    assert (done.folder / folders[i0] / "img0.txt").read_text() == (
+        "1girl, smile, monochrome background"  # whole tags only
+    )
+    assert not (done.folder / folders[i1] / "img1.txt").exists()  # no caption made without one
+
+    folders = plan_folders(atlas.paths, result, "kohya", "a")
+    done = export_folders(
+        atlas, folders, tmp_path / "kohya", trigger_captions=True, layout="kohya", strip_tags=strip
+    )
+    text = (done.folder / folders[i0] / "img0.txt").read_text()
+    assert text.endswith(", 1girl, smile, monochrome background") and text.startswith("a_style")
+    assert src.read_text(encoding="utf-8").startswith("1girl, Monochrome")  # source untouched

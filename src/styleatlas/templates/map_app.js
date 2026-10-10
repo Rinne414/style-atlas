@@ -406,7 +406,8 @@ function setupLive() {
     try {
       const cap = parseInt($("expMax").value, 10);
       const body = { mode: "copy", layout: $("expLayout").value, name: $("expName").value.trim(),
-        trigger: $("expTrig").checked, max_per_group: cap > 0 ? cap : null };
+        trigger: $("expTrig").checked, max_per_group: cap > 0 ? cap : null,
+        strip_tags: $("expStrip").value.trim() };
       const r = await post("api/export", JSON.stringify(body), "application/json");
       const small = r.small_groups ? " " + t("smallGroups").replace("{n}", r.small_groups) : "";
       const config = r.config ? " " + t("configWritten") : "";
@@ -442,6 +443,7 @@ function liveText() {
   $("expLayout").options[0].textContent = t("plainFolders");
   $("expName").placeholder = t("conceptName");
   $("expMax").placeholder = t("maxPerGroup");
+  $("expStrip").placeholder = t("stripTags");
   $("expTrigWrap").querySelector("span").textContent = t("triggerCaptions");
   $("neutralWrap").querySelector("span").textContent = t("neutral");
   $("refPath").placeholder = DATA.reference ? DATA.reference : t("refPath");
@@ -458,7 +460,7 @@ function liveText() {
   $("gran").value = cur && cur !== "custom" ? cur : initial;
   $("periods").title = t("periods");
   showPeriods($("gran").value === "period");
-  const tips = { expMax: "tipMax", pickBtn: "tipSearch", gran: "tipGran", thr: "tipThr", regroup: "tipRegroup", undo: "tipUndo",
+  const tips = { expMax: "tipMax", expStrip: "tipStrip", pickBtn: "tipSearch", gran: "tipGran", thr: "tipThr", regroup: "tipRegroup", undo: "tipUndo",
     expLayout: "tipLayout", expName: "tipName", expTrigWrap: "tipTrig", export: "tipExport",
     saveMap: "tipSaveMap", neutralWrap: "tipNeutral" };
   Object.entries(tips).forEach(([id, key]) => { $(id).title = t(key); });
