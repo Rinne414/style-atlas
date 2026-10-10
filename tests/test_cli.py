@@ -497,3 +497,34 @@ def test_messages_are_in_chinese_when_asked(lib, tmp_path, monkeypatch, capsys):
     assert "images（圖片數）" in capsys.readouterr().out
     monkeypatch.setenv("STYLE_ATLAS_LANG", "en")
     assert not chinese()
+
+
+def test_sort_can_add_the_group_trigger_to_placed_captions(lib, tmp_path, monkeypatch):
+    from styleatlas import cli_sort
+    from styleatlas.cluster import Fit
+
+    data = tmp_path / "data"
+    for colour in ("red", "blue"):
+        folder = data / f"10_x_{colour}"
+        folder.mkdir(parents=True)
+        for p in sorted((lib / colour).glob("*.png")):
+            (folder / p.name).write_bytes(p.read_bytes())
+    new = tmp_path / "new"
+    new.mkdir()
+    img = Image.new("RGB", (64, 64), COLOURS["red"])
+    ImageDraw.Draw(img).rectangle([3, 3, 20, 20], fill=(255, 255, 255))
+    img.save(new / "n.png")
+    (new / "n.txt").write_text("1girl, red_tag", encoding="utf-8")
+
+    def fits_all(style, clustering, query, skip=frozenset()):  # every new image fits group 0
+        return [Fit(clustering.clusters[0].id, 0.1, True, 0.5) for _ in query]
+
+    monkeypatch.setattr(cli_sort, "fit_to_groups", fits_all)
+    out = tmp_path / "o"
+    args = ["sort", str(new), "--into", str(data), "--by-folder", "-o", str(out)]
+    assert main([*args, "--export", "copy", "--trigger-captions", "--device", "cpu"]) == 0
+    placed = list((out / "sorted").rglob("n.txt"))
+    assert len(placed) == 1 and placed[0].parent.name.startswith("10_x_")
+    trigger = placed[0].parent.name.partition("_")[2]  # repeats removed: x_red or x_blue
+    assert placed[0].read_text(encoding="utf-8").startswith(f"{trigger}, 1girl")
+    assert main([*args, "--trigger-captions", "--device", "cpu"]) == 1  # needs --export

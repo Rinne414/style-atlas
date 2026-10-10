@@ -55,6 +55,8 @@ def cmd_sort(a: argparse.Namespace) -> int:
     new_root, data_root = Path(a.folder).resolve(), Path(a.into).resolve()
     if new_root == data_root:
         raise ValueError("the new images and the dataset are the same folder")
+    if a.trigger_captions and not a.export:
+        raise ValueError("--trigger-captions only applies with --export copy|link")
     out = Path(a.out) if a.out else output_dir(Path(a.folder))
     if any(root.is_relative_to(out.resolve()) for root in (new_root, data_root)):
         raise ValueError("the output folder must not hold the new images or the dataset")
@@ -88,7 +90,15 @@ def cmd_sort(a: argparse.Namespace) -> int:
     if a.by_folder:
         _repeats_notes(clustering, labels, folders)
     if a.export:
-        done = export_folders(new, folders, out / "sorted", mode=a.export)
+        kohya = all(KOHYA_FOLDER.match(name) for name in labels.values())
+        done = export_folders(
+            new,
+            folders,
+            out / "sorted",
+            mode=a.export,
+            trigger_captions=a.trigger_captions,
+            layout="kohya" if kohya else "plain",
+        )
         log(
             tr(
                 f"{done.placed} images placed in {done.folder}",
@@ -243,4 +253,10 @@ def sort_args(p: argparse.ArgumentParser) -> None:
         "--export",
         choices=["copy", "link"],
         help="also place the new images (with captions) into <out>/sorted/<group>",
+    )
+    p.add_argument(
+        "--trigger-captions",
+        action="store_true",
+        help="start each placed caption with its group's trigger, as `cluster --trigger-captions` "
+        "does (kohya folders: the name without the repeats)",
     )

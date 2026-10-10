@@ -513,7 +513,8 @@ style-atlas cluster DIR [--granularity auto|period|artists|fine|medium|coarse | 
                         [--trigger-captions] [--export copy|link] [--no-map] [--no-recursive]
                         [-o OUT]
 style-atlas embed DIR             # embed and cache only
-style-atlas sort NEW --into DATASET [--by-folder] [--export copy|link] [--fresh] [-o OUT]
+style-atlas sort NEW --into DATASET [--by-folder] [--export copy|link] [--trigger-captions]
+                 [--fresh] [-o OUT]
 style-atlas report DIR [-o style_report.html] [--artists DIR] [--renders DIR] [--lang zh|en]
                        [--fresh]
 style-atlas doctor                 # check Python, torch, GPU, model download, disk space
