@@ -134,6 +134,10 @@ def test_audit_duplicates_outliers_and_compare(lib, capsys):
 
 def test_map_and_bench(lib, tmp_path, capsys):
     html = tmp_path / "map.html"
+    folders = tmp_path / "folders.html"
+    assert main(["map", str(lib), "--by-folder", "-o", str(folders), "--projection", "pca",
+                 "--device", "cpu"]) == 0  # fmt: skip
+    assert folders.exists()
     assert main(["map", str(lib), "-o", str(html), "--projection", "pca", "--device", "cpu"]) == 0
     text = html.read_text(encoding="utf-8")
     assert "atlas-data" in text and '"look_names":["brightness"' in text

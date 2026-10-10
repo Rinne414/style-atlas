@@ -699,6 +699,28 @@ The Check tab and `cluster` report how spread a folder's style is, next to singl
   pure groups (single periods) scored higher than the impure ones, and 67% were flagged. So the
   group cards show no such flag.
 
+## Families of artists: grouping folder means (2026-10-10)
+
+`map --by-folder` puts one point per sub-folder at the folder's mean style. How well do those
+points group into families? No labels exist for that, so each artist's works were split into two
+random halves, the 269 artists with 6 or more works were grouped once per half, and the two
+groupings were compared (ARI; 5 random splits each):
+
+| Cut (plain CSD) | Families | Split-half ARI |
+|---|---|---|
+| auto | 1.9 | 0.435 |
+| 0.30 | 23 | 0.189 |
+| **0.35** | **11** | **0.320** |
+| 0.40 | 5 | 0.360 |
+
+- The automatic cut, tuned for single images, lumps folder means into one or two groups (means
+  sit closer together than single works), so `--by-folder` uses 0.35 unless a cut, granularity
+  or `--k` is given.
+- Families are loose at any cut that gives more than a handful: the map's positions say more
+  than its colours. Positions themselves are meaningful: the same folder means named the right
+  artist first for 74.8% of held-out works ("Which artist?" above).
+- In the whitened space no cut in 0.10-0.40 grouped anything: its distances run larger.
+
 ## Pixiv: followed AI-illustration accounts (2026-10-09)
 
 - **Data**: 467 all-ages works by 176 AI-illustration accounts (median 2 works each). The

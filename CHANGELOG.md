@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **Map of artists.** `map --by-folder` draws one point per sub-folder (an artist, a style)
+  at its mean style, shown by its most typical image. The colours are loose families (cut 0.35,
+  split-half agreement ARI 0.32; BENCHMARKS.md).
 - **ai-toolkit config.** A kohya-layout export also writes `ai_toolkit_datasets.yaml`: one
   dataset entry per style folder (`folder_path`, `num_repeats`, `keep_tokens` ...) to paste
   under `datasets:`. Fields checked against ai-toolkit's `DatasetConfig`.

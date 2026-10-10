@@ -252,3 +252,19 @@ def test_folder_names_survive_toml_and_yaml(name):
     text = str(Path("D:/lora") / name)
     assert tomllib.loads("k = " + _quoted(Path(text)))["k"] == text
     assert yaml.safe_load("k: " + _quoted(Path(text)))["k"] == text
+
+
+def test_folder_atlas_has_one_point_per_sub_folder(tmp_path):
+    from styleatlas.atlas import folder_atlas
+
+    x, labels = make_blobs([5, 4, 6])
+    paths = []
+    for i, k in enumerate(labels):
+        folder = tmp_path / f"artist{k}" if i != 0 else tmp_path  # image 0 is loose at the top
+        folder.mkdir(exist_ok=True)
+        paths.append(folder / f"img{i}.png")
+    atlas = Atlas(tmp_path, paths, x, x, "sig", looks=np.ones((len(x), 6), np.float32))
+    folders = folder_atlas(atlas)
+    assert [p.parent.name for p in folders.paths] == ["artist0", "artist1", "artist2"]
+    assert folders.style.shape == (3, x.shape[1]) and folders.looks.shape == (3, 6)
+    assert np.allclose(np.linalg.norm(folders.style, axis=1), 1.0)

@@ -172,6 +172,12 @@ style-atlas duplicates "D:\gallery"
 style-atlas outliers "D:\lora\artistX" --top 20
 ```
 
+**畫師地圖**：圖庫按畫師（或畫風）分資料夾時，`--by-folder` 讓每個資料夾變成地圖上的一個點：位置是那個資料夾的平均畫風，縮圖是它最典型的一張。靠得近的就是畫風相近的畫師。顏色是大致的「畫風家族」，只能當參考：同一位畫師的作品分兩半各畫一次，兩次分出的家族吻合度只有 ARI 0.32。
+
+```bat
+style-atlas map "D:\artists" --by-folder -o artists_map.html
+```
+
 **兩組圖是否同一畫風、差在哪裡**：輸出畫風距離、差距是否明顯（z 值是「差距是同一畫風內部雜訊的幾倍」，越大越不同），以及外觀差異（例如「B 偏冷、線條多」）。B 裡有和 A 某張幾乎一樣的圖時（例如 LoRA 算圖重現了訓練圖），會列在 `b_copies_of_a`。
 
 ```bat
@@ -328,6 +334,10 @@ how a picture is drawn rather than what it shows. On top of those vectors it can
   can send to anyone. Group names float at each group's centre ("Names" hides them), and groups
   show their characteristic caption tags. "Record a turn" saves an 8-second video of the map
   turning once (MP4 in Chrome and Edge, WebM in Firefox), for sharing.
+- **Map of artists** (`map --by-folder`): one point per sub-folder of a library, at the folder's
+  mean style and shown by its most typical image, so artists with similar styles sit together.
+  The colours are loose "families": grouping two halves of each artist's works separately agreed
+  only at ARI 0.32.
 - **Check a dataset** (`audit`, `duplicates`, or the web app's Check tab): sizes, aspect ratios,
   captions, near-duplicates, greyscale images mixed into a colour set, images enlarged from a
   smaller original, heavily compressed JPEGs, and captions that mention a watermark, signature

@@ -66,6 +66,7 @@ def cmd_audit(a: argparse.Namespace) -> int:
 
 
 LARGE_MAP = 8000  # thumbnails make the single-file map ~2 KB per image
+FAMILY_CUT = 0.35  # folder means: about 11 families of 269 artists, loose (BENCHMARKS.md)
 
 
 def cmd_map(a: argparse.Namespace) -> int:
@@ -80,6 +81,8 @@ def cmd_map(a: argparse.Namespace) -> int:
             log(f"{a.folder} has {len(atlas)} sub-folders; --by-folder needs at least 3")
             return 1
         log(f"{len(atlas)} sub-folders, each shown by its most typical image")
+        if a.granularity == "auto" and a.threshold is None and a.k is None:
+            a.threshold = FAMILY_CUT  # the automatic cut lumps folder means into 1-2 groups
     if len(atlas) > LARGE_MAP:
         log(f"{len(atlas)} images: the HTML file will be large; `style-atlas serve` loads faster")
     result = _cluster(a, atlas)
