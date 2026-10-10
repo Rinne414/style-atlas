@@ -949,6 +949,9 @@ The vectors are identical bit for bit. On a CPU the model sets the pace, so more
 add little. On a GPU the model takes a fraction of the time and loading would set the pace, which
 is why 4 threads load; GPU speed has not been measured here.
 
+Batch size on the CPU (same 64 images, loading ahead): 8 / 16 / 32 images per batch took 440 /
+450 / 461 ms per image, so the default stays 8.
+
 ## Tried and rejected
 
 ### Negative examples in search (2026-10-10)
