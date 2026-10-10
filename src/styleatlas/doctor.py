@@ -9,6 +9,7 @@ from pathlib import Path
 
 from styleatlas import __version__
 from styleatlas.cachedir import cache_dir
+from styleatlas.lang import tr
 
 MODEL_GB = 2.4  # first download; a 1.2 GB slim copy is kept afterwards
 OK, WARN, FAIL = "ok", "warn", "FAIL"
@@ -102,5 +103,8 @@ def run() -> int:
     for status, name, detail in rows:
         print(f"[{status:4s}] {name:16s} {detail}")
     failed = [r for r in rows if r[0] == FAIL]
-    print("all good" if not failed else f"{len(failed)} problem(s) above")
+    if failed:
+        print(tr(f"{len(failed)} problem(s) above", f"上面有 {len(failed)} 個問題（標示 FAIL）"))
+    else:
+        print(tr("all good", "一切正常，可以開始用了"))
     return 1 if failed else 0

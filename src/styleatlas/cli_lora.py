@@ -252,7 +252,9 @@ def _when(pos: np.ndarray | None, members: list[int]) -> str:
     if not len(v):
         return ""
     q1, med, q3 = np.percentile(v, [25, 50, 75])
-    return f"  when {med:4.0%} [{q1:.0%}-{q3:.0%}]"
+    return tr(
+        f"  when {med:4.0%} [{q1:.0%}-{q3:.0%}]", f"  時間位置 {med:4.0%} [{q1:.0%}-{q3:.0%}]"
+    )
 
 
 CONSISTENCY_WORDS_ZH = {
@@ -279,8 +281,8 @@ def _log_consistency(atlas: Atlas) -> None:
                 f"style consistency: spread {c.spread:.3f}, more spread than {c.percentile:.0f}% "
                 "of "
                 f"single artists ({CONSISTENCY_WORDS[c.verdict]})",
-                f"畫風一致性：分散度 {c.spread:.3f}，比 {c.percentile:.0f}% 的單一畫師分散"
-                f"（{CONSISTENCY_WORDS_ZH[c.verdict]}）",
+                f"畫風一致性：{CONSISTENCY_WORDS_ZH[c.verdict]}"
+                f"（比 {c.percentile:.0f}% 的單一畫師分散；分散度 {c.spread:.3f}，越大越雜）",
             )
         )
 
@@ -295,7 +297,7 @@ def _print_groups(
         log(
             tr(
                 "when = position in the folder's timeline (0% oldest): median [middle half]",
-                "when = 在作品時間軸上的位置（0% 最早）：中位數 [中間一半]",
+                "時間位置 = 在作品時間軸上的位置（0% 最早）：中位數 [中間一半]",
             )
         )
 
@@ -318,14 +320,17 @@ def _print_groups(
         log(f"  {pad(folder, 28)}{n:5d}{few}{_when(pos, members)}{look}  {top}")
     small = [f for f, n in Counter(folders).items() if not f.startswith("_") and n < FEW_FOR_LORA]
     if small:
+        names = ", ".join(sorted(small)[:6]) + (" ..." if len(small) > 6 else "")
         log(
             tr(
-                f"note: {len(small)} group(s) have fewer than {FEW_FOR_LORA} images; common "
-                "advice is "
-                "8-15+ per style LoRA, so consider merging them (web app) or a coarser "
-                "--granularity",
-                f"注意：{len(small)} 群少於 {FEW_FOR_LORA} 張；"
-                "一般建議每個畫風 LoRA 至少 8～15 張，"
-                "可以在網頁介面合併，或用較粗的 --granularity",
+                f"note: {len(small)} group(s) have fewer than {FEW_FOR_LORA} images ({names}); "
+                "common "
+                "advice is 8-15+ per style LoRA, and automatic repeats repeat a small group more, "
+                "which can overfit it: merge them (web app), use a coarser --granularity, or set "
+                "--repeats",
+                f"注意：{len(small)} 群少於 {FEW_FOR_LORA} 張（{names}）；一般建議每個畫風 LoRA "
+                "至少 8～15 張，而且自動 repeats 會讓小群重複很多次，容易過擬合："
+                "可以在網頁介面合併、"
+                "用較粗的 --granularity，或用 --repeats 指定",
             )
         )

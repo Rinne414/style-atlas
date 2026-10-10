@@ -45,6 +45,7 @@ FIT_MIN = 3  # smallest group a new image can be placed in
 BATCH_MIN, BATCH_IN, BATCH_OUT = 8, 0.5, 0.25  # reading a batch's share that fits
 ARTISTS = "artists"  # the grouping that follows artists in a gallery of many
 ARTISTS_CUT = 0.90  # its cut in the search whitening's space (docs/BENCHMARKS.md)
+ARTISTS_FEW = 10  # fewer groups than this: the folder is probably not a big gallery
 
 
 @dataclass

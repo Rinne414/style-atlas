@@ -9,7 +9,7 @@ from styleatlas.atlas import Atlas, build_atlas
 from styleatlas.cli_common import _atlas, _opts, _space, log, saved_groups, web_exclusions
 from styleatlas.export import output_dir
 from styleatlas.images import labels_from_folders
-from styleatlas.lang import chinese
+from styleatlas.lang import chinese, tr
 from styleatlas.metrics import PLAIN
 
 CLOSEST = 5  # reference artists listed
@@ -41,7 +41,12 @@ def cmd_report(a: argparse.Namespace) -> int:
     renders = None
     if a.renders:
         renders = _atlas(a, a.renders).with_looks(_opts(a), log)
-        log(f"checking {len(renders)} renders from {a.renders} against this training set")
+        log(
+            tr(
+                f"checking {len(renders)} renders from {a.renders} against this training set",
+                f"用這個訓練集檢查 {len(renders)} 張算圖（{a.renders}）",
+            )
+        )
     title = a.title or Path(a.folder).resolve().name
     path = write_report(
         atlas,
@@ -54,6 +59,7 @@ def cmd_report(a: argparse.Namespace) -> int:
         excluded=excluded,
         renders=renders,
     )
+    log(tr("report:", "報告："))
     print(path)
     return 0
 

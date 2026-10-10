@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **Readable `compare`.** It prints a short summary (verdict, distance, look change, near-copies)
+  in the message language; `--json` keeps every number as before.
+- From a second first-time-user test (Chinese): `duplicates` lists one file per line and is in
+  Chinese; `search`'s notes, `doctor`'s last line, `--renders` and the report's path are labelled
+  in Chinese; "when" reads 時間位置; the grouping line names the method in Chinese; the note on
+  small groups names them and warns that automatic repeats can overfit them; grouping by artist
+  warns when it finds few groups; `sort` names the dataset and the new folder and says "k of n
+  fit" instead of a bare share. README: where outputs go without `-o`.
 - `audit` adds the meaning in Chinese to each item on a Chinese system (`no_caption（沒有標註檔）`),
   aligned by display width.
 - A failed model download says, in Chinese on a Chinese system, how to use the Hugging Face

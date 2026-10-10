@@ -59,7 +59,9 @@ def cmd_sort(a: argparse.Namespace) -> int:
     if any(root.is_relative_to(out.resolve()) for root in (new_root, data_root)):
         raise ValueError("the output folder must not hold the new images or the dataset")
     # neither side reads the other when one folder holds the other, nor earlier results
+    log(tr(f"dataset: {a.into}", f"資料集：{a.into}"))
     dataset = _atlas(a, a.into, exclude=[out, *_nested(new_root, data_root)])
+    log(tr(f"new images: {a.folder}", f"新圖：{a.folder}"))
     new = _atlas(a, a.folder, exclude=[out, *_nested(data_root, new_root)])
     if len(new) == 0:
         log(tr(f"no readable images in {a.folder}", f"{a.folder} 裡沒有讀得到的圖"))
@@ -95,6 +97,7 @@ def cmd_sort(a: argparse.Namespace) -> int:
         )
         for p, why in done.failed:
             log(tr(f"not placed {p}: {why}", f"沒有放入 {p}：{why}"))
+    log(tr("table of every new image:", "每張新圖的結果表："))
     print(table)
     return 0
 
@@ -188,12 +191,14 @@ def _summary(fits: list[Fit], labels: dict[int, str], folders: list[str]) -> Non
     for name, n in sorted(placed.items(), key=lambda t: -t[1]):
         k = fitting[name]
         log(f"  {pad(name, 30)}{n:5d}  " + tr(f"({k} fit)", f"（{k} 張符合）"))
-    share = sum(fitting.values()) / len(rest)
-    reading = batch_verdict(share, len(rest))
+    k, n = sum(fitting.values()), len(rest)
+    reading = batch_verdict(k / n, n)
     log(
         tr(
-            f"{share:.0%} fit their group: {VERDICTS[reading]}; the rest go to {UNSURE} for a look",
-            f"{share:.0%} 符合所屬的群：{VERDICTS_ZH[reading]}；其餘放進 {UNSURE}，請看一下",
+            f"{k} of {n} ({k / n:.0%}) fit their group: {VERDICTS[reading]}; the rest go to "
+            f"{UNSURE} for a look",
+            f"{n} 張裡有 {k} 張（{k / n:.0%}）符合所屬的群：{VERDICTS_ZH[reading]}；"
+            f"其餘放進 {UNSURE}，請看一下",
         )
     )
 

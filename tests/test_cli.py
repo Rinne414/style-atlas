@@ -139,6 +139,9 @@ def test_audit_duplicates_outliers_and_compare(lib, capsys):
     assert len(capsys.readouterr().out.strip().splitlines()) == 3
 
     assert main(["compare", str(lib / "red"), str(lib / "blue"), "--device", "cpu"]) == 0
+    text = capsys.readouterr().out
+    assert "style distance" in text and "look: B is" in text and "cooler" in text
+    assert main(["compare", str(lib / "red"), str(lib / "blue"), "--json", "--device", "cpu"]) == 0
     verdict = json.loads(capsys.readouterr().out)
     assert verdict["images"] == [7, 6] and verdict["centroid_distance"] > 0.5
     assert verdict["look_b_minus_a"]["warmth"] < 0 and "cooler" in verdict["look_words"]

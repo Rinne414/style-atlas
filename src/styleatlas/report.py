@@ -62,7 +62,10 @@ def compute_layout(
 ) -> Layout:
     coords, used = project_3d(atlas.style, projection)
     progress(
-        tr(f"projected {len(atlas)} images with {used}", f"已排好 {len(atlas)} 張的位置（{used}）")
+        tr(
+            f"projected {len(atlas)} images with {used}",
+            f"已算好 {len(atlas)} 張在 3D 地圖上的位置（{used}）",
+        )
     )
     dups = near_duplicate_groups(atlas.style, atlas.content)
     layout = Layout(coords, used, knn(atlas.style, k=NEIGHBORS), outlier_scores(atlas.style), dups)

@@ -13,6 +13,7 @@ from styleatlas.atlas import Atlas, EncodeOptions, build_atlas
 from styleatlas.cluster import (
     ARTISTS,
     ARTISTS_CUT,
+    ARTISTS_FEW,
     GRANULARITY,
     PERIODS,
     Clustering,
@@ -161,8 +162,9 @@ def _cluster(a: argparse.Namespace, atlas: Atlas):
     cut = result.params.get("threshold")
     auto = result.params.get("auto")
     how = f", cut {cut} ({'auto' if auto else 'set'})" if cut else ""
-    how_zh = f"，切分 {cut}（{'自動' if auto else '指定'}）" if cut else ""
-    log(_groups_line(result, f"{result.method}{how}", f"{result.method}{how_zh}"))
+    how_zh = f"，切分距離 {cut}，{'自動選的' if auto else '指定的'}" if cut else ""
+    method_zh = METHOD_ZH.get(result.method, result.method)
+    log(_groups_line(result, f"{result.method}{how}", f"{method_zh}{how_zh}"))
     if "note" in result.params:
         log("note: " + result.params["note"])
     return result
@@ -200,8 +202,20 @@ def _cluster_by_artist(a: argparse.Namespace, atlas: Atlas) -> Clustering:
         )
     result = cluster_by_artist(atlas.style, min_size=a.min_size)
     how = f"by artist: whitened, cut {ARTISTS_CUT}"
-    log(_groups_line(result, how, f"依畫師：whitened，切分 {ARTISTS_CUT}"))
+    log(_groups_line(result, how, f"依畫師分群，切分距離 {ARTISTS_CUT}"))
+    if result.n_clusters < ARTISTS_FEW:
+        log(
+            tr(
+                f"note: grouping by artist is meant for galleries of 20 or more artists; with "
+                f"{result.n_clusters} groups the default (auto) may suit this folder better",
+                f"注意：依畫師分群是給 20 位以上畫師的圖庫用的；這裡只分出 {result.n_clusters} 群，"
+                "預設的自動分群可能更合適",
+            )
+        )
     return result
+
+
+METHOD_ZH = {"agglomerative": "階層式分群", "kmeans": "k-means 分段", "hdbscan": "HDBSCAN"}
 
 
 def _groups_line(result: Clustering, how: str, how_zh: str) -> str:

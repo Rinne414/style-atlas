@@ -190,7 +190,7 @@ def cmd_search(a: argparse.Namespace) -> int:
         print(json.dumps(rows, ensure_ascii=False, indent=1))
     else:
         _print_by_query(rows, lambda r: f"{r['rank']:3d}  {r['cosine']:.3f}  {r['path']}")
-        log(SEARCH_ORDER)
+        log(tr(SEARCH_ORDER_EN, SEARCH_ORDER_ZH))
     if a.copy_to:
         _copy_matches(atlas, [h.index for hits in results for h in hits], Path(a.copy_to))
     return 0
@@ -228,13 +228,24 @@ def _search_folders(a: argparse.Namespace, atlas, qstyle, names: list[str], same
             f" closest {r['closest']})"
         ),
     )
-    log("score: cosine between the query and each folder's mean style, in the search space")
+    log(
+        tr(
+            "score: cosine between the query and each folder's mean style, in the search space "
+            "(1 = same direction; it reads lower than the image search's numbers)",
+            "分數：查詢圖和每個資料夾平均畫風的相似度（在搜尋空間裡；1 表示完全同方向，"
+            "數值會比單張搜尋的低，看排名就好）",
+        )
+    )
     return 0
 
 
-SEARCH_ORDER = (
+SEARCH_ORDER_EN = (
     "ranked by style match in the search space (whitened, corrected for images that are close to "
     "everything); the number shown is the plain cosine, so it is not always in order"
+)
+SEARCH_ORDER_ZH = (
+    "名次依畫風相似度排（在搜尋空間裡，並修正了「和什麼都像」的圖）；旁邊的數字是一般的相似度，"
+    "所以不一定照大小排"
 )
 
 
@@ -288,11 +299,20 @@ def cmd_duplicates(a: argparse.Namespace) -> int:
         print(json.dumps([[atlas.rel(i) for i in g] for g in groups], ensure_ascii=False, indent=1))
         return 0
     extra = sum(len(g) - 1 for g in groups)
-    log(f"{len(groups)} near-duplicate groups ({extra} images beyond the first of each group)")
+    log(
+        tr(
+            f"{len(groups)} near-duplicate groups ({extra} images beyond the first of each group)",
+            f"{len(groups)} 組近重複的圖（每組留一張的話，多出 {extra} 張）",
+        )
+    )
     for n, g in enumerate(groups, 1):
         style, content = atlas.style[g], atlas.content[g]
         least = float(np.minimum(style @ style.T, content @ content.T).min())
-        print(f"group {n} (similarity {least:.3f}+): " + "  |  ".join(atlas.rel(i) for i in g))
+        print(
+            tr(f"group {n} (similarity {least:.3f}+):", f"第 {n} 組（相似度 {least:.3f} 以上）：")
+        )
+        for i in g:
+            print(f"  {atlas.rel(i)}")
     return 0
 
 
@@ -314,6 +334,9 @@ def cmd_compare(a: argparse.Namespace) -> int:
     dist, p = group_difference(groups[0], groups[1], rounds=a.rounds)
     d = difference(*looks)
     scale = StyleScale(noise_floor=a.noise_floor) if a.noise_floor else StyleScale()
+    if not a.json:
+        _print_compare(a, [len(g) for g in groups], dist, p, scale, d, copies, files)
+        return 0
     print(
         json.dumps(
             {
@@ -336,6 +359,51 @@ def cmd_compare(a: argparse.Namespace) -> int:
         )
     )
     return 0
+
+
+VERDICT_ZH = {"same style": "同一畫風", "related": "相關", "clearly different": "明顯不同"}
+
+
+def _print_compare(a, sizes, dist, p, scale, look, copies, files) -> None:
+    """`compare` for a reader: the verdict, the look change and any near-copies."""
+    na, nb = Path(a.a).name, Path(a.b).name
+    z, verdict = scale.z(dist), scale.verdict(dist)
+    pv = "< 0.01" if p < 0.01 else f"{p:.2f}"
+    print(
+        tr(
+            f"A: {na} ({sizes[0]} images)   B: {nb} ({sizes[1]} images)",
+            f"A：{na}（{sizes[0]} 張）  B：{nb}（{sizes[1]} 張）",
+        )
+    )
+    print(
+        tr(
+            f"style distance {dist:.3f} (z {z:.1f}, {verdict}; p {pv})",
+            f"畫風距離 {dist:.3f}（z {z:.1f}，{VERDICT_ZH.get(verdict, verdict)}；p {pv}）",
+        )
+    )
+    words = describe(look, "zh" if chinese() else "en")
+    print(
+        tr(
+            f"look: B is {words}" if words else "look: no clear difference",
+            f"外觀：B 比 A {words}" if words else "外觀：沒有明顯差異",
+        )
+    )
+    print(
+        tr(
+            f"{len(copies)} images of B nearly repeat an image of A",
+            f"B 裡有 {len(copies)} 張和 A 的某張幾乎一樣",
+        )
+    )
+    for i, j, s in copies[:20]:
+        print(f"  B {files[1][i].name}  ~  A {files[0][j].name}  ({s:.3f})")
+    log(
+        tr(
+            "z: in units of the difference between two halves of one style (default calibration "
+            "from NovelAI renders); --json for every number",
+            "z：以「同一畫風的兩半」之間的差距為單位（預設校準來自 NovelAI 算圖）；"
+            "--json 會列出全部數字",
+        )
+    )
 
 
 def cmd_calibrate(a: argparse.Namespace) -> int:
@@ -575,6 +643,7 @@ def _add_measure_commands(add: Adder) -> None:
     p.add_argument("b")
     p.add_argument("--rounds", type=int, default=999)
     p.add_argument("--noise-floor", type=float, help="from `calibrate` (default 0.071)")
+    p.add_argument("--json", action="store_true", help="every number, as JSON")
     p = add("calibrate", cmd_calibrate, "estimate the noise floor from one-style sub-folders")
     p.add_argument("folder")
     p = add("bench", cmd_bench, "score retrieval and clustering against sub-folder labels")
