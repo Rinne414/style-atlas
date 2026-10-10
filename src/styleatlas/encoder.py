@@ -11,6 +11,7 @@ to a small safetensors file in the cache folder so later loads are fast and pick
 from __future__ import annotations
 
 import argparse
+import logging
 import math
 import os
 from dataclasses import dataclass
@@ -148,9 +149,13 @@ class CSDEncoder:
         self.px = resolution
         self.batch_size = max(1, batch_size)
         weights = load_weights()
-        visual = open_clip.create_model(
-            "ViT-L-14-quickgelu", pretrained=None, force_image_size=resolution
-        ).visual
+        logging.disable(logging.WARNING)  # open_clip says "initialized randomly"; CSD loads next
+        try:
+            visual = open_clip.create_model(
+                "ViT-L-14-quickgelu", pretrained=None, force_image_size=resolution
+            ).visual
+        finally:
+            logging.disable(logging.NOTSET)
         visual.proj = None
         backbone = {
             k.removeprefix("backbone."): v for k, v in weights.items() if k.startswith("backbone.")

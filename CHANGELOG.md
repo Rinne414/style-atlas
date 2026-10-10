@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- The open_clip warning "Model initialized randomly" no longer appears while the model loads.
+  It was harmless (the CSD weights load right after, strictly checked) but alarming. The built
+  wheel was checked end to end with the real model on CPU.
+
 ## 0.17.0 - 2026-10-10
 
 - **Reference folder in the web app**: type a folder of styles you know and press "Load
