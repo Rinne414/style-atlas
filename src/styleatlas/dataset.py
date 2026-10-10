@@ -431,7 +431,38 @@ def audit(
     if looks is not None and len(paths):
         report |= _colour_problems(paths, looks[:, LOOK_NAMES.index("colourfulness")])
     summary = _audit_summary(report, len(paths), sizes)
-    return {"summary": summary, "files": report, "tags_spelt_two_ways": spelt_two_ways}
+    return {
+        "summary": summary,
+        "files": report,
+        "tags_spelt_two_ways": spelt_two_ways,
+        "frequent_tags": frequent_tags(readable),
+    }
+
+
+FREQUENT_SHARE = 0.5  # a tag in at least this share of the captions is listed
+FREQUENT_SHOWN = 12
+FREQUENT_MIN_CAPTIONS = 5
+
+
+def frequent_tags(paths: list[Path]) -> list[tuple[str, float]]:
+    """Tags in at least FREQUENT_SHARE of the non-empty captions, most common first, with their
+    share: content in nearly every training image (one character, one outfit) is learned along
+    with the style. Spellings are merged (long_hair = long hair)."""
+    counts: dict[str, int] = {}
+    captioned = 0
+    for p in paths:
+        tags = {norm_tag(t) for t in read_tags(p)}
+        tags.discard("")
+        if not tags:
+            continue
+        captioned += 1
+        for t in tags:
+            counts[t] = counts.get(t, 0) + 1
+    if captioned < FREQUENT_MIN_CAPTIONS:
+        return []
+    common = [(t, n / captioned) for t, n in counts.items() if n / captioned >= FREQUENT_SHARE]
+    common.sort(key=lambda item: (-item[1], item[0]))
+    return [(t, round(share, 2)) for t, share in common[:FREQUENT_SHOWN]]
 
 
 def mixed_spellings(paths: list[Path]) -> tuple[list[str], list[str]]:

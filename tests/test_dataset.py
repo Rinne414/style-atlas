@@ -359,3 +359,21 @@ def test_spelling_fixes_follow_the_more_common_spelling(tmp_path):
     assert spelling_fixes(paths) == {"long hair": "long hair", "blue eyes": "blue eyes"}
     (tmp_path / "a.txt").write_text("long_hair, blue_eyes", encoding="utf-8")
     assert spelling_fixes(paths) == {"long hair": "long_hair"}  # blue_eyes is now one way only
+
+
+def test_frequent_tags_lists_what_most_captions_share(tmp_path):
+    from styleatlas.dataset import frequent_tags
+
+    texts = [
+        "1girl, white shirt, smile",
+        "1girl, white_shirt",
+        "1girl, white shirt, hat",
+        "1girl, hat",
+        "1boy",
+    ]
+    for k, text in enumerate(texts):
+        _img(tmp_path / f"{k}.png").with_suffix(".txt").write_text(text, encoding="utf-8")
+    _img(tmp_path / "bare.png")  # no caption: not counted
+    common = frequent_tags(sorted(tmp_path.glob("*.png")))
+    assert common == [("1girl", 0.8), ("white shirt", 0.6)]  # spellings merged; hat 40% left out
+    assert frequent_tags(sorted(tmp_path.glob("*.png"))[:3]) == []  # too few captions to say

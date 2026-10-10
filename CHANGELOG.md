@@ -59,6 +59,9 @@ New:
   kohya sd-scripts reads the pixels as stored and ignores the EXIF orientation (checked in
   its `library/utils.py`), so a phone photo trains sideways; ai-toolkit and OneTrainer turn
   it upright.
+- **Common tags in the check** (`audit`, the Check tab; JSON `frequent_tags`): the tags in half or
+  more of the captions with their share, since content in nearly every training image (one
+  character, one outfit) is learned along with the style.
 - **Same tag spelling on export**: `cluster`/`sort --export ... --fix-tag-spelling` (web: 「統一標籤寫法」)
   writes each tag the folder spells two ways the way most captions do, in the exported copies
   only, and lists the tags it respelt.

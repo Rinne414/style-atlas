@@ -473,6 +473,12 @@ function checkSection() {
   if (!CHECK) return box;
   if (CHECK.consistency) box.append(consistencyLine(CHECK.consistency));
   if (CHECK.buckets && Object.keys(CHECK.buckets).length) box.append(bucketLine(CHECK.buckets));
+  if (CHECK.frequent_tags && CHECK.frequent_tags.length) {  // content a style LoRA learns along
+    const common = document.createElement("div"); common.className = "kv"; common.title = t("frequentTip");
+    const list = CHECK.frequent_tags.map(([tag, share]) => `${tag} ${Math.round(share * 100)}%`).join(lang === "zh" ? "、" : ", ");
+    common.textContent = t("frequentLine").replace("{t}", list);
+    box.append(common);
+  }
   const found = CHECK_KEYS.filter((k) => (CHECK.issues[k] || []).length);
   if (found.length) {  // one line first: how much there is to look at
     const flagged = new Set(found.flatMap((k) => CHECK.issues[k]));

@@ -32,6 +32,15 @@ def cmd_audit(a: argparse.Namespace) -> int:
         if key == "buckets":
             value = " · ".join(f"{b} {n}" for b, n in value.items())
         print(f"{pad(_audit_label(key), width)}{value}")
+    if report["frequent_tags"]:
+        shares = ", ".join(f"{t} {round(100 * share)}%" for t, share in report["frequent_tags"])
+        log(
+            tr(
+                f"tags in half or more of the captions: {shares} (content in nearly every "
+                "image is learned along with the style)",
+                f"出現在一半以上標註的標籤：{shares}（幾乎每張都有的內容會和畫風一起被學進去）",
+            )
+        )
     if report["tags_spelt_two_ways"]:
         log(
             tr("tags written both with _ and with spaces: ", "同時有底線和空格兩種寫法的標籤：")

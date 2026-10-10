@@ -543,6 +543,7 @@ class StyleAtlasApp(GroupEdits):
             "low_jpeg": LOW_JPEG,
             "issues": issues,
             "spelt_two_ways": report["tags_spelt_two_ways"],
+            "frequent_tags": report["frequent_tags"],
             "buckets": report["summary"]["buckets"],
             "consistency": None
             if tight is None
