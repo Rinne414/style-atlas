@@ -19,6 +19,7 @@ style-atlas 會看每張圖「怎麼畫」（不是畫了什麼），自動把�
 | **3D 畫風地圖**：縮圖浮在 3D 空間，可轉動，點一下就看最接近的畫風 | `map`，或網頁介面的「存成分享用地圖」（單一 HTML 檔，可直接傳給朋友） |
 | **檢查資料集**：解析度、小圖放大、壓縮太重、極端比例、缺標註、近重複，以及整個資料夾的畫風一致性（像一位畫師，還是混了好幾種） | `audit`、`duplicates` |
 | **量化畫風與口味**：兩組圖是否同一畫風、差在哪裡（亮度、鮮豔度、線條量等）、個人喜好模型 | `compare`、`taste`、網頁介面的外觀描述與「喜歡／不喜歡」 |
+| **一頁畫風報告**：一致性、外觀和 278 位畫師比的位置、最像的畫師、各畫風群的代表圖，存成一個 HTML 檔，方便保存或傳給朋友 | `report` |
 
 ![網頁介面：72 張圖自動分成 4 個畫風群，右側是群組清單、名稱和外觀描述（例如「對比弱、線條少、色塊平」）](docs/images/map.jpg)
 
@@ -172,6 +173,12 @@ style-atlas search "D:\examples" --combine --in "D:\gallery" --top 100 --copy-to
 style-atlas map "D:\gallery" -o gallery_map.html
 style-atlas duplicates "D:\gallery"
 style-atlas outliers "D:\lora\artistX" --top 20
+```
+
+**一頁畫風報告**：把一個資料夾的畫風整理成一頁：一致性、外觀（例如「比 89% 的畫師亮」）、最像的畫師（給 `--artists` 參考圖庫時）、每個畫風群的代表圖。網頁上整理過的群組和名稱會直接沿用。
+
+```bat
+style-atlas report "D:\lorartistX" --artists "D:rtists"
 ```
 
 **畫師地圖**：圖庫按畫師（或畫風）分資料夾時，`--by-folder` 讓每個資料夾變成地圖上的一個點：位置是那個資料夾的平均畫風，縮圖是它最典型的一張。靠得近的就是畫風相近的畫師。顏色是大致的「畫風家族」，只能當參考：同一位畫師的作品分兩半各畫一次，兩次分出的家族吻合度只有 ARI 0.32。
@@ -338,6 +345,9 @@ how a picture is drawn rather than what it shows. On top of those vectors it can
   can send to anyone. Group names float at each group's centre ("Names" hides them), and groups
   show their characteristic caption tags. "Record a turn" saves an 8-second video of the map
   turning once (MP4 in Chrome and Edge, WebM in Firefox), for sharing.
+- **One-page style report** (`report`): consistency, where the folder's look falls among 278
+  Danbooru artists, the closest artists of a reference library (`--artists`), and each group's
+  most typical images, in one HTML file to keep or send. It reuses the web app's groups and names.
 - **Map of artists** (`map --by-folder`): one point per sub-folder of a library, at the folder's
   mean style and shown by its most typical image, so artists with similar styles sit together.
   The colours are loose "families": grouping two halves of each artist's works separately agreed

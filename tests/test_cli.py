@@ -206,3 +206,13 @@ def test_calibrate_taste_embed_and_audit_text(lib, tmp_path, capsys):
     assert main(["audit", str(lib), "--device", "cpu"]) == 0
     out = capsys.readouterr().out
     assert "smaller_than_min_side" in out and "[smaller_than_min_side]" in out
+
+
+def test_report_sums_up_a_folder(lib, tmp_path, capsys):
+    out = tmp_path / "report.html"
+    assert main(["report", str(lib), "-o", str(out), "--artists", str(lib), "--device", "cpu"]) == 0
+    page = out.read_text(encoding="utf-8")
+    assert "畫風一致性" in page and "最像的畫師" in page and page.count('<div class="card">') >= 3
+    assert "data:image/webp;base64," in page  # thumbnails inside, so the file can be sent alone
+    assert main(["report", str(lib), "-o", str(out), "--lang", "en", "--device", "cpu"]) == 0
+    assert "Style consistency" in out.read_text(encoding="utf-8")

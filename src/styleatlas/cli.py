@@ -28,6 +28,7 @@ from styleatlas.cli_common import (  # noqa: F401 (re-exported for tests and cal
     log,
 )
 from styleatlas.cli_lora import FEW_FOR_LORA, _lora_args, cmd_cluster  # noqa: F401
+from styleatlas.cli_report import cmd_report, report_args
 from styleatlas.cluster import GRANULARITY, METHODS, PERIODS, outlier_scores
 from styleatlas.encoder import CROP_MODES, RESOLUTIONS
 from styleatlas.images import TIME_SOURCES, find_images, labels_from_folders
@@ -415,6 +416,9 @@ def _add_folder_commands(add: Adder) -> None:
     p.add_argument("-o", "--out")
     p.add_argument("--no-map", action="store_true")
     _lora_args(p)
+    _cluster_args(p)
+    p = add("report", cmd_report, "one HTML page that sums up a folder's style (to keep or send)")
+    report_args(p)
     _cluster_args(p)
     p = add("map", cmd_map, "write the interactive 3D style map (one HTML file)")
     p.add_argument("folder")
