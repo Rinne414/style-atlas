@@ -22,6 +22,7 @@ from styleatlas.cluster import Clustering, batch_verdict, keep_rows
 from styleatlas.consistency import consistency
 from styleatlas.dataset import distinctive_tags, tag_summary
 from styleatlas.images import cached_thumbnail, timeline, timeline_span
+from styleatlas.lang import tr
 from styleatlas.look import LOOK_NAMES, NOTABLE, WORDS_ZH, profile
 from styleatlas.metrics import centroid
 from styleatlas.render_check import RenderCheck, check_renders
@@ -308,7 +309,7 @@ def render(
     if skip:
         kept = [i for i in range(len(atlas)) if i not in skip]
         if not kept:
-            raise ValueError("all images are excluded")
+            raise ValueError(tr("all images are excluded", "所有圖都被排除了"))
         clustering = keep_rows(atlas.style, clustering, kept)
         atlas = atlas.subset(kept)
     sub = f"{len(atlas)} {t['images']} · {t['made']} {date.today()}"

@@ -22,6 +22,7 @@ from sklearn.decomposition import PCA
 from sklearn.metrics import silhouette_score
 
 from styleatlas.duplicates import keep_one_per_group, near_duplicate_groups
+from styleatlas.lang import tr
 from styleatlas.metrics import DEFAULT_K, centroid, hub_distance, neighbor_density, unit
 
 # medium / fine / coarse were tuned on blind mixtures of different artists. Splitting ONE
@@ -353,10 +354,10 @@ def split_group(x: np.ndarray, clustering: Clustering, group: int) -> Clustering
     """Hand edit: cut one group in two (2-way clustering of its members only)."""
     members = np.array(clustering.clusters[group].members)
     if len(members) < 2:
-        raise ValueError("a group needs at least 2 images to be split")
+        raise ValueError(tr("a group needs at least 2 images to be split", "至少要 2 張圖才能拆群"))
     halves = cluster_styles(x[members], n_clusters=2, min_size=1).labels
     if len(set(halves.tolist())) < 2:
-        raise ValueError("these images are too alike to split")
+        raise ValueError(tr("these images are too alike to split", "這些圖太像了，拆不開"))
     new_id = clustering.n_clusters  # renumbered by size afterwards
     moves = {int(m): new_id for m, h in zip(members, halves, strict=True) if h == 1}
     return edit_groups(x, clustering, moves)

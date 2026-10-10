@@ -22,7 +22,8 @@ New:
   `cluster`, `sort`, `report`, `compare`, `duplicates`, `audit` (labels), `doctor`, the
   embedding progress, errors and the web app's console window (what `StyleAtlas.bat` shows) are
   in Traditional Chinese, with the look words the web page uses ("偏亮、線條多") and columns
-  aligned by display width. `STYLE_ATLAS_LANG=en` or `zh` chooses. `report` writes its page in
+  aligned by display width. The web page's error lines a person can meet (merge, split, undo,
+  compare, a stale page, a bad folder or image) follow too. `STYLE_ATLAS_LANG=en` or `zh` chooses. `report` writes its page in
   the same language unless `--lang` says otherwise. LORA_GUIDE section 7 explains the English
   wording.
 - **Readable `compare`.** It prints a short summary (verdict, distance, look change,

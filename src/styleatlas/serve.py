@@ -56,6 +56,7 @@ from styleatlas.export import (
 )
 from styleatlas.groupfile import carry_names, load_groups
 from styleatlas.images import cached_thumbnail, labels_from_folders, load_rgb
+from styleatlas.lang import tr
 from styleatlas.look import LOOK_NAMES, difference
 from styleatlas.metrics import (
     CHARACTERS,
@@ -100,14 +101,24 @@ def local_folder(text: str) -> Path:
     --reference when starting instead."""
     path = Path(text).expanduser()
     if str(path).startswith(("\\\\", "//")):
-        raise ValueError("network folders are not accepted here; start with --reference instead")
+        raise ValueError(
+            tr(
+                "network folders are not accepted here; start with --reference instead",
+                "這裡不接受網路資料夾；請在啟動時用 --reference 指定",
+            )
+        )
     if os.name == "nt" and path.drive:
         import ctypes
 
         if ctypes.windll.kernel32.GetDriveTypeW(path.drive + "\\") == DRIVE_REMOTE:
-            raise ValueError("network drives are not accepted here; start with --reference instead")
+            raise ValueError(
+                tr(
+                    "network drives are not accepted here; start with --reference instead",
+                    "這裡不接受網路磁碟機；請在啟動時用 --reference 指定",
+                )
+            )
     if not path.is_dir():
-        raise ValueError(f"not a folder: {text}")
+        raise ValueError(tr(f"not a folder: {text}", f"不是資料夾：{text}"))
     return path
 
 
@@ -249,10 +260,10 @@ class StyleAtlasApp(GroupEdits):
         ignored): "#mono" finds monochrome and greyscale-monochrome alike."""
         text = body.get("tag")
         if not isinstance(text, str) or not text.strip() or len(text) > MAX_TAG_TEXT:
-            raise ValueError("tag must be some text")
+            raise ValueError(tr("tag must be some text", "請輸入標籤"))
         want = norm_tag(text)
         if not want:
-            raise ValueError("tag must have a letter or a digit")
+            raise ValueError(tr("tag must have a letter or a digit", "標籤至少要有一個字母或數字"))
         if self._tag_sets is None:
             self._read_tags()
         with self._lock:
@@ -312,7 +323,7 @@ class StyleAtlasApp(GroupEdits):
             items = [i for i in self._indices(body) if i not in self.excluded]
             subset = self.raw.subset(items)
         if not items:
-            raise ValueError("all of these images are excluded")
+            raise ValueError(tr("all of these images are excluded", "這些圖都已經排除了"))
         result = export_folders(subset, ["matches"] * len(items), self.out_dir / "search_matches")
         return {
             "placed": result.placed,
@@ -448,7 +459,7 @@ class StyleAtlasApp(GroupEdits):
             try:
                 image = load_rgb(io.BytesIO(d))
             except LOAD_ERRORS as e:
-                raise ValueError(f"not a readable image: {e}") from e
+                raise ValueError(tr(f"not a readable image: {e}", f"讀不了這張圖：{e}")) from e
             with self._model_lock:
                 emb = get_encoder(self.opts).encode([image])
             styles.append(emb.style[0])
@@ -467,7 +478,7 @@ class StyleAtlasApp(GroupEdits):
             if body.get("excluded") is True:
                 members = sorted(self.excluded)
                 if not members:
-                    raise ValueError("no image is excluded yet")
+                    raise ValueError(tr("no image is excluded yet", "還沒有排除任何圖"))
             else:
                 group = self._group(body.get("group"), allow_unassigned=False)
                 members = list(self.clustering.clusters[group].members)
@@ -544,11 +555,16 @@ class StyleAtlasApp(GroupEdits):
             a = self._group(body.get("a"), allow_unassigned=False)
             b = self._group(body.get("b"), allow_unassigned=False)
             if a == b:
-                raise ValueError("pick two different groups")
+                raise ValueError(tr("pick two different groups", "請選兩個不同的群"))
             ma = list(self.clustering.clusters[a].members)
             mb = list(self.clustering.clusters[b].members)
         if len(ma) < 2 or len(mb) < 2:
-            raise ValueError("each side needs at least 2 images that the other does not have")
+            raise ValueError(
+                tr(
+                    "each side needs at least 2 images that the other does not have",
+                    "兩邊都至少要有 2 張對方沒有的圖",
+                )
+            )
         return ma, mb
 
     def compare(self, body: dict) -> dict:

@@ -67,7 +67,12 @@ class GroupEdits:
     def _check_revision(self, body: dict) -> None:
         """Group ids change after every edit; refuse an edit made on an outdated page."""
         if body.get("rev") != self.revision:
-            raise ValueError("the groups changed in another tab or edit; reload the page")
+            raise ValueError(
+                tr(
+                    "the groups changed in another tab or edit; reload the page",
+                    "分群已經在別的分頁或操作中改過了，請重新整理頁面",
+                )
+            )
 
     def _remember(self) -> None:
         state = (self.clustering, dict(self.settings), dict(self.group_names), self.space.name)
@@ -84,7 +89,7 @@ class GroupEdits:
         with self._lock:
             self._check_revision(body)
             if not self._history:
-                raise ValueError("nothing to undo")
+                raise ValueError(tr("nothing to undo", "沒有可以復原的步驟"))
             clustering, settings, names, space = self._history.pop()
             if space != self.space.name:
                 self._apply_space(space)
@@ -150,7 +155,7 @@ class GroupEdits:
                 if i not in self.excluded
             ]
             if not rows:
-                raise ValueError("no unassigned images")
+                raise ValueError(tr("no unassigned images", "沒有未歸類的圖"))
             raw = self.raw.style
             fits = fit_to_groups(raw, self.clustering, raw[rows], set(self.excluded))
             moves = {i: f.group for i, f in zip(rows, fits, strict=False) if f.fits}
@@ -166,7 +171,7 @@ class GroupEdits:
             source = self._group(body.get("from"), allow_unassigned=False)
             target = self._group(body.get("into"), allow_unassigned=False)
             if source == target:
-                raise ValueError("pick two different groups")
+                raise ValueError(tr("pick two different groups", "請選兩個不同的群"))
             members = self.clustering.clusters[source].members
             moves = {m: target for m in members}
             return self._edited(edit_groups(self._edit_vectors, self.clustering, moves), target)
@@ -183,7 +188,9 @@ class GroupEdits:
             group = self._group(body.get("group"), allow_unassigned=False)
             others = {n.casefold() for g, n in self.group_names.items() if g != group}
             if new is not None and new.casefold() in others:
-                raise ValueError(f"another group is already called {new}")
+                raise ValueError(
+                    tr(f"another group is already called {new}", f"已經有一群叫 {new}")
+                )
             if new == self.group_names.get(group):
                 return {"names": self.names_by_group()}
             self._remember()
@@ -201,7 +208,12 @@ class GroupEdits:
             self._check_revision(body)
             group = self._group(body.get("group"), allow_unassigned=False)
             if self.clustering.clusters[group].size > MAX_SPLIT:
-                raise ValueError("group too large to split here; regroup into smaller groups")
+                raise ValueError(
+                    tr(
+                        "group too large to split here; regroup into smaller groups",
+                        "這群太大，無法在這裡拆；請用較細的分群重新分群",
+                    )
+                )
             return self._edited(split_group(self._edit_vectors, self.clustering, group))
 
     def _indices(self, body: dict) -> list[int]:
