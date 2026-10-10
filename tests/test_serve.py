@@ -733,3 +733,15 @@ def test_an_images_caption_is_read_for_its_details(tmp_path):
     assert app.caption({"i": 1}) == {"tags": [], "file": None}
     with pytest.raises(ValueError):
         app.caption({"i": len(atlas)})
+
+
+def test_notes_on_images_are_kept_next_to_the_folder_and_in_saved_maps(tmp_path):
+    app, atlas = _app(tmp_path)
+    assert app.note({"i": 3, "text": "  sketchy   period "}) == {"notes": {"3": "sketchy period"}}
+    again = StyleAtlasApp(atlas, EncodeOptions(device="cpu"), "pca")  # a new session
+    assert again.notes() == {"3": "sketchy period"}
+    saved = Path(again.save_map({})["file"]).read_text(encoding="utf-8")
+    assert "sketchy period" in saved
+    assert again.note({"i": 3, "text": ""}) == {"notes": {}}
+    with pytest.raises(ValueError):
+        again.note({"i": 0, "text": "x" * 81})

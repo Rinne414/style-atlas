@@ -4,6 +4,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 const DATA = JSON.parse(document.getElementById("atlas-data").textContent);
 const PTS = DATA.points;
 const N = PTS.length;
+let NOTES = DATA.notes || {};  // index -> a note on that image, drawn at its point
 let lang = (navigator.language || "en").toLowerCase().startsWith("zh") ? "zh" : "en";
 const t = (k) => T[lang][k];
 const $ = (id) => document.getElementById(id);
@@ -295,6 +296,21 @@ function thumb(i, onClick) {
   return img;
 }
 
+function noteBox(i) {  // live app: a note on this image, saved with Enter, shown on the map
+  const box = document.createElement("input"); box.type = "text"; box.maxLength = 80;
+  box.className = "note"; box.placeholder = t("notePlaceholder"); box.title = t("noteTip");
+  box.value = NOTES[String(i)] || ""; box.setAttribute("aria-label", t("notePlaceholder"));
+  box.addEventListener("keydown", async (e) => {
+    e.stopPropagation();
+    if (e.key !== "Enter") return;
+    try {
+      const r = await post("api/note", JSON.stringify({ i, text: box.value }), "application/json");
+      NOTES = r.notes; drawNames(); setStatus(t(box.value.trim() ? "noteSaved" : "noteCleared"));
+    } catch (err) { setStatus(String(err.message || err)); }
+  });
+  return box;
+}
+
 function captionLine(i) {  // live app: the caption's tags, filled in when they arrive
   const box = document.createElement("div"); box.className = "meta tags";
   post("api/caption", JSON.stringify({ i }), "application/json").then((r) => {
@@ -321,7 +337,8 @@ function select(i) {
   const a = document.createElement("a"); a.href = PTS[i].f; a.target = "_blank"; a.rel = "noopener";
   a.textContent = t("open"); a.style.color = "var(--accent)"; kv.append(a);
   pane.append(kv);
-  if (DATA.live) pane.append(voteButtons(i), captionLine(i));
+  if (DATA.live) pane.append(voteButtons(i), captionLine(i), noteBox(i));
+  else if (NOTES[String(i)]) { const n = document.createElement("div"); n.className = "meta"; n.textContent = `${t("noteLabel")}${NOTES[String(i)]}`; pane.append(n); }
   const h = document.createElement("h3"); h.textContent = t("nearest"); pane.append(h);
   const g = document.createElement("div"); g.className = "grid";
   PTS[i].k.forEach((j) => g.append(thumb(j)));
@@ -673,7 +690,7 @@ function showHelp(on) {
   if (!on) return;
   const rows = [["drag", "keyRotate"], ["wheel", "keyZoom"], ["sizeKeys", "keySize"],
     ["Esc", "keyHome"], ["P", "keySnap"], ...(DATA.live ? [["shiftKeys", "keyMark"], ["L / D", "keyVote"], ["X", "keyExclude"], ["Ctrl + Z", "keyUndo"]] : [])];
-  const about = ["helpWhat1", "helpWhat2", "helpWhat3"].map((key) => {
+  const about = ["helpWhat1", "helpWhat2", "helpWhat3", ...(DATA.live ? ["helpNotes"] : [])].map((key) => {
     const p = document.createElement("p"); p.className = "about"; p.textContent = t(key); return p;
   });
   box.replaceChildren(...about, ...rows.map(([key, what]) => {

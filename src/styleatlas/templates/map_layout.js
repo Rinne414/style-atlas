@@ -103,6 +103,8 @@ function srgbTexture(cv) {  // canvas pixels are sRGB; unmarked, the sprite shad
 
 /* ---------- group names floating at each group's centre ---------- */
 const MAX_NAMES = 16;  // the largest groups only: more labels cover the map
+const MAX_NOTES = 40;  // notes drawn on the map (the details show every note)
+const NOTE_COLOR = "#f5f5f5";
 let nameSprites = null;
 let showNames = true;
 
@@ -135,6 +137,13 @@ function drawNames() {
     sp.position.set(s[0] / s[3], s[1] / s[3] + 0.12, s[2] / s[3]); sp.userData.c = c;
     nameSprites.add(sp);
   });
+  Object.entries(NOTES).slice(0, MAX_NOTES).forEach(([k, text]) => {  // notes at their images
+    const i = Number(k);
+    if (!(i >= 0 && i < N) || !text) return;
+    const sp = nameSprite(text, NOTE_COLOR); sp.scale.multiplyScalar(0.7);
+    sp.position.set(pos[i * 3], pos[i * 3 + 1] + 0.07, pos[i * 3 + 2]); sp.userData.note = i;
+    nameSprites.add(sp);
+  });
   scene.add(nameSprites);
   fadeNames();
 }
@@ -143,7 +152,8 @@ function fadeNames() {  // names step back with the points: a focused group keep
   if (!nameSprites) return;
   const dimmed = selected !== null || searchHits !== null || filter !== "" || folderFilter !== null;
   nameSprites.children.forEach((sp) => {
-    const on = focusCluster !== null ? sp.userData.c === focusCluster : !dimmed;
+    const own = sp.userData.note !== undefined ? PTS[sp.userData.note].c : sp.userData.c;
+    const on = focusCluster !== null ? own === focusCluster : !dimmed;
     sp.material.opacity = on ? 1 : 0.15;
   });
 }

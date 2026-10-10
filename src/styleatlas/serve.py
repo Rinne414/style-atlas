@@ -91,6 +91,7 @@ SEARCH_TOP = 48
 FOLDER_TOP = 5  # closest sub-folders listed with a search
 MAX_QUERY_IMAGES = 32
 EXPORT_MIN_GROUP = 3  # groups left smaller after set-asides go to _unassigned (as in the CLI)
+MAX_NOTE = 80  # characters of a note on an image (it is drawn on the map)
 COMPARE_ROUNDS = 199  # permutations for a group comparison's p-value (resolution 0.005)
 MIN_SIDE_RANGE = (64, 8192)  # the check tab's smallest-side setting
 MAX_PATH_TEXT = 1000  # longest folder path accepted from the page
@@ -173,6 +174,7 @@ class StyleAtlasApp(GroupEdits):
         self.taste = TasteSession(self.atlas, self.out_dir)
         self._excluded = RelPathMap(self.out_dir / "excluded.json", atlas)
         self.excluded: set[int] = {i for i, v in self._excluded.values.items() if v is True}
+        self._notes = RelPathMap(self.out_dir / "notes.json", atlas)  # rel path -> note
 
     def _apply_space(self, name: str) -> None:
         """(Re)build everything that depends on the vector space (see metrics.StyleSpace)."""
@@ -252,7 +254,30 @@ class StyleAtlasApp(GroupEdits):
                 "restored": self.restored,
                 "can_undo": bool(self._history),
             }
+            payload["notes"] = self.notes()
         return render_html(payload)
+
+    def notes(self) -> dict[str, str]:
+        """The notes on images, by index (as the page numbers them)."""
+        return {str(i): v for i, v in self._notes.values.items() if isinstance(v, str) and v}
+
+    def note(self, body: dict) -> dict:
+        """Set ("text") or clear (empty text) the note on image "i"; kept next to the folder in
+        notes.json by relative path, like the exclusions, and drawn at the image on the map."""
+        i = self._index(body)
+        text = body.get("text", "")
+        if not isinstance(text, str) or len(text) > MAX_NOTE:
+            raise ValueError(
+                tr(f"a note is text of up to {MAX_NOTE} characters", f"註記最多 {MAX_NOTE} 個字")
+            )
+        text = " ".join(text.split())
+        with self._lock:
+            if text:
+                self._notes.values[i] = text
+            else:
+                self._notes.values.pop(i, None)
+            self._notes.save()
+            return {"notes": self.notes()}
 
     def _read_tags(self) -> None:
         tags = [_tags_or_none(p) for p in self.atlas.paths]
@@ -325,6 +350,8 @@ class StyleAtlasApp(GroupEdits):
             atlas, clustering, out, title=self.title, time_source=self.time_source, layout=layout
         )
         payload["names"] = names
+        with self._lock:
+            payload["notes"] = self.notes()
         path = write_payload(payload, out)
         return {"file": str(path), "mb": round(path.stat().st_size / 1e6, 1)}
 
