@@ -221,7 +221,7 @@ style-atlas taste score "D:\new_batch" --model "D:\my_taste.npz"
 
 `--time name` 會從檔名裡的 Pixiv／Danbooru 作品編號推出先後順序（編號會隨上傳時間遞增），`--time mtime` 則用檔案修改時間。開了之後，每個畫風群旁都會畫出時間分佈，可以看出哪種畫風是早期、哪種是近期。
 
-支援 png、jpg、webp、bmp、gif；avif 需要 Pillow 本身支援。動圖只看第一格。CPU 預設最多用 8 個執行緒並降低優先權，不會拖垮整台電腦；`--threads 0` 可取消限制。
+支援 png、jpg、jfif、webp、bmp、gif；avif 需要 Pillow 本身支援。動圖只看第一格。CPU 預設最多用 8 個執行緒並降低優先權，不會拖垮整台電腦；`--threads 0` 可取消限制。
 
 **指令一覽**（方括號是可省略的部分；每個指令加 `-h` 會列出全部選項）：
 

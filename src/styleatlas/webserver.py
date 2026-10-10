@@ -8,13 +8,13 @@ never approves; image GETs that the browser marks as cross-site are refused."""
 from __future__ import annotations
 
 import json
-import mimetypes
 import traceback
 import webbrowser
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from styleatlas.encoder import ModelDownloadError
+from styleatlas.images import IMAGE_TYPES
 from styleatlas.serve import StyleAtlasApp
 
 MAX_UPLOAD = 40 * 1024 * 1024
@@ -112,7 +112,7 @@ class StyleAtlasHandler(BaseHTTPRequestHandler):
             self._send(200, self.app.thumb(i), "image/webp")
         elif parts[0] == "image" and i is not None:
             path = self.app.atlas.paths[i]
-            ctype = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+            ctype = IMAGE_TYPES.get(path.suffix.lower(), "application/octet-stream")
             try:
                 data = path.read_bytes()
             except OSError:  # moved or deleted since the folder was opened

@@ -697,3 +697,28 @@ def test_images_are_found_by_a_caption_tag(tmp_path):
     for bad in ("", "  ", 5, "x" * 300, "__"):
         with pytest.raises(ValueError):
             app.tagged({"tag": bad})
+
+
+def test_originals_are_served_with_their_image_type(tmp_path):
+    x, _ = make_blobs([3, 3])
+    paths = []
+    for i in range(len(x)):
+        p = tmp_path / f"img{i}.{'webp' if i % 2 else 'jfif'}"
+        Image.new("RGB", (16, 16), (i * 20, 0, 0)).save(p, format="WEBP" if i % 2 else "JPEG")
+        paths.append(p)
+    app = StyleAtlasApp(Atlas(tmp_path, paths, x, x, "sig"), EncodeOptions(device="cpu"), "pca")
+    srv = bind(app, port=0)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        types = []
+        for i in (0, 1):
+            conn = http.client.HTTPConnection("127.0.0.1", srv.server_address[1], timeout=10)
+            conn.request("GET", f"/image/{i}")
+            resp = conn.getresponse()
+            resp.read()
+            types.append(resp.getheader("Content-Type"))
+            conn.close()
+        assert types == ["image/jpeg", "image/webp"]  # octet-stream + nosniff would download
+    finally:
+        srv.shutdown()
+        srv.server_close()

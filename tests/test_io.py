@@ -311,3 +311,12 @@ def test_sixteen_bit_grey_images_are_scaled_not_clipped(tmp_path):
     a, b = np.asarray(load_rgb(wide), dtype=float), np.asarray(load_rgb(narrow), dtype=float)
     assert abs(a.mean() - b.mean()) < 1.0  # was 254.5 against 127 before
     assert softness_of_file(wide) == pytest.approx(softness_of_file(narrow), abs=0.02)
+
+
+def test_jfif_files_are_found_and_served_as_jpeg(tmp_path):
+    from styleatlas.images import IMAGE_TYPES
+
+    Image.new("RGB", (32, 32), (200, 10, 10)).save(tmp_path / "from_x.jfif", format="JPEG")
+    assert [p.name for p in find_images(tmp_path)] == ["from_x.jfif"]
+    assert load_rgb(tmp_path / "from_x.jfif").size == (32, 32)
+    assert IMAGE_TYPES[".jfif"] == "image/jpeg" and IMAGE_TYPES[".webp"] == "image/webp"

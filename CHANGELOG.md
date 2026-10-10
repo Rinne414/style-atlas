@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- `.jfif` files (what Chrome on Windows often saves JPEGs from X/Twitter as) are now found.
+- Fix: in the web app, opening an original WebP image downloaded it instead of showing it
+  (Windows did not know the WebP type, and the server sends nosniff); image types now come from
+  the tool's own table.
 - **Fix: 16-bit grey PNGs.** Pillow clips them when converting to RGB, so such an image was read
   as nearly all white (mean 254 instead of 127), and its style vector, look and softness were
   wrong. They are now scaled to 8 bits first (also 32-bit and float grey images). Vectors cached

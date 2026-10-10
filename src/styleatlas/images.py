@@ -17,7 +17,17 @@ from PIL import Image, ImageOps
 
 from styleatlas.cachedir import cache_dir
 
-IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif", ".avif"}
+IMAGE_TYPES = {  # suffix -> media type; Windows' registry may lack some (.webp)
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".jfif": "image/jpeg",  # what Chrome on Windows often saves JPEGs from X/Twitter as
+    ".webp": "image/webp",
+    ".bmp": "image/bmp",
+    ".gif": "image/gif",
+    ".avif": "image/avif",
+}
+IMAGE_SUFFIXES = set(IMAGE_TYPES)
 SKIP_DIRS = {".styleatlas", ".git", "__pycache__", "style_atlas_out"}
 OUTPUT_SUFFIX = "_style_atlas"  # default result folders (export.output_dir) are never scanned
 
