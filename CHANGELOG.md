@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.29.0 - 2026-10-10
 
 - **One-page style report.** `style-atlas report DIR` writes one HTML file: style consistency,
   the folder's look next to 278 Danbooru artists ("brighter than 89% of artists"), the closest
