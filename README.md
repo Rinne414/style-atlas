@@ -129,7 +129,7 @@ style-atlas taste score "D:\new_batch" --model "D:\lora\artistX_style_atlas\tast
 - 不加時，最接近的圖 89% 是「同角色、別的畫風」。
 - 加了之後，同畫風配對的 AUC 從 0.83 提高到 0.98。
 
-`--ignore-characters` 會先從圖的內容向量自動找出角色（不需要標註），再把每個角色的畫風向量平移到同一個中心。角色越多越有用：16 種配方 × 4 個角色的 Anima 算圖上，以圖找圖找到同配方的比例從 58%（`--neutralize 1`）提高到 70%。舊的 `--neutralize N` 仍可用；查詢圖裡的角色不在資料夾中時，`--neutralize` 比較穩。
+`--ignore-characters` 會先從圖的內容向量自動找出角色（不需要標註），再把每個角色的畫風向量平移到同一個中心。角色越多越有用：16 種配方 × 4 個角色的 Anima 算圖上，以圖找圖找到同配方的比例從 58%（`--neutralize 1`）提高到 70%。舊的 `--neutralize N` 仍可用；查詢圖裡的角色不在資料夾中時，`--neutralize` 比較穩。不確定要不要開時，把圖按畫風（配方）分成子資料夾，執行 `style-atlas bench <資料夾>`，比較輸出裡 `hub`（不修正）、`neutralize-1` 和 `characters` 三組的 `top1`。
 
 這主要改善的是**以圖找圖**。同一個模型、固定角色的算圖，畫風差異通常比門檻還小，用門檻分群（自動、細、中、粗）多半只會得到一群，或按角色分。實測 16 種配方 × 8 張的 Anima 算圖時：
 - 以圖找圖找到同配方的比例是 56%，加 `--neutralize 2` 後是 62%，加 `--ignore-characters` 後是 70%。
@@ -359,6 +359,9 @@ Common options:
   from 0.83 to 0.98 (centring: 0.98 too). It learns no characters, so it is the safer choice when
   queries show characters the folder does not. Do not use it on a mix of different artists,
   where it removes the style difference itself.
+- Not sure whether a correction helps? Sort some images into one sub-folder per style and run
+  `style-atlas bench DIR`: compare `top1` under `hub` (no correction), `neutralize-1` and
+  `characters`.
   - It helps search much more than grouping. AI renders from one model with fixed characters
     differ by less than any threshold cut. On 16 Anima recipes x 8 renders, every cut gave one
     group or a split by character, and search found the same recipe 56% of the time (62% with

@@ -5,6 +5,8 @@ Reports, for raw cosine, hub-corrected and whitened + hub-corrected (what search
   pair_auc   same-label vs different-label pairs separated by similarity (0.5 = chance)
   mixtures   random mixtures of 2, 3 and 5 labels clustered blind; mean adjusted Rand index
              (the LoRA case: split a folder into its styles without knowing how many there are)
+and the hub-corrected retrieval in the opt-in spaces (--neutralize 1, --ignore-characters), so a
+collection can show whether a correction helps it.
 """
 
 from __future__ import annotations
@@ -16,10 +18,11 @@ from sklearn.metrics import adjusted_rand_score, roc_auc_score
 
 from styleatlas.cluster import GRANULARITY, cluster_styles
 from styleatlas.duplicates import BENCH_THRESHOLD, keep_one_per_group, near_duplicate_groups
-from styleatlas.metrics import neighbor_density
+from styleatlas.metrics import CHARACTERS, StyleSpace, neighbor_density
 from styleatlas.whiten import whiten
 
 MIX_SIZES = (2, 3, 5)
+SPACES = ("neutralize-1", CHARACTERS)
 MIN_PER_LABEL = 5
 
 
@@ -84,8 +87,10 @@ def run_bench(
         kept = keep_one_per_group(len(x), groups)
         dropped = len(x) - len(kept)
         x, labels = x[kept], labels[kept]
+        content = None if content is None else content[kept]
     keep = np.isin(labels, [lbl for lbl, c in Counter(labels.tolist()).items() if c >= 2])
     x, labels = x[keep], labels[keep]
+    content = None if content is None else content[keep]
     raw = x @ x.T
     hub = hub_similarity(x)
     report = {
@@ -97,6 +102,13 @@ def run_bench(
     }
     white = hub_similarity(whiten(x))
     report["whitened"] = {**retrieval(white, labels), "pair_auc": pair_auc(white, labels)}
+    for name in SPACES:
+        if name == CHARACTERS and content is None:
+            continue  # characters are found from the content vectors
+        c = x if content is None else content  # the Neutralizer does not read it
+        v = StyleSpace.fit(name, x, c).apply(x, c)
+        sim = hub_similarity(v)
+        report[name] = {**retrieval(sim, labels), "pair_auc": pair_auc(sim, labels)}
     report["mixtures_auto"] = mixtures(x, labels, trials=trials, threshold=None)
     for name, thr in GRANULARITY.items():
         report[f"mixtures_{name}"] = mixtures(x, labels, trials=trials, threshold=thr)

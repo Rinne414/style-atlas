@@ -10,6 +10,8 @@
 - The web app's **Ignore the character axis** switch uses it. The page now posts to `api/space`
   (`{"space": "plain" | "characters" | "neutralize-N"}`) instead of `api/neutralize`, and
   `groups.json` keeps a `space` name; files with the old `neutralize` count still load.
+- `bench` also reports retrieval with `--neutralize 1` and with `--ignore-characters`, so a
+  labelled sample shows whether either correction helps a collection.
 - **`dataset_config.toml`** is written with every kohya export (CLI and web app): a kohya
   sd-scripts dataset config listing each style folder with its repeats, with `keep_tokens = 1`
   when trigger captions are on. Resolution and batch size are starting points.

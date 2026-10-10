@@ -200,3 +200,14 @@ def test_neighbor_density_reuses_only_the_same_arrays():
     other = x.copy()
     other[0] = -other[0]
     assert not np.allclose(neighbor_density(other, other, same_set=True), again)
+
+
+def test_bench_shows_when_a_character_correction_helps():
+    from styleatlas.bench import run_bench
+
+    style, content, style_id, _ = _characters_in_styles()
+    labels = [f"style{s}" for s in style_id]
+    report = run_bench(style, labels, trials=2, content=content, dedupe=None)
+    assert report["hub"]["top1"] < 0.1
+    assert report["characters"]["top1"] > 0.9 and report["neutralize-1"]["top1"] < 0.9
+    assert "characters" not in run_bench(style, labels, trials=2, dedupe=None)  # needs content
