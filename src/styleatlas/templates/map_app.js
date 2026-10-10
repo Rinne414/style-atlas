@@ -157,9 +157,12 @@ async function showCompare(a, b, items, itemsB) {  // picked images in place of 
     const pane = $("pane-selected"); pane.replaceChildren();
     // as the server compares them: side b without the images side a already holds
     const membersOf = (g) => [...PTS.keys()].filter((i) => PTS[i].c === g);
-    const sideA = items || membersOf(a);
-    const inA = new Set(sideA);
-    const sideB = (itemsB || membersOf(b)).filter((i) => !inA.has(i));
+    const sideA0 = items || membersOf(a);
+    const inA = new Set(sideA0);
+    const sideB0 = (itemsB || membersOf(b)).filter((i) => !inA.has(i));
+    // the images that best show the difference first (the server's order), else as they come
+    const sideA = r.order_a && r.order_a.length === sideA0.length ? r.order_a : sideA0;
+    const sideB = r.order_b && r.order_b.length === sideB0.length ? r.order_b : sideB0;
     const nameA = items ? t("marked").replace("{n}", items.length) : clusterName(a);
     const nameB = itemsB ? t("markedA").replace("{n}", sideB.length) : clusterName(b);
     const h = document.createElement("h3");
@@ -177,7 +180,7 @@ async function showCompare(a, b, items, itemsB) {  // picked images in place of 
       const z = LOOKS.map((k) => r.look[k] || 0);
       line(t("cmpLook").replace("{a}", nameA).replace("{b}", nameB), wordsFor(z) || t("cmpLookSame"));
     }
-    const note = document.createElement("div"); note.className = "meta"; note.textContent = t("cmpNote");
+    const note = document.createElement("div"); note.className = "meta"; note.textContent = t("cmpOrder") + " " + t("cmpNote");
     const strips = [sideA, sideB].map((members, side) => {
       const grid = document.createElement("div"); grid.className = "grid";
       members.slice(0, COMPARE_THUMBS).forEach((i) => grid.append(thumb(i)));

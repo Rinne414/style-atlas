@@ -14,7 +14,7 @@ from styleatlas.cluster import outlier_scores
 from styleatlas.images import find_images
 from styleatlas.lang import chinese, columns, pad, tr
 from styleatlas.look import LOOK_NAMES, describe, difference
-from styleatlas.metrics import StyleScale, group_difference
+from styleatlas.metrics import StyleScale, distinctive_order, group_difference
 
 
 def cmd_audit(a: argparse.Namespace) -> int:
@@ -166,7 +166,7 @@ def cmd_compare(a: argparse.Namespace) -> int:
     d = difference(*looks)
     scale = StyleScale(noise_floor=a.noise_floor) if a.noise_floor else StyleScale()
     if not a.json:
-        _print_compare(a, [len(g) for g in groups], dist, p, scale, d, copies, files)
+        _print_compare(a, groups, dist, p, scale, d, copies, files)
         return 0
     print(
         json.dumps(
@@ -196,10 +196,13 @@ VERDICT_ZH = {"same style": "同一畫風", "related": "相關", "clearly differ
 
 
 COPIES_SHOWN = 10  # near-copy pairs listed; --json has them all
+DISTINCTIVE_SHOWN = 3  # images per side that best show the difference
 
 
-def _print_compare(a, sizes, dist, p, scale, look, copies, files) -> None:
-    """`compare` for a reader: the verdict, the look change and any near-copies."""
+def _print_compare(a, groups, dist, p, scale, look, copies, files) -> None:
+    """`compare` for a reader: the verdict, the look change, the images that best show the
+    difference, and any near-copies."""
+    sizes = [len(g) for g in groups]
     na, nb = Path(a.a).name, Path(a.b).name
     z, verdict = scale.z(dist), scale.verdict(dist)
     pv = "< 0.01" if p < 0.01 else f"{p:.2f}"
@@ -222,6 +225,12 @@ def _print_compare(a, sizes, dist, p, scale, look, copies, files) -> None:
             f"外觀：B 比 A {words}" if words else "外觀：沒有明顯差異",
         )
     )
+    for side, name in ((0, "A"), (1, "B")):
+        order = distinctive_order(groups[side], groups[1 - side])[:DISTINCTIVE_SHOWN]
+        shown = ", ".join(files[side][k].name for k in order)
+        print(
+            tr(f"most {name}-like, unlike the other: {shown}", f"最能代表 {name} 的差異：{shown}")
+        )
     print(
         tr(
             f"{len(copies)} images of B nearly repeat an image of A",

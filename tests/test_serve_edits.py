@@ -198,3 +198,11 @@ def test_the_export_preview_writes_nothing_and_matches_the_export(tmp_path):
     done = app.export({"mode": "copy", **body})
     for key in ("small_ids", "training", "triggers", "steps"):
         assert plan[key] == done[key], key
+
+
+def test_a_comparison_lists_each_side_with_the_most_distinctive_first(tmp_path):
+    app, _ = _app(tmp_path)
+    app.regroup({"threshold": 0.5})
+    a, b = app.clustering.clusters[0], app.clustering.clusters[1]
+    r = app.compare({"a": a.id, "b": b.id})
+    assert sorted(r["order_a"]) == sorted(a.members) and sorted(r["order_b"]) == sorted(b.members)

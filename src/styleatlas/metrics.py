@@ -259,6 +259,13 @@ def centroid(x: np.ndarray) -> np.ndarray:
     return unit(np.asarray(x).mean(axis=0))
 
 
+def distinctive_order(own: np.ndarray, other: np.ndarray) -> np.ndarray:
+    """Rows of `own`, the ones that best show how it differs from `other` first: close to own's
+    centre and far from other's (largest margin), so a stray unlike both sides is not picked."""
+    margin = own @ centroid(own) - own @ centroid(other)
+    return np.argsort(-margin, kind="stable")
+
+
 def group_difference(
     a: np.ndarray, b: np.ndarray, rounds: int = 999, seed: int = 0
 ) -> tuple[float, float]:

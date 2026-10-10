@@ -68,6 +68,7 @@ from styleatlas.metrics import (
     PLAIN,
     StyleScale,
     StyleSpace,
+    distinctive_order,
     group_difference,
     space_name,
 )
@@ -595,6 +596,9 @@ class StyleAtlasApp(GroupEdits):
             "verdict": scale.verdict(dist),
             "p": round(p, 4),
             "sizes": [len(ma), len(mb)],
+            # each side's images, the ones that best show the difference first
+            "order_a": [ma[k] for k in distinctive_order(x[ma], x[mb])],
+            "order_b": [mb[k] for k in distinctive_order(x[mb], x[ma])],
         }
         if looks is not None:
             d = difference(looks[ma], looks[mb])

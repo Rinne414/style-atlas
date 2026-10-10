@@ -394,3 +394,17 @@ def test_grouping_by_artist_with_nothing_left_after_min_size():
     x, _ = make_blobs([3, 3])
     result = cluster_by_artist(x, min_size=10)
     assert result.n_clusters == 0 and (result.labels == -1).all()
+
+
+def test_distinctive_order_prefers_typical_images_over_strays():
+    from styleatlas.metrics import distinctive_order
+
+    rng = np.random.default_rng(0)
+    a_centre, b_centre, stray = np.eye(3, 16)
+    a = a_centre + 0.05 * rng.normal(size=(6, 16))
+    a[2] = stray + a_centre * 0.1  # unlike both sides: not what shows A's difference from B
+    a /= np.linalg.norm(a, axis=1, keepdims=True)
+    b = b_centre + 0.05 * rng.normal(size=(5, 16))
+    b /= np.linalg.norm(b, axis=1, keepdims=True)
+    order = distinctive_order(a, b)
+    assert sorted(order.tolist()) == list(range(6)) and order[-1] == 2
