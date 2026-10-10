@@ -12,10 +12,11 @@ from pathlib import Path
 import numpy as np
 
 from styleatlas import __version__
-from styleatlas.atlas import Atlas, EncodeOptions, build_atlas, embed_paths
+from styleatlas.atlas import Atlas, EncodeOptions, build_atlas, embed_paths, measure_looks
 from styleatlas.cluster import GRANULARITY, METHODS, PERIODS, cluster_styles, outlier_scores
 from styleatlas.encoder import CROP_MODES, RESOLUTIONS
 from styleatlas.images import TIME_SOURCES, find_images, labels_from_folders
+from styleatlas.look import LOOK_NAMES, describe, difference, profile
 from styleatlas.metrics import (
     CHARACTERS,
     MAX_NEUTRALIZE,
@@ -155,7 +156,7 @@ def cmd_cluster(a: argparse.Namespace) -> int:
     from styleatlas.report import write_map
 
     out = Path(a.out) if a.out else output_dir(Path(a.folder))
-    atlas = _atlas(a, a.folder, exclude=[out])
+    atlas = _atlas(a, a.folder, exclude=[out]).with_looks(_opts(a), log)
     dups = None
     if a.dedupe:  # cluster only the kept copies, so a stack of duplicates cannot pose as a style
         from styleatlas.cluster import expand_clustering
@@ -262,7 +263,10 @@ def _print_groups(
         cid = int(result.labels[members[0]])
         top = ", ".join(r["tag"] for r in tags.get(cid, [])[:5]) if cid >= 0 else ""
         few = "  (few images)" if n < FEW_FOR_LORA else ""
-        log(f"  {folder:28s} {n:5d}{few}{_when(pos, members)}  {top}")
+        look = ""
+        if atlas.looks is not None:
+            look = f"  [{describe(profile(atlas.looks, members)) or 'average look'}]"
+        log(f"  {folder:28s} {n:5d}{few}{_when(pos, members)}{look}  {top}")
     small = [f for f, n in Counter(folders).items() if not f.startswith("_") and n < FEW_FOR_LORA]
     if small:
         log(
@@ -386,14 +390,16 @@ def cmd_duplicates(a: argparse.Namespace) -> int:
 
 def cmd_compare(a: argparse.Namespace) -> int:
     opts = _opts(a)
-    groups = []
+    groups, looks = [], []
     for folder in (a.a, a.b):
         kept, style, _, _ = embed_paths(find_images(Path(folder)), opts, log)
         if len(kept) < 2:
             log(f"{folder}: need at least 2 readable images, found {len(kept)}")
             return 1
         groups.append(style)
+        looks.append(measure_looks(kept, opts, log))
     dist, p = group_difference(groups[0], groups[1], rounds=a.rounds)
+    d = difference(*looks)
     scale = StyleScale(noise_floor=a.noise_floor) if a.noise_floor else StyleScale()
     print(
         json.dumps(
@@ -403,6 +409,10 @@ def cmd_compare(a: argparse.Namespace) -> int:
                 "z": round(scale.z(dist), 2),
                 "verdict": scale.verdict(dist),
                 "permutation_p": round(p, 4),
+                "look_b_minus_a": dict(
+                    zip(LOOK_NAMES, (round(float(v), 2) for v in d), strict=True)
+                ),
+                "look_words": f"B is {describe(d)}" if describe(d) else "no clear difference",
             },
             indent=1,
         )

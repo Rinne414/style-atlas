@@ -12,6 +12,7 @@ from PIL import Image, ImageDraw
 
 from styleatlas.cli import main
 from styleatlas.encoder import Embeddings, encoder_signature
+from styleatlas.look import LOOK_NAMES
 
 COLOURS = {"red": (220, 40, 40), "green": (40, 200, 60), "blue": (40, 60, 220)}
 
@@ -62,6 +63,9 @@ def test_cluster_exports_kohya_folders_with_triggers(lib, tmp_path, capsys):
     caption = next((out / "folders" / folders[0]).glob("*.txt")).read_text(encoding="utf-8")
     assert caption.startswith(folders[0].split("_", 1)[1] + ", 1girl")
     assert (out / "clusters.csv").exists()
+    groups = json.loads((out / "clusters.json").read_text(encoding="utf-8"))["clusters"]
+    assert all(set(g["look"]) == set(LOOK_NAMES) and g["look_words"] for g in groups)
+    assert "warmth" in (out / "clusters.csv").read_text(encoding="utf-8-sig").splitlines()[0]
     tomllib = pytest.importorskip("tomllib")  # Python 3.11+
     config = tomllib.loads((out / "folders" / "dataset_config.toml").read_text(encoding="utf-8"))
     subsets = config["datasets"][0]["subsets"]
@@ -109,6 +113,7 @@ def test_audit_duplicates_outliers_and_compare(lib, capsys):
     assert main(["compare", str(lib / "red"), str(lib / "blue"), "--device", "cpu"]) == 0
     verdict = json.loads(capsys.readouterr().out)
     assert verdict["images"] == [7, 6] and verdict["centroid_distance"] > 0.5
+    assert verdict["look_b_minus_a"]["warmth"] < 0 and "cooler" in verdict["look_words"]
 
 
 def test_map_and_bench(lib, tmp_path, capsys):

@@ -22,6 +22,7 @@ from pathlib import Path
 from styleatlas.atlas import Atlas
 from styleatlas.cluster import Clustering
 from styleatlas.dataset import plan_folders
+from styleatlas.look import LOOK_NAMES, describe, profile
 from styleatlas.report import cluster_table
 
 SIDECARS = (".txt", ".caption", ".json")
@@ -92,6 +93,7 @@ def write_table(
                 "cohesion": round(c.cohesion, 4),
                 "representative": atlas.rel(c.medoid),
                 "top_tags": (tags or {}).get(c.id, []),
+                **_look_summary(atlas, c.members),
             }
             for c in clustering.clusters
         ],
@@ -99,6 +101,17 @@ def write_table(
     json_path = out_dir / "clusters.json"
     _write_atomic(json_path, json.dumps(summary, ensure_ascii=False, indent=1))
     return csv_path, json_path
+
+
+def _look_summary(atlas: Atlas, members: list[int]) -> dict:
+    """The group's look against the whole folder (look.py), when it was measured."""
+    if atlas.looks is None:
+        return {}
+    z = profile(atlas.looks, members)
+    return {
+        "look": dict(zip(LOOK_NAMES, (round(float(v), 2) for v in z), strict=True)),
+        "look_words": describe(z) or "average",
+    }
 
 
 def fresh_dir(base: Path) -> Path:

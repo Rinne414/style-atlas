@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import os
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
@@ -11,6 +13,7 @@ from PIL import Image
 
 from styleatlas.encoder import CSDEncoder, cache_dir, encoder_signature
 from styleatlas.images import find_images, load_rgb
+from styleatlas.look import LOOK_NAMES, LOOK_VERSION, measure
 from styleatlas.metrics import StyleSpace
 from styleatlas.store import VectorStore
 
@@ -36,6 +39,7 @@ class Atlas:
     content: np.ndarray
     signature: str
     failed: list[tuple[Path, str]] = field(default_factory=list)
+    looks: np.ndarray | None = field(default=None, repr=False, compare=False)  # see look.py
     _rels: list[str] | None = field(default=None, init=False, repr=False, compare=False)
 
     def __len__(self) -> int:
@@ -61,7 +65,14 @@ class Atlas:
             self.style[idx],
             self.content[idx],
             self.signature,
+            looks=None if self.looks is None else self.looks[idx],
         )
+
+    def with_looks(self, opts: EncodeOptions, progress: Progress = lambda _: None) -> Atlas:
+        """This atlas with its look measures (cached ones reused, the rest measured once)."""
+        if self.looks is not None:
+            return self
+        return replace(self, looks=measure_looks(self.paths, opts, progress))
 
 
 def _relative(path: Path, root: Path) -> str:
@@ -127,6 +138,7 @@ def _embed_missing(
     progress(f"model ready on {encoder.device}")
     failed: list[tuple[Path, str]] = []
     pending: dict[str, tuple[np.ndarray, np.ndarray]] = {}
+    looks: dict[str, np.ndarray] = {}  # measured while each image is open anyway
     done = 0
     for start in range(0, len(todo), opts.batch_size):
         ims, owners = [], []
@@ -140,13 +152,52 @@ def _embed_missing(
             emb = encoder.encode(ims)
             for i, p in enumerate(owners):
                 pending[keys[p]] = (emb.style[i], emb.content[i])
+                looks[keys[p]] = measure(ims[i])
         done += len(ims)
         if len(pending) >= opts.save_every or start + opts.batch_size >= len(todo):
             store.put(pending, encoder.signature)
+            store.put_looks(looks, LOOK_VERSION)
+            looks = {}
             have.update(pending)
             pending = {}
             progress(f"embedded {done}/{len(todo)}")
     return failed
+
+
+def _measure_file(path: Path) -> np.ndarray:
+    try:
+        return measure(load_rgb(path))
+    except LOAD_ERRORS:
+        return np.full(len(LOOK_NAMES), np.nan, np.float32)
+
+
+def measure_looks(
+    paths: list[Path], opts: EncodeOptions, progress: Progress = _silent
+) -> np.ndarray:
+    """(n, 6) look measures for `paths`, in LOOK_NAMES order. Images embedded by this version
+    were measured then; older ones are opened once more here, in parallel, and cached. An image
+    that cannot be opened gets NaN."""
+    db = opts.db_path or cache_dir() / "vectors.sqlite"
+    with VectorStore(db) as store:
+        keys = {p: store.key(p) for p in paths}
+        store.commit()
+        have = store.get_looks(keys.values(), LOOK_VERSION)
+        todo = list({k: p for p, k in keys.items() if k not in have}.items())
+        if todo:
+            progress(f"measuring the look of {len(todo)} images (once)")
+            workers = max(1, min(8, os.cpu_count() or 1))
+            with ThreadPoolExecutor(workers) as pool:
+                measured = list(pool.map(_measure_file, [p for _, p in todo]))
+            found = {k: v for (k, _), v in zip(todo, measured, strict=True)}
+            store.put_looks({k: v for k, v in found.items() if not np.isnan(v).any()}, LOOK_VERSION)
+            have.update(found)
+    if not paths:
+        return np.zeros((0, len(LOOK_NAMES)), np.float32)
+    x = np.stack([have[keys[p]] for p in paths]).astype(np.float32)
+    bad = np.isnan(x).any(axis=1)
+    if bad.any():  # opened for embedding, gone since: show it as an average image
+        x[bad] = x[~bad].mean(axis=0) if (~bad).any() else 0.0
+    return x
 
 
 def build_atlas(

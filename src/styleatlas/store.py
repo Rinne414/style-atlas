@@ -20,6 +20,8 @@ CREATE TABLE IF NOT EXISTS vectors (
   PRIMARY KEY (hash, signature));
 CREATE TABLE IF NOT EXISTS files (
   path TEXT PRIMARY KEY, size INTEGER NOT NULL, mtime_ns INTEGER NOT NULL, hash TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS looks (
+  hash TEXT NOT NULL, version INTEGER NOT NULL, look BLOB NOT NULL, PRIMARY KEY (hash, version));
 """
 HASH_CHUNK = 1 << 20
 
@@ -92,6 +94,28 @@ class VectorStore:
                 )
                 for h, (s, c) in items.items()
             ],
+        )
+        self.conn.commit()
+
+    def get_looks(self, keys: Iterable[str], version: int) -> dict[str, np.ndarray]:
+        """Cached look measures (see look.py) of the given file hashes."""
+        out: dict[str, np.ndarray] = {}
+        keys = list(dict.fromkeys(keys))
+        for i in range(0, len(keys), 500):
+            chunk = keys[i : i + 500]
+            marks = ",".join("?" * len(chunk))
+            rows = self.conn.execute(
+                f"SELECT hash, look FROM looks WHERE version = ? AND hash IN ({marks})",
+                (version, *chunk),
+            )
+            for h, v in rows:
+                out[h] = np.frombuffer(v, np.float32)
+        return out
+
+    def put_looks(self, items: dict[str, np.ndarray], version: int) -> None:
+        self.conn.executemany(
+            "INSERT OR REPLACE INTO looks VALUES (?, ?, ?)",
+            [(h, version, np.asarray(v, np.float32).tobytes()) for h, v in items.items()],
         )
         self.conn.commit()
 

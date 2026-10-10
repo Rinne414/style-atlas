@@ -17,6 +17,7 @@ from styleatlas.cluster import Clustering, outlier_scores
 from styleatlas.dataset import distinctive_tags, tag_summary
 from styleatlas.duplicates import near_duplicate_groups
 from styleatlas.images import file_time, thumbnail_data_url
+from styleatlas.look import LOOK_NAMES
 from styleatlas.metrics import centroid
 from styleatlas.project import project_3d
 from styleatlas.search import knn, nearest_reference
@@ -218,4 +219,8 @@ def cluster_table(atlas: Atlas, clustering: Clustering) -> list[dict]:
                 "outlier": round(float(outliers[i]), 4),
             }
         )
+        if atlas.looks is not None:
+            rows[-1].update(
+                zip(LOOK_NAMES, (round(float(v), 4) for v in atlas.looks[i]), strict=True)
+            )
     return rows
