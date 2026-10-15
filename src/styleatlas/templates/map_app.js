@@ -404,15 +404,21 @@ async function rateNext() {
   try {
     const r = await post("api/next", "{}", "application/json");
     if (r.i === null) { RATING = false; setStatus(t("allRated")); return; }
-    RATING = true; setStatus(t("ratingHint"));
+    RATING = true;
+    const counts = TASTE ? " · " + t("tasteCount").replace("{a}", TASTE.likes).replace("{b}", TASTE.dislikes) : "";
+    setStatus(t("ratingHint") + counts);
     select(r.i);
+    rateReadyAt = performance.now() + SEE_FIRST_MS;
   } catch (e) { setStatus(String(e.message || e)); }
 }
 
 let VOTING = false;  // one vote (and, when rating, the step to the next image) at a time
+const SEE_FIRST_MS = 350;  // rating mode: a press this soon after the next image came is ignored
+let rateReadyAt = 0;
 
 async function castVote(i, like) {
   if (VOTING) return;  // a fast second L/D press would rate the same image again
+  if (RATING && like !== null && performance.now() < rateReadyAt) return;  // not seen yet
   VOTING = true;
   try {
     TASTE = await post("api/taste", JSON.stringify({ i, like }), "application/json");
@@ -452,13 +458,14 @@ function buildTaste() {
   go.addEventListener("click", rateNext);
   pane.append(go);
   if (!TASTE.scores) return;
-  add("kv", t("tasteAuc").replace("{x}", TASTE.auc.toFixed(2)));
+  add("kv", t("tasteAuc").replace("{x}", TASTE.auc.toFixed(2)).replace("{n}", TASTE.likes + TASTE.dislikes));
   const unrated = [...PTS.keys()].filter((i) => voteOf(i) === undefined)
     .sort((a, b) => TASTE.scores[b] - TASTE.scores[a]);
   const h1 = document.createElement("h3"); h1.textContent = t("tasteTop");
   const h2 = document.createElement("h3"); h2.textContent = t("tasteBottom");
   const nTop = Math.min(40, Math.ceil(unrated.length / 2));
   const nBottom = Math.min(20, unrated.length - nTop);  // the two lists never overlap
+  add("kv", t("tasteLists").replace("{k}", nTop).replace("{m}", nBottom));
   pane.append(h1, tasteGrid(unrated.slice(0, nTop)));
   if (nBottom > 0) pane.append(h2, tasteGrid(unrated.slice(unrated.length - nBottom).reverse()));
 }

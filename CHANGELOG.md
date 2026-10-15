@@ -31,6 +31,12 @@ New:
   for one query image, 「只看很像的」 shows only those (and copies only those to a folder).
 - **「存圖」/Save PNG in the top toolbar** of every map, shared HTML maps included (it was under
   More… or the P key).
+- **The taste tab explains itself** (from a Sonnet first-time-user test of the taste features, which
+  learned its acted-out taste at AUC 0.98 from 27 ratings): rating mode shows the like/dislike
+  counts, the AUC says how many ratings it rests on and that few or very different ones read high,
+  the two lists say what p(like) is and what they are for, and a press right after the next image
+  appears is ignored (it rated an image not yet seen). WEB_GUIDE now covers the taste tab and the
+  Duplicates tab, and says why the report (278 artists) and the consistency check (114) differ.
 - **Which artist, and how sure?** `search --by-folder` and the web app's closest sub-folders say how far
   to trust the first folder from its lead over the second, with the rate measured on 137 artists the
   whitening never saw (one image: 95% / 60% / 35% right for leads of 0.08+ / 0.05-0.08 / less;

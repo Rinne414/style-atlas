@@ -171,7 +171,8 @@ const T = {
     allRated: "Every image is rated.",
     taste: "Taste", like: "Like (L)", dislike: "Dislike (D)", clearVote: "Clear",
     tasteHelp: "Rate images with Like / Dislike (select one on the map, then press L or D). After {n} of each, a model learns your taste from the style vectors and ranks the unrated images.",
-    tasteCount: "liked {a} · disliked {b}", tasteAuc: "cross-validated AUC {x} (0.5 = guessing). Treat it as a rough filter: it separates liked from disliked, not good from better.",
+    tasteLists: "Below are images you have not rated yet: first the {k} the model thinks you would most like (highest p(like), its estimated chance that you like an image), then the {m} you would least like. Use them to pick images, or to check what the model learned.",
+    tasteCount: "liked {a} · disliked {b}", tasteAuc: "cross-validated AUC {x} from {n} ratings (0.5 = guessing; with few ratings, or likes and dislikes that differ a lot, it reads high). Treat it as a rough filter: it separates liked from disliked, not good from better.",
     tasteTop: "Most likely to like (unrated)", tasteBottom: "Least likely (unrated)", fine: "fine", medium: "medium", coarse: "coarse", auto: "auto (picked from the images)", foot: "Style vectors: CSD ViT-L (Somepalli et al. 2024, CC-BY-4.0). Map layout is for viewing only; groups are computed in the full space." },
   zh: { images: "張圖", clusters: "畫風群", selected: "詳情", outliers: "離群", checkTab: "檢查",
     find: "以檔名篩選", thumbs: "縮圖", dots: "圓點", spin: "旋轉", home: "重置", names: "群名", rec: "錄一圈", recording: "錄影中 {s} 秒",
@@ -342,6 +343,7 @@ const T = {
     allRated: "全部都評過了。",
     taste: "口味", like: "喜歡 (L)", dislike: "不喜歡 (D)", clearVote: "清除",
     tasteHelp: "在地圖上選一張圖，按喜歡或不喜歡（鍵盤 L / D）。兩種各滿 {n} 張後，模型會用畫風向量學你的口味，替還沒評的圖排序。",
-    tasteCount: "喜歡 {a} · 不喜歡 {b}", tasteAuc: "交叉驗證 AUC {x}（0.5 = 亂猜）。只適合粗篩：分得出喜歡和不喜歡，分不出好和更好。",
+    tasteLists: "下面是你還沒評過的圖：先列模型認為你最可能喜歡的 {k} 張（p(like) 最高；p(like) 是模型估計你會喜歡的機率），再列最不可能喜歡的 {m} 張。可以拿來挑圖，或檢查模型學到了什麼。",
+    tasteCount: "喜歡 {a} · 不喜歡 {b}", tasteAuc: "交叉驗證 AUC {x}，根據 {n} 次評分（0.5 = 亂猜；評分少、或喜歡和不喜歡的圖差很多時，數字會偏高）。只適合粗篩：分得出喜歡和不喜歡，分不出好和更好。",
     tasteTop: "最可能喜歡（未評分）", tasteBottom: "最不可能喜歡（未評分）", fine: "細", medium: "中", coarse: "粗", auto: "自動（依圖片決定）", foot: "風格向量：CSD ViT-L（Somepalli 等，2024，CC-BY-4.0）。地圖排版只供瀏覽，分群是在完整向量空間計算。" },
 };
