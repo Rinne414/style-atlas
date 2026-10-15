@@ -180,7 +180,7 @@ def cmd_search(a: argparse.Namespace) -> int:
 
 
 def _search_folders(a: argparse.Namespace, atlas, qstyle, names: list[str], same: set) -> int:
-    from styleatlas.search import rank_folders
+    from styleatlas.search import folder_verdict, rank_folders
 
     if a.copy_to:
         log(
@@ -226,14 +226,59 @@ def _search_folders(a: argparse.Namespace, atlas, qstyle, names: list[str], same
     )
     log(
         tr(
-            "score: cosine between the query and each folder's mean style, in the search space "
-            "(1 = same direction, 0 or below = no closer than an average folder; it reads lower "
-            "than the image search's numbers, so compare the ranks)",
-            "分數：查詢圖和每個資料夾平均畫風的相似度（在搜尋空間裡；1 表示完全同方向，"
-            "0 或負數表示不比一般的資料夾像；數值會比單張搜尋的低，看排名就好）",
+            "score: similarity between the query and each folder's average style, in the search "
+            "space, where numbers run small (0 or below: no closer than an average folder); what "
+            "tells is how far the first folder leads the second:",
+            "分數：查詢圖和每個資料夾平均畫風的相似度（在搜尋空間裡算，數值偏小是正常的；"
+            "0 或以下表示不比一般的資料夾像）。要看的是第一名領先第二名多少：",
+        )
+    )
+    for qi, hits in enumerate(results):
+        verdict = folder_verdict(hits, several=bool(a.combine) and len(qstyle) > 1)
+        if verdict:
+            prefix = "" if a.combine or len(results) == 1 else f"{names[qi]}: "
+            log(prefix + _folder_verdict_text(hits[0].folder, *verdict))
+    log(
+        tr(
+            "the ranking compares with the works now in each folder: an artist's much earlier or "
+            "later works can look more like someone else's"
+            + (
+                ""
+                if a.combine
+                else "; several works of one artist together (--combine) are "
+                "surer (92% against 69% right first in the measurement)"
+            ),
+            "排名比的是各資料夾裡現有作品的畫風：同一位畫師很早期或很後期的作品，可能反而比較像別人"
+            + (
+                ""
+                if a.combine
+                else "；同一位畫師的幾張一起查（--combine）會準很多"
+                "（實測第一名對了 92%，一張只有 69%）"
+            ),
         )
     )
     return 0
+
+
+def _folder_verdict_text(folder: str, band: str, right: int, lead: float) -> str:
+    if band == "sure":
+        return tr(
+            f"the first leads by {lead:.2f}: very likely {folder} (with a lead this large the "
+            f"first was right {right}% of the time)",
+            f"第一名領先 {lead:.2f}：很可能就是 {folder}（實測領先這麼多時，第一名對了 {right}%）",
+        )
+    if band == "likely":
+        return tr(
+            f"the first leads by only {lead:.2f}: perhaps {folder}, not sure (right {right}% of "
+            "the time at such a lead)",
+            f"第一名只領先 {lead:.2f}：可能是 {folder}，但不確定（實測這種差距下對了 {right}%）",
+        )
+    return tr(
+        f"the first two are only {lead:.2f} apart: no clear answer (the first was right {right}% "
+        "of the time at such a small lead); look at the top few folders' closest images",
+        f"前兩名只差 {lead:.2f}：分不太出來（實測差距這麼小時，第一名只對了 {right}%）；"
+        "請看前幾名最像的圖自己判斷",
+    )
 
 
 SEARCH_ORDER_EN = (
@@ -289,14 +334,15 @@ def _search_folded(a: argparse.Namespace, atlas, qstyle, plain: np.ndarray, same
 
 
 def _copy_matches(atlas, indices: list[int], dest: Path) -> None:
-    from styleatlas.export import export_folders
+    from styleatlas.export import copy_ranked
 
     unique = list(dict.fromkeys(indices))  # several queries may find the same image
-    done = export_folders(atlas.subset(unique), ["matches"] * len(unique), dest)
+    done = copy_ranked(atlas.subset(unique), dest)
     log(
         tr(
-            f"copied {done.placed} matches to {done.folder / 'matches'}",
-            f"已複製 {done.placed} 張結果到 {done.folder / 'matches'}",
+            f"copied {done.placed} matches to {done.folder} (file names start with the rank: "
+            "01_ is the closest)",
+            f"已複製 {done.placed} 張結果到 {done.folder}（檔名開頭是名次：01_ 最像）",
         )
     )
     for p, why in done.failed:
@@ -769,8 +815,8 @@ def _add_inspect_commands(add: Adder) -> None:
         "--copy-to",
         metavar="DIR",
         help=tr(
-            "copy the matches (with captions) into a new folder here",
-            "把找到的圖（連同標註檔）複製到這裡的新資料夾",
+            "copy the matches (with captions) into this new folder, named by rank (01_ first)",
+            "把找到的圖（連同標註檔）複製到這個新資料夾，檔名開頭是名次（01_ 最像）",
         ),
     )
     p.add_argument(

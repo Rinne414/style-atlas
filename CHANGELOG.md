@@ -31,6 +31,13 @@ New:
   for one query image, 「只看很像的」 shows only those (and copies only those to a folder).
 - **「存圖」/Save PNG in the top toolbar** of every map, shared HTML maps included (it was under
   More… or the P key).
+- **Which artist, and how sure?** `search --by-folder` and the web app's closest sub-folders say how far
+  to trust the first folder from its lead over the second, with the rate measured on 137 artists the
+  whitening never saw (one image: 95% / 60% / 35% right for leads of 0.08+ / 0.05-0.08 / less;
+  three combined: 99% / 87% / 51%), and that an artist's much earlier or later works can look like
+  someone else's (a first-time-user test hit exactly that). `search --copy-to` and the web app's
+  copy put the results straight into the new folder, led by their rank (01_ first; it was
+  `matches\matches`).
 - **「畫師地圖」/Artist map in the web app**: with three or more sub-folders (e.g. one per artist), one
   click writes and opens the map `map --by-folder` makes (one point per sub-folder at its average
   style, grouped into families), saved as `artist_map.html` next to the exports.

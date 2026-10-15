@@ -103,8 +103,9 @@ def test_search_combines_examples_and_copies_the_matches(lib, tmp_path, capsys):
          "--copy-to", str(out), "--keep-duplicates"]
     )  # fmt: skip
     assert code == 0
-    copied = sorted(p.name for p in (out / "matches").glob("*.png"))
-    assert len(copied) == 3 and all(name.startswith("red__") for name in copied)
+    copied = sorted(p.name for p in out.glob("*.png"))  # straight into --copy-to, by rank
+    assert [name[:3] for name in copied] == ["01_", "02_", "03_"]
+    assert all(name[3:].startswith("red__") for name in copied)
     capsys.readouterr()
     # the stand-in encoder gives some of one colour's pictures the same vector: they fold
     assert main(["search", *examples, "--in", str(lib), "--combine", "--top", "3", "--json",

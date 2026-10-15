@@ -369,10 +369,12 @@ def test_search_results_can_be_copied_to_a_new_folder(tmp_path):
     first = app.copy_hits({"items": [3, 5, 3]})
     folder = Path(first["folder"])
     assert first["placed"] == 2 and sorted(p.name for p in folder.iterdir()) == [
-        "img3.png", "img3.txt", "img5.png"
-    ]  # fmt: skip
+        "01_img3.png",
+        "01_img3.txt",
+        "02_img5.png",
+    ]  # fmt: skip  (straight into the folder, led by the rank)
     again = Path(app.copy_hits({"items": [1]})["folder"])
-    assert again.parent != folder.parent  # every copy goes to a fresh folder
+    assert again != folder  # every copy goes to a fresh folder
     app.exclude({"i": 1})
     with pytest.raises(ValueError):  # only excluded images: nothing to copy
         app.copy_hits({"items": [1]})

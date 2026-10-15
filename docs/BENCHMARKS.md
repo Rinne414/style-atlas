@@ -899,6 +899,30 @@ works whose own artist came first or in the top 5, by the ranking method:
 - The 19,554-image Danbooru set is six copies of the 300-artist set (it was built to time large
   maps), so it cannot be used here: every work has an exact twin.
 
+### How sure is the first folder? (2026-10-16)
+
+A first-time-user test asked "which artist, and how sure?" and got only a score. On the 137
+artists of unseen_corpus (never seen by the search whitening; works left out of their own folder,
+ranked exactly as `rank_folders` does), the first folder's lead over the second says most:
+
+| Lead of the first over the second | One query image: first right | Three combined: first right |
+|---|---|---|
+| 0.08 or more | 95% (52% of queries) | 99%+ (78%) |
+| 0.05 to 0.08 | 60% (12%) | 87% (8%) |
+| under 0.05 | 35% (36%) | 51% (15%) |
+| all | 69.2% (1,442 queries) | 91.5% (600 queries) |
+
+`search --by-folder` and the web app's closest sub-folders now print the band and its measured
+rate ("very likely X: right 95% of the time at such a lead"), and that several works of one
+artist together are far surer than one.
+
+The limit, seen in the same test: three of hammer_(sunset_beach)'s works from about 2012 were
+ranked against folders whose works date from about 2021-2024. kz_oji led by 0.081 ("very
+likely"), and hammer came 13th: in plain CSD the early works sit nearer kz_oji's average (0.841)
+than hammer's own later average (0.775). The measurement draws queries from the same years as
+the folders, so it cannot vouch for works from another period of an artist; the output says that
+an artist's much earlier or later works can look more like someone else's.
+
 ## Style consistency: one artist or a mix? (2026-10-10)
 
 The Check tab and `cluster` report how spread a folder's style is, next to single artists.

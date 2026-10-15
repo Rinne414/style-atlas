@@ -78,7 +78,12 @@ function folderList(folders) {  // which sub-folder (an artist, a style) the que
     box.append(...(k ? [" · "] : []), a);
   });
   const legend = document.createElement("div"); legend.className = "kv"; legend.textContent = t("folderLegend");
-  return [h, box, legend];
+  const first = folders[0];
+  if (!first || !first.verdict) return [h, box, legend];
+  const sure = document.createElement("div"); sure.className = "kv";  // how far to trust the first (measured)
+  sure.textContent = t("folderVerdict_" + first.verdict).replace("{f}", first.folder)
+    .replace("{m}", first.lead.toFixed(2)).replace("{r}", first.right) + " " + t("folderDrift");
+  return [h, box, sure, legend];
 }
 
 function copyList(files, copies) {  // dropped images that the folder already holds (or a LoRA repeated)

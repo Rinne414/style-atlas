@@ -167,6 +167,32 @@ class FolderHit:
     best: int  # index of the folder's image closest to the query
 
 
+FOLDER_SURE = 0.08  # lead of the first folder over the second from which it was nearly always right
+FOLDER_LIKELY = 0.05
+# share of held-out queries whose first folder was right, by band and by one query image (False)
+# or several combined (True; measured with 3): 137 artists the search whitening never saw,
+# 1,442 single works and 600 sets of 3 (docs/BENCHMARKS.md, "How sure is the first folder?")
+FOLDER_RIGHT = {
+    (False, "sure"): 95,
+    (False, "likely"): 60,
+    (False, "unsure"): 35,
+    (True, "sure"): 99,
+    (True, "likely"): 87,
+    (True, "unsure"): 51,
+}
+
+
+def folder_verdict(hits: list, several: bool) -> tuple[str, int, float] | None:
+    """How far to trust the first of ranked folders: ("sure" | "likely" | "unsure", the share
+    of such cases that were right in the measurement, the lead over the second); None with fewer
+    than two folders."""
+    if len(hits) < 2:
+        return None
+    lead = hits[0].score - hits[1].score
+    band = "sure" if lead >= FOLDER_SURE else "likely" if lead >= FOLDER_LIKELY else "unsure"
+    return band, FOLDER_RIGHT[(several, band)], lead
+
+
 def rank_folders(
     queries: np.ndarray,
     base: np.ndarray,

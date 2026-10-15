@@ -60,6 +60,7 @@ from styleatlas.dataset import (
 from styleatlas.duplicates import copies_of
 from styleatlas.export import (
     KOHYA_CONFIG,
+    copy_ranked,
     export_folders,
     output_dir,
     parse_tags,
@@ -93,7 +94,7 @@ from styleatlas.report import (
     write_map,
     write_payload,
 )
-from styleatlas.search import fold_hits, rank_folders, search, style_path, warm
+from styleatlas.search import fold_hits, folder_verdict, rank_folders, search, style_path, warm
 from styleatlas.serve_edits import GroupEdits
 from styleatlas.taste_session import TasteSession
 from styleatlas.timeline import TIMELINE, cluster_timeline, on_edge, verdict
@@ -445,11 +446,11 @@ class StyleAtlasApp(GroupEdits):
             subset = self.raw.subset(items)
         if not items:
             raise ValueError(tr("all of these images are excluded", "這些圖都已經排除了"))
-        result = export_folders(subset, ["matches"] * len(items), self.out_dir / "search_matches")
+        result = copy_ranked(subset, self.out_dir / "search_matches")
         return {
             "placed": result.placed,
             "failed": len(result.failed),
-            "folder": str(result.folder / "matches"),
+            "folder": str(result.folder),
         }
 
     def open_output(self, body: dict) -> dict:
@@ -543,9 +544,15 @@ class StyleAtlasApp(GroupEdits):
         with self._lock:
             skip = set(self.excluded)  # a stray the user excluded must not pull its folder's mean
         hits = rank_folders(query, self.atlas.style, self.folders, FOLDER_TOP, combine, skip)[0]
+        verdict = folder_verdict(hits, several=combine and len(query) > 1)
         return [
             {"folder": h.folder, "score": round(h.score, 3), "size": h.size, "best": h.best}
-            for h in hits
+            | (
+                {"verdict": verdict[0], "right": verdict[1], "lead": round(verdict[2], 3)}
+                if k == 0 and verdict
+                else {}
+            )
+            for k, h in enumerate(hits)
         ]
 
     def fit(self, style: np.ndarray) -> list[dict]:

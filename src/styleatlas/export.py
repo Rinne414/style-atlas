@@ -294,6 +294,25 @@ def _place_sidecars(
     return written
 
 
+def copy_ranked(atlas: Atlas, out_dir: Path, mode: str = "copy") -> ExportResult:
+    """Copy search results (in rank order, with their captions) straight into a fresh folder,
+    their names led by the rank (01_ is the closest), so the folder sorts as the ranking does."""
+    if mode not in EXPORT_MODES:
+        raise ValueError(f"mode must be one of {EXPORT_MODES}")
+    result = ExportResult(fresh_dir(Path(out_dir)))
+    result.folder.mkdir(parents=True, exist_ok=True)
+    width = max(2, len(str(len(atlas))))
+    for rank, src in enumerate(atlas.paths, 1):
+        stem = f"{rank:0{width}d}_{src.stem}"
+        try:
+            _place_sidecars(src, result.folder, stem, mode, None)
+            result.upright += _place(src, result.folder / f"{stem}{src.suffix}", mode)
+            result.placed += 1
+        except (OSError, ValueError) as e:
+            result.failed.append((src, str(e)))
+    return result
+
+
 def export_folders(
     atlas: Atlas,
     folders: list[str],

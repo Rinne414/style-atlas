@@ -199,8 +199,8 @@ def test_matches_are_copied_with_captions_once(tmp_path):
         p.with_suffix(".txt").write_text(f"tag{i}", encoding="utf-8")
         paths.append(p)
     _copy_matches(Atlas(tmp_path / "lib", paths, x, x, "sig"), [2, 0, 2], tmp_path / "out")
-    got = sorted(f.name for f in (tmp_path / "out" / "matches").iterdir())
-    assert got == ["m0.png", "m0.txt", "m2.png", "m2.txt"]
+    got = sorted(f.name for f in (tmp_path / "out").iterdir())  # rank order: m2 first, then m0
+    assert got == ["01_m2.png", "01_m2.txt", "02_m0.png", "02_m0.txt"]
 
 
 def test_without_a_threshold_the_cut_is_chosen_from_the_data():
@@ -408,3 +408,17 @@ def test_distinctive_order_prefers_typical_images_over_strays():
     b /= np.linalg.norm(b, axis=1, keepdims=True)
     order = distinctive_order(a, b)
     assert sorted(order.tolist()) == list(range(6)) and order[-1] == 2
+
+
+def test_the_first_folder_comes_with_how_far_to_trust_it():
+    from types import SimpleNamespace
+
+    from styleatlas.search import folder_verdict
+
+    def hits(*scores):
+        return [SimpleNamespace(score=s) for s in scores]
+
+    assert folder_verdict(hits(0.36, 0.27), several=True)[:2] == ("sure", 99)  # leads by 0.09
+    assert folder_verdict(hits(0.30, 0.24), several=False)[:2] == ("likely", 60)
+    assert folder_verdict(hits(0.30, 0.29), several=False)[:2] == ("unsure", 35)
+    assert folder_verdict(hits(0.30), several=False) is None  # one folder: nothing to compare
