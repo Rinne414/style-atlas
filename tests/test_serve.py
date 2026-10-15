@@ -871,3 +871,26 @@ def test_the_artist_map_needs_sub_folders(tmp_path):
     app, _ = _app(tmp_path)
     with pytest.raises(ValueError, match="sub-folders"):
         app.artist_map({})
+
+
+def test_ctrl_c_while_preparing_ends_the_process(monkeypatch):
+    import styleatlas.webserver as ws
+
+    hold = threading.Event()
+
+    def build(progress):  # still embedding when Ctrl+C comes
+        hold.wait(5)
+        raise RuntimeError("never ready")
+
+    class Exited(Exception):
+        pass
+
+    def fake_exit(code):
+        raise Exited(code)
+
+    monkeypatch.setattr(ws, "_run", lambda server, open_browser: server.server_close() or True)
+    monkeypatch.setattr(ws.os, "_exit", fake_exit)
+    with pytest.raises(Exited) as e:
+        ws.serve_when_ready(build, "t", port=0, open_browser=False)
+    hold.set()
+    assert e.value.args == (1,)

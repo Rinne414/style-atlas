@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import html
 import json
+import os
 import re
 import sys
 import threading
@@ -312,12 +313,24 @@ def serve_when_ready(
         handler.app = app
         print(tr("ready", "準備好了"), flush=True)
 
-    threading.Thread(target=work, name="style-atlas-build", daemon=True).start()
-    _run(server, open_browser)
+    builder = threading.Thread(target=work, name="style-atlas-build", daemon=True)
+    builder.start()
+    interrupted = _run(server, open_browser)
+    if interrupted and builder.is_alive():  # Ctrl+C while still preparing: torch may be mid-batch
+        print(
+            tr(
+                "stopped while preparing; the images computed so far are kept for next time",
+                "準備到一半就停止了；已經算好的圖會保留，下次會接著算",
+            ),
+            flush=True,
+        )
+        sys.stderr.flush()
+        os._exit(1)  # a daemon thread inside torch can hang the normal interpreter exit
     return preparing.error is None
 
 
-def _run(server: ThreadingHTTPServer, open_browser: bool) -> None:
+def _run(server: ThreadingHTTPServer, open_browser: bool) -> bool:
+    """Serve until stopped; True when stopped by Ctrl+C."""
     url = f"http://127.0.0.1:{server.server_address[1]}/"
     print(
         tr(
@@ -331,6 +344,7 @@ def _run(server: ThreadingHTTPServer, open_browser: bool) -> None:
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        pass
+        return True
     finally:
         server.server_close()
+    return False
