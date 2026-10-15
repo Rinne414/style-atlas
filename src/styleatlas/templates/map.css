@@ -125,6 +125,7 @@
   .grid figure.hit figcaption { position: absolute; left: 4px; bottom: 4px; padding: 0 4px; border-radius: 4px;
     font-size: 10px; line-height: 15px; background: rgba(0, 0, 0, .62); color: #fff; pointer-events: none; }
   .grid figure.hit figcaption.close { background: var(--accent); color: #000; }
+  .grid figure.hit.far img { opacity: .5; }
   .big { width: 100%; border-radius: 10px; background: var(--panel2); display: block; }
   .kv { color: var(--muted); font-size: 12px; margin: 8px 0; word-break: break-all; }
   .kv.consist { color: var(--ink); font-size: 13px; border-left: 3px solid var(--line);

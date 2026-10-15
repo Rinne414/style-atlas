@@ -603,6 +603,7 @@ def test_the_check_tab_lists_problems_by_index(tmp_path):
     assert got["min_side"] == 512 and len(got["issues"]["smaller_than_min_side"]) == 15
     assert got["low_jpeg"] == LOW_JPEG
     assert got["consistency"]["verdict"] in {"tight", "like one artist", "mixed"}
+    assert got["consistency"]["folders"] == 0  # no sub-folders: the page adds no library note
     assert got["issues"]["soft_or_enlarged"] == []  # 16 px: too small to judge
     assert got["issues"]["empty_caption"] == [1] and 0 not in got["issues"]["no_caption"]
     (tmp_path / "img2.png").write_bytes(b"gone bad")  # damaged after the scan

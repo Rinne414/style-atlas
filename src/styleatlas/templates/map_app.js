@@ -77,7 +77,8 @@ function folderList(folders) {  // which sub-folder (an artist, a style) the que
     });
     box.append(...(k ? [" · "] : []), a);
   });
-  return [h, box];
+  const legend = document.createElement("div"); legend.className = "kv"; legend.textContent = t("folderLegend");
+  return [h, box, legend];
 }
 
 function copyList(files, copies) {  // dropped images that the folder already holds (or a LoRA repeated)
@@ -131,12 +132,14 @@ function closeToggle(close, all, show) {  // only the results at CLOSE_COS or mo
 }
 
 const CLOSE_COS = 0.85;  // 9 in 10 pairs this close were by one artist (306 Danbooru artists)
+const FAR_COS = 0.43;  // the median of pairs by different artists there: shown faded
 
 function scored(x) {  // a search result with its style similarity in the corner
   const cell = document.createElement("figure"); cell.className = "hit";
   const im = thumb(x.i); im.title = `${PTS[x.i].n} · cos ${x.cos.toFixed(3)}`;
   const cap = document.createElement("figcaption"); cap.textContent = x.cos.toFixed(2);
   if (x.cos >= CLOSE_COS) cap.className = "close";
+  if (x.cos < FAR_COS) cell.classList.add("far");
   cell.append(im, cap);
   return cell;
 }

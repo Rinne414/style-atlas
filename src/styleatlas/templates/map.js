@@ -410,6 +410,11 @@ function clusterText(c, pane) {  // name, size, typical tags, closest groups, lo
     tw.textContent = t("sameFolder").replace("{g}", twins.map(clusterName).join(lang === "zh" ? "、" : ", ")).replace("{f}", mainFolder(c.members));
     txt.append(tw);
   }
+  const copies = copiesIn(c.members);
+  if (copies >= 2) {  // a group that is mostly versions of a few pictures is not a style
+    const dp = document.createElement("div"); dp.className = "meta"; dp.textContent = t("groupCopies").replace("{n}", copies);
+    txt.append(dp);
+  }
   if (c.near && c.near.length) txt.append(nearLinks(c, pane));
   const look = lookWords(c.members);
   if (look) {
@@ -419,6 +424,16 @@ function clusterText(c, pane) {  // name, size, typical tags, closest groups, lo
   const strip = timeStrip(c.members, colorOf(c.id));
   if (strip) txt.append(strip);
   return txt;
+}
+
+function copiesIn(members) {  // images of the group that have a near-duplicate inside the group
+  const inGroup = new Set(members);
+  let n = 0;
+  for (const g of DATA.duplicates || []) {
+    const here = g.filter((i) => inGroup.has(i)).length;
+    if (here >= 2) n += here;
+  }
+  return n;
 }
 
 const folderOf = (i) => { const n = PTS[i].n; const k = n.indexOf("/"); return k < 0 ? "." : n.slice(0, k); };
@@ -555,6 +570,7 @@ function consistencyLine(c) {  // how spread the folder's style is, next to sing
   line.className = c.verdict === "mixed" ? "kv consist mixed" : "kv consist"; line.title = t("consistTip");
   const key = c.percentile >= 99.5 ? "beyond" : c.verdict.replaceAll(" ", "_");  // past every reference artist
   line.textContent = t("consist_" + key).replace("{p}", Math.round(c.percentile));
+  if (c.folders >= 2) line.textContent += " " + t("consistFolders").replace("{n}", c.folders);  // a library
   return line;
 }
 

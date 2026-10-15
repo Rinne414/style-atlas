@@ -622,7 +622,12 @@ class StyleAtlasApp(GroupEdits):
             "buckets": report["summary"]["buckets"],
             "consistency": None
             if tight is None
-            else {"spread": tight.spread, "percentile": tight.percentile, "verdict": tight.verdict},
+            else {
+                "spread": tight.spread,
+                "percentile": tight.percentile,
+                "verdict": tight.verdict,
+                "folders": len(set(self.folders) - {""}),  # sub-folders: often one per artist
+            },
         }
 
     def _compare_sides(self, body: dict) -> tuple[list[int], list[int]]:
