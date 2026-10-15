@@ -17,9 +17,10 @@ New:
 
 - **Periods along the timeline** (`--granularity timeline --time name|mtime`): one artist's works,
   in time order, cut into contiguous periods where the style changes most. Two tests on the same
-  cuts say whether the style does not follow time, only drifts smoothly (one LoRA is usually
-  fine) or turns at clear points (training the periods apart makes sense); with too few distinct
-  works it does not guess. On 14 Danbooru artists: 2 turns, 6 drift, 5 none, 1 too few
+  cuts say whether no link to time was found, the style only drifts smoothly (one LoRA is usually
+  fine) or changes more abruptly than a smooth curve explains (training the periods apart makes
+  sense); with too few distinct works it does not guess. On 14 Danbooru artists: 3 turns, 5
+  drift, 5 no link found, 1 too few
   (BENCHMARKS.md). In the web app (opened with `--time`) it is 「依時間分時期」 in the grouping
   menu, and the verdict shows after regrouping. A folder last grouped this way and reopened
   without `--time` falls back to automatic grouping.

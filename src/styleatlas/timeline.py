@@ -3,9 +3,11 @@ the style changes most (optimal change points), with two tests:
 
 - time:  are the periods more distinct than cuts of the same works in shuffled time order? (does
   the style depend on time at all)
-- turns: are they more distinct than cuts of the same smooth trend with its residuals shuffled?
-  (does the style turn at some points, rather than only drift smoothly). Smooth drift alone passes
-  the first test, so only the second says that the periods are eras worth training apart.
+- turns: are they more distinct than cuts of the same smooth trend (a quadratic in time) with its
+  residuals shuffled and made orthogonal to the trend again (Freedman-Lane)? (does the style
+  change more abruptly than smooth drift). Smooth drift alone passes the first test, so only the
+  second says the periods are worth training apart. A drift no quadratic can follow, such as fast
+  changes at both ends around a long stable middle, also counts as turns.
 
 Both use the same cuts the user sees, on the distinct works (near-duplicates counted once).
 docs/BENCHMARKS.md, "Periods along the timeline", has the measurements."""
@@ -23,7 +25,9 @@ SEGMENT_MAX = 1500  # distinct works the cuts are searched on (evenly through ti
 TEST_ROUNDS = 99  # rounds of each null; p is at least 0.01
 TEST_SAMPLE = 400  # distinct works the tests use at most (evenly through time)
 TEST_MIN = 20  # distinct works the tests need at least (and 2 per period's minimum)
-TREND_DEGREE = 2  # the smooth trend kept in the turns test: a curve over time, no steps
+TREND_DEGREE = (
+    2  # the turns test's smooth trend; a cubic or quartic absorbed real steps (BENCHMARKS)
+)
 CLEAR_P = 0.05
 
 

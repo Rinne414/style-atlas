@@ -503,59 +503,83 @@ dimensions of the CSD vectors, near-duplicates counted once).
 
 **Two tests, because drift alone is not eras.** The first version tested the cuts only against
 shuffled time orders. A review (Sonnet, 2026-10-16) showed that a pure linear drift, with no era
-at all, passes that test (p = 0.01 in 10 of 10 simulations of 300 works). So the product now runs
-two tests on the same cuts the user sees (99 rounds each, so p is at least 0.01):
+at all, passes that test (p = 0.01 in 10 of 10 simulations of 300 works). So the product runs two
+tests on the same cuts the user sees (99 rounds each, so p is at least 0.01):
 
 - **time**: the cuts' silhouette against the best cuts of shuffled time orders. Significant = the
   style depends on time.
 - **turns**: against the best cuts of the same smooth trend (a quadratic in time rank, fitted per
-  dimension) plus its residuals in shuffled order. Significant = the style turns at some points,
-  beyond any smooth drift.
+  dimension) plus its residuals in shuffled order, made orthogonal to the trend again so the null
+  has exactly the observed trend (the Freedman-Lane scheme). Significant = the style changes more
+  abruptly than a quadratic trend explains.
 
-Verdicts: *none* (time p >= 0.05), *drift* (time significant, turns not), *turns* (both), *few*
-(fewer than 30 distinct works for 3 periods of 5, or 20: not tested).
+Verdicts: *none* (time p >= 0.05: no clear link found), *drift* (time significant, turns not),
+*turns* (both), *few* (fewer than 30 distinct works for 3 periods of 5, or 20: not tested).
 
-Simulation (64-d Gaussian styles, 8 repeats each, 3 periods; the verdict counts):
+Simulation: 64-d Gaussian noise (sd 1 per dimension), the change along one random direction (two
+for two steps), 3 periods; share called *turns*. A = quadratic trend, shuffled residuals as they
+are (the first two-test version); B = the same with the residuals made orthogonal (the product);
+C, D = cubic, quartic trend with orthogonal residuals. Drifts have amplitude 6, steps 4 or 6.
 
-| Data | 60 works | 300 works |
-|---|---|---|
-| Noise, no time effect | none 8 | none 8 |
-| Linear drift | drift 8 | drift 7, turns 1 |
-| Curved drift (quadratic) | drift 8 | drift 8 |
-| Two steps (three eras) | turns 8 | turns 8 |
-| One step plus linear drift | turns 8 | turns 8 |
+| Data (60 works, 40 runs) | A | **B** | C | D |
+|---|---|---|---|---|
+| Linear drift | 0% | 0% | 2% | 0% |
+| Quadratic drift | 0% | 0% | 2% | 0% |
+| Cubic drift, (2t-1)^3 | 0% | 5% | 2% | 0% |
+| Wide logistic centred at 0.3 | 0% | 0% | 0% | 0% |
+| Exponential saturation | 2% | 5% | 5% | 5% |
+| Smoothstep | 0% | 2% | 2% | 0% |
+| One step, size 4 | 5% | **82%** | 12% | 10% |
+| One step, size 6 | 78% | **100%** | 78% | 80% |
+| Two steps, size 4 | 20% | **98%** | 75% | 55% |
 
-79 of 80 right; the one miss is a linear drift called *turns*, as expected at the 5% level.
+| Data (200 works, 16 runs) | A | **B** | C | D |
+|---|---|---|---|---|
+| Linear, quadratic, saturation drift | 0% | 0% | 0% | 0-6% |
+| Cubic drift | 6% | **19%** | 6% | 0% |
+| Logistic, smoothstep drift | 0% | 6% | 0-6% | 0-6% |
+| One step, size 4 | 100% | 100% | 81% | 81% |
+| Steps of size 6, two steps | 100% | 100% | 100% | 100% |
+
+- Making the shuffled residuals orthogonal again turns the test from conservative (A: 0% false
+  alarms, 5% power for a step of 4 at 60 works) into a useful one (B: up to 5% false alarms at 60
+  works, 82% power). A cubic or quartic trend absorbs much of a real step and loses that power.
+- B's known blind spot: a drift that a quadratic cannot follow. A large cubic drift (fast at both
+  ends, flat in the middle; amplitude 10) was called *turns* in 10 of 30 runs at 60 works and 12
+  of 12 at 200; other smooth shapes at amplitude 10 in at most 2 of 12. So *turns* means "more
+  abrupt than a quadratic over time", which a fast start and end with a long stable middle is;
+  the page and the command say "more abruptly than a smooth curve explains", not "proven eras".
+- The time test is about 5% on pure noise at 60 works (a second Sonnet review, 2026-10-16).
 
 Real artists: the 14 period_corpus artists (Danbooru posting order as time), 3 periods:
 
 | Artist | Works | Distinct | time p | turns p | Separation | Verdict |
 |---|---|---|---|---|---|---|
-| bow_(bhp) | 60 | 48 | 0.09 | 0.79 | +0.010 | none |
+| bow_(bhp) | 60 | 48 | 0.09 | 0.11 | +0.010 | none |
 | dairi | 60 | 13 | - | - | +0.250 | few |
-| ebifurya | 54 | 51 | 0.01 | 0.34 | +0.057 | drift |
-| hammer_(sunset_beach) | 55 | 53 | 0.01 | 0.72 | +0.044 | drift |
-| haruyama_kazunori | 60 | 60 | 0.09 | 0.98 | +0.008 | none |
-| itomugi-kun | 54 | 54 | 0.01 | 0.22 | +0.096 | drift |
-| kanon_(kurogane_knights) | 60 | 59 | 0.49 | 1.00 | -0.004 | none |
-| matsunaga_kouyou | 51 | 46 | 0.04 | 0.86 | +0.021 | drift |
-| naga_u | 60 | 60 | 0.08 | 0.27 | +0.027 | none |
-| ojipon | 60 | 59 | 0.22 | 1.00 | +0.007 | none |
-| onikobe_rin | 60 | 60 | 0.01 | 0.71 | +0.029 | drift |
-| pageratta | 30 | 30 | 0.01 | 0.03 | +0.095 | turns |
-| rebecca_(keinelove) | 60 | 60 | 0.01 | 0.04 | +0.072 | turns |
-| yaegashi_nan | 60 | 49 | 0.01 | 0.14 | +0.047 | drift |
+| ebifurya | 54 | 51 | 0.01 | 0.05 | +0.057 | drift |
+| hammer_(sunset_beach) | 55 | 53 | 0.01 | 0.21 | +0.044 | drift |
+| haruyama_kazunori | 60 | 60 | 0.09 | 0.63 | +0.008 | none |
+| itomugi-kun | 54 | 54 | 0.01 | 0.06 | +0.096 | drift |
+| kanon_(kurogane_knights) | 60 | 59 | 0.49 | 0.98 | -0.004 | none |
+| matsunaga_kouyou | 51 | 46 | 0.04 | 0.24 | +0.021 | drift |
+| naga_u | 60 | 60 | 0.08 | 0.05 | +0.027 | none |
+| ojipon | 60 | 59 | 0.22 | 0.86 | +0.007 | none |
+| onikobe_rin | 60 | 60 | 0.01 | 0.07 | +0.029 | drift |
+| pageratta | 30 | 30 | 0.01 | 0.01 | +0.095 | turns |
+| rebecca_(keinelove) | 60 | 60 | 0.01 | 0.01 | +0.072 | turns |
+| yaegashi_nan | 60 | 49 | 0.01 | 0.01 | +0.047 | turns |
 
 (Separation: silhouette of the periods on the distinct works, 32 PCA dimensions.)
 
-- 2 of 14 have clear turns, 6 only drift, 5 do not follow time at all (3 periods), 1 is too
-  few distinct works to say. The first version's "8 of 13 beyond chance" counted the drifting
-  artists as eras; most artists here change gradually, so one LoRA for all their works is the
-  usual answer.
+- 3 of 14 have clear turns, 5 only drift (3 of them with turns p 0.05-0.07, at the edge), 5
+  showed no clear link to time with 3 periods (3 of them at time p 0.08-0.09, so "not found" rather
+  than "none"), 1 has too few distinct works. The first version's "8 of 13 beyond chance" counted
+  the drifting artists as eras.
 - dairi shows why near-duplicates must count once: 60 posts are 13 pictures, and with the copies
   the cuts look like clear turns (p 0.01 on both tests).
-- With about 50-60 distinct works the tests have little power for weak turns; a *drift* verdict
-  means "no clear turn found", not "proven smooth".
+- A *drift* verdict means "no clear turn found", not "proven smooth"; with 50-60 works a modest
+  single turn can still come out as *drift*.
 - The cuts are searched on at most 1,500 distinct works (evenly through time; the rest take the
   period of their time) and tested on at most 400, so a regroup takes about 2 s at 2,000 images
   (k = 3) whatever the folder size, and runs outside the web app's lock.

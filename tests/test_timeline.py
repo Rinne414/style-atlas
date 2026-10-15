@@ -47,6 +47,15 @@ def test_smooth_drift_is_told_from_turns():
     assert params["p_time"] < 0.05 and verdict(params) == "drift"
 
 
+def test_a_single_turn_is_told_from_drift():
+    # one abrupt change halfway: a quadratic trend cannot explain it
+    rng = np.random.default_rng(3)
+    n, d = 60, 64
+    step = (np.arange(n) >= n // 2)[:, None] * 6 * np.eye(1, d)
+    params = cluster_timeline(step + rng.normal(size=(n, d)), np.arange(n, dtype=float), 3).params
+    assert verdict(params) == "turns"
+
+
 def test_too_few_distinct_works_are_not_tested():
     x = _styles([8, 8, 8])
     params = cluster_timeline(x, np.arange(24, dtype=float), 3).params
