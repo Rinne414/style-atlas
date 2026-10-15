@@ -438,8 +438,8 @@ def cmd_serve(a: argparse.Namespace) -> int:
         )
 
     title = a.title or Path(a.folder).resolve().name
-    serve_when_ready(build, title, port=a.port, open_browser=not a.no_browser)
-    return 0
+    ok = serve_when_ready(build, title, port=a.port, open_browser=not a.no_browser)
+    return 0 if ok else 1
 
 
 def _common(p: argparse.ArgumentParser) -> None:

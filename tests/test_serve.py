@@ -810,3 +810,26 @@ def test_serve_when_ready_builds_in_the_background(tmp_path, monkeypatch):
         time.sleep(0.05)
     started["server"].server_close()
     assert handler.app is app
+
+
+def test_a_failed_build_without_a_browser_stops_and_says_so():
+    import styleatlas.webserver as ws
+
+    def build(progress):
+        raise FileNotFoundError("no images found under x")
+
+    result = {}
+    thread = threading.Thread(
+        target=lambda: result.update(ok=ws.serve_when_ready(build, "x", 0, open_browser=False))
+    )
+    thread.start()
+    thread.join(timeout=30)
+    assert not thread.is_alive() and result["ok"] is False
+
+
+def test_a_title_with_a_placeholder_stays_as_it_is():
+    from styleatlas.webserver import Preparing
+
+    page = Preparing("__HEADING__ /*__TEXT__*/{}").page()
+    assert "<title>__HEADING__ /*__TEXT__*/{}</title>" in page
+    assert '"elapsed"' in page  # the script still got its texts

@@ -113,12 +113,12 @@ function showSearch(files, hits, fit, folders, copies, folded) {
     results.replaceChildren(...(list.length ? [copyButton(list)] : []), g);
   };
   const close = hits.filter((x) => x.cos >= CLOSE_COS);  // the scale holds for one query image only
-  const filter = files.length === 1 && close.length && close.length < hits.length ? [closeToggle(close, hits, show)] : [];
+  const closeOnly = files.length === 1 && close.length && close.length < hits.length ? [closeToggle(close, hits, show)] : [];
   show(hits);
   pane.append(h, qs, ...(copies && copies.length ? copyList(files, copies) : []),
     ...(fit && fit.length ? fitSummary(fit) : []),
     ...(folders && folders.length ? folderList(folders) : []), h2,
-    ...(hits.length ? [legend, ...filter] : []), results);
+    ...(hits.length ? [legend, ...closeOnly] : []), results);
   showPane("selected");
 }
 

@@ -104,3 +104,19 @@ def test_doctor_points_at_an_old_checkpoint_no_longer_needed(monkeypatch, tmp_pa
     monkeypatch.setattr(constants, "HF_HUB_CACHE", str(tmp_path / "hub"))
     rows = {name: detail for _, name, detail in doctor.checks()}
     assert "only uses its 1.2 GB copy" in rows["old download"]
+
+
+def test_a_checkpoint_left_by_a_stopped_run_is_removed(monkeypatch, tmp_path):
+    import torch
+    from safetensors.torch import save_file
+
+    from styleatlas import encoder
+
+    _own_cache(monkeypatch, tmp_path)
+    save_file(
+        {"w": torch.zeros(2)}, str(tmp_path / f"csd_vit_l_{encoder.CSD_REVISION[:8]}.safetensors")
+    )
+    (tmp_path / encoder.DOWNLOAD_DIR).mkdir()
+    (tmp_path / encoder.DOWNLOAD_DIR / "blob").write_bytes(b"x")
+    assert set(encoder.load_weights()) == {"w"}
+    assert not (tmp_path / encoder.DOWNLOAD_DIR).exists()

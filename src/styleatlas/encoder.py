@@ -135,7 +135,10 @@ def load_weights() -> dict[str, torch.Tensor]:
     from safetensors.torch import load_file, save_file
 
     slim = cache_dir() / f"csd_vit_l_{CSD_REVISION[:8]}.safetensors"
+    ours = download_dir()
     if slim.exists():
+        if ours is not None and ours.exists():  # left by a run stopped before it removed it
+            shutil.rmtree(ours, ignore_errors=True)
         return load_file(str(slim))
     check_space()
     print(
@@ -150,7 +153,6 @@ def load_weights() -> dict[str, torch.Tensor]:
     tmp = slim.with_suffix(".tmp")
     save_file(weights, str(tmp))
     os.replace(tmp, slim)
-    ours = download_dir()
     if ours is not None:  # the 2.4 GB checkpoint is not needed again
         shutil.rmtree(ours, ignore_errors=True)
     return weights

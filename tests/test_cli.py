@@ -660,7 +660,7 @@ def test_demo_makes_the_images_once_and_opens_them(tmp_path, monkeypatch):
 
     opened = {}
     monkeypatch.setattr(
-        ws, "serve_when_ready", lambda build, title, **kw: opened.update(title=title)
+        ws, "serve_when_ready", lambda build, title, **kw: opened.update(title=title) or True
     )
     folder = tmp_path / "demo"
     assert main(["demo", str(folder), "--no-browser", "--device", "cpu"]) == 0

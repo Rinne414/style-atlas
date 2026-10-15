@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import html
 import json
+import re
 import sys
 import threading
 import time
@@ -101,7 +102,7 @@ class Preparing:
     def page(self) -> str:
         text = {
             "elapsed": tr("({m}:{s} so far)", "（已經過 {m}:{s}）"),
-            "failed": tr("Could not open the folder:", "無法開啟這個資料夾："),
+            "failed": tr("Could not prepare the map:", "無法準備地圖："),
         }
         heading = tr(f"Preparing {self.title}", f"正在準備 {self.title}")
         note = tr(
@@ -111,14 +112,15 @@ class Preparing:
             "之後只會計算新加入的圖。",
         )
         page = resources.files("styleatlas").joinpath("templates/preparing.html").read_text("utf-8")
-        for key, value in (
-            ("__LANG__", tr("en", "zh-Hant")),
-            ("__TITLE__", html.escape(self.title)),
-            ("__HEADING__", html.escape(heading)),
-            ("__NOTE__", html.escape(note)),
-        ):
-            page = page.replace(key, value)
-        return page.replace("/*__TEXT__*/{}", json.dumps(text, ensure_ascii=False), 1)
+        values = {
+            "__LANG__": tr("en", "zh-Hant"),
+            "__TITLE__": html.escape(self.title),
+            "__HEADING__": html.escape(heading),
+            "__NOTE__": html.escape(note),
+            "/*__TEXT__*/{}": json.dumps(text, ensure_ascii=False),
+        }  # one pass: a title that happens to contain a placeholder stays as it is
+        pattern = re.compile("|".join(re.escape(key) for key in values))
+        return pattern.sub(lambda m: values[m.group(0)], page)
 
 
 class StyleAtlasHandler(BaseHTTPRequestHandler):
@@ -282,9 +284,10 @@ def serve_when_ready(
     title: str,
     port: int = 8770,
     open_browser: bool = True,
-) -> None:
+) -> bool:
     """Open the page at once and build the app (`build(progress)`) in the background; the page
-    shows the progress and turns into the app when it is ready, or shows why it failed."""
+    shows the progress and turns into the app when it is ready, or shows why it failed. Without
+    a browser (scripts) a failed build stops the server. False when the build failed."""
     preparing = Preparing(title)
     server = bind(preparing, port)
     handler = server.RequestHandlerClass
@@ -293,14 +296,17 @@ def serve_when_ready(
         try:
             app = build(preparing.progress)
             app.prewarm()
-        except Exception as e:  # noqa: BLE001 - the waiting page must learn why
+        except BaseException as e:  # noqa: BLE001 - the page must learn why, whatever it was
             preparing.fail(e)
+            if not open_browser:  # nobody is looking at the page
+                server.shutdown()
             return
         handler.app = app
         print(tr("ready", "準備好了"), flush=True)
 
     threading.Thread(target=work, name="style-atlas-build", daemon=True).start()
     _run(server, open_browser)
+    return preparing.error is None
 
 
 def _run(server: ThreadingHTTPServer, open_browser: bool) -> None:
