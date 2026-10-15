@@ -12,6 +12,10 @@ Changed output (scripts that parse the text should use `--json`):
 - `map` writes `<folder>_style_atlas/style_atlas_map.html` by default (it wrote into the image
   folder; every other command already kept out of it).
 - `compare A A` (the same folder twice) is refused.
+- `search --combine`, the web app's search with several images and "more like this group" rank by
+  the examples' mean style below 10 examples (the learned model is used from 10, was 3): on 137
+  artists the search whitening never saw it was worse with 3 examples (-0.014 AP, CI
+  [-0.025, -0.005]) and not better with 5.
 
 New:
 

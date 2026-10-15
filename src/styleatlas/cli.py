@@ -811,8 +811,9 @@ def _add_inspect_commands(add: Adder) -> None:
         "--combine",
         action="store_true",
         help=tr(
-            "treat all queries as one style (from 3 images up, a model learned from them)",
-            "把所有範例當成同一種畫風（3 張以上時，會用它們訓練一個小模型）",
+            "treat all queries as one style (their average style; from 10 images up, a model "
+            "learned from them)",
+            "把所有範例當成同一種畫風（用它們的平均畫風；10 張以上時，改用它們訓練的小模型）",
         ),
     )
     p.add_argument(

@@ -11,9 +11,11 @@ from styleatlas.whiten import whiten
 
 # With several example images, a logistic model of examples vs the library ranks the rest of an
 # artist's work: +0.055 / +0.066 / +0.116 average precision over the mean vector with 3 / 5 / 10
-# examples on artists the whitening had seen, but about even (-0.016 to +0.042) on new artists
-# (docs/BENCHMARKS.md, "Searching with several example images").
-MIN_LEARNED = 3
+# examples on artists the whitening had seen, but on 137 it never saw it was worse with 3
+# (-0.014 [-0.025, -0.005]) and 5 (-0.013 [-0.025, +0.000]) and even with 10 (+0.016 [-0.007,
+# +0.052]): below 10 examples the mean vector ranks (docs/BENCHMARKS.md, "Searching with several
+# example images").
+MIN_LEARNED = 10
 LEARNED_NEGATIVES = 1000
 LEARNED_SEED = 0
 

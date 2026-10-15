@@ -372,7 +372,8 @@ examples; the targets are that artist's other works. AP = average precision; pai
 - On the plain Danbooru corpus (about 12 works per artist) the gain is smaller: +0.014 AP with 3
   examples, +0.019 with 5.
 
-`search --combine` now uses the learned model from 3 example images up.
+`search --combine` used the learned model from 3 example images up (see the held-out check below:
+it now does so from 10).
 
 **Held out (2026-10-10).** The 13 artists above are among the 306 the search whitening was
 fitted on. On artists it never saw, the gain is gone:
@@ -386,6 +387,20 @@ fitted on. On artists it never saw, the gain is gone:
 new artists, better in some draws and worse in others (better in 67% / 58% / 42% of the 48
 trials with 3 / 5 / 10 examples). It stays the default, as it is no worse, but the gain quoted
 above came from the whitening having seen those artists.
+
+**With confidence intervals (2026-10-16).** A review questioned "no worse": the default had changed
+on seen artists only. Pooling both unseen sets (137 artists, library 5,195 with big3k as
+distractors), three draws of examples per artist, and an artist-level bootstrap:
+
+| Examples | Artists | Learned minus mean, AP | 95% CI | Learned better for |
+|---|---|---|---|---|
+| 3 | 121 | -0.014 | [-0.025, -0.005] | 37% of artists |
+| 5 | 117 | -0.013 | [-0.025, +0.000] | 35% |
+| 10 | 20 | +0.016 | [-0.007, +0.052] | 45% |
+
+On new artists the learned model is worse with 3 examples and not better with 5, so `--combine`
+(and the web app's set search and "more like this group") now rank by the mean vector below 10
+examples and use the learned model from 10, where nothing shows it losing.
 
 ### More than 8,000 images (2026-10-10)
 
@@ -938,6 +953,22 @@ likely"), and hammer came 13th: in plain CSD the early works sit nearer kz_oji's
 than hammer's own later average (0.775). The measurement draws queries from the same years as
 the folders, so it cannot vouch for works from another period of an artist; the output says that
 an artist's much earlier or later works can look more like someone else's.
+
+**Across periods, tried (2026-10-16).** Would several prototypes per folder, or a kNN vote, help
+when the query comes from another period of the artist? On period_corpus (18 artists, ~60 works
+each, near-duplicates removed, whitened), queries from an artist's earliest or latest third were
+ranked against a folder of the artist's other two thirds (other artists' folders hold all their
+works); same-period queries keep their third in the folder. First folder right, 156 queries each:
+
+| Query | Folder mean (shipped) | Max of 3 k-means prototypes | kNN vote (10) |
+|---|---|---|---|
+| 1 image, same period | **95%** | 92% | 90% |
+| 1 image, other period | **87%** | 87% | 79% |
+| 3 images, same period | **99%** | 97% | 95% |
+| 3 images, other period | **98%** | 93% | 89% |
+
+The folder mean stays: it is best or tied everywhere. A query from another period costs a single
+image about 8 points here (with 18 folders); three images together barely notice.
 
 ## Style consistency: one artist or a mix? (2026-10-10)
 
