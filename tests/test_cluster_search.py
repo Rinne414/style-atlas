@@ -175,13 +175,29 @@ def test_large_sets_join_micro_groups_and_keep_the_threshold(monkeypatch):
     assert len(runs) == 1
 
 
-def test_a_set_of_examples_learns_a_style_with_two_looks():
+def test_a_set_of_examples_learns_a_style_with_two_looks(monkeypatch):
+    import styleatlas.search as search_module
+
     x, y = make_blobs([20, 20, 20, 20])
-    examples = [0, 1, 2, 20, 21, 22]  # one style, drawn in two looks (groups 0 and 1)
+    examples = list(range(5)) + list(range(20, 25))  # one style in two looks; 10 = MIN_LEARNED
+    assert len(examples) >= search_module.MIN_LEARNED
+    called = []
+    real = search_module.learned_scores
+    monkeypatch.setattr(search_module, "learned_scores", lambda *a: called.append(1) or real(*a))
     hits = search(x[examples], x, top=30, combine=True, exclude=set(examples))[0]
+    assert called  # the learned model ranked them
     assert not {h.index for h in hits} & set(examples)
     assert all(y[h.index] in (0, 1) for h in hits[:30])
-    assert any(abs(h.score - h.cosine) > 1e-3 for h in hits)  # ranked by the learned logit
+
+
+def test_fewer_examples_than_min_learned_rank_by_their_mean(monkeypatch):
+    import styleatlas.search as search_module
+
+    x, _ = make_blobs([20, 20])
+    monkeypatch.setattr(search_module, "learned_scores", lambda *a: 1 / 0)  # must not be used
+    examples = list(range(search_module.MIN_LEARNED - 1))
+    hits = search(x[examples], x, top=5, combine=True, exclude=set(examples))[0]
+    assert len(hits) == 5
 
 
 def test_matches_are_copied_with_captions_once(tmp_path):

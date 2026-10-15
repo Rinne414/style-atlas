@@ -180,8 +180,9 @@ let folderFilter = null;  // a sub-folder picked from a search's closest folders
 let tagOnly = null;  // {tag, hits}: the images a #tag filter found; searches stay inside them
 let flyTo = null;
 
-function recolor() {
+function recolor() {  // returns how many images are lit
   const q = filter.toLowerCase();
+  let lit = 0;
   for (let i = 0; i < N; i++) {
     let on = true;
     if (focusCluster !== null) on = PTS[i].c === focusCluster;
@@ -190,12 +191,14 @@ function recolor() {
     if (selected !== null) on = i === selected || PTS[selected].k.includes(i);
     else if (searchHits) on = searchHits.has(i);
     alpha[i] = on ? 1 : 0.12;
+    lit += on ? 1 : 0;
     // marks sit on top of the view: marked bright, the rest visible but softer (still pickable)
     if (MARKED.size) alpha[i] = MARKED.has(i) ? 1 : on ? 0.6 : 0.12;
     if (EXCLUDED.has(i)) alpha[i] = Math.min(alpha[i], 0.25);  // excluded: still there, faded
   }
   pushAlpha();
   fadeNames();
+  return lit;
 }
 
 function centerOf(indices) {
@@ -397,8 +400,9 @@ function clusterText(c, pane) {  // name, size, typical tags, closest groups, lo
   const mt = document.createElement("div"); mt.className = "meta";
   const out = c.members.filter((i) => EXCLUDED.has(i)).length;
   mt.textContent = `${c.size} ${t(DATA.families ? "folderUnit" : "size")}` + (out ? t("excludedOf").replace("{n}", out) : "") +
-    (c.cohesion !== undefined ? ` · ${t("cohesion")} ${c.cohesion.toFixed(3)}${paren(t(spreadWord(c.cohesion)))}` : "");
-  if (c.cohesion !== undefined) mt.title = t("cohesionTip");
+    (c.cohesion !== undefined ? ` · ${t("cohesion")} ${c.cohesion.toFixed(3)}` : "") +
+    (c.cohesion !== undefined && !DATA.families ? paren(t(spreadWord(c.cohesion))) : "");  // a family's points are folder means: another scale
+  if (c.cohesion !== undefined && !DATA.families) mt.title = t("cohesionTip");
   txt.append(nm, mt);
   if (c.tags && c.tags.length) {
     const tg = document.createElement("div"); tg.className = "meta tags"; tg.textContent = c.tags.join(", ");
@@ -716,6 +720,7 @@ function applyText() {
 
 
 let tagTimer = null;
+let filterMessage = "";  // the "N images match" line, cleared with the filter
 $("find").addEventListener("input", (e) => {
   const text = e.target.value.trim();
   clearTimeout(tagTimer);
@@ -727,11 +732,14 @@ $("find").addEventListener("input", (e) => {
     return;
   }
   filter = text; searchHits = null;
-  if (text) { selected = null; focusCluster = null; }  // else they hide what the filter matches
-  recolor();
+  if (text && selected !== null) { selected = null; showPane("clusters"); }  // else it hides the matches
+  if (text) focusCluster = null;
+  const lit = recolor();
   if (text) {
-    const q = text.toLowerCase();
-    setStatus(t("filterHits").replace("{n}", PTS.filter((p) => p.n.toLowerCase().includes(q)).length));
+    filterMessage = t("filterHits").replace("{n}", lit);
+    setStatus(filterMessage);
+  } else if (filterMessage && $("status").textContent === filterMessage) {
+    setStatus(""); filterMessage = "";
   }
 });
 
