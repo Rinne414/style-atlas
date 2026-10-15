@@ -635,6 +635,7 @@ function buildDups() {
 function methodText() {
   const p = DATA.params || {};
   if (DATA.method === "kmeans") return t("periodsN").replace("{n}", p.n_clusters);
+  if (DATA.method === "timeline") return t("timelineN").replace("{n}", p.n_clusters);
   if (DATA.method === "hdbscan") return "HDBSCAN";
   if (p.n_clusters) return t("forcedN").replace("{n}", p.n_clusters);
   if (p.threshold === undefined) return DATA.method;

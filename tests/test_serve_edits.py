@@ -206,3 +206,16 @@ def test_a_comparison_lists_each_side_with_the_most_distinctive_first(tmp_path):
     a, b = app.clustering.clusters[0], app.clustering.clusters[1]
     r = app.compare({"a": a.id, "b": b.id})
     assert sorted(r["order_a"]) == sorted(a.members) and sorted(r["order_b"]) == sorted(b.members)
+
+
+def test_the_web_app_cuts_periods_along_the_timeline_when_it_knows_the_time(tmp_path):
+    from styleatlas.atlas import EncodeOptions
+    from styleatlas.serve import StyleAtlasApp
+
+    app, atlas = _app(tmp_path, (8, 7))
+    with pytest.raises(ValueError):  # opened without --time
+        app.regroup({"method": "timeline", "k": 2})
+    timed = StyleAtlasApp(atlas, EncodeOptions(device="cpu"), "pca", time_source="mtime")
+    done = timed.regroup({"method": "timeline", "k": 2})
+    assert done["clusters"] == 2 and 0 < done["p"] <= 1 and "separation" in done
+    assert timed.settings["method"] == "timeline"

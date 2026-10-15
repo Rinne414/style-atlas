@@ -513,19 +513,22 @@ function setupRegroup() {  // granularity, cut, periods, the regroup button and 
   $("periods").value = s.method === "kmeans" ? (s.k || DATA.live.periods) : DATA.live.periods;
   $("gran").addEventListener("change", (e) => {
     if (e.target.value in DATA.live.granularity) $("thr").value = DATA.live.granularity[e.target.value].toFixed(2);
-    showPeriods(e.target.value === "period");
+    showPeriods(e.target.value === "period" || e.target.value === "timeline");
   });
   $("thr").addEventListener("input", () => { $("gran").value = "custom"; });
   $("regroup").addEventListener("click", async () => {
     setStatus(t("regrouping"));
     try {
       const g = $("gran").value;
-      const body = g === "period"
-        ? { method: "kmeans", k: parseInt($("periods").value, 10) || DATA.live.periods }
+      const periods = parseInt($("periods").value, 10) || DATA.live.periods;
+      const body = g === "period" ? { method: "kmeans", k: periods }
+        : g === "timeline" ? { method: "timeline", k: periods }
         : g === "artists" ? { method: "artists" }
         : { threshold: g === "auto" ? null : parseFloat($("thr").value) };
-      await post("api/regroup", JSON.stringify(body), "application/json");
-      reloadKeepingView();
+      const r = await post("api/regroup", JSON.stringify(body), "application/json");
+      const verdict = typeof r.p === "number"  // the timeline's test, shown after the reload
+        ? t(r.p < 0.05 ? "timelineClear" : "timelineDrift").replace("{p}", r.p.toFixed(2)) : "";
+      reloadKeepingView(verdict);
     } catch (e) { setStatus(String(e.message || e)); }
   });
 }
@@ -667,18 +670,19 @@ function liveText() {
   $("refPath").placeholder = DATA.reference ? DATA.reference : t("refPath");
   $("refLoad").textContent = DATA.reference && !$("refPath").value.trim() ? t("refClear") : t("refLoad");
   const cur = $("gran").value;
-  $("gran").replaceChildren(...["auto", "period", "artists", ...Object.keys(DATA.live.granularity), "custom"].map((k) => {
+  const kinds = ["auto", "period", ...(HAS_TIME ? ["timeline"] : []), "artists", ...Object.keys(DATA.live.granularity), "custom"];
+  $("gran").replaceChildren(...kinds.map((k) => {
     const o = document.createElement("option"); o.value = k; o.textContent = t(k); return o;
   }));
   const thr = parseFloat($("thr").value);
   const match = Object.entries(DATA.live.granularity).find(([, v]) => Math.abs(v - thr) < 1e-6);
   const s = DATA.live.settings;
   const auto = s.threshold == null && !s.k;
-  const initial = s.method === "kmeans" ? "period" : s.method === "artists" ? "artists"
+  const initial = s.method === "kmeans" ? "period" : s.method === "timeline" ? "timeline" : s.method === "artists" ? "artists"
     : (auto ? "auto" : (match ? match[0] : "custom"));
   $("gran").value = cur && cur !== "custom" ? cur : initial;
   $("periods").title = t("periods");
-  showPeriods($("gran").value === "period");
+  showPeriods($("gran").value === "period" || $("gran").value === "timeline");
   const tips = { exportOpen: "tipExport", moreOpen: "tipMore", expMax: "tipMax", expStrip: "tipStrip", pickBtn: "tipSearch", gran: "tipGran", thr: "tipThr", regroup: "tipRegroup", undo: "tipUndo",
     expLayout: "tipLayout", expName: "tipName", expTrigWrap: "tipTrig", expSpellWrap: "tipSpell", exportPreview: "tipPreview", export: "tipExport",
     saveMap: "tipSaveMap", neutralWrap: "tipNeutral", saveReport: "tipSaveReport" };

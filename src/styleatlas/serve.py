@@ -59,7 +59,7 @@ from styleatlas.export import (
     write_table,
 )
 from styleatlas.groupfile import carry_names, load_groups
-from styleatlas.images import cached_thumbnail, labels_from_folders, load_rgb
+from styleatlas.images import cached_thumbnail, labels_from_folders, load_rgb, timeline
 from styleatlas.lang import tr
 from styleatlas.look import LOOK_NAMES, difference
 from styleatlas.metrics import (
@@ -86,6 +86,7 @@ from styleatlas.report import (
 from styleatlas.search import fold_hits, rank_folders, search, style_path, warm
 from styleatlas.serve_edits import GroupEdits
 from styleatlas.taste_session import TasteSession
+from styleatlas.timeline import TIMELINE, cluster_timeline
 
 SEARCH_TOP = 48
 FOLDER_TOP = 5  # closest sub-folders listed with a search
@@ -200,6 +201,11 @@ class StyleAtlasApp(GroupEdits):
     def _grouped(self, method: str, threshold: float | None, k: int | None):
         if method == ARTISTS:  # on the plain vectors, whatever the space (cluster_by_artist)
             return cluster_by_artist(self.raw.style)
+        if method == TIMELINE:  # contiguous periods in time order (timeline.py)
+            pos = timeline(self.atlas.paths, self.time_source)
+            if pos is None:
+                raise ValueError(tr("fewer than 2 images have a time", "有時間資訊的圖不到 2 張"))
+            return cluster_timeline(self.atlas.style, pos, k or PERIODS, content=self.raw.content)
         return cluster_styles(self.atlas.style, method=method, threshold=threshold, n_clusters=k)
 
     def _fitted(self, name: str) -> StyleSpace:
@@ -403,8 +409,17 @@ class StyleAtlasApp(GroupEdits):
 
     def regroup(self, body: dict) -> dict:
         method = body.get("method", "agglomerative")
-        if method not in (*METHODS, ARTISTS):
-            raise ValueError(f"method must be one of {(*METHODS, ARTISTS)}")
+        if method not in (*METHODS, ARTISTS, TIMELINE):
+            raise ValueError(f"method must be one of {(*METHODS, ARTISTS, TIMELINE)}")
+        if method == TIMELINE and self.time_source == "none":
+            raise ValueError(
+                tr(
+                    "periods along the timeline need a time: open the folder with --time name "
+                    "(ids or dates in the file names) or --time mtime",
+                    "依時間分時期需要時間資訊：開啟資料夾時加 --time name（檔名裡的編號或日期）"
+                    "或 --time mtime",
+                )
+            )
         threshold = body.get("threshold")  # None: chosen from the data
         k = body.get("k")
         is_number = isinstance(threshold, (int, float)) and not isinstance(threshold, bool)
@@ -419,7 +434,10 @@ class StyleAtlasApp(GroupEdits):
             self.settings = {"method": method, "threshold": threshold, "k": k}
             self.revision += 1
             self._save_groups()
-        return {"clusters": self.clustering.n_clusters, "unassigned": self.clustering.n_unassigned}
+        done = {"clusters": self.clustering.n_clusters, "unassigned": self.clustering.n_unassigned}
+        if method == TIMELINE:  # whether the periods are told apart beyond chance
+            done |= {k: self.clustering.params.get(k) for k in ("p", "separation")}
+        return done
 
     def search_image(self, data: bytes, top: int = SEARCH_TOP) -> dict:
         query, raw = self._embed([data])
