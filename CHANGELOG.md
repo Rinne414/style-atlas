@@ -15,6 +15,10 @@ Changed output (scripts that parse the text should use `--json`):
 
 New:
 
+- **Search scores with a scale.** Each web image-search result shows its style similarity, with a
+  line on what the numbers mean (measured on 306 Danbooru artists; 0.85 and up highlighted).
+- **Rating mode ignores a second L/D press** made before the next image is shown (it rated the
+  same image again).
 - **Periods along the timeline** (`--granularity timeline --time name|mtime`): one artist's works,
   in time order, cut into contiguous periods where the style changes most. Two tests on the same
   cuts say whether no link to time was found, the style only drifts smoothly (one LoRA is usually

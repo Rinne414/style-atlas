@@ -386,7 +386,11 @@ async function rateNext() {
   } catch (e) { setStatus(String(e.message || e)); }
 }
 
+let VOTING = false;  // one vote (and, when rating, the step to the next image) at a time
+
 async function castVote(i, like) {
+  if (VOTING) return;  // a fast second L/D press would rate the same image again
+  VOTING = true;
   try {
     TASTE = await post("api/taste", JSON.stringify({ i, like }), "application/json");
     const before = ["axX", "axY", "axZ"].map((id) => $(id).value).join();
@@ -396,8 +400,9 @@ async function castVote(i, like) {
     const old = $("pane-selected").querySelector(".votes");
     if (selected === i && old) old.replaceWith(voteButtons(i));
     setStatus(t("tasteCount").replace("{a}", TASTE.likes).replace("{b}", TASTE.dislikes));
-    if (RATING && like !== null) rateNext();
+    if (RATING && like !== null) await rateNext();
   } catch (e) { setStatus(String(e.message || e)); }
+  VOTING = false;
 }
 
 function tasteGrid(indices) {
