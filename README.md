@@ -29,7 +29,7 @@ style-atlas 會看每張圖「怎麼畫」（不是畫了什麼），自動把�
 
 （截圖裡的圖片是 `scripts\make_demo_images.py` 程式產生的四種抽象風格，不是任何人的作品。）
 
-**要訓 LoRA？** 先看完整流程 [docs/LORA_GUIDE.md](docs/LORA_GUIDE.md)，網頁介面的操作看圖解 [docs/WEB_GUIDE.md](docs/WEB_GUIDE.md)（檢查資料 → 整理畫風群 → 匯出）。
+**要訓 LoRA？** 先看完整流程 [docs/LORA_GUIDE.md](docs/LORA_GUIDE.md)，網頁介面的操作看圖解 [docs/WEB_GUIDE.md](docs/WEB_GUIDE.md)（檢查資料 → 整理畫風群 → 匯出）。**只想探索畫風、把 3D 地圖分享給朋友？** 看 [docs/WEB_GUIDE.md](docs/WEB_GUIDE.md) 開頭的「只想探索畫風、分享地圖？」。
 
 ### Windows：三步開始
 
