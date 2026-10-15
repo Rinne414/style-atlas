@@ -15,6 +15,9 @@ Changed output (scripts that parse the text should use `--json`):
 
 New:
 
+- **The web app opens at once.** `serve` (and `StyleAtlas.bat`) opens the browser before the
+  model download and the embedding, shows their progress on a waiting page, and turns into the
+  map when ready; if the folder cannot be opened, the page says why.
 - **Search scores with a scale.** Each web image-search result shows its style similarity, with a
   line on what the numbers mean (measured on 306 Danbooru artists; 0.85 and up highlighted).
 - **Rating mode ignores a second L/D press** made before the next image is shown (it rated the

@@ -745,3 +745,66 @@ def test_notes_on_images_are_kept_next_to_the_folder_and_in_saved_maps(tmp_path)
     assert again.note({"i": 3, "text": ""}) == {"notes": {}}
     with pytest.raises(ValueError):
         again.note({"i": 0, "text": "x" * 81})
+
+
+def test_the_page_shows_progress_until_the_app_is_ready(tmp_path):
+    from styleatlas.webserver import Preparing
+
+    preparing = Preparing("<my folder>")
+    srv = bind(preparing, port=0)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    port = srv.server_address[1]
+    try:
+        status, page = request(port, "GET", "/")
+        assert status == 200 and b"&lt;my folder&gt;" in page and b"<my folder>" not in page
+        preparing.progress("embedded 10/100")
+        state = json.loads(request(port, "GET", "/status")[1])
+        assert state == {"ready": False, "lines": ["embedded 10/100"], "error": None}
+        hdr = {"X-Style-Atlas": "1", "Content-Type": "application/json"}
+        assert request(port, "POST", "/api/regroup", json.dumps({}), hdr)[0] == 503
+        assert request(port, "GET", "/thumb/0")[0] == 404
+        srv.RequestHandlerClass.app, _ = _app(tmp_path)  # what serve_when_ready does when built
+        assert json.loads(request(port, "GET", "/status")[1]) == {"ready": True}
+        assert b'"live"' in request(port, "GET", "/")[1]
+    finally:
+        srv.shutdown()
+        srv.server_close()
+
+
+def test_a_failed_build_says_why_on_the_page():
+    from styleatlas.webserver import Preparing
+
+    preparing = Preparing("x")
+    try:
+        raise FileNotFoundError("no images found under x")
+    except FileNotFoundError as e:
+        preparing.fail(e)
+    assert preparing.status()["error"] == "no images found under x"
+    try:
+        raise ZeroDivisionError("boom")
+    except ZeroDivisionError as e:  # unexpected: a short note, the traceback goes to the console
+        preparing.fail(e)
+    assert "ZeroDivisionError" in preparing.status()["error"]
+
+
+def test_serve_when_ready_builds_in_the_background(tmp_path, monkeypatch):
+    import time
+
+    import styleatlas.webserver as ws
+
+    started = {}
+    monkeypatch.setattr(ws, "_run", lambda server, open_browser: started.update(server=server))
+    app, _ = _app(tmp_path)
+
+    def build(progress):
+        progress("working")
+        return app
+
+    ws.serve_when_ready(build, "t", port=0, open_browser=False)
+    handler = started["server"].RequestHandlerClass
+    for _ in range(200):  # the build runs in its own thread
+        if handler.app is app:
+            break
+        time.sleep(0.05)
+    started["server"].server_close()
+    assert handler.app is app

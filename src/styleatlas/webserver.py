@@ -3,15 +3,24 @@ thumbnails out and routes the page's JSON requests to StyleAtlasApp (serve.py).
 
 Defenses: only Host headers naming this server are answered (no DNS rebinding); every POST needs
 the X-Style-Atlas header, which a cross-site page cannot send without a preflight this server
-never approves; image GETs that the browser marks as cross-site are refused."""
+never approves; image GETs that the browser marks as cross-site are refused.
+
+`serve_when_ready` opens the page first and builds the app in the background: until it is ready
+a `Preparing` stand-in shows the progress (the model download, embedding) in the browser."""
 
 from __future__ import annotations
 
+import html
 import json
+import sys
+import threading
+import time
 import traceback
 import webbrowser
+from collections.abc import Callable
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from importlib import resources
 
 from styleatlas.encoder import ModelDownloadError
 from styleatlas.images import IMAGE_TYPES
@@ -50,6 +59,66 @@ JSON_ROUTES = {  # POST route -> StyleAtlasApp method taking the JSON body
     "api/export_plan": "export_plan",
 }
 REQUEST_ERRORS = (ValueError, OSError, KeyError, TypeError, OverflowError, ModelDownloadError)
+PREPARING_LINES = 12  # progress lines the waiting page shows
+
+
+class Preparing:
+    """Stands in for StyleAtlasApp while it is built: the waiting page and its progress."""
+
+    atlas = ()  # no images yet
+
+    def __init__(self, title: str):
+        self.title = title
+        self.lines: list[str] = []
+        self.error: str | None = None
+        self.started = time.monotonic()
+        self._lock = threading.Lock()
+
+    def progress(self, msg: str) -> None:
+        print(msg, file=sys.stderr, flush=True)
+        with self._lock:
+            self.lines = [*self.lines, msg][-PREPARING_LINES:]
+
+    def fail(self, e: BaseException) -> None:
+        known = isinstance(e, (*REQUEST_ERRORS, RuntimeError))
+        if not known:
+            traceback.print_exc()
+        message = (
+            str(e)
+            if known
+            else tr(
+                f"internal error ({type(e).__name__}); see the console",
+                f"內部錯誤（{type(e).__name__}）；詳情見主控台",
+            )
+        )
+        print(message, file=sys.stderr, flush=True)
+        self.error = message
+
+    def status(self) -> dict:
+        with self._lock:
+            return {"ready": False, "lines": self.lines, "error": self.error}
+
+    def page(self) -> str:
+        text = {
+            "elapsed": tr("({m}:{s} so far)", "（已經過 {m}:{s}）"),
+            "failed": tr("Could not open the folder:", "無法開啟這個資料夾："),
+        }
+        heading = tr(f"Preparing {self.title}", f"正在準備 {self.title}")
+        note = tr(
+            "The map opens here by itself when the styles are ready. The first run downloads the "
+            "style model once (about 2.4 GB); after that only new images are computed.",
+            "畫風算好後，地圖會自動在這裡打開。第一次使用會先下載一次畫風模型（約 2.4 GB）；"
+            "之後只會計算新加入的圖。",
+        )
+        page = resources.files("styleatlas").joinpath("templates/preparing.html").read_text("utf-8")
+        for key, value in (
+            ("__LANG__", tr("en", "zh-Hant")),
+            ("__TITLE__", html.escape(self.title)),
+            ("__HEADING__", html.escape(heading)),
+            ("__NOTE__", html.escape(note)),
+        ):
+            page = page.replace(key, value)
+        return page.replace("/*__TEXT__*/{}", json.dumps(text, ensure_ascii=False), 1)
 
 
 class StyleAtlasHandler(BaseHTTPRequestHandler):
@@ -101,6 +170,10 @@ class StyleAtlasHandler(BaseHTTPRequestHandler):
                 return
             self._send(200, page, "text/html; charset=utf-8")
             return
+        if parts == ["status"]:  # the waiting page asks until the app is ready
+            app = self.app
+            self._json(200, app.status() if isinstance(app, Preparing) else {"ready": True})
+            return
         if parts == ["favicon.ico"]:
             self.send_response(HTTPStatus.NO_CONTENT)
             self.end_headers()
@@ -147,6 +220,9 @@ class StyleAtlasHandler(BaseHTTPRequestHandler):
         if body is None:
             return
         route = self.path.split("?")[0].strip("/")
+        if isinstance(self.app, Preparing):
+            self._json(503, {"error": tr("still preparing", "還在準備中")})
+            return
         try:
             if route == "api/search":
                 self._json(200, self.app.search_image(body))
@@ -164,7 +240,9 @@ class StyleAtlasHandler(BaseHTTPRequestHandler):
             self._json(500, {"error": f"internal error ({type(e).__name__}); see the console"})
 
 
-def make_handler(app: StyleAtlasApp, allowed_hosts: set[str]) -> type[BaseHTTPRequestHandler]:
+def make_handler(
+    app: StyleAtlasApp | Preparing, allowed_hosts: set[str]
+) -> type[BaseHTTPRequestHandler]:
     attrs = {"app": app, "allowed_hosts": frozenset(allowed_hosts)}
     return type("BoundStyleAtlasHandler", (StyleAtlasHandler,), attrs)
 
@@ -176,7 +254,7 @@ class _Server(ThreadingHTTPServer):
     daemon_threads = True
 
 
-def bind(app: StyleAtlasApp, port: int = 8770) -> ThreadingHTTPServer:
+def bind(app: StyleAtlasApp | Preparing, port: int = 8770) -> ThreadingHTTPServer:
     """Server on the first free port from `port`, wired to `app` (not yet serving)."""
     server = None
     for candidate in range(port, port + 20):
@@ -196,6 +274,36 @@ def bind(app: StyleAtlasApp, port: int = 8770) -> ThreadingHTTPServer:
 def serve(app: StyleAtlasApp, port: int = 8770, open_browser: bool = True) -> None:
     server = bind(app, port)
     app.prewarm()
+    _run(server, open_browser)
+
+
+def serve_when_ready(
+    build: Callable[[Callable[[str], None]], StyleAtlasApp],
+    title: str,
+    port: int = 8770,
+    open_browser: bool = True,
+) -> None:
+    """Open the page at once and build the app (`build(progress)`) in the background; the page
+    shows the progress and turns into the app when it is ready, or shows why it failed."""
+    preparing = Preparing(title)
+    server = bind(preparing, port)
+    handler = server.RequestHandlerClass
+
+    def work() -> None:
+        try:
+            app = build(preparing.progress)
+            app.prewarm()
+        except Exception as e:  # noqa: BLE001 - the waiting page must learn why
+            preparing.fail(e)
+            return
+        handler.app = app
+        print(tr("ready", "準備好了"), flush=True)
+
+    threading.Thread(target=work, name="style-atlas-build", daemon=True).start()
+    _run(server, open_browser)
+
+
+def _run(server: ThreadingHTTPServer, open_browser: bool) -> None:
     url = f"http://127.0.0.1:{server.server_address[1]}/"
     print(
         tr(

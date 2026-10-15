@@ -78,10 +78,13 @@ def _opts(a: argparse.Namespace) -> EncodeOptions:
     )
 
 
-def _atlas(a: argparse.Namespace, folder: str, exclude: list[Path] | None = None) -> Atlas:
-    atlas = build_atlas(Path(folder), _opts(a), log, recursive=not a.no_recursive, exclude=exclude)
+def _atlas(
+    a: argparse.Namespace, folder: str, exclude: list[Path] | None = None, progress=log
+) -> Atlas:
+    recursive = not a.no_recursive
+    atlas = build_atlas(Path(folder), _opts(a), progress, recursive=recursive, exclude=exclude)
     for p, why in atlas.failed:
-        log(tr(f"skipped {p}: {why}", f"略過 {p}：{why}"))
+        progress(tr(f"skipped {p}: {why}", f"略過 {p}：{why}"))
     space = _space(a)
     if space != PLAIN:
         atlas, a.fitted_space = atlas.in_space(space)  # reused for --reference
@@ -138,17 +141,17 @@ def _log_space(transform: object) -> None:
         )
 
 
-def _reference(a: argparse.Namespace) -> Atlas | None:
+def _reference(a: argparse.Namespace, progress=log) -> Atlas | None:
     """The --reference folder (styles you already know), embedded the same way."""
     if not getattr(a, "reference", None):
         return None
-    ref = build_atlas(Path(a.reference), _opts(a), log, recursive=True)
+    ref = build_atlas(Path(a.reference), _opts(a), progress, recursive=True)
     for p, why in ref.failed:
-        log(tr(f"reference skipped {p}: {why}", f"參考圖略過 {p}：{why}"))
+        progress(tr(f"reference skipped {p}: {why}", f"參考圖略過 {p}：{why}"))
     space = getattr(a, "fitted_space", None)  # same space as the folder
     if space is not None:
         ref = replace(ref, style=space.apply(ref.style, ref.content))
-    log(
+    progress(
         tr(
             f"reference: {len(ref)} images from {a.reference}",
             f"參考圖：{a.reference} 的 {len(ref)} 張",

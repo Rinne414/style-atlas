@@ -35,7 +35,7 @@ style-atlas 會看每張圖「怎麼畫」（不是畫了什麼），自動把�
 
 1. 安裝 [Python 3.10 以上](https://www.python.org/downloads/)（3.10～3.14 都有自動測試），安裝時勾選「Add python.exe to PATH」。也可以在命令提示字元執行 `winget install -e --id Python.Python.3.12`。
 2. 下載本專案：登入 GitHub 後，在專案頁面按 **Code → Download ZIP** 再解壓縮（本專案目前是私人專案，要先請作者給你存取權），會用 git 的話也可以 `git clone`。然後雙擊 `scripts\setup.bat`。它會在專案資料夾裡建立 `.venv`，偵測到 NVIDIA 顯卡就裝 CUDA 版的 torch（下載約 2.5 GB），沒有就裝 CPU 版（約 200 MB），再安裝本工具。
-3. 把圖片資料夾**拖到 `scripts\StyleAtlas.bat` 上**（或直接雙擊它，再從跳出的視窗選資料夾），瀏覽器會打開網頁介面。第一次會先下載 2.4 GB 的模型，黑色視窗看起來停住很久是正常的。
+3. 把圖片資料夾**拖到 `scripts\StyleAtlas.bat` 上**（或直接雙擊它，再從跳出的視窗選資料夾），瀏覽器會馬上打開網頁，先顯示準備進度（第一次會先下載 2.4 GB 的模型，接著計算每張圖的畫風），算好後自動變成地圖。
 
 Windows 跳出「Windows 已保護您的電腦」時，按「其他資訊」→「仍要執行」。
 
@@ -57,7 +57,7 @@ Windows 跳出「Windows 已保護您的電腦」時，按「其他資訊」→�
 - **repeats**：每個 epoch 裡這個資料夾的圖要重複幾次。張數少的群 repeats 高一點，各群的份量就會接近。
 - **觸發詞（trigger word）**：寫在標註最前面的詞，訓練後在提示詞裡寫它就能叫出這種畫風。
 
-**第一次分析前**，程式會從 Hugging Face 下載 CSD 模型。下載量 2.4 GB，之後另存成 1.2 GB 的精簡檔，存在 `%USERPROFILE%\.cache\style-atlas`，只會下載一次。C 槽空間不夠時，可以先設定環境變數 `STYLE_ATLAS_CACHE`（例如 `D:\style-atlas-cache`）改存到別處。連不上 Hugging Face 時（例如在中國大陸），先設定環境變數 `HF_ENDPOINT=https://hf-mirror.com` 改從鏡像站下載。同一個資料夾也存放向量與縮圖快取（每張圖約幾 KB），刪掉不影響原始檔案，之後會重新產生。下載時畫面可能停很久，這是正常的。
+**第一次分析前**，程式會從 Hugging Face 下載 CSD 模型。下載量 2.4 GB，之後另存成 1.2 GB 的精簡檔，存在 `%USERPROFILE%\.cache\style-atlas`，只會下載一次。C 槽空間不夠時，可以先設定環境變數 `STYLE_ATLAS_CACHE`（例如 `D:\style-atlas-cache`）改存到別處。連不上 Hugging Face 時（例如在中國大陸），先設定環境變數 `HF_ENDPOINT=https://hf-mirror.com` 改從鏡像站下載。同一個資料夾也存放向量與縮圖快取（每張圖約幾 KB），刪掉不影響原始檔案，之後會重新產生。網頁介面會在準備頁上顯示下載和計算的進度；其他指令的進度印在黑色視窗裡，下載時可能停很久，這是正常的。
 
 速度參考：只用 CPU 時，8 執行緒約每秒 2.5–4 張，1,000 張約 4–7 分鐘（實測，大圖較慢）。有 NVIDIA 顯卡通常會快很多，但這點沒有實測過。每張圖的向量都會快取，第二次開同一個資料夾就不用重算向量。
 

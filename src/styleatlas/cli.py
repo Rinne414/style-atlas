@@ -407,21 +407,26 @@ def cmd_taste(a: argparse.Namespace) -> int:
 
 def cmd_serve(a: argparse.Namespace) -> int:
     from styleatlas.serve import StyleAtlasApp
-    from styleatlas.webserver import serve
+    from styleatlas.webserver import serve_when_ready
 
     space = _space(a)
     a.neutralize, a.ignore_characters = 0, False  # the app applies the space itself
-    app = StyleAtlasApp(
-        _atlas(a, a.folder),
-        _opts(a),
-        a.projection,
-        a.title,
-        progress=log,
-        time_source=a.time,
-        space=space,
-        reference=_reference(a),
-    )
-    serve(app, port=a.port, open_browser=not a.no_browser)
+    opts = _opts(a)
+
+    def build(progress) -> StyleAtlasApp:  # in the background, while the page shows progress
+        return StyleAtlasApp(
+            _atlas(a, a.folder, progress=progress),
+            opts,
+            a.projection,
+            a.title,
+            progress=progress,
+            time_source=a.time,
+            space=space,
+            reference=_reference(a, progress),
+        )
+
+    title = a.title or Path(a.folder).resolve().name
+    serve_when_ready(build, title, port=a.port, open_browser=not a.no_browser)
     return 0
 
 
