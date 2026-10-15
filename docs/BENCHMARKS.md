@@ -947,6 +947,19 @@ ranked exactly as `rank_folders` does), the first folder's lead over the second 
 rate ("very likely X: right 95% of the time at such a lead"), and that several works of one
 artist together are far surer than one.
 
+Do the bands depend on the library? The cut-offs were read off this same set, and the number of
+folders could matter. Random subsets of unseen_corpus (5 draws each; one image per query):
+
+| Folders | First right overall | 0.08 or more | 0.05 to 0.08 | under 0.05 |
+|---|---|---|---|---|
+| 30 | 82% | 97% (66% of queries) | 69% (9%) | 44% (24%) |
+| 70 | 74% | 95% (58%) | 66% (10%) | 38% (32%) |
+| 127 | 70% | 95% (53%) | 61% (12%) | 35% (36%) |
+
+Fewer folders make the first one right more often, but each band's rate barely moves, so the
+quoted rates are, if anything, cautious for small libraries. Libraries of several hundred folders
+or more were not tested.
+
 The limit, seen in the same test: three of hammer_(sunset_beach)'s works from about 2012 were
 ranked against folders whose works date from about 2021-2024. kz_oji led by 0.081 ("very
 likely"), and hammer came 13th: in plain CSD the early works sit nearer kz_oji's average (0.841)
