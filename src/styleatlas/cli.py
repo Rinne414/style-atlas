@@ -101,6 +101,7 @@ def cmd_map(a: argparse.Namespace) -> int:
         progress=log,
         time_source=a.time,
         reference=_reference(a),
+        families=getattr(a, "families", False),
     )
     log(
         tr(

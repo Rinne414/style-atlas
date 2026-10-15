@@ -287,7 +287,7 @@ function timeStrip(members, color) {
 function clusterName(c) {
   if (c < 0) return t("unassigned");
   const named = ((DATA.live && DATA.live.names) || DATA.names || {})[String(c)];
-  const word = t(DATA.method === "timeline" ? "periodName" : "style");  // periods are numbered earliest first
+  const word = t(DATA.method === "timeline" ? "periodName" : DATA.families ? "familyName" : "style");  // periods: earliest first
   return named ? `${word} ${c + 1} · ${named}` : `${word} ${c + 1}`;
 }
 
@@ -393,7 +393,7 @@ function clusterText(c, pane) {  // name, size, typical tags, closest groups, lo
   const nm = document.createElement("div"); nm.className = "name"; nm.textContent = clusterName(c.id);
   const mt = document.createElement("div"); mt.className = "meta";
   const out = c.members.filter((i) => EXCLUDED.has(i)).length;
-  mt.textContent = `${c.size} ${t("size")}` + (out ? t("excludedOf").replace("{n}", out) : "") +
+  mt.textContent = `${c.size} ${t(DATA.families ? "folderUnit" : "size")}` + (out ? t("excludedOf").replace("{n}", out) : "") +
     (c.cohesion !== undefined ? ` · ${t("cohesion")} ${c.cohesion.toFixed(3)}` : "");
   txt.append(nm, mt);
   if (c.tags && c.tags.length) {

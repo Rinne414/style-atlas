@@ -417,7 +417,14 @@ class StyleAtlasApp(GroupEdits):
             f"{self.title or self.raw.root.name}: artists",
             f"{self.title or self.raw.root.name}：畫師地圖",
         )
-        path = write_map(folders, families, self.out_dir / ARTIST_MAP, self.projection, title=title)
+        path = write_map(
+            folders,
+            families,
+            self.out_dir / ARTIST_MAP,
+            self.projection,
+            title=title,
+            families=True,
+        )
         return {
             "file": str(path),
             "folders": len(folders),

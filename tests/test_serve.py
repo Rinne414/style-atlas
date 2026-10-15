@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import http.client
 import json
+import re
 import threading
 from pathlib import Path
 
@@ -853,6 +854,7 @@ def test_the_artist_map_shows_one_point_per_sub_folder(tmp_path):
     try:
         status, page = request(srv.server_address[1], "GET", "/artist_map")
         assert status == 200 and b"artist0" in page
+        assert re.search(rb'"families":\s*true', page)  # the cards say family, not style
     finally:
         srv.shutdown()
         srv.server_close()

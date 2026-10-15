@@ -240,12 +240,17 @@ def write_map(
     progress: Callable[[str], None] = lambda _: None,
     time_source: str = "none",
     reference: Atlas | None = None,
+    families: bool = False,
 ) -> Path:
+    """With `families`, the points are sub-folders (folder_atlas) and the groups families of
+    them: the page says so on the cards."""
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     payload = map_payload(
         atlas, clustering, out_path, projection, thumb_px, title, progress, time_source, reference
     )
+    if families:
+        payload["families"] = True
     return write_payload(payload, out_path)
 
 
