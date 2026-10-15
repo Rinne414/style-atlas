@@ -250,7 +250,7 @@ function drawAxes() {
   const ends = [new THREE.Vector3(L, -L, -L), new THREE.Vector3(-L, L, -L), new THREE.Vector3(-L, -L, L)];
   ["axX", "axY", "axZ"].forEach((id, d) => {
     const key = $(id).value;
-    axisLines.add(label(`${"XYZ"[d]}: ${t("m_" + key)} →`, ends[d]));
+    axisLines.add(label(`${"XYZ"[d]}: ${t("m_" + key)} ${t("axisLowHigh")}`, ends[d]));
   });
   scene.add(axisLines);
 }
