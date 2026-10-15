@@ -5,6 +5,10 @@
 Changed output (scripts that parse the text should use `--json`):
 
 - `compare` prints a readable summary by default; the JSON it printed before needs `--json`.
+  With 5 or more images a side, the text reads the distance next to real artists instead of the
+  z scale (z and its verdict stay in `--json`, and in the text with fewer images or
+  `--noise-floor`); `--json` adds `separable` and `artist_reading`; the near-copy line shows only
+  when there are near-copies (or with few images).
 - `duplicates` prints a header line per group and one file per line (was one line per group).
 - On a Chinese system `audit` adds the meaning to each item name (`no_caption（沒有標註檔）`).
 - `cluster.fit_to_groups` takes plain CSD vectors and whitens them itself: code that passed
@@ -88,6 +92,12 @@ New:
   `_unsure` is listed closest to a group first, as a hint (an artist's own work comes before a
   stranger's about 2 times in 3; BENCHMARKS); the small-image note says it counts the images
   placed in style folders (in `cluster` exports too); the last line says what to do next.
+- **`compare` reads real artists' folders against real artists** (from a Sonnet first-time-user
+  test: one artist's oldest and newest works read "same style" on the AI-render z scale while
+  the images showed a clear change). With 5 or more images a side it says whether the sides
+  really differ (permutation p), where the distance falls next to 443 Danbooru artists (within
+  one artist's range / could be either / as far apart as two artists; BENCHMARKS "What a compare
+  distance means"), which images to open, and what training them together does.
 - **`sort` never writes into the dataset** (from a Sonnet code review): with the new images in a
   sub-folder of the dataset, the results go next to the dataset, and an `-o` inside either folder
   is refused; `sorted\` no longer gets trainer configs that list only the new images; `--merged`

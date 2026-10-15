@@ -14,7 +14,14 @@ from styleatlas.cluster import outlier_scores
 from styleatlas.images import find_images
 from styleatlas.lang import chinese, columns, pad, tr
 from styleatlas.look import LOOK_NAMES, describe, difference
-from styleatlas.metrics import StyleScale, distinctive_order, group_difference
+from styleatlas.metrics import (
+    SEPARABLE_P,
+    ArtistReading,
+    StyleScale,
+    artist_reading,
+    distinctive_order,
+    group_difference,
+)
 
 
 def cmd_audit(a: argparse.Namespace) -> int:
@@ -192,8 +199,10 @@ def cmd_compare(a: argparse.Namespace) -> int:
     dist, p = group_difference(groups[0], groups[1], rounds=a.rounds)
     d = difference(*looks)
     scale = StyleScale(noise_floor=a.noise_floor) if a.noise_floor else StyleScale()
+    # works of real artists are read against real artists, unless a scale was calibrated
+    reading = None if a.noise_floor else artist_reading(dist, len(groups[0]), len(groups[1]))
     if not a.json:
-        _print_compare(a, groups, dist, p, scale, d, copies, files)
+        _print_compare(a, groups, dist, p, scale, d, copies, files, reading)
         return 0
     print(
         json.dumps(
@@ -203,6 +212,16 @@ def cmd_compare(a: argparse.Namespace) -> int:
                 "z": round(scale.z(dist), 2),
                 "verdict": scale.verdict(dist),
                 "permutation_p": round(p, 4),
+                "separable": p < SEPARABLE_P,
+                "artist_reading": None
+                if reading is None
+                else {
+                    "works_a_side": reading.n,
+                    "reading": reading.reading,
+                    "different_artists_p5": round(reading.others_p5, 3),
+                    "different_artists_median": round(reading.others_median, 3),
+                    "one_artist_oldest_vs_newest_median": round(reading.one_artist_change, 3),
+                },
                 "look_b_minus_a": dict(
                     zip(LOOK_NAMES, (round(float(v), 2) for v in d), strict=True)
                 ),
@@ -226,12 +245,11 @@ COPIES_SHOWN = 10  # near-copy pairs listed; --json has them all
 DISTINCTIVE_SHOWN = 3  # images per side that best show the difference
 
 
-def _print_compare(a, groups, dist, p, scale, look, copies, files) -> None:
+def _print_compare(a, groups, dist, p, scale, look, copies, files, reading=None) -> None:
     """`compare` for a reader: the verdict, the look change, the images that best show the
-    difference, and any near-copies."""
+    difference, any near-copies, and what it means for training."""
     sizes = [len(g) for g in groups]
     na, nb = Path(a.a).name, Path(a.b).name
-    z, verdict = scale.z(dist), scale.verdict(dist)
     pv = "< 0.01" if p < 0.01 else f"{p:.2f}"
     print(
         tr(
@@ -239,12 +257,17 @@ def _print_compare(a, groups, dist, p, scale, look, copies, files) -> None:
             f"A：{na}（{sizes[0]} 張）  B：{nb}（{sizes[1]} 張）",
         )
     )
-    print(
-        tr(
-            f"style distance {dist:.3f} (z {z:.1f}, {verdict}; p {pv})",
-            f"畫風距離 {dist:.3f}（z {z:.1f}，{VERDICT_ZH.get(verdict, verdict)}；p {pv}）",
+    if reading is None:  # few images, or a calibrated scale: the z scale
+        z, verdict = scale.z(dist), scale.verdict(dist)
+        print(
+            tr(
+                f"style distance {dist:.3f} (z {z:.2f}, {verdict}; p {pv})",
+                f"畫風距離 {dist:.3f}（z {z:.2f}，{VERDICT_ZH.get(verdict, verdict)}；p {pv}）",
+            )
         )
-    )
+    else:
+        print(_separable_line(dist, pv, p < SEPARABLE_P))
+        print(_reading_line(reading))
     words = describe(look, "zh" if chinese() else "en", than=True)
     print(
         tr(
@@ -252,18 +275,24 @@ def _print_compare(a, groups, dist, p, scale, look, copies, files) -> None:
             f"外觀：B 比 A {words}" if words else "外觀：沒有明顯差異",
         )
     )
-    for side, name in ((0, "A"), (1, "B")):
+    for side, name, other in ((0, "A", "B"), (1, "B", "A")):
         order = distinctive_order(groups[side], groups[1 - side])[:DISTINCTIVE_SHOWN]
-        shown = ", ".join(files[side][k].name for k in order)
+        folder = (na, nb)[side]
+        shown = ", ".join(f"{folder}/{files[side][k].name}" for k in order)
         print(
-            tr(f"most {name}-like, unlike the other: {shown}", f"最能代表 {name} 的差異：{shown}")
+            tr(
+                f"most typical of {name} and least like {other} (open them to see the "
+                f"difference): {shown}",
+                f"最能代表 {name}、又最不像 {other} 的圖（打開來看最能看出差別）：{shown}",
+            )
         )
-    print(
-        tr(
-            f"{len(copies)} images of B nearly repeat an image of A",
-            f"B 裡有 {len(copies)} 張和 A 的某張幾乎一樣",
+    if copies or reading is None:  # with renders (few images), none repeating is news too
+        print(
+            tr(
+                f"{len(copies)} images of B nearly repeat an image of A",
+                f"B 裡有 {len(copies)} 張和 A 的某張幾乎一樣",
+            )
         )
-    )
     for i, j, s in copies[:COPIES_SHOWN]:
         print(f"  B {files[1][i].name}  ~  A {files[0][j].name}  ({s:.3f})")
     if len(copies) > COPIES_SHOWN:
@@ -274,6 +303,9 @@ def _print_compare(a, groups, dist, p, scale, look, copies, files) -> None:
                 f"  ……還有 {more} 組（--json 會全部列出）",
             )
         )
+    if reading is not None:
+        print(_training_line(reading, p < SEPARABLE_P))
+        return
     log(
         tr(
             "z: in units of the difference between two halves of one style (the default scale "
@@ -283,4 +315,70 @@ def _print_compare(a, groups, dist, p, scale, look, copies, files) -> None:
             "`calibrate` 可以用你自己的資料夾重新量，再用 --noise-floor 帶入）；"
             "--json 會列出全部數字",
         )
+    )
+
+
+def _separable_line(dist: float, pv: str, separable: bool) -> str:
+    if separable:
+        return tr(
+            f"style distance {dist:.3f}; p {pv}: the two sides really differ (more than a random "
+            "split of these images)",
+            f"畫風距離 {dist:.3f}；p {pv}：兩邊確實不同（比把這些圖隨機分成兩半的差距大）",
+        )
+    return tr(
+        f"style distance {dist:.3f}; p {pv}: the two sides are hard to tell apart (like a random "
+        "split of these images)",
+        f"畫風距離 {dist:.3f}；p {pv}：兩邊分不太出來（和把這些圖隨機分成兩半差不多）",
+    )
+
+
+READING_EN = {
+    "one artist": "within one artist's range",
+    "either": "could be two artists, or one artist whose style changed a lot",
+    "two artists": "as far apart as two different artists",
+}
+READING_ZH = {
+    "one artist": "在同一位畫師的範圍內",
+    "either": "可能是兩位畫師，也可能是同一位畫師的畫風變了很多",
+    "two artists": "和兩位不同畫師的差距相當",
+}
+
+
+def _reading_line(r: ArtistReading) -> str:
+    n = round(r.n)
+    return tr(
+        f"next to real artists (about {n} works a side): {READING_EN[r.reading]}. For reference, "
+        f"95% of pairs of different artists are {r.others_p5:.3f} or more apart (median "
+        f"{r.others_median:.3f}); one artist's oldest and newest works, median "
+        f"{r.one_artist_change:.3f} (443 Danbooru artists)",
+        f"和真實畫師比（每邊約 {n} 張）：{READING_ZH[r.reading]}。參考：兩位不同畫師有 95% 相差 "
+        f"{r.others_p5:.3f} 以上（中位數 {r.others_median:.3f}）；同一位畫師最早和最新的作品，"
+        f"中位數相差 {r.one_artist_change:.3f}（443 位 Danbooru 畫師）",
+    )
+
+
+def _training_line(r: ArtistReading, separable: bool) -> str:
+    if r.reading == "two artists":
+        return tr(
+            "training: as far apart as different artists; usually trained apart",
+            "訓練：差距和不同畫師相當，通常分開訓練",
+        )
+    if not separable:
+        return tr(
+            "training: the two sides are hard to tell apart; training them together is fine",
+            "訓練：兩邊分不太出來，合在一起訓練沒問題",
+        )
+    mix = tr(
+        "training: together, a LoRA learns a mix of both sides; for one side's look only, train "
+        "it apart (the images above show the difference)",
+        "訓練：合在一起訓練，LoRA 會學到兩邊的混合；只想要其中一邊的畫風，就分開訓練"
+        "（上面的圖看得出差別）",
+    )
+    if r.reading != "one artist":
+        return mix
+    return mix + tr(
+        ". To see whether the style changed gradually or at a point, put all the works in one "
+        "folder and run cluster --granularity timeline",
+        "。想看畫風是慢慢變還是在某個時間點轉變：把作品放進同一個資料夾，用 cluster "
+        "--granularity timeline",
     )

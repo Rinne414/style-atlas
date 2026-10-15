@@ -542,6 +542,32 @@ by 306 artists (near-duplicates removed), every pair:
 - A set query compares with the queries' shared style, which sits closer to each work than one work
   to another; those numbers run higher and the page says so.
 
+## What a compare distance means between real artists' folders (2026-10-16)
+
+A first-time-user test of `compare` (one artist's 20 oldest against 20 newest works) read
+"same style" from the z scale while the typical images showed a clear change from soft painting
+to cel shading. The z scale was measured on NovelAI renders, 2 images a side, so it says little
+about folders of real artworks. Measured instead: centroid distance (as `compare` computes it,
+plain CSD) between n works a side, on 443 Danbooru artists (period_corpus, unseen_big,
+big_artist_corpus, unseen_corpus, artists300; one sample per artist, the largest; 20 random
+halves per artist, 2,000 random pairs of different artists):
+
+| n a side (artists) | One artist, random halves: median / 95th pct | One artist, oldest n vs newest n: median | Different artists: 5th pct / median |
+|---|---|---|---|
+| 5 (368) | 0.113 / 0.231 | 0.158 | 0.192 / 0.348 |
+| 10 (34) | 0.063 / 0.125 | 0.139 | 0.149 / 0.268 |
+| 20 (22) | 0.031 / 0.059 | 0.094 | 0.133 / 0.234 |
+
+An artist's oldest and newest works are farther apart than random halves (at 20 a side, 73%
+of artists past 0.06, which 5% of random halves reach), but closer than almost any two
+different artists. Since 0.44 `compare` reads two folders of 5 or more images against this
+table (interpolated in 1/n, n = 2 / (1/nA + 1/nB); the 20 row beyond): below the different
+artists' 5th percentile "within one artist's range", from their median "as far apart as two
+different artists", in between "could be either". The permutation p says whether the two sides
+really differ (p < 0.05). The test's pair: 0.080, p < 0.01: within one artist's range, and
+really different, so a LoRA trained on both learns a mix. The z scale stays for fewer images
+(LoRA renders) and for `--noise-floor` from `calibrate`.
+
 ## Periods along the timeline: `--granularity timeline` (2026-10-16)
 
 `period` (k-means) separates styles but ignores time, so its periods mix eras (NMI with posting

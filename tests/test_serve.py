@@ -576,11 +576,13 @@ def test_two_groups_compared(server, tmp_path):
     got = app.compare({"a": a, "b": b})
     assert got["verdict"] == "clearly different" and got["p"] < 0.05 and got["sizes"] == [10, 10]
     assert set(got["look"]) == set(LOOK_NAMES)
+    assert got["reading"]["reading"] == "two artists" and got["reading"]["n"] == 10.0
     with pytest.raises(ValueError):
         app.compare({"a": a, "b": a})
     picked = [int(i) for i in np.flatnonzero(labels == a)[:4]]  # images picked on the map
     mine = app.compare({"items": picked, "b": b})
     assert mine["sizes"] == [4, 10] and mine["verdict"] == "clearly different"
+    assert "reading" not in mine  # under 5 a side: the z scale only
     same = app.compare({"items": picked, "b": a})  # part of the same group: no real difference
     others = [int(i) for i in np.flatnonzero(labels == b)[:5]]
     two = app.compare({"items": picked, "items_b": others})  # two free selections

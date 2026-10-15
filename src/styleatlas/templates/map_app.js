@@ -198,6 +198,7 @@ async function showSimilar(group) {  // a group id, or "excluded": the images ex
 }
 
 const VERDICT_KEYS = { "same style": "v_same", related: "v_related", "clearly different": "v_different" };
+const READING_KEYS = { "one artist": "r_one", either: "r_either", "two artists": "r_two" };  // next to real artists
 
 const COMPARE_THUMBS = 6;  // a sample of each side under a comparison
 
@@ -223,17 +224,27 @@ async function showCompare(a, b, items, itemsB) {  // picked images in place of 
     const kv = document.createElement("div"); kv.className = "kv";
     const zh = lang === "zh";
     const line = (k, v) => { const d = document.createElement("div"); d.textContent = `${k}${zh ? "：" : ": "}${v}`; kv.append(d); };
-    const verdict = t(VERDICT_KEYS[r.verdict] || "v_related");
+    const real = r.reading;  // 5 or more images a side: read next to real artists, not the z scale
+    const verdict = real ? t(READING_KEYS[real.reading]) : t(VERDICT_KEYS[r.verdict] || "v_related");
     const head = document.createElement("div"); head.className = "verdict";
     const strong = document.createElement("b"); strong.textContent = verdict; head.append(strong);
     kv.append(head);  // the answer first, the numbers below it
-    line(t("cmpDistance"), `${r.distance.toFixed(3)}${zh ? `（z ${r.z}，${verdict}）` : ` (z ${r.z}, ${verdict})`}`);
+    if (real) {
+      line(t("cmpDistance"), real.distance.toFixed(3));
+      const ref = document.createElement("div");
+      ref.textContent = t("cmpReading").replace("{n}", Math.round(real.n)).replace("{p5}", real.p5.toFixed(3))
+        .replace("{m}", real.median.toFixed(3)).replace("{c}", real.change.toFixed(3));
+      kv.append(ref);
+    } else {
+      line(t("cmpDistance"), `${r.distance.toFixed(3)}${zh ? `（z ${r.z}，${verdict}）` : ` (z ${r.z}, ${verdict})`}`);
+    }
     line(t("cmpP"), r.p < 0.01 ? "< 0.01" : r.p.toFixed(2));
     if (r.look) {
       const z = LOOKS.map((k) => r.look[k] || 0);
       line(t("cmpLook").replace("{a}", nameA).replace("{b}", nameB), wordsFor(z) || t("cmpLookSame"));
     }
-    const note = document.createElement("div"); note.className = "meta"; note.textContent = t("cmpOrder") + " " + t("cmpNote");
+    const note = document.createElement("div"); note.className = "meta";
+    note.textContent = t("cmpOrder") + " " + t(real ? "cmpNoteReal" : "cmpNote");
     const strips = [sideA, sideB].map((members, side) => {
       const grid = document.createElement("div"); grid.className = "grid";
       members.slice(0, COMPARE_THUMBS).forEach((i) => grid.append(thumb(i)));

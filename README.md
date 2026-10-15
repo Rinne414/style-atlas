@@ -203,7 +203,7 @@ style-atlas report "D:\lora\artistX" --artists "D:\artists"
 style-atlas map "D:\artists" --by-folder -o artists_map.html
 ```
 
-**兩組圖是否同一畫風、差在哪裡**：輸出畫風距離、差距是否明顯（z 值是「差距是同一畫風內部雜訊的幾倍」，越大越不同），以及外觀差異（例如「B 偏冷、線條多」）。B 裡有和 A 某張幾乎一樣的圖時（例如 LoRA 算圖重現了訓練圖），會逐一列出。加 `--json` 會輸出全部數字（重複的圖在 `b_copies_of_a`）。
+**兩組圖是否同一畫風、差在哪裡**：輸出畫風距離、兩邊是否真的不同（p 值），和真實畫師比落在哪裡（同一位畫師的範圍內、可能是兩位畫師、或和不同畫師相當；兩邊各 5 張以上時，依 443 位 Danbooru 畫師的實測），外觀差異（例如「B 偏冷、線條多」），每邊最能看出差別的圖，以及合在一起訓練會怎樣。張數更少時改用 z 值（「差距是同一畫風內部雜訊的幾倍」）。B 裡有和 A 某張幾乎一樣的圖時（例如 LoRA 算圖重現了訓練圖），會逐一列出。加 `--json` 會輸出全部數字（重複的圖在 `b_copies_of_a`）。
 
 ```bat
 style-atlas compare "D:\old_works" "D:\new_works"
@@ -541,7 +541,7 @@ style-atlas search QUERY... --in DIR [--top 20] [--combine] [--copy-to DIR] [--b
 style-atlas audit DIR [--min-side 512] [--max-ratio 2.5] [--json]
 style-atlas duplicates DIR [--threshold 0.95] [--json]
 style-atlas outliers DIR [--top 30]
-style-atlas compare DIR_A DIR_B [--noise-floor X] [--json]
+style-atlas compare DIR_A DIR_B [--noise-floor X] [--json]   # 5+ images a side: read next to 443 artists
 style-atlas calibrate DIR          # sub-folders = groups known to share one style
 style-atlas bench DIR              # sub-folders = labels (e.g. one artist each)
 style-atlas taste train --like DIR --dislike DIR [--model taste_model.npz]

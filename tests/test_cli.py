@@ -143,10 +143,29 @@ def test_audit_duplicates_outliers_and_compare(lib, capsys):
     assert main(["compare", str(lib / "red"), str(lib / "blue"), "--device", "cpu"]) == 0
     text = capsys.readouterr().out
     assert "style distance" in text and "look: B is" in text and "cooler" in text
+    assert "the two sides really differ" in text  # 7 and 6 images: read next to real artists
+    assert "as far apart as two different artists" in text and "usually trained apart" in text
+    assert "red/" in text and "nearly repeat" not in text  # no copies: no line
     assert main(["compare", str(lib / "red"), str(lib / "blue"), "--json", "--device", "cpu"]) == 0
     verdict = json.loads(capsys.readouterr().out)
     assert verdict["images"] == [7, 6] and verdict["centroid_distance"] > 0.5
     assert verdict["look_b_minus_a"]["warmth"] < 0 and "cooler" in verdict["look_words"]
+    assert verdict["separable"] and verdict["artist_reading"]["reading"] == "two artists"
+    args = ["compare", str(lib / "red"), str(lib / "blue"), "--noise-floor", "0.05"]
+    assert main([*args, "--device", "cpu"]) == 0  # a calibrated scale: z and its verdict
+    assert "(z " in capsys.readouterr().out
+
+
+def test_a_compare_distance_is_read_next_to_real_artists_of_the_same_set_size():
+    from styleatlas.metrics import ARTIST_SCALE, artist_reading
+
+    assert artist_reading(0.08, 20, 20).reading == "one artist"  # an artist's old and new works
+    assert artist_reading(0.16, 20, 20).reading == "either"
+    assert artist_reading(0.28, 20, 20).reading == "two artists"
+    assert artist_reading(0.3, 4, 50) is None  # a side under 5: the z scale instead
+    assert artist_reading(0.1, 400, 400).others_p5 == ARTIST_SCALE[-1][1]  # beyond 20 a side
+    uneven = artist_reading(0.1, 10, 40)
+    assert uneven.n == 16.0 and ARTIST_SCALE[2][1] < uneven.others_p5 < ARTIST_SCALE[1][1]
 
 
 def test_map_and_bench(lib, tmp_path, capsys):

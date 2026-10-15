@@ -255,6 +255,44 @@ class StyleScale:
         return "related"
 
 
+# Centroid distance between two folders of real artworks with n works a side (plain CSD; 443
+# Danbooru artists, 22-368 per row; docs/BENCHMARKS.md "What a compare distance means"):
+# (n, different artists' 5th percentile, their median, one artist's oldest n against newest n).
+ARTIST_SCALE = ((5, 0.192, 0.348, 0.158), (10, 0.149, 0.268, 0.139), (20, 0.133, 0.234, 0.094))
+SEPARABLE_P = 0.05  # compare's permutation p below which the two sides really differ
+
+
+@dataclass(frozen=True)
+class ArtistReading:
+    """Where a distance between two folders falls next to real artists of the same set sizes."""
+
+    n: float  # works a side the two sets count as: 2 / (1/nA + 1/nB)
+    reading: str  # "one artist", "either" or "two artists"
+    others_p5: float  # 95% of pairs of different artists are this far apart or more
+    others_median: float
+    one_artist_change: float  # median distance of one artist's oldest and newest works
+
+
+def artist_reading(distance: float, na: int, nb: int) -> ArtistReading | None:
+    """`distance` next to ARTIST_SCALE, interpolated in 1/n (beyond 20 a side, the 20 row);
+    None when a side has fewer works than the smallest row."""
+    if min(na, nb) < ARTIST_SCALE[0][0]:
+        return None
+    n = 2 / (1 / na + 1 / nb)
+    inverse = [1 / row[0] for row in reversed(ARTIST_SCALE)]  # increasing, as np.interp needs
+    x = min(1 / n, inverse[-1])
+    p5, median, change = (
+        float(np.interp(x, inverse, [row[k] for row in reversed(ARTIST_SCALE)])) for k in (1, 2, 3)
+    )
+    if distance < p5:
+        reading = "one artist"
+    elif distance >= median:
+        reading = "two artists"
+    else:
+        reading = "either"
+    return ArtistReading(round(n, 1), reading, p5, median, change)
+
+
 def centroid(x: np.ndarray) -> np.ndarray:
     return unit(np.asarray(x).mean(axis=0))
 
