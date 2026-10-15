@@ -66,7 +66,7 @@ KOHYA_FOLDER = re.compile(r"^(\d+)_(.+)$")  # <repeats>_<name>, as `cluster --la
 
 
 def cmd_sort(a: argparse.Namespace) -> int:
-    out = Path(a.out) if a.out else output_dir(Path(a.folder))
+    out = Path(a.out) if a.out else _default_out(Path(a.folder), Path(a.into))
     dataset, new = _both_sides(a, out)
     if len(new) == 0:
         log(tr(f"no readable images in {a.folder}", f"{a.folder} 裡沒有讀得到的圖"))
@@ -104,6 +104,13 @@ def cmd_sort(a: argparse.Namespace) -> int:
     return 0
 
 
+def _default_out(new: Path, dataset: Path) -> Path:
+    """Next to the new images, unless that is inside the dataset (new images kept in a
+    sub-folder of it): then next to the dataset, so nothing is written into it."""
+    out, data_root = output_dir(new), dataset.resolve()
+    return output_dir(data_root) if out.resolve().is_relative_to(data_root) else out
+
+
 def _both_sides(a: argparse.Namespace, out: Path) -> tuple[Atlas, Atlas]:
     """The dataset and the new images, checked: neither side reads the other when one folder
     holds the other, nor earlier results in `out`."""
@@ -139,6 +146,14 @@ def _both_sides(a: argparse.Namespace, out: Path) -> tuple[Atlas, Atlas]:
                 "輸出資料夾不能包含新圖或資料集",
             )
         )
+    if any(out.resolve().is_relative_to(root) for root in (new_root, data_root)):
+        raise ValueError(
+            tr(
+                "the output folder must not be inside the new images or the dataset (a trainer "
+                "would read the copies in it)",
+                "輸出資料夾不能放在新圖或資料集裡面（訓練程式會把裡面的複本也讀進去）",
+            )
+        )
     log(tr(f"dataset: {a.into}", f"資料集：{a.into}"))
     dataset = _atlas(a, a.into, exclude=[out, *_nested(new_root, data_root)])
     log(tr(f"new images: {a.folder}", f"新圖：{a.folder}"))
@@ -170,7 +185,8 @@ def _place(
         "strip_tags": parse_tags(a.strip_tags or ""),
         "respell": respell,
     }
-    done = export_folders(new, folders, out / "sorted", **options)
+    # no trainer configs here: they would list only the new images
+    done = export_folders(new, folders, out / "sorted", trainer_configs=False, **options)
     log(_placed_line(done, new.paths, folders))
     export_notes(done, folders, options["layout"], a.trigger_captions, respell)
     for p, why in done.failed:
@@ -205,7 +221,8 @@ def _merge(
 ) -> Path:
     """--merged: the dataset (its sub-folders as they are; images excluded in the web app in
     _excluded) plus the new images that fit, in <out>/merged, ready to train. kohya folders
-    whose automatic repeats change with the new count are renamed. The dataset is not touched."""
+    whose automatic repeats change with the new count are renamed. The dataset is not touched.
+    The caption options apply to the dataset's copies too (a trigger is never added twice)."""
     excluded = SET_ASIDE["excluded"]
     paths = list(dataset.paths)
     places = [
@@ -214,7 +231,8 @@ def _merge(
     added = [(p, d) for p, d in zip(new.paths, folders, strict=True) if d not in (UNSURE, ALREADY)]
     paths += [p for p, _ in added]
     places += [d for _, d in added]
-    renames = _merged_renames(clustering, labels, places)
+    count = Counter(place.partition("/")[0] for place in places)
+    renames, blocked = _merged_renames(clustering, labels, count)
     places = [_renamed(place, renames) for place in places]
     done = export_paths(paths, places, out / "merged", allow_top=True, **options)
     log(
@@ -225,20 +243,26 @@ def _merge(
             f"{len(added)} 張；原本的資料集沒有改動）",
         )
     )
-    if skip:
-        log(
-            tr(
-                f"{len(skip)} images excluded in the web app are in {excluded}",
-                f"網頁介面排除的 {len(skip)} 張放在 {excluded}",
-            )
-        )
+    _merge_notes(dataset, skip, options["mode"])
+    sizes = {labels[c.id]: c.size for c in clustering.clusters}
     for old, name in sorted(renames.items()):
         log(
             tr(
-                f"renamed {old} -> {name}: images x repeats stays near 100 (the trainer configs "
-                "in it list the new repeats)",
-                f"已改名 {old} -> {name}：讓張數 × repeats 維持在約 100（裡面的訓練設定檔用的是新的"
-                " repeats）",
+                f"renamed {old} -> {name}: {count[old]} images there now ({sizes[old]} in the "
+                "dataset's folder), so images x repeats stays near 100; the trainer configs in it "
+                "list the new repeats",
+                f"已改名 {old} -> {name}：現在有 {count[old]} 張"
+                f"（資料集的資料夾是 {sizes[old]} 張），讓張數 × repeats 維持在約 100；"
+                "裡面的訓練設定檔用的是新的 repeats",
+            )
+        )
+    for old, name in blocked:
+        log(
+            tr(
+                f"kept the name {old}: {name} is already a folder; set its repeats by hand "
+                f"({count[old]} images there now)",
+                f"保留 {old} 的名稱：已經有 {name} 這個資料夾；請自己調整它的 repeats"
+                f"（現在有 {count[old]} 張）",
             )
         )
     for p, why in done.failed:
@@ -246,19 +270,50 @@ def _merge(
     return done.folder
 
 
+def _merge_notes(dataset: Atlas, skip: set[int], mode: str) -> None:
+    excluded = SET_ASIDE["excluded"]
+    if skip:
+        log(
+            tr(
+                f"{len(skip)} images excluded in the web app are in {excluded}",
+                f"網頁介面排除的 {len(skip)} 張放在 {excluded}",
+            )
+        )
+    if dataset.failed:
+        log(
+            tr(
+                f"{len(dataset.failed)} files in the dataset could not be read and are not in it",
+                f"資料集裡有 {len(dataset.failed)} 個檔案讀不到，沒有放進去",
+            )
+        )
+    if mode == "link":
+        log(
+            tr(
+                "the dataset's images there are hard links: editing one of them in place edits "
+                "the dataset's file too (rewritten captions are separate files)",
+                "裡面資料集的圖是硬連結：直接修改其中一張，資料集裡的原檔也會一起改"
+                "（重寫過的標註檔是另外的檔案）",
+            )
+        )
+
+
 def _merged_renames(
-    clustering: Clustering, labels: dict[int, str], places: list[str]
-) -> dict[str, str]:
-    """kohya folder -> its name for the merged image count, where the repeats change."""
-    count = Counter(place.partition("/")[0] for place in places)
-    taken, renames = set(count), {}
+    clustering: Clustering, labels: dict[int, str], count: Counter
+) -> tuple[dict[str, str], list[tuple[str, str]]]:
+    """kohya folder -> its name for the merged image `count`, where the repeats change; and the
+    renames left out because a folder of that name is already there."""
+    taken, renames, blocked = set(count), {}, []
     for c in clustering.clusters:
         name = labels[c.id]
         new = _repeats_for(name, c.size, count[name]) if count[name] else None
-        if new and new not in taken:  # never into a folder that is already there
-            renames[name] = new
-            taken.add(new)
-    return renames
+        if not new:
+            continue
+        if new in taken:  # never into a folder that is already there
+            blocked.append((name, new))
+            continue
+        renames[name] = new
+        taken.add(new)
+    return renames, blocked
 
 
 def _renamed(place: str, renames: dict[str, str]) -> str:
@@ -547,9 +602,11 @@ def sort_args(p: argparse.ArgumentParser) -> None:
         help=tr(
             "with --export and --by-folder: also write <out>/merged, the dataset plus the new "
             "images that fit, ready to train (kohya repeats and trainer configs updated; the "
-            "dataset itself is not changed)",
+            "caption options apply to the dataset's copies too; the dataset itself is not "
+            "changed)",
             "搭配 --export 和 --by-folder：另外寫出 <out>/merged，即資料集加上符合的新圖，"
-            "可以直接訓練（kohya 的 repeats 和訓練設定檔會跟著更新；原本的資料集不會改動）",
+            "可以直接訓練（kohya 的 repeats 和訓練設定檔會跟著更新；標註的選項也會套用到資料集的"
+            "複本；原本的資料集不會改動）",
         ),
     )
     p.add_argument(

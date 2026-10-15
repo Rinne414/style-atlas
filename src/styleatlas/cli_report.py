@@ -73,6 +73,7 @@ def cmd_report(a: argparse.Namespace) -> int:
         excluded=excluded,
         renders=renders,
         time_source=a.time,
+        folders=_space(a) == PLAIN,  # the families' cut was measured on plain CSD
     )
     log(tr("report:", "報告："))
     print(path)

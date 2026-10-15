@@ -1,7 +1,7 @@
 """A one-page style report for a folder (`style-atlas report`): how consistent its style is, how
-it looks next to Danbooru artists, which artists of a reference library it is closest to, and
-its style groups with their most typical images. One HTML file with the thumbnails inside, to
-keep or send."""
+it looks next to Danbooru artists, which artists of a reference library it is closest to, which
+of its sub-folders (e.g. artists) draw alike, and its style groups with their most typical
+images. One HTML file with the thumbnails inside, to keep or send."""
 
 from __future__ import annotations
 
@@ -18,17 +18,19 @@ from pathlib import Path
 
 import numpy as np
 
-from styleatlas.atlas import LOAD_ERRORS, Atlas
-from styleatlas.cluster import Clustering, batch_verdict, keep_rows
+from styleatlas.atlas import FAMILY_CUT, LOAD_ERRORS, MIN_FOLDERS, Atlas, folder_atlas
+from styleatlas.cluster import UNASSIGNED, Clustering, batch_verdict, cluster_styles, keep_rows
 from styleatlas.consistency import consistency
 from styleatlas.dataset import distinctive_tags, tag_summary
+from styleatlas.duplicates import near_duplicate_groups
 from styleatlas.images import cached_thumbnail, labels_from_folders, timeline, timeline_span
 from styleatlas.lang import tr
 from styleatlas.look import LOOK_NAMES, NOTABLE, THAN_ZH, WORDS_ZH, profile
 from styleatlas.metrics import centroid
 from styleatlas.render_check import RenderCheck, check_renders
 
-THUMBS = 6  # most typical images shown per group
+THUMBS = 6  # most typical images shown per group (one of each set of near-duplicates)
+FOLDER_NEIGHBOURS = 2  # closest other sub-folders named per sub-folder
 RENDER_THUMBS = 12  # renders least like the training set, and memorised pairs, shown
 THUMB_PX = 160
 PLACEHOLDER = re.compile(r"\{(title|lang|body)\}")
@@ -37,6 +39,22 @@ TEXT = {
     "zh": {
         "images": "張圖",
         "made": "製作日期",
+        "intro": "這頁依序是：畫風有多一致、外觀和 Danbooru 畫師比起來如何、"
+        "（有子資料夾時）哪些子資料夾畫風相近、自動分出的畫風群。數字只描述畫風怎麼不同，不評好壞。",
+        "ends_consistency": ("很一致", "很分散"),
+        "consist_folders": "這個資料夾有 {n} 個子資料夾：一致性是把全部當成同一位畫師來比的，"
+        "收藏了多位畫師的圖庫本來就會顯得很分散。",
+        "folders": "子資料夾：哪些畫風相近",
+        "folders_sub": "把每個子資料夾（例如每位畫師）的平均畫風拿來互相比較。",
+        "closest_to": "最像：",
+        "family": "家族 {k}",
+        "alone": "自成一格",
+        "folders_note": "家族分得很鬆（每位畫師換一半作品重算，結果只部分相同），請以「最像」為主。"
+        "立體的畫師地圖：style-atlas map --by-folder，或網頁介面的「畫師地圖」。",
+        "groups_sub": "自動分出的畫風群，張數多的在前；每群顯示最有代表性的幾張，"
+        "幾乎相同的圖只放一張。",
+        "copies": "其中 {n} 張屬於 {k} 組幾乎相同的圖（同一張圖、裁切或同場景的連續畫面），"
+        "每組只放一張縮圖",
         "excluded": "另有 {n} 張已排除，不算在內",
         "consistency": "畫風一致性",
         "tight": "很一致",
@@ -52,11 +70,30 @@ TEXT = {
         "from": "來自：",
         "when": "時間位置：中位數在作品時間軸的 {m}%（中間一半 {a}%–{b}%；0% 最早）",
         "note": "畫風向量：CSD ViT-L（Somepalli 等，2024，CC-BY-4.0）。外觀數字是 256 px "
-        "縮圖上的影像統計，描述畫風怎麼不同，不評好壞。",
+        "縮圖上的影像統計。",
     },
     "en": {
         "images": "images",
         "made": "Made",
+        "intro": "This page shows, in order: how consistent the style is, how it looks next to "
+        "Danbooru artists, which sub-folders draw alike (when there are any), and the style groups "
+        "found automatically. The numbers describe how styles differ, not which is better.",
+        "ends_consistency": ("very consistent", "very spread"),
+        "consist_folders": "This folder has {n} sub-folders: the measure treats everything as one "
+        "artist, so a collection of several artists is expected to read as spread.",
+        "folders": "Sub-folders: which draw alike",
+        "folders_sub": "Each sub-folder's (e.g. each artist's) average style, compared with the "
+        "others.",
+        "closest_to": "Closest: ",
+        "family": "Family {k}",
+        "alone": "On their own",
+        "folders_note": "Families are loose (recomputed on half of each artist's works they agree "
+        "only partly): go by the closest names. The artist map shows them in 3D: "
+        "style-atlas map --by-folder, or Artist map in the web app.",
+        "groups_sub": "Found automatically, largest first; each shows its most typical images, one "
+        "of each set of near-duplicates.",
+        "copies": "{n} of them fall in {k} sets of near-duplicates (the same picture, crops or "
+        "frames of one scene); one of each set is shown",
         "excluded": "{n} excluded images left out",
         "consistency": "Style consistency",
         "tight": "very consistent",
@@ -72,7 +109,7 @@ TEXT = {
         "from": "From: ",
         "when": "When: median at {m}% of the timeline (middle half {a}-{b}%; 0% oldest)",
         "note": "Style vectors: CSD ViT-L (Somepalli et al. 2024, CC-BY-4.0). Look numbers are "
-        "image statistics on 256 px copies; they describe how styles differ, not which is better.",
+        "image statistics on 256 px copies.",
     },
 }
 RENDER_TEXT = {
@@ -185,10 +222,13 @@ def group_cards(
     tags = distinctive_tags(tag_summary(atlas.paths, clustering))
     folders = labels_from_folders(atlas.paths, atlas.root)
     several = len(set(folders)) > 1  # images directly in the root count as ""
+    dups = near_duplicate_groups(atlas.style, atlas.content)
+    copy_set = {i: g for g, group in enumerate(dups) for i in group}
     cards = []
     for c in sorted(clustering.clusters, key=lambda c: -c.size):
         members = np.asarray(c.members)
         typical = members[np.argsort(-(atlas.style[members] @ centroid(atlas.style[members])))]
+        shown = _one_of_each(typical, copy_set)[:THUMBS]
         cards.append(
             {
                 "name": names.get(c.id) or f"{TEXT[lang]['group']} {c.id + 1}",
@@ -197,10 +237,68 @@ def group_cards(
                 "tags": tags.get(c.id, []),
                 "when": timeline_span(pos, members),
                 "from": folder_mix([folders[i] for i in members]) if several else [],
-                "thumbs": [s for s in (_thumb(atlas.paths[i]) for i in typical[:THUMBS]) if s],
+                "copies": _copies_in(members, dups),
+                "thumbs": [s for s in (_thumb(atlas.paths[i]) for i in shown) if s],
             }
         )
     return cards
+
+
+def _one_of_each(order: np.ndarray, copy_set: dict[int, int]) -> list[int]:
+    """`order` without the later images of each set of near-duplicates."""
+    seen: set[int] = set()
+    out = []
+    for i in order.tolist():
+        key = copy_set.get(i, -1 - i)  # an image without near-duplicates is a set of its own
+        if key not in seen:
+            out.append(i)
+            seen.add(key)
+    return out
+
+
+def _copies_in(members: np.ndarray, dups: list[list[int]]) -> tuple[int, int]:
+    """(images, sets): the group's images that have a near-duplicate inside the group (as the
+    web app counts them), and how many sets of near-duplicates they form."""
+    inside = set(members.tolist())
+    counts = [n for n in (sum(i in inside for i in group) for group in dups) if n >= 2]
+    return sum(counts), len(counts)
+
+
+def _folder_section(atlas: Atlas, t: dict, lang: str) -> str:
+    """Which sub-folders (e.g. artists) draw alike: each one's closest others by average style,
+    and the families the artist map makes (plain CSD, as the cut was measured)."""
+    labels = labels_from_folders(atlas.paths, atlas.root)
+    names = sorted(set(labels) - {""})  # folder_atlas's order
+    if len(names) < MIN_FOLDERS:
+        return ""
+    means = folder_atlas(atlas)
+    sizes = Counter(labels)
+    sims = means.style @ means.style.T
+    np.fill_diagonal(sims, -np.inf)
+    e, sep = html.escape, "、" if lang == "zh" else ", "
+    rows = []
+    for k, name in enumerate(names):
+        closest = sep.join(names[j] for j in np.argsort(-sims[k])[:FOLDER_NEIGHBOURS])
+        rows.append(
+            f'<tr><td><img class="mini" src="{_thumb(means.paths[k])}" alt=""></td>'
+            f'<td>{e(name)} <span class="sub">{sizes[name]} {t["images"]}</span></td>'
+            f"<td>{e(t['closest_to'] + closest)}</td></tr>"
+        )
+    families = cluster_styles(means.style, threshold=FAMILY_CUT, min_size=2)
+    lines = [
+        f"{t['family'].format(k=n + 1)}{'：' if lang == 'zh' else ': '}"
+        + sep.join(names[i] for i in c.members)
+        for n, c in enumerate(sorted(families.clusters, key=lambda c: -c.size))
+    ]
+    alone = [names[i] for i in np.flatnonzero(families.labels == UNASSIGNED)]
+    if alone:
+        lines.append(f"{t['alone']}{'：' if lang == 'zh' else ': '}{sep.join(alone)}")
+    return (
+        f'<section><h2>{t["folders"]}</h2><p class="sub">{e(t["folders_sub"])}</p>'
+        f'<table class="folders">{"".join(rows)}</table>'
+        + "".join(f"<p>{e(line)}</p>" for line in lines)
+        + f'<p class="sub">{e(t["folders_note"])}</p></section>'
+    )
 
 
 FOLDERS_SHOWN = 3  # sub-folders named per group, most images first
@@ -212,8 +310,13 @@ def folder_mix(folders: list[str]) -> list[tuple[str, int]]:
     return [(f or ".", n) for f, n in Counter(folders).most_common(FOLDERS_SHOWN)]
 
 
-def _bar(percent: float) -> str:
-    return f'<div class="bar"><span style="left:{percent:.0f}%"></span></div>'
+def _bar(percent: float, ends: tuple[str, str] = ("", "")) -> str:
+    """A 0-100 scale with a mark, and what its left and right ends mean."""
+    bar = f'<div class="bar"><span style="left:{percent:.0f}%"></span></div>'
+    if not any(ends):
+        return bar
+    left, right = (html.escape(end) for end in ends)
+    return f'{bar}<div class="ends"><span>{left}</span><span>{right}</span></div>'
 
 
 def _consistency_section(atlas: Atlas, t: dict) -> str:
@@ -221,7 +324,11 @@ def _consistency_section(atlas: Atlas, t: dict) -> str:
     if tight is None:
         return f"<section><h2>{t['consistency']}</h2><p>{t['few']}</p></section>"
     spread = t["spread"].format(p=round(tight.percentile))
-    body = f"<p><b>{t[tight.verdict]}</b> · {spread}</p>{_bar(tight.percentile)}"
+    scale = _bar(tight.percentile, t["ends_consistency"])
+    body = f"<p><b>{t[tight.verdict]}</b> · {spread}</p>{scale}"
+    folders = len(set(labels_from_folders(atlas.paths, atlas.root)) - {""})
+    if folders >= 2:  # a collection: spread by design
+        body += f'<p class="sub">{html.escape(t["consist_folders"].format(n=folders))}</p>'
     return f"<section><h2>{t['consistency']}</h2>{body}</section>"
 
 
@@ -230,7 +337,8 @@ def _looks_section(looks: np.ndarray, t: dict, lang: str) -> str:
     for name, p in look_percentiles(looks).items():
         up, down = LOOK_WORDS[lang][name]
         text = t["than"].format(p=round(max(p, 100 - p)), w=up if p >= 50 else down)
-        rows.append(f"<tr><td>{html.escape(text)}</td><td>{_bar(p)}</td></tr>")
+        high, low = GROUP_WORDS[lang][name]
+        rows.append(f"<tr><td>{html.escape(text)}</td><td>{_bar(p, (low, high))}</td></tr>")
     return f"<section><h2>{t['looks']}</h2><table>{''.join(rows)}</table></section>"
 
 
@@ -282,7 +390,7 @@ def _thumb_grid(paths: list) -> str:
 
 def _group_section(cards: list, t: dict) -> str:
     e = html.escape
-    out = [f"<section><h2>{t['groups']}</h2>"]
+    out = [f'<section><h2>{t["groups"]}</h2><p class="sub">{e(t["groups_sub"])}</p>']
     for card in cards:
         imgs = "".join(f'<img src="{src}" alt="">' for src in card["thumbs"])
         size = f'<span class="sub">{card["size"]} {t["images"]}</span>'
@@ -295,9 +403,13 @@ def _group_section(cards: list, t: dict) -> str:
         if card.get("from"):
             mix = " · ".join(f"{f} {n}" for f, n in card["from"])
             source = f'<p class="sub">{e(t["from"])}{e(mix)}</p>'
+        copies = ""
+        n, k = card.get("copies", (0, 0))
+        if n:
+            copies = f'<p class="sub">{e(t["copies"].format(n=n, k=k))}</p>'
         out.append(
             f'<div class="card"><h3>{e(card["name"])} {size}</h3><p>{e(card["words"])}</p>'
-            f'{source}<p class="sub">{e(", ".join(card["tags"]))}</p>{when}'
+            f'{source}<p class="sub">{e(", ".join(card["tags"]))}</p>{when}{copies}'
             f'<div class="thumbs">{imgs}</div></div>'
         )
     return "".join(out) + "</section>"
@@ -313,10 +425,13 @@ def render(
     excluded: Collection[int] = (),
     renders: Atlas | None = None,
     time_source: str = "none",
+    folders: bool = True,
 ) -> str:
     """The report page; `closest` is (folder, score) of the nearest reference artists.
     `excluded` images (excluded by hand in the web app) are left out of every number. With
-    `renders` (e.g. a LoRA's test images), a section checks them against this training set."""
+    `renders` (e.g. a LoRA's test images), a section checks them against this training set.
+    `folders` adds which sub-folders draw alike (plain CSD vectors only: the families' cut was
+    measured there)."""
     t, e = TEXT[lang], html.escape
     skip = set(excluded)
     if skip:
@@ -331,6 +446,7 @@ def render(
     parts = [
         f"<h1>{e(title)}</h1>",
         f'<p class="sub">{sub}</p>',
+        f"<p>{e(t['intro'])}</p>",
         _consistency_section(atlas, t),
     ]
     if atlas.looks is not None:
@@ -340,6 +456,8 @@ def render(
     if closest:
         rows = "".join(f'<li>{e(n)} <span class="sub">{s:.3f}</span></li>' for n, s in closest)
         parts.append(f"<section><h2>{t['artists']}</h2><ol>{rows}</ol></section>")
+    if folders:
+        parts.append(_folder_section(atlas, t, lang))
     pos = timeline(atlas.paths, time_source)
     parts.append(_group_section(group_cards(atlas, clustering, names or {}, lang, pos), t))
     parts.append(f'<p class="sub note">{e(t["note"])}</p>')
@@ -381,6 +499,11 @@ PAGE = """<!doctype html>
     min-width: 120px; }
   .bar span { position: absolute; top: -3px; width: 4px; height: 14px; margin-left: -2px;
     border-radius: 2px; background: var(--accent); }
+  .ends { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px;
+    margin-top: 2px; }
+  .folders td { padding: 3px 10px 3px 0; } .folders td:first-child { width: 52px; }
+  img.mini { width: 44px; height: 44px; object-fit: cover; border-radius: 4px; display: block;
+    background: var(--line); }
   .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
     padding: 12px; margin: 10px 0; }
   .card p { margin: 2px 0; }

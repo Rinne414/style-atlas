@@ -88,6 +88,21 @@ New:
   `_unsure` is listed closest to a group first, as a hint (an artist's own work comes before a
   stranger's about 2 times in 3; BENCHMARKS); the small-image note says it counts the images
   placed in style folders (in `cluster` exports too); the last line says what to do next.
+- **`sort` never writes into the dataset** (from a Sonnet code review): with the new images in a
+  sub-folder of the dataset, the results go next to the dataset, and an `-o` inside either folder
+  is refused; `sorted\` no longer gets trainer configs that list only the new images; `--merged`
+  says why a kohya folder was renamed (its new image count), warns when a rename is blocked by an
+  existing folder, names unreadable dataset files, and says that `--export link` makes the
+  dataset's images there hard links.
+- **The report answers "which of my artists draw alike"** (from a Sonnet first-time-user test of
+  a 12-artist collection, which could not tell from the page): with 3 or more sub-folders it lists
+  each one's two closest sub-folders by average style, with its most typical image, and the
+  families the artist map makes. The consistency scale and the six look scales label both ends;
+  a folder with sub-folders is told that it is measured as one artist (so a collection reads as
+  spread); group cards show one image of each set of near-duplicates and say how many sets there
+  are; a short line at the top says what the page shows.
+- **The web app's Dataset check says it is for LoRA training sets** and can be skipped when
+  browsing styles.
 - **Periods along the timeline** (`--granularity timeline --time name|mtime`): one artist's works,
   in time order, cut into contiguous periods where the style changes most. Two tests on the same
   cuts say whether no link to time was found, the style only drifts smoothly (one LoRA is usually

@@ -231,8 +231,24 @@ def test_report_sums_up_a_folder(lib, tmp_path, capsys):
     assert "畫風一致性" in page and "最像的畫師" in page and page.count('<div class="card">') >= 3
     assert "data:image/webp;base64," in page  # thumbnails inside, so the file can be sent alone
     assert "來自：red 6" in page or "來自：green 6" in page  # each group's sub-folders
+    assert "子資料夾：哪些畫風相近" in page and page.count("最像：") == 3  # red, green, blue
+    assert "這個資料夾有 3 個子資料夾" in page  # a collection reads as spread by design
+    assert page.count('<div class="ends">') == 7  # consistency and the 6 look measures
     assert main(["report", str(lib), "-o", str(out), "--lang", "en", "--device", "cpu"]) == 0
-    assert "Style consistency" in out.read_text(encoding="utf-8")
+    page = out.read_text(encoding="utf-8")
+    assert "Style consistency" in page and "Sub-folders: which draw alike" in page
+    args = ["report", str(lib), "-o", str(out), "--lang", "en", "--neutralize", "1"]
+    assert main([*args, "--device", "cpu"]) == 0  # another space: the families' cut does not hold
+    assert "Sub-folders: which draw alike" not in out.read_text(encoding="utf-8")
+
+
+def test_report_cards_show_one_image_of_each_set_of_near_duplicates():
+    from styleatlas.report_card import _copies_in, _one_of_each
+
+    dups = [[1, 2, 3], [4, 5], [8, 9]]  # sets of near-duplicates in the folder
+    copy_set = {i: g for g, group in enumerate(dups) for i in group}
+    assert _one_of_each(np.array([3, 0, 1, 5, 4, 2, 6]), copy_set) == [3, 0, 5, 6]
+    assert _copies_in(np.array([0, 1, 2, 3, 4, 8]), dups) == (3, 1)  # 4 and 8 alone here
 
 
 def test_folder_mix_names_the_largest_sub_folders_first():
@@ -754,7 +770,40 @@ def test_sort_merged_is_the_dataset_plus_the_new_images_ready_to_train(
     assert len(list((data / "17_x_red").glob("*.png"))) == 6  # the dataset is untouched
     assert (data / "17_x_red" / "red__100013.txt").read_text(encoding="utf-8") == "1girl, red_tag"
     err = capsys.readouterr().err
-    assert "renamed 17_x_red -> 11_x_red" in err and "merged dataset, ready to train" in err
+    assert "renamed 17_x_red -> 11_x_red: 9 images there now (6 in the dataset's folder)" in err
+    assert "merged dataset, ready to train" in err and "1 images excluded in the web app" in err
+    assert not (out / "sorted" / "dataset_config.toml").exists()  # it would list new images only
     assert "rename it" not in err  # the note for the dataset itself is left out
     assert "4 of the images placed in style folders have a short side" in err  # new ones only
     assert f'style-atlas audit "{merged}"' in err
+    linked = ["sort", str(new), "--into", str(data), "-o", str(tmp_path / "l"), "--by-folder"]
+    assert main([*linked, "--export", "link", "--merged", "--device", "cpu"]) == 0
+    assert "are hard links" in capsys.readouterr().err
+
+
+def test_sort_never_writes_into_the_dataset_holding_the_new_images(lib, tmp_path, capsys):
+    inside = lib / "new_batch"
+    inside.mkdir()
+    for p in _new_images(lib, tmp_path).iterdir():
+        (inside / p.name).write_bytes(p.read_bytes())
+    args = ["sort", str(inside), "--into", str(lib), "--by-folder", "--device", "cpu"]
+    assert main(args) == 0
+    assert not (lib / "new_batch_style_atlas").exists()  # next to the dataset instead
+    assert (tmp_path / "lib_style_atlas" / "sorted.csv").is_file()
+    assert main([*args, "-o", str(lib / "results")]) == 1
+    assert "must not be inside the new images or the dataset" in capsys.readouterr().err
+
+
+def test_merged_renames_never_take_a_folder_that_is_there():
+    from collections import Counter
+
+    from styleatlas.cli_sort import _merged_renames
+    from styleatlas.cluster import from_labels
+
+    x = np.eye(15, 8, dtype=np.float32) + 0.01
+    groups = from_labels(x, np.array([0] * 6 + [1] * 9), "folders")
+    names = {c.id: ("17_x_red" if c.size == 6 else "11_x_red") for c in groups.clusters}
+    renames, blocked = _merged_renames(groups, names, Counter({"17_x_red": 9, "11_x_red": 9}))
+    assert renames == {} and blocked == [("17_x_red", "11_x_red")]  # 9 images: 11 repeats
+    renames, _ = _merged_renames(groups, names, Counter({"17_x_red": 4, "11_x_red": 9}))
+    assert renames == {"17_x_red": "25_x_red"}  # fewer images (some excluded): more repeats

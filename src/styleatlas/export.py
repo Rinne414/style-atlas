@@ -324,12 +324,22 @@ def export_folders(
     layout: str = "plain",
     strip_tags: frozenset[str] = frozenset(),
     respell: dict[str, str] | None = None,
+    trainer_configs: bool = True,
 ) -> ExportResult:
     """Copy or hard-link each image (and its sidecars) into its planned folder (see
     dataset.plan_folders) inside a fresh output folder. With trigger_captions, every exported
-    caption in a group folder starts with that group's trigger word."""
+    caption in a group folder starts with that group's trigger word. A kohya layout also gets
+    the trainer configs, unless trainer_configs is False (an export of part of a dataset)."""
     return export_paths(
-        atlas.paths, folders, out_dir, mode, trigger_captions, layout, strip_tags, respell
+        atlas.paths,
+        folders,
+        out_dir,
+        mode,
+        trigger_captions,
+        layout,
+        strip_tags,
+        respell,
+        trainer_configs=trainer_configs,
     )
 
 
@@ -343,6 +353,7 @@ def export_paths(
     strip_tags: frozenset[str] = frozenset(),
     respell: dict[str, str] | None = None,
     allow_top: bool = False,
+    trainer_configs: bool = True,
 ) -> ExportResult:
     """export_folders for a list of files. A folder may be nested ("10_x/sub": the trigger comes
     from its first part); with allow_top, "" places an image at the top of the export."""
@@ -377,7 +388,7 @@ def export_paths(
                     (folder / f"{stem}{ext}").unlink(missing_ok=True)
             continue
         result.placed += 1
-    if layout == "kohya":
+    if layout == "kohya" and trainer_configs:
         write_trainer_configs(result.folder, folders, trigger_captions)
     result.small_training = small_for_training(paths, folders)
     return result

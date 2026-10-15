@@ -191,7 +191,7 @@ style-atlas duplicates "D:\gallery"
 style-atlas outliers "D:\lora\artistX" --top 20
 ```
 
-**一頁畫風報告**：把一個資料夾的畫風整理成一頁：一致性、外觀（例如「比 89% 的畫師更亮」）、最像的畫師（給 `--artists` 參考圖庫時）、每個畫風群的代表圖。網頁上整理過的群組和名稱會直接沿用，排除（X）的圖不算在內；網頁的「進階…」裡也有「存成畫風報告」。
+**一頁畫風報告**：把一個資料夾的畫風整理成一頁：一致性、外觀（例如「比 89% 的畫師更亮」）、最像的畫師（給 `--artists` 參考圖庫時）、有 3 個以上子資料夾時（例如每位畫師一個）每個子資料夾最像哪兩個和大致的家族、每個畫風群的代表圖（幾乎相同的圖只放一張）。網頁上整理過的群組和名稱會直接沿用，排除（X）的圖不算在內；網頁的「進階…」裡也有「存成畫風報告」。
 
 ```bat
 style-atlas report "D:\lora\artistX" --artists "D:\artists"
@@ -363,8 +363,9 @@ how a picture is drawn rather than what it shows. On top of those vectors it can
   show their characteristic caption tags. "Record a turn" saves an 8-second video of the map
   turning once (MP4 in Chrome and Edge, WebM in Firefox), for sharing.
 - **One-page style report** (`report`): consistency, where the folder's look falls among 278
-  Danbooru artists, the closest artists of a reference library (`--artists`), and each group's
-  most typical images, in one HTML file to keep or send. It reuses the web app's groups and names.
+  Danbooru artists, the closest artists of a reference library (`--artists`), which sub-folders
+  (e.g. artists) draw alike, and each group's most typical images, in one HTML file to keep or
+  send. It reuses the web app's groups and names.
 - **Map of artists** (`map --by-folder`): one point per sub-folder of a library, at the folder's
   mean style and shown by its most typical image, so artists with similar styles sit together.
   The colours are loose "families": grouping two halves of each artist's works separately agreed

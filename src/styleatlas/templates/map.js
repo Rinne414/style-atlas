@@ -562,7 +562,8 @@ function checkSection() {
   if (CHECK) side.value = String(CHECK.min_side);
   const run = document.createElement("button"); run.textContent = t("checkRun"); run.style.marginLeft = "6px";
   run.addEventListener("click", () => { run.disabled = true; runCheck(parseInt(side.value, 10)); });
-  box.append(h, side, run);
+  const what = document.createElement("div"); what.className = "kv"; what.textContent = t("checkFor");
+  box.append(h, what, side, run);
   if (!CHECK) return box;
   if (CHECK.consistency) box.append(consistencyLine(CHECK.consistency));
   if (CHECK.buckets && Object.keys(CHECK.buckets).length) box.append(bucketLine(CHECK.buckets));

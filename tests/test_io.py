@@ -14,7 +14,7 @@ from styleatlas.atlas import Atlas
 from styleatlas.cluster import cluster_styles
 from styleatlas.dataset import plan_folders
 from styleatlas.encoder import square_crops
-from styleatlas.export import export_folders, write_table
+from styleatlas.export import export_folders, export_paths, write_table
 from styleatlas.images import find_images, labels_from_folders, load_rgb
 from styleatlas.report import render_html
 from styleatlas.store import VectorStore
@@ -493,3 +493,16 @@ def test_file_names_with_dates_sort_by_date():
     assert times == [20230512.0, 20230512.0, 20230601.0, 20221231.0]
     assert file_time(Path("2023-13-40.png"), "name") is None  # not a date, too few digits
     assert file_time(Path("12345678_p0.png"), "name") == 12345678.0  # ids as before
+
+
+def test_export_paths_keeps_names_apart_and_stays_inside(tmp_path):
+    a, b = _img(tmp_path / "a" / "img.png"), _img(tmp_path / "b" / "img.png", color=(1, 2, 3))
+    done = export_paths([a, b, a], ["10_x/sub", "10_x/sub", "../escape"], tmp_path / "o")
+    assert sorted(p.name for p in (tmp_path / "o" / "10_x" / "sub").iterdir()) == [
+        "img.png",
+        "img_2.png",
+    ]
+    assert done.placed == 2 and "outside the export" in done.failed[0][1]
+    assert export_paths([a], [""], tmp_path / "top").failed  # the top only when allowed
+    assert not export_paths([a], [""], tmp_path / "top2", allow_top=True).failed
+    assert (tmp_path / "top2" / "img.png").is_file()
