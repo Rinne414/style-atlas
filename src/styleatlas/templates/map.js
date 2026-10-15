@@ -395,7 +395,8 @@ function clusterText(c, pane) {  // name, size, typical tags, closest groups, lo
   const mt = document.createElement("div"); mt.className = "meta";
   const out = c.members.filter((i) => EXCLUDED.has(i)).length;
   mt.textContent = `${c.size} ${t(DATA.families ? "folderUnit" : "size")}` + (out ? t("excludedOf").replace("{n}", out) : "") +
-    (c.cohesion !== undefined ? ` · ${t("cohesion")} ${c.cohesion.toFixed(3)}` : "");
+    (c.cohesion !== undefined ? ` · ${t("cohesion")} ${c.cohesion.toFixed(3)}${paren(t(spreadWord(c.cohesion)))}` : "");
+  if (c.cohesion !== undefined) mt.title = t("cohesionTip");
   txt.append(nm, mt);
   if (c.tags && c.tags.length) {
     const tg = document.createElement("div"); tg.className = "meta tags"; tg.textContent = c.tags.join(", ");
@@ -426,6 +427,12 @@ function clusterText(c, pane) {  // name, size, typical tags, closest groups, lo
   if (strip) txt.append(strip);
   return txt;
 }
+
+// one artist's whole works spread 0.15-0.29 (10th-90th percentile, median 0.20) on 393 Danbooru
+// artists (docs/BENCHMARKS.md, "How spread is one artist?")
+const SPREAD_TIGHT = 0.15, SPREAD_LOOSE = 0.29;
+const paren = (text) => (lang === "zh" ? `（${text}）` : ` (${text})`);
+function spreadWord(s) { return s < SPREAD_TIGHT ? "spreadTight" : s > SPREAD_LOOSE ? "spreadLoose" : "spreadArtist"; }
 
 function copiesIn(members) {  // images of the group that have a near-duplicate inside the group
   const inGroup = new Set(members);

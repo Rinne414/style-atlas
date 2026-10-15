@@ -31,6 +31,9 @@ New:
   for one query image, 「只看很像的」 shows only those (and copies only those to a folder).
 - **「存圖」/Save PNG in the top toolbar** of every map, shared HTML maps included (it was under
   More… or the P key).
+- **Group spread with a scale**: cards say "very consistent" (< 0.15), "about one artist's range"
+  (0.15-0.29) or "loose" (> 0.29) next to the number, from one artist's whole works on 393 Danbooru
+  artists (median 0.20; BENCHMARKS "How spread is one artist?").
 - **Shared map files work for the person they are sent to** (from a Sonnet test of someone who
   received one): messages (saved picture, recording, filter) show in a toast instead of the hidden
   bottom bar; the file link says it needs the sender's folder; the Duplicates tab no longer talks

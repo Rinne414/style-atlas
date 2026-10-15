@@ -475,6 +475,22 @@ This is the LoRA case where one artist's style changes between periods.
   to 46 groups from 60 works. Look at the time strips in the web app and merge groups by hand,
   or raise the cut.
 
+## How spread is one artist? (2026-10-16)
+
+Group cards show a spread: the mean distance of the group's images to its average style (plain
+CSD, 1 - cosine). First-time users could not tell whether 0.248 was a lot. One artist's whole
+works (near-duplicates removed, artists with 5+ works):
+
+| Corpus | Artists | 10% | 25% | median | 75% | 90% |
+|---|---|---|---|---|---|---|
+| artists300 (Danbooru) | 269 | 0.147 | 0.174 | 0.205 | 0.253 | 0.293 |
+| unseen_corpus (Danbooru) | 124 | 0.154 | 0.178 | 0.203 | 0.232 | 0.278 |
+| period_corpus (whole careers) | 17 | 0.169 | 0.197 | 0.233 | 0.265 | 0.295 |
+
+The cards now add a word: under 0.15 "very consistent" (tighter than about 9 in 10 artists' whole
+works; near-duplicate stacks land here, e.g. 0.095), 0.15-0.29 "about one artist's range", over
+0.29 "loose" (looser than about 9 in 10), with the scale in the tooltip.
+
 ## What a search score means (2026-10-16)
 
 The web app shows each search result's plain CSD cosine. To give it a scale: 3,012 Danbooru works
