@@ -402,6 +402,12 @@ function clusterText(c, pane) {  // name, size, typical tags, closest groups, lo
   if (mix) {
     const fm = document.createElement("div"); fm.className = "meta"; fm.textContent = mix; txt.append(fm);
   }
+  const twins = sameFolderGroups(c);
+  if (twins.length) {  // one sub-folder (e.g. one artist) split over several groups: say why
+    const tw = document.createElement("div"); tw.className = "meta";
+    tw.textContent = t("sameFolder").replace("{g}", twins.map(clusterName).join(lang === "zh" ? "、" : ", ")).replace("{f}", mainFolder(c.members));
+    txt.append(tw);
+  }
   if (c.near && c.near.length) txt.append(nearLinks(c, pane));
   const look = lookWords(c.members);
   if (look) {
@@ -415,6 +421,24 @@ function clusterText(c, pane) {  // name, size, typical tags, closest groups, lo
 
 const folderOf = (i) => { const n = PTS[i].n; const k = n.indexOf("/"); return k < 0 ? "." : n.slice(0, k); };
 const SEVERAL_FOLDERS = new Set(PTS.map((_, i) => folderOf(i))).size > 1;
+
+const MAIN_SHARE = 0.8;  // a group "comes from" a sub-folder when this share of it does
+
+function mainFolder(members) {  // the sub-folder most of a group comes from, or null
+  if (!SEVERAL_FOLDERS || !members.length) return null;
+  const counts = new Map();
+  members.forEach((i) => counts.set(folderOf(i), (counts.get(folderOf(i)) || 0) + 1));
+  const [folder, n] = [...counts].sort((a, b) => b[1] - a[1])[0];
+  return n / members.length >= MAIN_SHARE ? folder : null;
+}
+
+function sameFolderGroups(c) {  // the other groups that come from the same sub-folder as c
+  const own = mainFolder(c.members);
+  if (own === null || c.id < 0) return [];
+  const members = new Map();  // DATA.clusters carry no member lists: gather them from the points
+  PTS.forEach((p, i) => { if (p.c >= 0 && p.c !== c.id) (members.get(p.c) || members.set(p.c, []).get(p.c)).push(i); });
+  return [...members].filter(([, m]) => mainFolder(m) === own).map(([id]) => id).sort((a, b) => a - b);
+}
 
 function folderMix(members) {  // which sub-folders a group's images come from, most first
   if (!SEVERAL_FOLDERS) return "";

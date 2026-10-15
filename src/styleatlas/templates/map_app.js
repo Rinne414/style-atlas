@@ -381,6 +381,7 @@ async function castVote(i, like) {
     if (layoutMode === "measures" && (before !== after || after.includes("taste"))) applyLayout();
     const old = $("pane-selected").querySelector(".votes");
     if (selected === i && old) old.replaceWith(voteButtons(i));
+    setStatus(t("tasteCount").replace("{a}", TASTE.likes).replace("{b}", TASTE.dislikes));
     if (RATING && like !== null) rateNext();
   } catch (e) { setStatus(String(e.message || e)); }
 }
