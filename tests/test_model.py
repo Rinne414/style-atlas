@@ -3,18 +3,13 @@ Uses the generated demo styles, so no artwork is needed."""
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
 from sklearn.metrics import adjusted_rand_score
 
 from styleatlas.atlas import EncodeOptions, build_atlas
 from styleatlas.cluster import cluster_styles
+from styleatlas.demo import make_all
 from styleatlas.search import search
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from make_demo_images import make_all  # noqa: E402
 
 pytestmark = pytest.mark.model
 

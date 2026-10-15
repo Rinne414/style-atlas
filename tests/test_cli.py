@@ -653,3 +653,18 @@ def test_cluster_by_timeline_needs_a_time_and_reports_its_test(lib, tmp_path, ca
     err = capsys.readouterr().err
     verdicts = ("too few distinct", "no clear link", "no clear turning", "more abruptly")
     assert "periods along the timeline" in err and any(v in err for v in verdicts)
+
+
+def test_demo_makes_the_images_once_and_opens_them(tmp_path, monkeypatch):
+    import styleatlas.webserver as ws
+
+    opened = {}
+    monkeypatch.setattr(
+        ws, "serve_when_ready", lambda build, title, **kw: opened.update(title=title)
+    )
+    folder = tmp_path / "demo"
+    assert main(["demo", str(folder), "--no-browser", "--device", "cpu"]) == 0
+    assert len(list(folder.rglob("*.png"))) == 72 and opened["title"] == "demo"
+    first = sorted(p.stat().st_mtime_ns for p in folder.rglob("*.png"))
+    assert main(["demo", str(folder), "--no-browser", "--device", "cpu"]) == 0
+    assert sorted(p.stat().st_mtime_ns for p in folder.rglob("*.png")) == first  # kept

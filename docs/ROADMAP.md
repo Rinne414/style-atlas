@@ -22,7 +22,7 @@
 4. **Integration.** Should style-atlas become a module inside `sd-image-sorter`, which already has
    a gallery, tagging and similarity tools, or stay a separate tool?
 5. **README screenshots.** For now the README shows the real interface on generated abstract
-   images (`scripts/make_demo_images.py`), so no artwork is involved. Real art would show the
+   images (`style-atlas demo`, styleatlas/demo.py), so no artwork is involved. Real art would show the
    tool better. Should the owner's own renders, or public-domain art, replace them?
 6. **External anime benchmark.** LSASRD (CVPRW 2022) has 20,937 images from 190 anime works, with
    a cross-role protocol. It would be the strongest public test of "style, not character". Access

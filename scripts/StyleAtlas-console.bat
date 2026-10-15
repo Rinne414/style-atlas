@@ -13,7 +13,7 @@ echo 這個視窗可以直接用 style-atlas 指令，例如 / style-atlas is re
 echo   style-atlas audit "D:\lora\artistX"
 echo   style-atlas cluster "D:\lora\artistX" --layout kohya --name artistX --dedupe --export copy
 echo   style-atlas --help
-echo   python scripts\make_demo_images.py demo_styles   （產生 72 張示範圖 / 72 demo images to try）
+echo   style-atlas demo   （產生 72 張示範圖並打開網頁 / 72 demo images to try in the web app）
 echo 中文 Windows 上訊息會用中文；英文請先執行 set STYLE_ATLAS_LANG=en / Messages follow the Windows language; set STYLE_ATLAS_LANG=en for English.
 echo.
 cmd /k

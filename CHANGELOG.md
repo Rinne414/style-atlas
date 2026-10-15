@@ -15,6 +15,9 @@ Changed output (scripts that parse the text should use `--json`):
 
 New:
 
+- **`style-atlas demo`** (or double-click `scripts\StyleAtlas-demo.bat`) makes the 72 demo
+  images (four procedural styles, no one's artwork) and opens them in the web app, in one step
+  (`scripts/make_demo_images.py` moved into the package as `styleatlas.demo`).
 - **The web app opens at once.** `serve` (and `StyleAtlas.bat`) opens the browser before the
   model download and the embedding, shows their progress on a waiting page, and turns into the
   map when ready; if the folder cannot be opened, the page says why.

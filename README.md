@@ -27,7 +27,7 @@ style-atlas 會看每張圖「怎麼畫」（不是畫了什麼），自動把�
 
 ![點開一群：其他群淡出，可以取名、合併、拆群，或「找更多像這群的」](docs/images/group.jpg)
 
-（截圖裡的圖片是 `scripts\make_demo_images.py` 程式產生的四種抽象風格，不是任何人的作品。）
+（截圖裡的圖片是 `style-atlas demo` 產生的四種抽象風格，不是任何人的作品。）
 
 **要訓 LoRA？** 先看完整流程 [docs/LORA_GUIDE.md](docs/LORA_GUIDE.md)，網頁介面的操作看圖解 [docs/WEB_GUIDE.md](docs/WEB_GUIDE.md)（檢查資料 → 整理畫風群 → 匯出）。**只想探索畫風、把 3D 地圖分享給朋友？** 看 [docs/WEB_GUIDE.md](docs/WEB_GUIDE.md) 開頭的「只想探索畫風、分享地圖？」。
 
@@ -41,7 +41,7 @@ Windows 跳出「Windows 已保護您的電腦」時，按「其他資訊」→�
 
 **更新到新版**：下載新的 ZIP，解壓縮後**直接覆蓋**到原本的資料夾（保留裡面的 `.venv`），再雙擊一次 `scripts\setup.bat`。torch 已經裝過，不會重新下載，幾十秒就好。用 git 的話是 `git pull` 再跑一次 `setup.bat`。分析結果（每個圖片資料夾旁邊的 `_style_atlas` 資料夾）和向量快取都不會受影響。新版做了什麼見 [CHANGELOG.md](CHANGELOG.md)。
 
-想先試試看：在 `scripts\StyleAtlas-console.bat` 開的視窗裡執行 `python scripts\make_demo_images.py demo_styles`，會產生 72 張四種風格的範例圖；再把 `demo_styles` 資料夾拖到 `StyleAtlas.bat` 上。
+想先試試看：雙擊 `scripts\StyleAtlas-demo.bat`（或執行 `style-atlas demo`），會產生 72 張四種風格的範例圖並直接打開網頁。
 
 **要打指令時**（下面的 `audit`、`cluster`、`search` 等），請雙擊 `scripts\StyleAtlas-console.bat`，它會開一個已經設定好的命令視窗，在裡面輸入指令即可。直接開一般的命令提示字元打 `style-atlas` 會出現「不是內部或外部命令」，因為工具裝在 `.venv` 裡。
 
@@ -400,7 +400,7 @@ how a picture is drawn rather than what it shows. On top of those vectors it can
 
 ![The web app: 72 images grouped into 4 styles, with named groups and how each one looks on the right](docs/images/map.jpg)
 
-(The pictures are four abstract styles made by `scripts/make_demo_images.py`, not anyone's
+(The pictures are four abstract styles made by `style-atlas demo`, not anyone's
 artwork. Run it to get a folder you can try the tool on.)
 
 ### Windows quick start

@@ -405,6 +405,18 @@ def cmd_taste(a: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_demo(a: argparse.Namespace) -> int:
+    from styleatlas.cachedir import cache_dir
+    from styleatlas.demo import ensure_demo
+
+    folder = Path(a.folder) if a.folder else cache_dir() / "demo_styles"
+    made = ensure_demo(folder)
+    if made:
+        log(tr(f"made {made} demo images in {folder}", f"已在 {folder} 產生 {made} 張示範圖"))
+    a.folder = str(folder)
+    return cmd_serve(a)
+
+
 def cmd_serve(a: argparse.Namespace) -> int:
     from styleatlas.serve import StyleAtlasApp
     from styleatlas.webserver import serve_when_ready
@@ -653,6 +665,28 @@ def _add_folder_commands(add: Adder) -> None:
         ),
     )
     p.add_argument("folder")
+    _serve_args(p)
+    p = add(
+        "demo",
+        cmd_demo,
+        tr(
+            "make 72 demo images in four procedural styles (no one's artwork) and open them in "
+            "the web app",
+            "產生 72 張四種程式畫出的示範圖（不是任何人的作品），並在網頁介面打開",
+        ),
+    )
+    p.add_argument(
+        "folder",
+        nargs="?",
+        help=tr(
+            "where to put the demo images (default: demo_styles in the cache folder)",
+            "示範圖放在哪裡（預設：快取資料夾裡的 demo_styles）",
+        ),
+    )
+    _serve_args(p)
+
+
+def _serve_args(p: argparse.ArgumentParser) -> None:
     p.add_argument(
         "--port",
         type=int,

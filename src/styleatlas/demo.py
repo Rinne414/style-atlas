@@ -1,12 +1,11 @@
-"""Make 72 demo images in four clearly different procedural styles (watercolour blobs, hard
-geometric shapes, line art, halftone dots), to try style-atlas without your own images:
-
-    python scripts/make_demo_images.py demo_styles
-    style-atlas serve demo_styles
+"""72 demo images in four clearly different procedural styles (watercolour blobs, hard geometric
+shapes, line art, halftone dots), to try style-atlas without your own images: `style-atlas demo`
+makes them and opens them in the web app.
 
 No artwork by anyone is involved; the README screenshots use these images."""
 
-import sys
+from __future__ import annotations
+
 from pathlib import Path
 
 import numpy as np
@@ -135,6 +134,9 @@ def make_all(out: Path, n: int = N) -> list[Path]:
     return made
 
 
-if __name__ == "__main__":
-    out = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("demo_styles")
-    print("made", len(make_all(out)), "images in", out)
+def ensure_demo(out: Path, n: int = N) -> int:
+    """Make the demo images in `out` unless they are all there; how many were made."""
+    expected = [out / name / f"{name}_{1000 + i}.png" for name in STYLES for i in range(n)]
+    if all(p.exists() for p in expected):
+        return 0
+    return len(make_all(out, n))
