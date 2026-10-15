@@ -1200,6 +1200,21 @@ the group size; small groups let in more strangers, since their centres are less
 batch of other artists read "mostly unlike" in 100% (25 works per folder), 80% (10) and 45% (5)
 of the draws. Lower cut-offs (40% / 20%, 35% / 15%) caught fewer stranger batches.
 
+**Other scores, tried (2026-10-16).** A review asked whether a different score would tell an
+artist's own new works from strangers' better than the distance to the closest group's centre
+(the percentile limit is then only where to cut). unseen_big, 10 dataset artists with n works per
+folder, 5 held-out works each against 10 works each of the other artists, whitened, 20 draws;
+AUC own vs stranger, and the share of own works let in when 10% of strangers are:
+
+| Works per folder | Centre (shipped) | Mean of 3 nearest members | Lead over the 2nd group | Centre minus best of 306 reference artists |
+|---|---|---|---|---|
+| 5 | **0.842** (66%) | 0.835 (64%) | 0.806 (63%) | 0.790 (57%) |
+| 10 | **0.900** (75%) | 0.890 (73%) | 0.853 (70%) | 0.854 (65%) |
+| 25 | **0.911** (79%) | 0.907 (78%) | 0.878 (73%) | 0.868 (69%) |
+
+The centre distance stays: it is best at every folder size. A known-artists background hurts
+(strangers near some reference artist get pushed down along with real members).
+
 ## Embedding speed: loading images ahead (2026-10-10)
 
 64 Danbooru works of 8.7 megapixels on average, CPU only (8 threads, below-normal priority),
