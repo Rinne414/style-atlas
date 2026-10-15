@@ -305,11 +305,13 @@ def copy_ranked(atlas: Atlas, out_dir: Path, mode: str = "copy") -> ExportResult
     for rank, src in enumerate(atlas.paths, 1):
         stem = f"{rank:0{width}d}_{src.stem}"
         try:
-            _place_sidecars(src, result.folder, stem, mode, None)
             result.upright += _place(src, result.folder / f"{stem}{src.suffix}", mode)
+            _place_sidecars(src, result.folder, stem, mode, None)
             result.placed += 1
         except (OSError, ValueError) as e:
             result.failed.append((src, str(e)))
+            for ext in (*SIDECARS, src.suffix):  # fresh folder + rank stem: only our files
+                (result.folder / f"{stem}{ext}").unlink(missing_ok=True)
     return result
 
 

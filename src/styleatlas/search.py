@@ -188,7 +188,7 @@ def folder_verdict(hits: list, several: bool) -> tuple[str, int, float] | None:
     than two folders."""
     if len(hits) < 2:
         return None
-    lead = hits[0].score - hits[1].score
+    lead = round(hits[0].score - hits[1].score, 3)  # the band and the printed lead agree
     band = "sure" if lead >= FOLDER_SURE else "likely" if lead >= FOLDER_LIKELY else "unsure"
     return band, FOLDER_RIGHT[(several, band)], lead
 

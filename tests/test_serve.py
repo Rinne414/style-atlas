@@ -857,9 +857,14 @@ def test_the_artist_map_shows_one_point_per_sub_folder(tmp_path):
         status, page = request(srv.server_address[1], "GET", "/artist_map")
         assert status == 200 and b"artist0" in page
         assert re.search(rb'"families":\s*true', page)  # the cards say family, not style
+        assert re.search(rb'"f":\s*"image/\d+"', page)  # served: links to the app's own images
     finally:
         srv.shutdown()
         srv.server_close()
+    for i in range(5):  # a whole folder excluded by hand: it is no longer on the map
+        app.exclude({"i": i})
+    with pytest.raises(ValueError, match="sub-folders"):
+        app.artist_map({})
 
 
 def test_the_artist_map_needs_sub_folders(tmp_path):

@@ -569,10 +569,11 @@ function setupRegroup() {  // granularity, cut, periods, the regroup button and 
         : g === "one" ? { method: "agglomerative", k: 1 }  // one LoRA: every image in one group
         : { threshold: g === "auto" ? null : parseFloat($("thr").value) };
       const r = await post("api/regroup", JSON.stringify(body), "application/json");
-      const key = { few: "timelineFew", none: "timelineNone", drift: "timelineDrift", turns: "timelineTurns" }[r.verdict];
+      const key = r.verdict === "turns" && r.edge ? "timelineTurnsEdge"  // one message, not two that disagree
+        : { few: "timelineFew", none: "timelineNone", drift: "timelineDrift", turns: "timelineTurns" }[r.verdict];
       const verdict = key  // the timeline's tests (timeline.verdict), shown after the reload
         ? t(key).replace("{n}", r.distinct).replace("{p}", r.p_time).replace("{q}", r.p_turns)
-          .replace("{sep}", (r.separation ?? 0).toFixed(3)) + (r.edge ? " " + t("edge_" + r.edge) : "")
+          .replace("{sep}", (r.separation ?? 0).toFixed(3)) + (r.edge && r.verdict !== "turns" ? " " + t("edge_" + r.edge) : "")
         : "";
       reloadKeepingView(verdict);
     } catch (e) { setStatus(String(e.message || e)); }
@@ -677,7 +678,7 @@ function setupSaves() {  // the report and the shareable map
     setStatus(t("savingMap"));
     try {
       const r = await post("api/artist_map", "{}", "application/json");
-      setStatus(t("artistMapDone").replace("{n}", r.folders).replace("{k}", r.families).replace("{f}", r.file));
+      setStatus(t(r.families ? "artistMapDone" : "artistMapNone").replace("{n}", r.folders).replace("{k}", r.families).replace("{f}", r.file));
       if (tab) tab.location = r.url;
       else {  // the browser blocked the new tab: a link instead
         const a = document.createElement("a"); a.href = r.url; a.target = "_blank"; a.textContent = t("openArtistMap");

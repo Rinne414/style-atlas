@@ -116,11 +116,11 @@ def on_edge(params: dict) -> str | None:
 
     if v == "none":
         return "weak_link" if near(params["p_time"]) else None
+    if v == "turns":  # either p near the line: perhaps only drift
+        return "maybe_drift" if near(params["p_time"]) or near(params["p_turns"]) else None
     if near(params["p_time"]):
         return "barely_time"
-    if near(params["p_turns"]):
-        return "maybe_turn" if v == "drift" else "maybe_drift"
-    return None
+    return "maybe_turn" if near(params["p_turns"]) else None
 
 
 EDGE = (0.03, 0.08)
@@ -163,7 +163,15 @@ def verdict_text(params: dict) -> str:
         ),
     }[verdict(params)]
     edge = on_edge(params)
-    if edge:
+    if edge == "maybe_drift":  # a turns verdict on the edge: one message, not two that disagree
+        text = tr(
+            f"the style changes more abruptly than a smooth curve explains (turns p {q}), but "
+            "the evidence is at the edge: it may be only gradual change; when unsure, one LoRA "
+            "is the safer choice",
+            f"畫風的變化比平滑變化的曲線更突然（轉折 p {q}），但證據在邊緣：也可能只是漸變；"
+            "不確定時，合在一起訓練比較穩妥",
+        )
+    elif edge:
         text += EDGE_NOTES[edge]()
     if params.get("tied", 0) >= TIED_NOTE:
         text += tr(

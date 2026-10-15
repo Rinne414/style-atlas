@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 from importlib import resources
@@ -255,7 +256,7 @@ def write_map(
 
 
 def write_payload(payload: dict, out_path: Path) -> Path:
-    tmp = out_path.with_suffix(".tmp")
+    tmp = out_path.with_name(f"{out_path.stem}.{os.getpid()}.{threading.get_ident()}.tmp")
     tmp.write_text(render_html(payload), encoding="utf-8")
     os.replace(tmp, out_path)
     return out_path

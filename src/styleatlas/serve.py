@@ -91,7 +91,6 @@ from styleatlas.report import (
     map_payload,
     render_html,
     with_reference,
-    write_map,
     write_payload,
 )
 from styleatlas.search import fold_hits, folder_verdict, rank_folders, search, style_path, warm
@@ -403,7 +402,9 @@ class StyleAtlasApp(GroupEdits):
         """The sub-folders (e.g. one per artist) as one point each at their average style,
         grouped into families of similar folders, as `map --by-folder`: written next to the
         exports and served at /artist_map."""
-        folders = folder_atlas(self.raw)  # plain CSD, as the family cut was measured
+        with self._lock:  # images excluded by hand do not pull their folder's average
+            kept = [i for i in range(len(self.raw)) if i not in self.excluded]
+        folders = folder_atlas(self.raw.subset(kept))  # plain CSD, as the cut was measured
         if len(folders) < MIN_FOLDERS:
             raise ValueError(
                 tr(
@@ -418,14 +419,15 @@ class StyleAtlasApp(GroupEdits):
             f"{self.title or self.raw.root.name}: artists",
             f"{self.title or self.raw.root.name}：畫師地圖",
         )
-        path = write_map(
-            folders,
-            families,
-            self.out_dir / ARTIST_MAP,
-            self.projection,
-            title=title,
-            families=True,
-        )
+        path = self.out_dir / ARTIST_MAP
+        path.parent.mkdir(parents=True, exist_ok=True)
+        payload = map_payload(folders, families, path, self.projection, title=title)
+        payload["families"] = True
+        write_payload(payload, path)  # the shareable file: links relative to it
+        index = {p: i for i, p in enumerate(self.raw.paths)}
+        for k, point in enumerate(payload["points"]):  # the served copy: the app's own images
+            point["f"] = f"image/{index[folders.paths[k]]}"
+        self._artist_map_page = render_html(payload).encode("utf-8")
         return {
             "file": str(path),
             "folders": len(folders),
@@ -434,9 +436,8 @@ class StyleAtlasApp(GroupEdits):
         }
 
     def artist_map_html(self) -> bytes | None:
-        """The artist map written by artist_map, or None before."""
-        path = self.out_dir / ARTIST_MAP
-        return path.read_bytes() if path.exists() else None
+        """The artist map made in this session (its images served by this app), or None."""
+        return getattr(self, "_artist_map_page", None)
 
     def copy_hits(self, body: dict) -> dict:
         """Copy images ("items", e.g. search results) with their captions into a new

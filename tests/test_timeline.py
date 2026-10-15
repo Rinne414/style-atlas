@@ -133,3 +133,10 @@ def test_a_verdict_decided_near_the_line_is_flagged():
     assert on_edge({"p_time": 0.01, "p_turns": 0.06}) == "maybe_turn"  # "drift", nearly "turns"
     assert on_edge({"p_time": 0.4, "p_turns": 0.9}) is None
     assert on_edge({"p_time": None, "p_turns": None}) is None  # "few"
+
+
+def test_a_turns_verdict_on_the_edge_gives_one_message():
+    from styleatlas.timeline import verdict_text
+
+    text = verdict_text({"p_time": 0.01, "p_turns": 0.04, "separation": 0.1, "distinct": 50})
+    assert "evidence is at the edge" in text and "can make sense" not in text

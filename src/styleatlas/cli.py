@@ -240,15 +240,17 @@ def _search_folders(a: argparse.Namespace, atlas, qstyle, names: list[str], same
             log(prefix + _folder_verdict_text(hits[0].folder, *verdict))
     log(
         tr(
-            "the ranking compares with the works now in each folder: an artist's much earlier or "
-            "later works can look more like someone else's"
+            "these rates hold when the artist is one of these folders; the ranking compares "
+            "with the works now in each folder, and an artist's much earlier or later works can "
+            "look more like someone else's"
             + (
                 ""
                 if a.combine
                 else "; several works of one artist together (--combine) are "
                 "surer (92% against 69% right first in the measurement)"
             ),
-            "排名比的是各資料夾裡現有作品的畫風：同一位畫師很早期或很後期的作品，可能反而比較像別人"
+            "這些比例的前提是畫師本來就在這些資料夾裡；排名比的是各資料夾裡現有作品的畫風，"
+            "同一位畫師很早期或很後期的作品，可能反而比較像別人"
             + (
                 ""
                 if a.combine
