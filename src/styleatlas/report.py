@@ -55,12 +55,22 @@ class Layout:
     ref_title: str | None = None
 
 
+SLOW_LAYOUT = 1000  # images from which the map layout says it is working first
+
+
 def compute_layout(
     atlas: Atlas,
     projection: str = "auto",
     progress: Callable[[str], None] = lambda _: None,
     reference: Atlas | None = None,
 ) -> Layout:
+    if len(atlas) >= SLOW_LAYOUT:  # the projection says nothing while it runs
+        progress(
+            tr(
+                f"placing {len(atlas)} images on the 3D map (this can take a minute or two)",
+                f"正在計算 {len(atlas)} 張在 3D 地圖上的位置（可能要一兩分鐘）",
+            )
+        )
     coords, used = project_3d(atlas.style, projection)
     progress(
         tr(
