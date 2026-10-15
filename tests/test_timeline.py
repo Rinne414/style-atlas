@@ -127,8 +127,9 @@ def test_images_without_a_time_are_unassigned():
 
 
 def test_a_verdict_decided_near_the_line_is_flagged():
-    assert on_edge({"p_time": 0.05, "p_turns": 0.5})  # "none", decided by p_time
-    assert on_edge({"p_time": 0.01, "p_turns": 0.04})  # "turns", decided by p_turns
-    assert on_edge({"p_time": 0.04, "p_turns": 0.5})  # "drift", but nearly "none"
-    assert not on_edge({"p_time": 0.4, "p_turns": 0.9})
-    assert not on_edge({"p_time": None, "p_turns": None})  # "few"
+    assert on_edge({"p_time": 0.05, "p_turns": 0.5}) == "weak_link"  # "none" by p_time
+    assert on_edge({"p_time": 0.01, "p_turns": 0.04}) == "maybe_drift"  # "turns" by p_turns
+    assert on_edge({"p_time": 0.04, "p_turns": 0.5}) == "barely_time"  # "drift", nearly "none"
+    assert on_edge({"p_time": 0.01, "p_turns": 0.06}) == "maybe_turn"  # "drift", nearly "turns"
+    assert on_edge({"p_time": 0.4, "p_turns": 0.9}) is None
+    assert on_edge({"p_time": None, "p_turns": None}) is None  # "few"

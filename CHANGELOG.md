@@ -31,6 +31,12 @@ New:
   for one query image, 「只看很像的」 shows only those (and copies only those to a folder).
 - **「存圖」/Save PNG in the top toolbar** of every map, shared HTML maps included (it was under
   More… or the P key).
+- **Clearer `cluster` and `audit` output for a first LoRA** (from a Sonnet first-time-user test): one line
+  accounts for every image (in folders, set aside and why); when the timeline finds no link or only
+  drift, or the automatic groups split a folder as consistent as one artist, the command says how to
+  get one folder (`--k 1`); edge verdicts say which way they lean in plain words; kohya exports say
+  how repeats were chosen; `audit` says what to do when no image has a caption or most are small
+  (Danbooru/Pixiv 'sample' downloads).
 - **Rating mode ignores a second L/D press** made before the next image is shown (it rated the
   same image again).
 - **Periods along the timeline** (`--granularity timeline --time name|mtime`): one artist's works,

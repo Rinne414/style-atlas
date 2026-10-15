@@ -32,6 +32,7 @@ def cmd_audit(a: argparse.Namespace) -> int:
         if key == "buckets":
             value = " · ".join(f"{b} {n}" for b, n in value.items())
         print(f"{pad(_audit_label(key), width)}{value}")
+    _audit_advice(report["summary"], a.min_side)
     if report["frequent_tags"]:
         shares = ", ".join(f"{t} {round(100 * share)}%" for t, share in report["frequent_tags"])
         log(
@@ -82,6 +83,32 @@ AUDIT_ZH = {
     "short_side_median": "短邊中位數",
     "short_side_p10": "短邊第 10 百分位",
 }
+
+
+def _audit_advice(summary: dict, min_side: int) -> None:
+    """What to do about the two findings that cover whole downloaded folders."""
+    n = summary.get("images", 0)
+    if n and summary.get("no_caption", 0) == n:
+        log(
+            tr(
+                "no image has a caption: a style LoRA can be trained without them (kohya then "
+                "uses the trigger word in the folder name); for captions, run a tagger such as "
+                "WD14 first (style-atlas does not write captions)",
+                "全部都沒有標註檔：不加標註也能訓畫風 LoRA（kohya 會改用資料夾名稱裡的觸發詞）；"
+                "要標註的話，先用 WD14 tagger 之類的工具產生（style-atlas 不會產生標註）",
+            )
+        )
+    if n and summary.get("smaller_than_min_side", 0) * 2 >= n:
+        log(
+            tr(
+                f"half or more of the images are under {min_side} px on the short side: "
+                "downloads from Danbooru or Pixiv are often the reduced 'sample' size, so get the "
+                "originals where you can; training enlarges small images, which blurs them",
+                f"一半以上的圖短邊小於 {min_side} px："
+                "從 Danbooru、Pixiv 下載時常拿到縮小的 sample 版，能的話請改用原圖；"
+                "訓練時小圖會被放大，會變模糊",
+            )
+        )
 
 
 def _audit_label(key: str) -> str:

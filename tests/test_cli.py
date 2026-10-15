@@ -677,3 +677,35 @@ def test_help_says_where_to_start(capsys):
         main(["--help"])
     out = capsys.readouterr().out
     assert "where to start:\ntry it: demo\n" in out and "setup problems: doctor" in out
+
+
+def test_cluster_accounts_for_every_image_and_says_how_to_get_one_folder(capsys):
+    import argparse
+    from types import SimpleNamespace
+
+    from styleatlas.cli_lora import _log_where_they_went, _one_lora_hint
+
+    _log_where_they_went(["2_a_style01"] * 44 + ["_duplicates"] * 11 + ["_outliers"] * 5)
+    err = capsys.readouterr().err
+    assert "60 images: 44 in 1 style folders; set aside: _duplicates 11, _outliers 5" in err
+    timeline = SimpleNamespace(method="timeline", params={"p_time": 0.2, "p_turns": 0.5})
+    _one_lora_hint(
+        argparse.Namespace(granularity="timeline", k=None, threshold=None), timeline, None
+    )
+    assert "--k 1 instead of --granularity timeline" in capsys.readouterr().err
+    auto = SimpleNamespace(method="agglomerative", n_clusters=6, params={})
+    args = argparse.Namespace(granularity="auto", k=None, threshold=None)
+    _one_lora_hint(args, auto, SimpleNamespace(verdict="like one artist"))
+    assert "the 6 groups are most likely small differences" in capsys.readouterr().err
+    _one_lora_hint(args, auto, SimpleNamespace(verdict="mixed"))  # a mix: no such hint
+    assert capsys.readouterr().err == ""
+
+
+def test_audit_says_what_to_do_about_missing_captions_and_small_images(capsys):
+    from styleatlas.cli_inspect import _audit_advice
+
+    _audit_advice({"images": 60, "no_caption": 60, "smaller_than_min_side": 60}, 768)
+    err = capsys.readouterr().err
+    assert "trained without them" in err and "'sample' size" in err
+    _audit_advice({"images": 60, "no_caption": 3, "smaller_than_min_side": 2}, 768)
+    assert capsys.readouterr().err == ""

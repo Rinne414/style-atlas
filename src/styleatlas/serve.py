@@ -459,7 +459,7 @@ class StyleAtlasApp(GroupEdits):
             keys = ("distinct", "p_time", "p_turns", "separation", "tied")
             done |= {key: clustering.params.get(key) for key in keys}
             done["verdict"] = verdict(clustering.params)
-            done["edge"] = on_edge(clustering.params)
+            done["edge"] = on_edge(clustering.params)  # which way it could tip, or None
         return done
 
     def search_image(self, data: bytes, top: int = SEARCH_TOP) -> dict:

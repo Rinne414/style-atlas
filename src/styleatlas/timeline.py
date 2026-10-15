@@ -102,15 +102,25 @@ def verdict(params: dict) -> str:
     return "turns" if params["p_turns"] < CLEAR_P else "drift"
 
 
-def on_edge(params: dict) -> bool:
-    """Whether a p-value that decided the verdict is so near CLEAR_P that it could go either way
-    (with 99 rounds a p near 0.05 moves by about 0.02 between seeds): p_time for none, both for
-    drift and turns."""
+def on_edge(params: dict) -> str | None:
+    """Which way a verdict could tip when a p-value that decided it is near CLEAR_P (with 99
+    rounds a p near 0.05 moves by about 0.02 between seeds): "weak_link" (none, a faint link to
+    time), "barely_time" (drift or turns, the link to time itself is faint), "maybe_turn" (drift,
+    a faint turn) or "maybe_drift" (turns, perhaps only drift); None when it is clear."""
     v = verdict(params)
     if v == "few":
-        return False
-    deciding = [params["p_time"]] if v == "none" else [params["p_time"], params["p_turns"]]
-    return any(EDGE[0] <= p < EDGE[1] for p in deciding)
+        return None
+
+    def near(p: float) -> bool:
+        return EDGE[0] <= p < EDGE[1]
+
+    if v == "none":
+        return "weak_link" if near(params["p_time"]) else None
+    if near(params["p_time"]):
+        return "barely_time"
+    if near(params["p_turns"]):
+        return "maybe_turn" if v == "drift" else "maybe_drift"
+    return None
 
 
 EDGE = (0.03, 0.08)
@@ -152,11 +162,9 @@ def verdict_text(params: dict) -> str:
             "很可能是不同的時期，分開訓練有道理",
         ),
     }[verdict(params)]
-    if on_edge(params):
-        text += tr(
-            " (the p-value is near 0.05, so this could go either way; more works would tell)",
-            "（p 值接近 0.05，結論可能翻轉；作品多一些才分得清）",
-        )
+    edge = on_edge(params)
+    if edge:
+        text += EDGE_NOTES[edge]()
     if params.get("tied", 0) >= TIED_NOTE:
         text += tr(
             f" ({params['tied']:.0%} of the images share a time with another; their order "
@@ -167,6 +175,25 @@ def verdict_text(params: dict) -> str:
 
 
 TIED_NOTE = 0.2  # share of tied times from which the verdict mentions them
+
+
+def _edge_note(en: str, zh: str):
+    from styleatlas.lang import tr
+
+    return lambda: tr(f" ({en}; more works would tell)", f"（{zh}；作品多一些才分得清）")
+
+
+EDGE_NOTES = {  # what an edge verdict leans towards, in plain words (map_i18n.js has a copy)
+    "weak_link": _edge_note(
+        "a faint hint of a link to time, not enough to rely on",
+        "有一點和時間有關的跡象，但不夠確定",
+    ),
+    "barely_time": _edge_note(
+        "the link to time itself is only faint", "和時間的關係本身也只是勉強看得出來"
+    ),
+    "maybe_turn": _edge_note("there may also be a faint turn", "也可能有一個不明顯的轉折"),
+    "maybe_drift": _edge_note("it may also be only gradual change", "也可能只是漸變"),
+}
 
 
 def segment(z: np.ndarray, k: int, min_size: int) -> np.ndarray:

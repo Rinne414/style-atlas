@@ -130,9 +130,12 @@ def cmd_cluster(a: argparse.Namespace) -> int:
     folders, tags = _plan(a, atlas, result, dups)
     csv_path, json_path = write_table(atlas, result, out, folders, tags)
     log(tr(f"wrote {csv_path} and {json_path}", f"已寫出 {csv_path} 和 {json_path}"))
+    spread = None
     if getattr(a, "fitted_space", None) is None:  # the reference was measured on plain CSD
-        _log_consistency(atlas)
+        spread = _log_consistency(atlas)
     _print_groups(atlas, result, folders, tags, a.time)
+    _log_where_they_went(folders)
+    _one_lora_hint(a, result, spread)
     if a.export:
         _export(a, atlas, folders, out)
     else:
@@ -215,6 +218,16 @@ def _export(a: argparse.Namespace, atlas: Atlas, folders: list[str], out: Path) 
                 f"batch size 1 時，每個 epoch 約 {steps} 步（張數 × repeats）",
             )
         )
+        if a.repeats == "auto":
+            log(
+                tr(
+                    "repeats (the number before each folder name) were set so that each folder "
+                    "gives about 100 images per epoch: small folders repeat more, so every style "
+                    "weighs about the same",
+                    "repeats（資料夾名稱前面的數字）是自動算的：讓每個資料夾每個 epoch 約 100 張，"
+                    "張數少的資料夾重複較多次，各畫風的份量就差不多",
+                )
+            )
     for p, why in done.failed:
         log(tr(f"not exported {p}: {why}", f"沒有匯出 {p}：{why}"))
 
@@ -313,7 +326,56 @@ CONSISTENCY_WORDS = {
 }
 
 
-def _log_consistency(atlas: Atlas) -> None:
+def _log_where_they_went(folders: list[str]) -> None:
+    """One line that accounts for every image: how many went into style folders and how many
+    were set aside, and why (duplicates, outliers, unassigned...)."""
+    from collections import Counter
+
+    from styleatlas.dataset import is_unassigned
+
+    aside = Counter(f for f in folders if f.startswith("_") or is_unassigned(f))
+    kept = len(folders) - sum(aside.values())
+    groups = len({f for f in folders if not (f.startswith("_") or is_unassigned(f))})
+    rest = ", ".join(f"{name} {n}" for name, n in sorted(aside.items()))
+    log(
+        tr(
+            f"{len(folders)} images: {kept} in {groups} style folders"
+            + (f"; set aside: {rest}" if rest else ""),
+            f"共 {len(folders)} 張：{kept} 張在 {groups} 個畫風資料夾"
+            + (f"；另外放：{rest}" if rest else ""),
+        )
+    )
+
+
+def _one_lora_hint(a: argparse.Namespace, result, spread) -> None:
+    """How to get one folder when the output suggests one LoRA: a timeline verdict of no link or
+    only drift, or several automatic groups in a folder as consistent as one artist."""
+    from styleatlas.timeline import TIMELINE, verdict
+
+    if result.method == TIMELINE and verdict(result.params) in ("none", "drift"):
+        log(
+            tr(
+                "to train one LoRA on all of it: run the same command with --k 1 instead of "
+                "--granularity timeline (one folder)",
+                "要用全部作品訓一個 LoRA：把 --granularity timeline 換成 --k 1 再執行一次"
+                "（全部放進同一個資料夾）",
+            )
+        )
+        return
+    automatic = a.granularity == "auto" and a.k is None and a.threshold is None
+    if automatic and result.n_clusters > 1 and spread is not None and spread.verdict != "mixed":
+        log(
+            tr(
+                f"if these are all one artist's works, the {result.n_clusters} groups are most "
+                "likely small differences within one style; for one LoRA add --k 1 (one folder)",
+                f"如果這些都是同一位畫師的作品，分出的 {result.n_clusters} 群多半只是同一畫風裡的"
+                "細部差異；要訓一個 LoRA，加 --k 1（全部放進同一個資料夾）",
+            )
+        )
+
+
+def _log_consistency(atlas: Atlas):
+    """Print how consistent the folder's style is; the Consistency, or None if too few images."""
     from styleatlas.consistency import consistency
 
     c = consistency(atlas.style)
@@ -327,6 +389,7 @@ def _log_consistency(atlas: Atlas) -> None:
                 f"（比 {c.percentile:.0f}% 的單一畫師分散；分散度 {c.spread:.3f}，越大越雜）",
             )
         )
+    return c
 
 
 def _print_groups(
