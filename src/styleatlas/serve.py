@@ -86,7 +86,7 @@ from styleatlas.report import (
 from styleatlas.search import fold_hits, rank_folders, search, style_path, warm
 from styleatlas.serve_edits import GroupEdits
 from styleatlas.taste_session import TasteSession
-from styleatlas.timeline import TIMELINE, cluster_timeline, verdict
+from styleatlas.timeline import TIMELINE, cluster_timeline, on_edge, verdict
 
 SEARCH_TOP = 48
 FOLDER_TOP = 5  # closest sub-folders listed with a search
@@ -452,6 +452,7 @@ class StyleAtlasApp(GroupEdits):
             keys = ("distinct", "p_time", "p_turns", "separation", "tied")
             done |= {key: clustering.params.get(key) for key in keys}
             done["verdict"] = verdict(clustering.params)
+            done["edge"] = on_edge(clustering.params)
         return done
 
     def search_image(self, data: bytes, top: int = SEARCH_TOP) -> dict:

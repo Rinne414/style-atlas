@@ -121,7 +121,9 @@ All of these are in `docs/BENCHMARKS.md`.
   penalised search such as PELT), measured the same way. Done 2026-10-16: residuals are not
   exchangeable (neighbours alike, mean lag-1 cosine +0.06), so both nulls now shuffle AR(1)
   innovations (a sieve) instead of single works; block permutations (Kirch; Chen, arXiv
-  1903.01598) held the level but lost much power (BENCHMARKS).
+  1903.01598) held the level but lost much power. A third review showed the pooled sieve misses
+  dependence concentrated in a few dimensions; the real dependence turned out to be series
+  (consecutive works at cosine 0.80+), now counted once (BENCHMARKS).
 - **Related tools, checked again 2026-10-11.** LoRA Dataset Coach (github.com/akalavol/
   LoRA-Dataset-Coach) now covers face identity, sharpness, pose, expression, duplicates (dHash +
   face similarity), AI-image detection, bucket balance, CLIP-cluster diversity, "overfit attribute"

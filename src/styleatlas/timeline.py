@@ -27,9 +27,8 @@ SEGMENT_MAX = 1500  # distinct works the cuts are searched on (evenly through ti
 TEST_ROUNDS = 99  # rounds of each null; p is at least 0.01
 TEST_SAMPLE = 400  # distinct works the tests use at most (evenly through time)
 TEST_MIN = 20  # distinct works the tests need at least (and 2 per period's minimum)
-TREND_DEGREE = (
-    2  # the turns test's smooth trend; a cubic or quartic absorbed real steps (BENCHMARKS)
-)
+TREND_DEGREE = 2  # the turns test's trend; a cubic or quartic absorbed real steps (BENCHMARKS)
+SERIES_COS = 0.80  # consecutive works this alike are one series, counted once by the tests
 MAX_LAG1 = 0.9  # neighbour dependence the tests allow for at most
 CLEAR_P = 0.05
 
@@ -45,8 +44,9 @@ def cluster_timeline(
 ) -> Clustering:
     """Periods 0 (earliest) .. k-1 of the images with a known time (`times`, NaN when unknown, e.g.
     from images.timeline); the rest are unassigned. With `content`, near-duplicates count once:
-    variants posted one after another would otherwise make cuts look real. They are judged on
-    `plain` (the plain style vectors, when `style` is in another space), else on `style`.
+    variants posted one after another would otherwise make cuts look real; so does each run of
+    consecutive alike works (a series, SERIES_COS). Both are judged on `plain` (the plain style
+    vectors, when `style` is in another space), else on `style`.
     params: n_clusters, distinct, p_time, p_turns (None when too few distinct works), separation
     (silhouette of the periods on the tested works) and tied (share of works whose time equals
     another's)."""
@@ -66,7 +66,8 @@ def cluster_timeline(
         )
     style_t = np.asarray(style)[order]
     content_t = None if content is None else np.asarray(content)[order]
-    distinct = _distinct(np.asarray(style if plain is None else plain)[order], content_t)
+    plain_t = np.asarray(style if plain is None else plain)[order]
+    distinct = _series_once(plain_t, _distinct(plain_t, content_t))
     n_distinct = len(distinct)
     if n_distinct < k * min_size:  # mostly copies of a few pictures: cut them as they are
         distinct = np.arange(len(order))
@@ -92,13 +93,27 @@ def cluster_timeline(
 
 
 def verdict(params: dict) -> str:
-    """One of: few (too few distinct works to test), none (the style does not follow time),
-    drift (it changes smoothly, no clear turns) or turns (eras worth training apart)."""
+    """One of: few (too few distinct works to test), none (no clear link to time found), drift
+    (it changes with time, no clear turn found) or turns (more abrupt than a smooth curve)."""
     if params.get("p_time") is None:
         return "few"
     if params["p_time"] >= CLEAR_P:
         return "none"
     return "turns" if params["p_turns"] < CLEAR_P else "drift"
+
+
+def on_edge(params: dict) -> bool:
+    """Whether a p-value that decided the verdict is so near CLEAR_P that it could go either way
+    (with 99 rounds a p near 0.05 moves by about 0.02 between seeds): p_time for none, both for
+    drift and turns."""
+    v = verdict(params)
+    if v == "few":
+        return False
+    deciding = [params["p_time"]] if v == "none" else [params["p_time"], params["p_turns"]]
+    return any(EDGE[0] <= p < EDGE[1] for p in deciding)
+
+
+EDGE = (0.03, 0.08)
 
 
 def verdict_text(params: dict) -> str:
@@ -109,9 +124,10 @@ def verdict_text(params: dict) -> str:
     n = params.get("distinct")
     text = {
         "few": tr(
-            f"too few distinct works to test the periods ({n} once near-duplicates count once): "
-            "judge them by eye in the map",
-            f"去掉近重複後只有 {n} 張作品，太少，無法檢定各時期：請在地圖上直接看圖判斷",
+            f"too few distinct works to test the periods ({n} once near-duplicates and runs of "
+            "alike consecutive works count once): judge them by eye in the map",
+            f"去掉近重複、連續的相似作品只算一次後，只有 {n} 張，太少，無法檢定各時期："
+            "請在地圖上直接看圖判斷",
         ),
         "none": tr(
             f"no clear link between style and time found (p {p}; with few works only large "
@@ -136,6 +152,11 @@ def verdict_text(params: dict) -> str:
             "很可能是不同的時期，分開訓練有道理",
         ),
     }[verdict(params)]
+    if on_edge(params):
+        text += tr(
+            " (the p-value is near 0.05, so this could go either way; more works would tell)",
+            "（p 值接近 0.05，結論可能翻轉；作品多一些才分得清）",
+        )
     if params.get("tied", 0) >= TIED_NOTE:
         text += tr(
             f" ({params['tied']:.0%} of the images share a time with another; their order "
@@ -187,6 +208,18 @@ def _distinct(style: np.ndarray, content: np.ndarray | None) -> np.ndarray:
 
     groups = near_duplicate_groups(style, content)
     return np.sort(np.asarray(keep_one_per_group(len(style), groups), dtype=int))
+
+
+def _series_once(style: np.ndarray, positions: np.ndarray) -> np.ndarray:
+    """`positions` (in time order) with each run of consecutive works at cosine SERIES_COS or more
+    to the run's first work kept once. Artists post series; on 13 Danbooru artists this took the
+    neighbours' likeness from +0.056 to -0.018 and kept 87% of the works (BENCHMARKS)."""
+    unit = style / np.maximum(np.linalg.norm(style, axis=1, keepdims=True), 1e-12)
+    keep = [int(positions[0])]
+    for i in positions[1:]:
+        if float(unit[i] @ unit[keep[-1]]) < SERIES_COS:
+            keep.append(int(i))
+    return np.asarray(keep, dtype=int)
 
 
 def _even(n: int, at_most: int) -> np.ndarray:

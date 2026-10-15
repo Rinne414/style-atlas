@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from styleatlas.cluster import UNASSIGNED
-from styleatlas.timeline import cluster_timeline, segment, verdict
+from styleatlas.timeline import cluster_timeline, on_edge, segment, verdict
 
 
 def _styles(sizes, spread=0.15, seed=0):
@@ -68,6 +68,17 @@ def test_a_series_of_alike_neighbours_is_not_a_time_effect():
     assert verdict(cluster_timeline(x, np.arange(n, dtype=float), 3).params) == "none"
 
 
+def test_a_series_of_alike_consecutive_works_counts_once():
+    x = _styles([12, 9, 15])
+    rng = np.random.default_rng(5)
+    series = x[5] + 0.1 * rng.normal(size=(5, 32))  # cosine about 0.87 to x[5]: alike, no copy
+    style = np.vstack([x[:6], series / np.linalg.norm(series, axis=1, keepdims=True), x[6:]])
+    alone = cluster_timeline(x, np.arange(len(x), dtype=float), 3).params["distinct"]
+    result = cluster_timeline(style, np.arange(len(style), dtype=float), 3)
+    assert result.params["distinct"] == alone  # the five count as the work they follow
+    assert sum(c.size for c in result.clusters) == len(style)  # and are still in a period
+
+
 def test_too_few_distinct_works_are_not_tested():
     x = _styles([8, 8, 8])
     params = cluster_timeline(x, np.arange(24, dtype=float), 3).params
@@ -113,3 +124,11 @@ def test_images_without_a_time_are_unassigned():
     assert (result.labels[[3, 17]] == UNASSIGNED).all() and result.n_unassigned == 2
     with pytest.raises(ValueError):
         cluster_timeline(x[:12], np.arange(12, dtype=float), 3)  # 3 periods of 5 need 15
+
+
+def test_a_verdict_decided_near_the_line_is_flagged():
+    assert on_edge({"p_time": 0.05, "p_turns": 0.5})  # "none", decided by p_time
+    assert on_edge({"p_time": 0.01, "p_turns": 0.04})  # "turns", decided by p_turns
+    assert on_edge({"p_time": 0.04, "p_turns": 0.5})  # "drift", but nearly "none"
+    assert not on_edge({"p_time": 0.4, "p_turns": 0.9})
+    assert not on_edge({"p_time": None, "p_turns": None})  # "few"

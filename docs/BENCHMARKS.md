@@ -579,31 +579,53 @@ code, same 40 runs per row:
 | One step of 4: *turns* | 68% | 55% | 48% |
 | One step of 6: *turns* | 98% | 98% | 82% |
 
+**Series count once.** A third review (Sonnet, 2026-10-16) found the pooled sieve's limits: when
+the dependence sits in a few dimensions it is under-fitted (AR 0.7 in the top 3 of 64 dimensions
+with unequal variances: time called significant in 50% of 30 runs), and a large real step left in
+the residuals raises the fitted coefficient and costs power. On the real artists the dependence
+does sit in the top dimensions (mean lag-1 0.26 and 0.25 in PCA dimensions 1 and 2, about 0 from
+dimension 9 on). Per-dimension step-resistant estimates (ratios of trimmed squared differences at
+lags 2 and 1) cut that false rate to 17-20% but lost power (one step: 97% to 77-87%) and were
+erratic on the real artists (many dimensions at the 0.9 clip). What the dependence is made of
+answered it better: counting each run of consecutive works at cosine 0.80 or more (to the run's
+first work) once took the residuals' neighbour likeness on the 13 artists from +0.056 to -0.018
+(top three dimensions +0.200 to +0.080) and kept 87% of the works; at 0.90 or 0.85 little changed
+(+0.047, +0.027). Works on either side of a real turn are not that alike, so a turn is kept. The
+product now counts series once (with near-duplicates) for the cuts and both tests, and keeps the
+pooled sieve for what remains; series members take the period of their time. Synthetic data
+above has no series (cosines near 0), so its rates are unchanged.
+
+A verdict whose deciding p-value is 0.03-0.08 says it could go either way: with 99 rounds a p
+near 0.05 moves by about 0.02 between seeds.
+
 Real artists: the 14 period_corpus artists (Danbooru posting order as time), 3 periods:
 
-| Artist | Works | Distinct | time p | turns p | Separation | Verdict |
+| Artist | Works | Distinct (copies and series once) | time p | turns p | Separation | Verdict |
 |---|---|---|---|---|---|---|
-| bow_(bhp) | 60 | 48 | 0.15 | 0.25 | +0.010 | none |
-| dairi | 60 | 13 | - | - | +0.250 | few |
-| ebifurya | 54 | 51 | 0.02 | 0.05 | +0.057 | drift |
-| hammer_(sunset_beach) | 55 | 53 | 0.01 | 0.24 | +0.044 | drift |
+| bow_(bhp) | 60 | 46 | 0.04 | 0.09 | +0.011 | drift (edge) |
+| dairi | 60 | 11 | - | - | +0.250 | few |
+| ebifurya | 54 | 42 | 0.01 | 0.05 | +0.049 | drift (edge) |
+| hammer_(sunset_beach) | 55 | 44 | 0.01 | 0.64 | +0.027 | drift |
 | haruyama_kazunori | 60 | 60 | 0.09 | 0.63 | +0.008 | none |
-| itomugi-kun | 54 | 54 | 0.01 | 0.08 | +0.096 | drift |
-| kanon_(kurogane_knights) | 60 | 59 | 0.49 | 0.98 | -0.004 | none |
-| matsunaga_kouyou | 51 | 46 | 0.06 | 0.29 | +0.021 | none |
-| naga_u | 60 | 60 | 0.05 | 0.09 | +0.027 | none |
-| ojipon | 60 | 59 | 0.31 | 0.94 | +0.007 | none |
+| itomugi-kun | 54 | 42 | 0.01 | 0.43 | +0.037 | drift |
+| kanon_(kurogane_knights) | 60 | 49 | 0.05 | 0.63 | +0.012 | none (edge) |
+| matsunaga_kouyou | 51 | 42 | 0.06 | 0.38 | +0.016 | none (edge) |
+| naga_u | 60 | 51 | 0.28 | 0.73 | -0.003 | none |
+| ojipon | 60 | 55 | 0.65 | 0.99 | -0.008 | none |
 | onikobe_rin | 60 | 60 | 0.02 | 0.09 | +0.029 | drift |
-| pageratta | 30 | 30 | 0.01 | 0.01 | +0.095 | turns |
-| rebecca_(keinelove) | 60 | 60 | 0.01 | 0.02 | +0.072 | turns |
-| yaegashi_nan | 60 | 49 | 0.01 | 0.01 | +0.047 | turns |
+| pageratta | 30 | 24 | - | - | +0.053 | few |
+| rebecca_(keinelove) | 60 | 46 | 0.01 | 0.03 | +0.049 | turns (edge) |
+| yaegashi_nan | 60 | 40 | 0.05 | 0.27 | +0.021 | none (edge) |
 
 (Separation: silhouette of the periods on the distinct works, 32 PCA dimensions.)
 
-- 3 of 14 have turns, 4 only drift, 6 showed no clear link to time with 3 periods (matsunaga_kouyou
-  and naga_u at time p 0.05-0.06, so "not found" rather than "none"), 1 has too few distinct works.
-  Allowing for alike neighbours moved matsunaga_kouyou from *drift* to *none*. The first version's "8 of 13 beyond chance" counted
-  the drifting artists as eras.
+- 1 of 14 has turns, 5 only drift, 6 showed no clear link to time with 3 periods, 2 have too few
+  distinct works once series count once; 6 of the 14 verdicts are on the edge. Each step of
+  this review moved artists towards *drift* and *none*: the first version said 8 of 13 had eras,
+  the two tests 2, orthogonal residuals 3, and counting series once 1. yaegashi_nan's and
+  pageratta's earlier *turns* went with their series. With about 40-60 distinct works the honest
+  summary is that most artists change gradually or not clearly, and the verdict is a hint to look
+  at the map, not a decision.
 - dairi shows why near-duplicates must count once: 60 posts are 13 pictures, and with the copies
   the cuts look like clear turns (p 0.01 on both tests).
 - A *drift* verdict means "no clear turn found", not "proven smooth"; with 50-60 works a modest
