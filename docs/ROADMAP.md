@@ -37,7 +37,10 @@
    Actions minutes, and Windows minutes count twice). Until the owner sorts this out, changes are
    checked with the local test run only and no new release is tagged (0.44.0 waits in the
    changelog). The workflow now runs one quick Linux job per push and the full matrix only for
-   pull requests, tags and by hand, to use fewer minutes.
+   pull requests, tags and by hand, to use fewer minutes. Since 2026-10-16 the `tests` workflow is
+   disabled (`gh workflow disable tests`): every push started a run that failed at once and
+   e-mailed the owner. `gh workflow enable tests` turns it back on once billing works. Python
+   3.13 was checked by hand on 2026-10-16 (a fresh clone, CPU torch 2.14.1: all tests pass).
 
 ## Known limits, measured
 

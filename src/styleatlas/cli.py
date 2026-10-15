@@ -31,6 +31,7 @@ from styleatlas.cli_inspect import cmd_audit, cmd_compare, cmd_duplicates, cmd_o
 from styleatlas.cli_lora import FEW_FOR_LORA, _lora_args, cmd_cluster  # noqa: F401
 from styleatlas.cli_report import cmd_report, report_args
 from styleatlas.cli_sort import cmd_sort, sort_args
+from styleatlas.cli_taste import cmd_taste, taste_args
 from styleatlas.cluster import ARTISTS, GRANULARITY, METHODS, PERIODS
 from styleatlas.encoder import CROP_MODES, RESOLUTIONS
 from styleatlas.images import TIME_SOURCES, find_images, labels_from_folders
@@ -353,6 +354,13 @@ def _copy_matches(atlas, indices: list[int], dest: Path) -> None:
         log(tr(f"not copied {p}: {why}", f"沒有複製 {p}：{why}"))
 
 
+def _positive_float(text: str) -> float:
+    value = float(text)
+    if not value > 0:
+        raise argparse.ArgumentTypeError("must be above 0")
+    return value
+
+
 def cmd_calibrate(a: argparse.Namespace) -> int:
     root = Path(a.folder)
     paths = find_images(root)
@@ -397,9 +405,9 @@ def cmd_calibrate(a: argparse.Namespace) -> int:
         tr(
             "each sub-folder must hold one style (mixed periods make the number too large); "
             "--noise-floor makes compare use the z scale, also with 5 or more images a side, "
-            "where it would otherwise read the distance next to 443 real artists",
+            "where it would otherwise place the distance among pairs of real artists",
             "每個子資料夾都要是同一種畫風（混了不同時期，數字會偏大）；加了 --noise-floor，"
-            "compare 就改用 z 值，每邊 5 張以上時也一樣（不加的話會和 443 位真實畫師比）",
+            "compare 就改用 z 值，每邊 5 張以上時也一樣（不加的話會和真實畫師的配對比）",
         )
     )
     return 0
@@ -433,50 +441,6 @@ def cmd_bench(a: argparse.Namespace) -> int:
     dedupe = None if a.keep_duplicates else a.dup_threshold
     report = run_bench(style, labels, trials=a.trials, content=content, dedupe=dedupe)
     print(json.dumps(report, indent=1))
-    return 0
-
-
-def cmd_taste(a: argparse.Namespace) -> int:
-    from styleatlas.taste import TasteModel, train_taste
-
-    opts = _opts(a)
-    if a.taste_cmd == "train":
-        like = embed_paths(find_images(Path(a.like)), opts, log)[1]
-        dislike = embed_paths(find_images(Path(a.dislike)), opts, log)[1]
-        from styleatlas.encoder import encoder_signature
-
-        model = train_taste(like, dislike, encoder_signature(opts.crop, opts.resolution))
-        saved = model.save(Path(a.model))
-        log(
-            tr(
-                f"saved {saved}: {model.n_like} liked / {model.n_dislike} disliked, "
-                f"CV AUC {model.cv_auc:.3f} (0.5 = guessing, 1 = always right)",
-                f"已存 {saved}：喜歡 {model.n_like} 張 / 不喜歡 {model.n_dislike} 張，"
-                f"交叉驗證 AUC {model.cv_auc:.3f}（0.5 = 亂猜，1 = 全對）",
-            )
-        )
-        return 0
-    model = TasteModel.load(Path(a.model))
-    atlas = build_atlas(Path(a.folder), opts, log)
-    if model.signature != atlas.signature:
-        log(
-            tr(
-                f"model was trained on {model.signature}, images embedded as {atlas.signature}; "
-                "embed with the same settings or train again",
-                f"模型是用 {model.signature} 訓練的，這些圖卻是用 {atlas.signature} 算的；"
-                "請用相同設定，或重新訓練",
-            )
-        )
-        return 1
-    scores = model.score(atlas.style)
-    log(
-        tr(
-            "score = chance you like it (0-1, highest first)",
-            "分數 = 你會喜歡的機率（0-1，由高到低）",
-        )
-    )
-    for i in np.argsort(-scores):
-        print(f"{scores[i]:.3f}  {atlas.rel(int(i))}")
     return 0
 
 
@@ -558,8 +522,10 @@ def _common(p: argparse.ArgumentParser) -> None:
     g.add_argument(
         "--cache-db",
         help=tr(
-            "vector cache file (default ~/.cache/style-atlas/vectors.sqlite)",
-            "畫風向量快取檔（預設 ~/.cache/style-atlas/vectors.sqlite）",
+            "vector cache file (default: vectors.sqlite in the cache folder, which "
+            "`style-atlas doctor` shows)",
+            "畫風向量快取檔（預設：快取資料夾裡的 vectors.sqlite；"
+            "`style-atlas doctor` 會顯示位置）",
         ),
     )
     g.add_argument(
@@ -950,7 +916,7 @@ def _add_measure_commands(add: Adder) -> None:
     )
     p.add_argument(
         "--noise-floor",
-        type=float,
+        type=_positive_float,
         help=tr("from `calibrate` (default 0.071)", "取自 `calibrate`（預設 0.071）"),
     )
     p.add_argument(
@@ -1007,34 +973,7 @@ def _add_measure_commands(add: Adder) -> None:
         ),
         common=False,
     )
-    tsub = p.add_subparsers(dest="taste_cmd", required=True)
-    t1 = tsub.add_parser(
-        "train",
-        formatter_class=HelpFormatter,
-        help=tr("learn from a liked and a disliked folder", "從一個喜歡、一個不喜歡的資料夾學習"),
-    )
-    t1.add_argument(
-        "--like", required=True, help=tr("folder of pictures you like", "你喜歡的圖的資料夾")
-    )
-    t1.add_argument(
-        "--dislike",
-        required=True,
-        help=tr("folder of pictures you dislike", "你不喜歡的圖的資料夾"),
-    )
-    t1.add_argument(
-        "--model", default="taste_model.npz", help=tr("model file to write", "要存的模型檔")
-    )
-    t2 = tsub.add_parser(
-        "score",
-        formatter_class=HelpFormatter,
-        help=tr("rank a folder with a trained model", "用訓練好的模型替資料夾排序"),
-    )
-    t2.add_argument("folder")
-    t2.add_argument(
-        "--model", default="taste_model.npz", help=tr("trained model file", "訓練好的模型檔")
-    )
-    for t in (t1, t2):
-        _common(t)
+    taste_args(p, _common, HelpFormatter)
 
 
 def cmd_doctor(a: argparse.Namespace) -> int:

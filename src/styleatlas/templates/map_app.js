@@ -198,7 +198,7 @@ async function showSimilar(group) {  // a group id, or "excluded": the images ex
 }
 
 const VERDICT_KEYS = { "same style": "v_same", related: "v_related", "clearly different": "v_different" };
-const READING_KEYS = { "one artist": "r_one", either: "r_either", "two artists": "r_two" };  // next to real artists
+const POSITION_KEYS = { below_p5: "r_below", p5_to_median: "r_mid", above_median: "r_above" };  // among pairs of artists
 
 const COMPARE_THUMBS = 6;  // a sample of each side under a comparison
 
@@ -225,12 +225,12 @@ async function showCompare(a, b, items, itemsB) {  // picked images in place of 
     const zh = lang === "zh";
     const line = (k, v) => { const d = document.createElement("div"); d.textContent = `${k}${zh ? "：" : ": "}${v}`; kv.append(d); };
     const real = r.reading;  // 5 or more images a side: read next to real artists, not the z scale
-    const verdict = real ? t(READING_KEYS[real.reading]) : t(VERDICT_KEYS[r.verdict] || "v_related");
+    const verdict = real ? t(POSITION_KEYS[real.position]) : t(VERDICT_KEYS[r.verdict] || "v_related");
     const head = document.createElement("div"); head.className = "verdict";
     const strong = document.createElement("b"); strong.textContent = verdict; head.append(strong);
     kv.append(head);  // the answer first, the numbers below it
     if (real) {
-      line(t("cmpDistance"), real.distance.toFixed(3));
+      line(t("cmpDistance"), r.distance.toFixed(3));
       const ref = document.createElement("div");
       ref.textContent = t("cmpReading").replace("{n}", Math.round(real.n)).replace("{p5}", real.p5.toFixed(3))
         .replace("{m}", real.median.toFixed(3)).replace("{c}", real.change.toFixed(3));
@@ -485,7 +485,8 @@ function buildTaste() {
   go.addEventListener("click", rateNext);
   pane.append(go);
   if (!TASTE.scores) return;
-  add("kv", t("tasteAuc").replace("{x}", TASTE.auc.toFixed(2)).replace("{n}", TASTE.likes + TASTE.dislikes));
+  add("kv", t("tasteAuc").replace("{x}", TASTE.auc.toFixed(2)).replace("{n}", TASTE.likes + TASTE.dislikes)
+    + (TASTE.auc_groups != null ? " " + t("tasteAucGroups").replace("{g}", TASTE.auc_groups.toFixed(2)) : ""));
   const unrated = [...PTS.keys()].filter((i) => voteOf(i) === undefined)
     .sort((a, b) => TASTE.scores[b] - TASTE.scores[a]);
   const h1 = document.createElement("h3"); h1.textContent = t("tasteTop");

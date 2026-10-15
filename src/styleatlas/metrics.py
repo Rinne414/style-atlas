@@ -259,38 +259,49 @@ class StyleScale:
 # Danbooru artists, 22-368 per row; docs/BENCHMARKS.md "What a compare distance means"):
 # (n, different artists' 5th percentile, their median, one artist's oldest n against newest n).
 ARTIST_SCALE = ((5, 0.192, 0.348, 0.158), (10, 0.149, 0.268, 0.139), (20, 0.133, 0.234, 0.094))
+ARTIST_SCALE_ARTISTS = 22  # artists behind every row (the same ones: 40 works or more each)
 SEPARABLE_P = 0.05  # compare's permutation p below which the two sides really differ
 
 
 @dataclass(frozen=True)
 class ArtistReading:
-    """Where a distance between two folders falls next to real artists of the same set sizes."""
+    """Where a distance between two folders falls among pairs of different artists of the same
+    set sizes: a position, not a verdict on who drew them (two similar artists sit low too)."""
 
     n: float  # works a side the two sets count as: 2 / (1/nA + 1/nB)
-    reading: str  # "one artist", "either" or "two artists"
+    position: str  # "below_p5", "p5_to_median" or "above_median" of different-artist pairs
     others_p5: float  # 95% of pairs of different artists are this far apart or more
     others_median: float
     one_artist_change: float  # median distance of one artist's oldest and newest works
 
 
+def _scale_at(n: float, column: int) -> float:
+    """ARTIST_SCALE's column at n works a side, linear in 1/n (noise shrinks like 1/n): between
+    rows interpolated, beyond the last row extended along its last segment down to 1/n = 0."""
+    x = [1 / row[0] for row in ARTIST_SCALE]  # decreasing
+    y = [row[column] for row in ARTIST_SCALE]
+    t = 1 / n
+    if t >= x[0]:
+        return y[0]
+    k = next((i for i in range(1, len(x)) if t >= x[i]), len(x) - 1)  # segment x[k-1]..x[k]
+    return y[k] + (t - x[k]) * (y[k - 1] - y[k]) / (x[k - 1] - x[k])
+
+
 def artist_reading(distance: float, na: int, nb: int) -> ArtistReading | None:
-    """`distance` next to ARTIST_SCALE, interpolated in 1/n (beyond 20 a side, the 20 row);
-    None when a side has fewer works than the smallest row."""
+    """`distance` next to ARTIST_SCALE; None when a side has fewer works than the smallest row.
+    The distance is compared as printed (3 decimals)."""
     if min(na, nb) < ARTIST_SCALE[0][0]:
         return None
     n = 2 / (1 / na + 1 / nb)
-    inverse = [1 / row[0] for row in reversed(ARTIST_SCALE)]  # increasing, as np.interp needs
-    x = min(1 / n, inverse[-1])
-    p5, median, change = (
-        float(np.interp(x, inverse, [row[k] for row in reversed(ARTIST_SCALE)])) for k in (1, 2, 3)
-    )
-    if distance < p5:
-        reading = "one artist"
-    elif distance >= median:
-        reading = "two artists"
+    p5, median, change = (_scale_at(n, k) for k in (1, 2, 3))
+    d = round(distance, 3)
+    if d < round(p5, 3):
+        position = "below_p5"
+    elif d >= round(median, 3):
+        position = "above_median"
     else:
-        reading = "either"
-    return ArtistReading(round(n, 1), reading, p5, median, change)
+        position = "p5_to_median"
+    return ArtistReading(round(n, 1), position, p5, median, change)
 
 
 def centroid(x: np.ndarray) -> np.ndarray:

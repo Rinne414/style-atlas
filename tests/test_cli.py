@@ -143,29 +143,53 @@ def test_audit_duplicates_outliers_and_compare(lib, capsys):
     assert main(["compare", str(lib / "red"), str(lib / "blue"), "--device", "cpu"]) == 0
     text = capsys.readouterr().out
     assert "style distance" in text and "look: B is" in text and "cooler" in text
-    assert "the two sides really differ" in text  # 7 and 6 images: read next to real artists
-    assert "as far apart as two different artists" in text and "usually trained apart" in text
+    assert "the two sides likely differ" in text  # 7 and 6 images: read next to real artists
+    assert "farther apart than half of pairs of different artists" in text
+    assert "train one side alone" in text
     assert "red/" in text and "nearly repeat" not in text  # no copies: no line
     assert main(["compare", str(lib / "red"), str(lib / "blue"), "--json", "--device", "cpu"]) == 0
     verdict = json.loads(capsys.readouterr().out)
     assert verdict["images"] == [7, 6] and verdict["centroid_distance"] > 0.5
     assert verdict["look_b_minus_a"]["warmth"] < 0 and "cooler" in verdict["look_words"]
-    assert verdict["separable"] and verdict["artist_reading"]["reading"] == "two artists"
+    assert verdict["separable"] and verdict["artist_reading"]["position"] == "above_median"
     args = ["compare", str(lib / "red"), str(lib / "blue"), "--noise-floor", "0.05"]
     assert main([*args, "--device", "cpu"]) == 0  # a calibrated scale: z and its verdict
-    assert "(z " in capsys.readouterr().out
+    captured = capsys.readouterr()
+    assert "(z " in captured.out and "comparison with real artists is left out" in captured.err
+    assert main([*args, "--json", "--device", "cpu"]) == 0
+    assert json.loads(capsys.readouterr().out)["artist_reading"] is None
+    with pytest.raises(SystemExit):  # 0 would divide; it used to mean "unset"
+        main(["compare", str(lib / "red"), str(lib / "blue"), "--noise-floor", "0"])
 
 
-def test_a_compare_distance_is_read_next_to_real_artists_of_the_same_set_size():
+def test_a_compare_distance_is_placed_among_pairs_of_different_artists():
     from styleatlas.metrics import ARTIST_SCALE, artist_reading
 
-    assert artist_reading(0.08, 20, 20).reading == "one artist"  # an artist's old and new works
-    assert artist_reading(0.16, 20, 20).reading == "either"
-    assert artist_reading(0.28, 20, 20).reading == "two artists"
+    (n5, p5_5, med_5, _), (n10, p5_10, _, _), (n20, p5_20, med_20, _) = ARTIST_SCALE
+    assert artist_reading(p5_20 - 0.01, n20, n20).position == "below_p5"
+    assert artist_reading(p5_20, n20, n20).position == "p5_to_median"  # the cut as printed
+    assert artist_reading(med_20, n20, n20).position == "above_median"
     assert artist_reading(0.3, 4, 50) is None  # a side under 5: the z scale instead
-    assert artist_reading(0.1, 400, 400).others_p5 == ARTIST_SCALE[-1][1]  # beyond 20 a side
-    uneven = artist_reading(0.1, 10, 40)
-    assert uneven.n == 16.0 and ARTIST_SCALE[2][1] < uneven.others_p5 < ARTIST_SCALE[1][1]
+    assert artist_reading(0.1, n5, n5).others_p5 == p5_5  # the rows themselves
+    assert artist_reading(0.1, n10, n10).others_p5 == p5_10
+    uneven = artist_reading(0.1, 10, 40)  # 2 / (1/10 + 1/40) = 16 works a side
+    assert uneven.n == 16.0 and p5_20 < uneven.others_p5 < p5_10
+    big = artist_reading(0.1, 400, 400).others_p5  # noise shrinks on past 20 a side
+    limit = p5_20 - (p5_10 - p5_20) / (1 / n10 - 1 / n20) / n20  # the last segment at 1/n = 0
+    assert limit < big < p5_20 and abs(artist_reading(0.1, 10**9, 10**9).others_p5 - limit) < 1e-6
+
+
+def test_compare_training_line_offers_options_for_each_case():
+    from styleatlas.cli_inspect import _training_line
+    from styleatlas.metrics import ArtistReading
+
+    def line(position, separable, n=20.0):
+        return _training_line(ArtistReading(n, position, 0.13, 0.23, 0.09), separable)
+
+    assert "no sign that the two sides need splitting" in line("below_p5", False)
+    assert "may not show" in line("below_p5", False, n=6.0)  # few images: no proof of sameness
+    assert "timeline" in line("below_p5", True) and "timeline" not in line("p5_to_median", True)
+    assert "mix two looks" in line("above_median", True)
 
 
 def test_map_and_bench(lib, tmp_path, capsys):
@@ -235,9 +259,18 @@ def test_calibrate_taste_embed_and_audit_text(lib, tmp_path, capsys):
     model = tmp_path / "taste.npz"
     train = ["--like", str(votes / "like"), "--dislike", str(votes / "dislike")]
     assert main(["taste", "train", *train, "--model", str(model), "--device", "cpu"]) == 0
-    assert main(["taste", "score", str(lib), "--model", str(model), "--device", "cpu"]) == 0
-    ranked = [line.split()[1] for line in capsys.readouterr().out.strip().splitlines()]
+    err = capsys.readouterr().err
+    assert "how well it tells them apart" in err and "the rated artists' other works" in err
+    assert "the pictures you like" in err  # the look of the two folders
+    score = ["taste", "score", str(lib), "--model", str(model), "--device", "cpu"]
+    assert main(score) == 0
+    lines = capsys.readouterr().out.strip().splitlines()
+    ranked = [line.split()[1] for line in lines]
     assert ranked[0].startswith("red/") and ranked[-1].startswith("blue/")
+    assert "closest rated: liked like/" in lines[0]  # which rated picture it resembles
+    assert main([*score, "--copy-to", str(tmp_path / "best"), "--top", "3"]) == 0
+    copied = sorted(p.name for p in (tmp_path / "best").glob("*.png"))
+    assert len(copied) == 3 and copied[0].startswith("01_red")
 
     assert main(["embed", str(lib), "--device", "cpu"]) == 0
     assert main(["audit", str(lib), "--device", "cpu"]) == 0

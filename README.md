@@ -203,7 +203,7 @@ style-atlas report "D:\lora\artistX" --artists "D:\artists"
 style-atlas map "D:\artists" --by-folder -o artists_map.html
 ```
 
-**兩組圖是否同一畫風、差在哪裡**：輸出畫風距離、兩邊是否真的不同（p 值），和真實畫師比落在哪裡（同一位畫師的範圍內、可能是兩位畫師、或和不同畫師相當；兩邊各 5 張以上時，依 443 位 Danbooru 畫師的實測），外觀差異（例如「B 偏冷、線條多」），每邊最能看出差別的圖，以及合在一起訓練會怎樣。張數更少時改用 z 值（「差距是同一畫風內部雜訊的幾倍」）。B 裡有和 A 某張幾乎一樣的圖時（例如 LoRA 算圖重現了訓練圖），會逐一列出。加 `--json` 會輸出全部數字（重複的圖在 `b_copies_of_a`）。
+**兩組圖是否同一畫風、差在哪裡**：輸出畫風距離、兩邊是否很可能不同（p 值），在「兩位不同畫師」的分布裡落在哪裡（比 95% 都接近、和比較接近的那一半差不多、或比一半還遠；兩邊各 5 張以上時，依 Danbooru 畫師的實測），外觀差異（例如「B 偏冷、線條多」），每邊最能看出差別的圖，以及合在一起訓練會怎樣。張數更少時改用 z 值（「差距是同一畫風內部雜訊的幾倍」）。B 裡有和 A 某張幾乎一樣的圖時（例如 LoRA 算圖重現了訓練圖），會逐一列出。加 `--json` 會輸出全部數字（重複的圖在 `b_copies_of_a`）。
 
 ```bat
 style-atlas compare "D:\old_works" "D:\new_works"
@@ -213,8 +213,10 @@ style-atlas compare "D:\old_works" "D:\new_works"
 
 ```bat
 style-atlas taste train --like "D:\喜歡的圖" --dislike "D:\不喜歡的圖" --model "D:\my_taste.npz"
-style-atlas taste score "D:\new_batch" --model "D:\my_taste.npz"
+style-atlas taste score "D:\new_batch" --model "D:\my_taste.npz" --copy-to "D:\先看這些"
 ```
+
+訓練時會列出兩個 AUC（同一批畫師的其他圖、整組相似畫風留出來；遇到沒評過的畫師，通常比後者再低一點），以及你喜歡的圖和不喜歡的比外觀上差在哪裡。排序時每張會列出最像哪張評過的圖，和所有評過的圖都不太像的會標出來（它們的分數接近亂猜）；`--copy-to` 會把分數最高的 20 張（`--top` 可改）依名次複製到新資料夾。
 
 **同樣的角色出現在很多種畫風裡**時（例如用固定角色測試不同畫師組合），請加 `--ignore-characters`，或在網頁介面的「進階…」勾選「忽略角色軸」。畫風特徵會被角色外觀（髮色、服裝）強烈拉走，不修正時，最接近的圖常常是「同角色、別的畫風」。
 - 它會自動從圖裡找出角色（不需要標註），再拿掉角色造成的差異。角色越多越有用：4 個角色時，以圖找圖找對畫風的比例是 70%，舊方法 `--neutralize 1` 是 58%。
@@ -541,11 +543,11 @@ style-atlas search QUERY... --in DIR [--top 20] [--combine] [--copy-to DIR] [--b
 style-atlas audit DIR [--min-side 512] [--max-ratio 2.5] [--json]
 style-atlas duplicates DIR [--threshold 0.95] [--json]
 style-atlas outliers DIR [--top 30]
-style-atlas compare DIR_A DIR_B [--noise-floor X] [--json]   # 5+ images a side: read next to 443 artists
+style-atlas compare DIR_A DIR_B [--noise-floor X] [--json]   # 5+ images a side: placed among artist pairs
 style-atlas calibrate DIR          # sub-folders = groups known to share one style
 style-atlas bench DIR              # sub-folders = labels (e.g. one artist each)
 style-atlas taste train --like DIR --dislike DIR [--model taste_model.npz]
-style-atlas taste score DIR [--model taste_model.npz]
+style-atlas taste score DIR [--model taste_model.npz] [--copy-to DIR] [--top N]
 ```
 
 `-o` is an output folder for `cluster` and `sort` and an HTML file for `report` and `map`;

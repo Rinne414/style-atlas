@@ -15,6 +15,7 @@ from styleatlas.images import find_images
 from styleatlas.lang import chinese, columns, pad, tr
 from styleatlas.look import LOOK_NAMES, describe, difference
 from styleatlas.metrics import (
+    ARTIST_SCALE_ARTISTS,
     SEPARABLE_P,
     ArtistReading,
     StyleScale,
@@ -216,8 +217,8 @@ def cmd_compare(a: argparse.Namespace) -> int:
                 "artist_reading": None
                 if reading is None
                 else {
-                    "works_a_side": reading.n,
-                    "reading": reading.reading,
+                    "effective_works_a_side": reading.n,
+                    "position": reading.position,
                     "different_artists_p5": round(reading.others_p5, 3),
                     "different_artists_median": round(reading.others_median, 3),
                     "one_artist_oldest_vs_newest_median": round(reading.one_artist_change, 3),
@@ -265,6 +266,14 @@ def _print_compare(a, groups, dist, p, scale, look, copies, files, reading=None)
                 f"畫風距離 {dist:.3f}（z {z:.2f}，{VERDICT_ZH.get(verdict, verdict)}；p {pv}）",
             )
         )
+        if a.noise_floor:
+            log(
+                tr(
+                    "z on the scale from --noise-floor; the comparison with real artists is left "
+                    "out",
+                    "z 用的是 --noise-floor 的尺度；不和真實畫師比",
+                )
+            )
     else:
         print(_separable_line(dist, pv, p < SEPARABLE_P))
         print(_reading_line(reading))
@@ -321,63 +330,70 @@ def _print_compare(a, groups, dist, p, scale, look, copies, files, reading=None)
 def _separable_line(dist: float, pv: str, separable: bool) -> str:
     if separable:
         return tr(
-            f"style distance {dist:.3f}; p {pv}: the two sides really differ (more than a random "
-            "split of these images)",
-            f"畫風距離 {dist:.3f}；p {pv}：兩邊確實不同（比把這些圖隨機分成兩半的差距大）",
+            f"style distance {dist:.3f}; p {pv}: the two sides likely differ (random splits of "
+            "these images seldom come out this far apart)",
+            f"畫風距離 {dist:.3f}；p {pv}：兩邊很可能不同（把這些圖隨機分成兩半，很少差這麼多）",
         )
     return tr(
-        f"style distance {dist:.3f}; p {pv}: the two sides are hard to tell apart (like a random "
-        "split of these images)",
-        f"畫風距離 {dist:.3f}；p {pv}：兩邊分不太出來（和把這些圖隨機分成兩半差不多）",
+        f"style distance {dist:.3f}; p {pv}: no clear difference (random splits of these images "
+        "often come out this far apart)",
+        f"畫風距離 {dist:.3f}；p {pv}：看不出明顯差異（把這些圖隨機分成兩半，常常也差這麼多）",
     )
 
 
-READING_EN = {
-    "one artist": "within one artist's range",
-    "either": "could be two artists, or one artist whose style changed a lot",
-    "two artists": "as far apart as two different artists",
+POSITION_EN = {
+    "below_p5": "closer than 95% of pairs of different artists",
+    "p5_to_median": "as far apart as the closer half of pairs of different artists",
+    "above_median": "farther apart than half of pairs of different artists",
 }
-READING_ZH = {
-    "one artist": "在同一位畫師的範圍內",
-    "either": "可能是兩位畫師，也可能是同一位畫師的畫風變了很多",
-    "two artists": "和兩位不同畫師的差距相當",
+POSITION_ZH = {
+    "below_p5": "比 95% 的「兩位不同畫師」都接近",
+    "p5_to_median": "和比較接近的那一半「兩位不同畫師」差不多",
+    "above_median": "比一半的「兩位不同畫師」還遠",
 }
+FEW_A_SIDE = 10  # below this many works a side (effective), a real difference may not show
 
 
 def _reading_line(r: ArtistReading) -> str:
-    n = round(r.n)
+    n, artists = round(r.n), ARTIST_SCALE_ARTISTS
     return tr(
-        f"next to real artists (about {n} works a side): {READING_EN[r.reading]}. For reference, "
-        f"95% of pairs of different artists are {r.others_p5:.3f} or more apart (median "
-        f"{r.others_median:.3f}); one artist's oldest and newest works, median "
-        f"{r.one_artist_change:.3f} (443 Danbooru artists)",
-        f"和真實畫師比（每邊約 {n} 張）：{READING_ZH[r.reading]}。參考：兩位不同畫師有 95% 相差 "
-        f"{r.others_p5:.3f} 以上（中位數 {r.others_median:.3f}）；同一位畫師最早和最新的作品，"
-        f"中位數相差 {r.one_artist_change:.3f}（443 位 Danbooru 畫師）",
+        f"next to Danbooru artists (about {n} works a side): {POSITION_EN[r.position]}. For "
+        f"reference, 95% of pairs of different artists are {r.others_p5:.3f} or more apart, half "
+        f"{r.others_median:.3f} or more; one artist's oldest and newest works "
+        f"{r.one_artist_change:.3f} (median; {artists} artists)",
+        f"和 Danbooru 畫師比（每邊約 {n} 張）：{POSITION_ZH[r.position]}。參考：兩位不同畫師有 "
+        f"95% 相差 {r.others_p5:.3f} 以上，一半相差 {r.others_median:.3f} 以上；同一位畫師最早和"
+        f"最新的作品，中位數相差 {r.one_artist_change:.3f}（{artists} 位畫師）",
     )
 
 
 def _training_line(r: ArtistReading, separable: bool) -> str:
-    if r.reading == "two artists":
-        return tr(
-            "training: as far apart as different artists; usually trained apart",
-            "訓練：差距和不同畫師相當，通常分開訓練",
-        )
+    """Options, not orders: what training both sides together does (none of it measured on
+    trained LoRAs)."""
     if not separable:
+        few = r.n < FEW_A_SIDE
         return tr(
-            "training: the two sides are hard to tell apart; training them together is fine",
-            "訓練：兩邊分不太出來，合在一起訓練沒問題",
+            "training: no sign that the two sides need splitting"
+            + (" (with this few images a real difference may not show)" if few else ""),
+            "訓練：看不出需要分開的跡象"
+            + ("（圖這麼少時，真的差異也可能看不出來）" if few else ""),
+        )
+    if r.position == "above_median":
+        return tr(
+            "training: together, a LoRA would mix two looks as far apart as many pairs of "
+            "artists; train one side alone if you want its look",
+            "訓練：合在一起訓練，LoRA 會混合兩種差得像兩位畫師的畫風；想要其中一種就只用那一邊",
         )
     mix = tr(
-        "training: together, a LoRA learns a mix of both sides; for one side's look only, train "
-        "it apart (the images above show the difference)",
-        "訓練：合在一起訓練，LoRA 會學到兩邊的混合；只想要其中一邊的畫風，就分開訓練"
-        "（上面的圖看得出差別）",
+        "training: together, a LoRA learns both looks mixed (often fine for an artist LoRA); for "
+        "one side's look only, train that side alone (the images above show the difference)",
+        "訓練：合在一起訓練，LoRA 會學到兩邊混合的畫風（訓練一位畫師的 LoRA 時常常沒關係）；"
+        "只想要其中一邊的畫風，就只用那一邊（上面的圖看得出差別）",
     )
-    if r.reading != "one artist":
+    if r.position != "below_p5":
         return mix
     return mix + tr(
-        ". To see whether the style changed gradually or at a point, put all the works in one "
+        ". To see whether a style changed gradually or at a point, put all the works in one "
         "folder and run cluster --granularity timeline",
         "。想看畫風是慢慢變還是在某個時間點轉變：把作品放進同一個資料夾，用 cluster "
         "--granularity timeline",

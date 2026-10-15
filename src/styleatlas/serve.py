@@ -79,7 +79,6 @@ from styleatlas.metrics import (
     StyleScale,
     StyleSpace,
     artist_reading,
-    centroid,
     distinctive_order,
     group_difference,
     space_name,
@@ -726,7 +725,8 @@ class StyleAtlasApp(GroupEdits):
         "items" (images picked on the map) can stand in for group a, and "items_b" for b."""
         with self._lock:
             ma, mb = self._compare_sides(body)
-            x, looks, plain = self.atlas.style, self.atlas.looks, self.raw.style
+            # plain CSD whatever space the map is in: the z scale and ARTIST_SCALE were made there
+            x, looks = self.raw.style, self.atlas.looks
         dist, p = group_difference(x[ma], x[mb], rounds=COMPARE_ROUNDS)
         scale = StyleScale()
         out = {
@@ -742,13 +742,10 @@ class StyleAtlasApp(GroupEdits):
         if looks is not None:
             d = difference(looks[ma], looks[mb])
             out["look"] = dict(zip(LOOK_NAMES, (round(float(v), 2) for v in d), strict=True))
-        # next to real artists: measured on plain CSD, whatever space the map is in
-        plain_dist = 1.0 - float(centroid(plain[ma]) @ centroid(plain[mb]))
-        reading = artist_reading(plain_dist, len(ma), len(mb))
+        reading = artist_reading(dist, len(ma), len(mb))
         if reading is not None:
             out["reading"] = {
-                "reading": reading.reading,
-                "distance": round(plain_dist, 4),
+                "position": reading.position,
                 "n": reading.n,
                 "p5": round(reading.others_p5, 3),
                 "median": round(reading.others_median, 3),

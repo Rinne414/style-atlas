@@ -18,7 +18,7 @@
   - 作品少（約 50 張）時，分段結果不太穩定，請在網頁上看時間分佈，必要時合併或移動。分群結果請當作**初步整理**。
   - 檔名有時間時，`--granularity timeline` 依時間順序在畫風變化最大的地方切段，再用兩個檢定區分「沒找到和時間的關係」、「只有漸變」和「有轉折」。14 位畫師裡只有 1 位有轉折，5 位只有漸變，6 位沒找到和時間的明顯關係，2 位作品太少；14 位裡有 6 位的 p 值在門檻邊緣，指令和網頁會註明「結論可能翻轉」。畫師常連續發表一系列相像的作品，檢定會把連續的相似作品（cos 0.80 以上）當成一個系列只算一次，否則純雜訊也會被當成和時間有關。結論請當成「去地圖上看一看」的提示，不是定論。只檢驗「切點比打亂時間順序明顯」是不夠的：單純的漸變也會顯著，舊版因此高估成 8 位。「有轉折」的意思是「變化比隨時間平滑變化的曲線（二次曲線）更突然」：一開始和最後變很快、中間很穩定的畫風也會判成有轉折。
 - **先排除重複圖再分群**，也就是加 `--dedupe`。否則同一張圖的多個版本會自成一群。近重複的門檻刻意設得保守（0.95）：在 0.92～0.95 之間，常常是同一角色換了姿勢的不同圖，對 LoRA 來說那是有效的訓練圖。
-- `compare` 兩邊都有 5 張以上時，會和 443 位 Danbooru 畫師比：每邊 20 張時，兩位不同畫師有 95% 相差 0.133 以上，同一位畫師最早和最新的作品中位數相差 0.094，同一位畫師的作品隨機分兩半中位數只差 0.031。p 值說的是兩邊是否真的不同；即使「在同一位畫師的範圍內」，p 很小時合在一起訓練，LoRA 會學到兩邊的混合。
+- `compare` 兩邊都有 5 張以上時，會把距離放到「兩位不同畫師」的分布裡看：每邊 20 張時，兩位不同畫師有 95% 相差 0.133 以上，同一位畫師最早和最新的作品中位數相差 0.094，同一位畫師的作品隨機分兩半中位數只差 0.031。這只是位置，不是判斷是不是同一位畫師畫的：畫風很像的兩位畫師也會落在「比 95% 都接近」。p 值說的是兩邊是否很可能不同（畫師常連續發表很像的系列作品，p 會顯得偏小）；p 很小時合在一起訓練，LoRA 會學到兩邊混合的畫風。
 - 張數更少（例如 LoRA 算圖）或給了 `--noise-floor` 時，改用 z 值門檻（z ≥ 2.3 為「明顯不同」、z < 1.5 為「同一畫風」），它來自一位使用者在固定內容的 NovelAI 算圖上的人眼校準，不是通用標準；換了資料，最好先用 `calibrate` 重新校準。
 
 ### 資料集檢查準不準？
@@ -35,7 +35,7 @@
 1. **畫風向量要「去 hub」**。少數圖在高維空間裡和什麼都很近（稱為 hub），用原始 cosine 找最近鄰時，結果常被這幾張佔滿。做了 CSLS 校正之後，檢索與分群都明顯變好。arXiv 2605.09030 也得到相同結論。
 2. **單張圖之間的距離雜訊很大**。比較兩種畫風時，應該用多張圖的平均來比（`compare`），並用同一畫風內部的雜訊當尺度（`calibrate`）。
 3. **公開的美學評分模型不等於個人口味**。在一位使用者的實際選擇上，7 個現成評分器的準確率都只有 36–52%，和亂猜差不多。用他自己的喜歡／不喜歡訓練的小模型，交叉驗證 AUC 是 0.76。所以本工具只提供**個人**口味模型，不內建通用美學分數。
-4. **口味模型只適合粗篩**。它分得出喜歡和不喜歡，但分不出「好」和「更好」，換了新的生成來源也可能失準。
+4. **口味模型只適合粗篩**。它分得出喜歡和不喜歡，但分不出「好」和「更好」，換了新的生成來源也可能失準。一般的交叉驗證會把同一位畫師的圖同時放在訓練和驗證兩邊，所以數字偏高（模擬：0.96）；把整組相似畫風留出來驗證比較接近遇到新畫師的情況（模擬：0.63～0.74，新畫師實際約 0.47～0.64）。`taste train` 和網頁的口味分頁兩個數字都會列出；`taste score` 會標出和所有評過的圖都不太像的圖（最高相似度低於 0.6），它們的分數接近亂猜。
 5. **CSD 的 content 向量幾乎和 style 向量一樣**，兩者的配對相似度相關係數是 0.95。把內容成分扣掉並不會讓分群變好，所以 content 向量只拿來判斷近重複，以及在 `--ignore-characters` 時找出角色（用它分群可以正確找出固定角色）。
 
 ---
@@ -117,11 +117,12 @@ their history):
 
 Style drift is gradual, so treat groups as a first pass and review them in the map.
 
-With 5 or more images a side, `compare` reads the distance next to 443 Danbooru artists: at 20
-works a side, 95% of pairs of different artists are 0.133 or more apart, one artist's oldest and
-newest works 0.094 (median), random halves of one artist's works 0.031 (median). The p value
-says whether the two sides really differ; a small p within one artist's range still means a
-LoRA trained on both learns a mix. With fewer images (LoRA renders) or `--noise-floor`, the z
+With 5 or more images a side, `compare` places the distance among pairs of different Danbooru
+artists: at 20 works a side, 95% of them are 0.133 or more apart, one artist's oldest and
+newest works 0.094 (median), random halves of one artist's works 0.031 (median). It is a
+position, not a verdict on who drew them (two similar artists also sit low). The p value says
+whether the two sides likely differ; a small p means a LoRA trained on both learns both looks
+mixed. With fewer images (LoRA renders) or `--noise-floor`, the z
 thresholds are used; they come from one person's calibration on fixed-content NovelAI renders,
 so re-run `calibrate` on your own data.
 

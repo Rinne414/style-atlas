@@ -8,7 +8,9 @@ Changed output (scripts that parse the text should use `--json`):
   With 5 or more images a side, the text reads the distance next to real artists instead of the
   z scale (z and its verdict stay in `--json`, and in the text with fewer images or
   `--noise-floor`); `--json` adds `separable` and `artist_reading`; the near-copy line shows only
-  when there are near-copies (or with few images).
+  when there are near-copies (or with few images). `--noise-floor` must be above 0.
+- `taste score` lines add each image's closest rated picture; the header no longer calls the
+  score a probability.
 - `calibrate` prints each sub-folder's noise and the `--noise-floor` to pass to `compare`; the
   JSON it printed before needs `--json`.
 - `duplicates` prints a header line per group and one file per line (was one line per group).
@@ -94,12 +96,22 @@ New:
   `_unsure` is listed closest to a group first, as a hint (an artist's own work comes before a
   stranger's about 2 times in 3; BENCHMARKS); the small-image note says it counts the images
   placed in style folders (in `cluster` exports too); the last line says what to do next.
-- **`compare` reads real artists' folders against real artists** (from a Sonnet first-time-user
+- **`compare` places real artists' folders among real artists** (from a Sonnet first-time-user
   test: one artist's oldest and newest works read "same style" on the AI-render z scale while
   the images showed a clear change). With 5 or more images a side it says whether the sides
-  really differ (permutation p), where the distance falls next to 443 Danbooru artists (within
-  one artist's range / could be either / as far apart as two artists; BENCHMARKS "What a compare
-  distance means"), which images to open, and what training them together does.
+  likely differ (permutation p), where the distance falls among pairs of different Danbooru
+  artists (closer than 95% / the closer half / farther than half: a position, not a verdict on
+  who drew them; BENCHMARKS "What a compare distance means"), which images to open, and what
+  training them together does. The web app's group comparison does the same, on plain CSD. A
+  Sonnet review of the first version removed its over-claims.
+- **`taste` says how far to trust it and why it ranks so** (from a Sonnet first-time-user test
+  that read a CV AUC of 0.993 as "99% reliable"): training also reports the AUC with whole
+  look-alike groups held out, closer to how it does on artists never rated (simulated 0.63-0.74
+  against 0.96; BENCHMARKS "Taste: new artists"; the web app's taste tab too), and how the liked
+  folder looks next to the disliked one; scoring names each image's closest rated picture,
+  flags images unlike every rated one (their scores are near chance), and `--copy-to` copies the
+  best (20, `--top`) into a new folder by rank. The model file keeps the rated vectors; older
+  files still load. The taste command moved to `cli_taste.py`.
 - **`sort` never writes into the dataset** (from a Sonnet code review): with the new images in a
   sub-folder of the dataset, the results go next to the dataset, and an `-o` inside either folder
   is refused; `sorted\` no longer gets trainer configs that list only the new images; `--merged`

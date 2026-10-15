@@ -81,5 +81,9 @@ class TasteSession:
             "dislikes": len(self.votes) - likes,
             "min": MIN_PER_CLASS,
             "auc": None if self.model is None else round(self.model.cv_auc, 3),
+            # NaN (too few look-alike groups) is not valid JSON: None instead
+            "auc_groups": None
+            if self.model is None or np.isnan(self.model.cv_auc_groups)
+            else round(self.model.cv_auc_groups, 3),
             "scores": None if self.scores is None else np.round(self.scores, 3).tolist(),
         }

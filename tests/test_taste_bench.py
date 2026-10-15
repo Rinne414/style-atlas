@@ -133,3 +133,24 @@ def test_next_to_rate_spreads_out_over_the_collection(tmp_path):
         session.vote(i, True)
     assert sorted(seen) == [0, 1, 2]  # one from each style before any repeat
     assert session.next_to_rate(skip=set(range(len(x)))) is None
+
+
+def test_taste_keeps_its_examples_and_a_grouped_auc(tmp_path):
+    x, y = make_blobs([12, 12, 12, 12])
+    like, dislike = x[y <= 1], x[y >= 2]  # two looks liked, two disliked
+    names = ([f"l{i}" for i in range(24)], [f"d{i}" for i in range(24)])
+    model = train_taste(like, dislike, "sig", names=names)
+    assert 0.0 <= model.cv_auc_groups <= 1.0  # whole looks held out: 2 a class
+    rows, cos = model.nearest_example(x[:1])
+    assert model.example_names[rows[0]] == "l0" and cos[0] > 0.99 and model.example_liked[rows[0]]
+    path = model.save(tmp_path / "m")
+    loaded = TasteModel.load(path)
+    assert loaded.example_names == model.example_names
+    assert np.isclose(loaded.cv_auc_groups, model.cv_auc_groups)
+    new = ("examples", "example_names", "example_liked", "cv_auc_groups")
+    with np.load(path) as z:  # a model file from before 0.44
+        old = {k: z[k] for k in z.files if k not in new}
+    np.savez(tmp_path / "old.npz", **old)
+    old_model = TasteModel.load(tmp_path / "old.npz")
+    assert old_model.nearest_example(x) is None and np.isnan(old_model.cv_auc_groups)
+    assert np.allclose(old_model.score(x), model.score(x))

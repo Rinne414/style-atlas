@@ -560,13 +560,23 @@ halves per artist, 2,000 random pairs of different artists):
 
 An artist's oldest and newest works are farther apart than random halves (at 20 a side, 73%
 of artists past 0.06, which 5% of random halves reach), but closer than almost any two
-different artists. Since 0.44 `compare` reads two folders of 5 or more images against this
-table (interpolated in 1/n, n = 2 / (1/nA + 1/nB); the 20 row beyond): below the different
-artists' 5th percentile "within one artist's range", from their median "as far apart as two
-different artists", in between "could be either". The permutation p says whether the two sides
-really differ (p < 0.05). The test's pair: 0.080, p < 0.01: within one artist's range, and
-really different, so a LoRA trained on both learns a mix. The z scale stays for fewer images
-(LoRA renders) and for `--noise-floor` from `calibrate`.
+different artists. Since 0.44 `compare` places two folders of 5 or more images against this
+table (linear in 1/n, n = 2 / (1/nA + 1/nB); past the last row along its last segment, since
+noise keeps shrinking): closer than 95% of pairs of different artists, as far apart as the
+closer half, or farther than half. It is a position, not a verdict on who drew them: two
+similar artists also sit below the 5th percentile. The permutation p says whether the two
+sides likely differ (p < 0.05; artists' series of near-identical works make it look smaller
+than it is). The test's pair: 0.080, p < 0.01: closer than 95% of pairs of different artists,
+yet likely different, so a LoRA trained on both learns both looks mixed. The z scale stays
+for fewer images (LoRA renders) and for `--noise-floor` from `calibrate`; the web app's group
+comparison uses the same placement on plain CSD, where the tool's own groups read farther apart
+(they were cut apart on purpose).
+
+A Sonnet review of the first version: "within one artist's range" over-claimed (it only says
+the pair is unlike most artist pairs), the rows came from different artists (368 / 34 / 22),
+pairs were drawn with replacement from a small pool, clamping at 20 a side was too generous for
+large folders, and the training advice was stated as fact. All fixed as above; the rows are
+being rebuilt on one pool of artists with 40 or more works each.
 
 ## Periods along the timeline: `--granularity timeline` (2026-10-16)
 
@@ -1155,6 +1165,30 @@ result.
 The product matches the research result. Two known limits, from the research: the model does
 not rank *degrees* of liking among good candidates, and it dropped to chance on images from a
 new generator.
+
+## Taste: new artists (2026-10-16)
+
+A first-time-user test of `taste train` / `score` saw "cross-validated AUC 0.993" next to the
+README's 0.77 and read it as 99% reliable. Simulated on artists300 (12 works each, 200 draws):
+6 rated artists, 8 works each (3 liked, 3 disliked); new images = their other 4 works each
+plus 4 works each of 6 other artists, liked either at random by artist or along a style
+direction (a coherent taste):
+
+| Taste | CV AUC (images) | CV AUC, look-alike groups held out | Rated artists' other works | Other artists |
+|---|---|---|---|---|
+| arbitrary artists | 0.958 | 0.626 | 0.972 | 0.472 |
+| along a style direction | 0.962 | 0.739 | 0.986 | 0.638 |
+
+The usual cross-validation keeps an artist's works on both sides, so it reports how the model
+does on more of the same artists. Holding out whole look-alike groups (the tool's own style
+groups, StratifiedGroupKFold) is much closer to how it does on artists never rated, though
+still 0.1-0.15 above. Since 0.44 `taste train` and the web app's taste tab show both.
+
+**Unlike every rated picture.** The highest cosine of a new image to the rated ones: other
+artists' works median 0.644 (5-95%: 0.443-0.755), the rated artists' other works median 0.752
+(0.552-0.998); AUC 0.80. Below 0.6, 30% of other artists' works and 10% of the rated artists'
+are flagged. `taste score` flags those (their scores are near chance) and names each image's
+closest rated picture.
 
 ## Which image to rate next (2026-10-10)
 

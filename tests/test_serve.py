@@ -569,6 +569,19 @@ def test_more_like_the_excluded_images(tmp_path):
     assert set(hits[:4]) <= set(strays) - set(strays[:2])
 
 
+def test_groups_are_compared_on_plain_vectors_in_any_space(tmp_path):
+    from styleatlas.metrics import centroid
+
+    app, atlas = _app(tmp_path, (10, 10, 10))
+    labels = app.clustering.labels
+    a, b = int(labels[0]), int(labels[-1])
+    ma, mb = np.flatnonzero(labels == a), np.flatnonzero(labels == b)
+    app.set_space({"space": "neutralize-1"})  # the map's own space changes...
+    got = app.compare({"items": ma.tolist(), "items_b": mb.tolist()})
+    plain = 1.0 - float(centroid(atlas.style[ma]) @ centroid(atlas.style[mb]))
+    assert abs(got["distance"] - plain) < 1e-3  # ...the scales were made on plain CSD
+
+
 def test_two_groups_compared(server, tmp_path):
     app, _ = _app(tmp_path, (10, 10, 10))
     labels = app.clustering.labels
@@ -576,7 +589,7 @@ def test_two_groups_compared(server, tmp_path):
     got = app.compare({"a": a, "b": b})
     assert got["verdict"] == "clearly different" and got["p"] < 0.05 and got["sizes"] == [10, 10]
     assert set(got["look"]) == set(LOOK_NAMES)
-    assert got["reading"]["reading"] == "two artists" and got["reading"]["n"] == 10.0
+    assert got["reading"]["position"] == "above_median" and got["reading"]["n"] == 10.0
     with pytest.raises(ValueError):
         app.compare({"a": a, "b": a})
     picked = [int(i) for i in np.flatnonzero(labels == a)[:4]]  # images picked on the map
