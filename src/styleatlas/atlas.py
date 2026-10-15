@@ -155,16 +155,17 @@ def embed_paths(
             cached = len(first_by_key) - len(todo)
             progress(
                 tr(
-                    f"{cached} cached, {len(todo)} to embed ({signature})",
-                    f"{cached} 張已有向量，{len(todo)} 張要計算（{signature}）",
+                    f"{cached} already computed (read from the cache), {len(todo)} to compute "
+                    f"({signature})",
+                    f"{cached} 張已經算過（從快取讀取），{len(todo)} 張要計算（{signature}）",
                 )
             )
             failed += _embed_missing(todo, keys, have, store, opts, progress)
         else:
             progress(
                 tr(
-                    f"all {len(keys)} images cached ({signature})",
-                    f"{len(keys)} 張都已有向量（{signature}）",
+                    f"all {len(keys)} images already computed, read from the cache ({signature})",
+                    f"{len(keys)} 張都已經算過，直接從快取讀取（{signature}）",
                 )
             )
     kept = [p for p in paths if p in keys and keys[p] in have]

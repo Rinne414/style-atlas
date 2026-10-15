@@ -326,8 +326,10 @@ def _search_folded(a: argparse.Namespace, atlas, qstyle, plain: np.ndarray, same
         total = tr(" (all queries together)", "（所有查詢圖合計）") if len(folded) > 1 else ""
         log(
             tr(
-                f"{n} near-copies of a better match left out{total} (--keep-duplicates lists them)",
-                f"略過 {n} 張和更好結果幾乎一樣的圖{total}（加 --keep-duplicates 會列出）",
+                f"{n} near-copies of a higher match left out{total}; they take no place in the "
+                "list (--keep-duplicates lists them)",
+                f"另外略過 {n} 張和名次更前面的圖幾乎一樣的圖{total}，不佔名額"
+                "（加 --keep-duplicates 會列出）",
             )
         )
     return [kept for kept, _ in folded]
