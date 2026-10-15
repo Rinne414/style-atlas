@@ -1233,6 +1233,23 @@ AUC own vs stranger, and the share of own works let in when 10% of strangers are
 The centre distance stays: it is best at every folder size. A known-artists background hurts
 (strangers near some reference artist get pushed down along with real members).
 
+**What is in `_unsure` (2026-10-16).** A first-time-user test of `sort` missed two of the
+artists' own works among the strangers in `_unsure`. Can the images there be split into "close,
+look first" and "far"? Same setup (whitened, 20 draws); "over" is how far an image is past its
+closest group's limit:
+
+| Works per folder | `_unsure`: own / strangers' | AUC of "over", own vs strangers | Own whose closest group is their own folder | over <= 0.08: share of own / of strangers' |
+|---|---|---|---|---|
+| 5 | 331 / 1944 | 0.575 | 56% | 47% / 39% |
+| 10 | 313 / 2239 | 0.669 | 67% | 56% / 31% |
+| 25 | 311 / 2361 | 0.700 | 75% | 50% / 21% |
+
+The signal is weak: no cut keeps most own works while dropping most strangers (at 0.08, the
+"close" part would hold half the own works and a fifth to two fifths of the strangers'), and for
+a third of the own works the closest group is the wrong one, so `_unsure` is not split into
+folders. `sort` lists the `_unsure` images closest first, with their closest group, and says the
+order is only a hint. In the test both missed works were 4th and 5th of 16 in that order.
+
 ## Embedding speed: loading images ahead (2026-10-10)
 
 64 Danbooru works of 8.7 megapixels on average, CPU only (8 threads, below-normal priority),

@@ -78,6 +78,16 @@ New:
   (Danbooru/Pixiv 'sample' downloads).
 - **Rating mode ignores a second L/D press** made before the next image is shown (it rated the
   same image again).
+- **`sort --merged`** (with `--export` and `--by-folder`) also writes `<out>/merged`: the dataset
+  plus the new images that fit, ready to train. kohya folders whose automatic repeats change are
+  renamed and the trainer configs list the new repeats; images excluded in the web app go to
+  `_excluded`; the dataset itself is not changed. (A Sonnet first-time-user test of `sort` built
+  that folder by hand.)
+- **Clearer `sort` output** (same test): the placed count is broken down into style folders,
+  `_unsure` and `_already_in_dataset`; each near-copy is named with the dataset image it repeats;
+  `_unsure` is listed closest to a group first, as a hint (an artist's own work comes before a
+  stranger's about 2 times in 3; BENCHMARKS); the small-image note says it counts the images
+  placed in style folders (in `cluster` exports too); the last line says what to do next.
 - **Periods along the timeline** (`--granularity timeline --time name|mtime`): one artist's works,
   in time order, cut into contiguous periods where the style changes most. Two tests on the same
   cuts say whether no link to time was found, the style only drifts smoothly (one LoRA is usually

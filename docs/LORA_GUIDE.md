@@ -81,6 +81,7 @@ style-atlas cluster "D:\lora\artistX" --layout kohya --name artistX --dedupe --d
 - 每次匯出都會在輸出資料夾寫一份 `clusters.csv`：每張圖一列，`folder` 欄寫它去了哪個資料夾。去了 `_duplicates`、`_outliers`、`_excluded`、`_trimmed`、`_unassigned` 的，資料夾名稱就是原因，可以用試算表核對。
 - 之後**又加了新圖**：照樣用 `StyleAtlas.bat` 打開同一個資料夾。之前的取名、移動、合併和排除都會保留，新圖先放在「未歸類」。點開「未歸類」按「各自放進最像的畫風」，夠像的會自動放進最像的群（和 `sort` 同一套規則，可以復原）；剩下的手動移，或按「重新分群」。
 - 新圖放在**另一個資料夾**、想直接分進已匯出的資料夾：`style-atlas sort "D:\new" --into "D:\lora\artistX_style_atlas\folders" --by-folder --export copy`。每張會放進最像的那群（例如 `10_artistX_style01\`），不夠像的放 `_unsure\`，和資料集重複的放 `_already_in_dataset\`，再把它們搬進對應資料夾即可。資料集是用 `--trigger-captions` 匯出的話，`sort` 也加 `--trigger-captions`，放進去的新圖標註開頭會加上同一個觸發詞。實測同畫師的新作品約 69% 會被判符合（其中 99% 放對群），其他畫師約 9%；每群只有 10 張左右時，其他畫師會到 14%，記得看一下各群新放進的圖。資料夾是 kohya 格式（例如 `10_artistX_style01`）時，`sort` 會順便告訴你補圖後要改成幾 repeats（例如改名成 `7_artistX_style01`），讓每群每個 epoch 的份量維持在約 100；訓練設定檔（`dataset_config.toml` 等）裡的 repeats 也要跟著改。
+- 不想自己搬：加上 `--merged`（要搭配 `--by-folder`），會另外寫出 `merged\`，也就是「資料集 + 符合的新圖」，可以直接拿去訓練：kohya 資料夾的 repeats 會自動改好、訓練設定檔也會重寫；網頁介面排除的圖放在 `_excluded\`；原本的資料集完全不動。`_unsure\` 裡的圖仍要自己看：`sort` 會把它們依「離某一群多近」排好列出來（括號裡是最近的群），但這只是參考，實測同畫師的圖排在別人前面的機率約 2/3。看完再用 `style-atlas audit` 檢查 `merged\`。
 - 想**一群訓一個 LoRA**（例如早期、近期畫風分開）：把那一群的資料夾單獨當 train_data_dir。
 - 想**同一個 LoRA 裡分成幾個概念**：保留全部資料夾，並讓每群有自己的觸發詞。注意兩點：
   - kohya 只有在**沒有標註檔**時，才會拿資料夾名（`artistX_styleNN`）當標註。

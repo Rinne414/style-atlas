@@ -328,25 +328,46 @@ def export_folders(
     """Copy or hard-link each image (and its sidecars) into its planned folder (see
     dataset.plan_folders) inside a fresh output folder. With trigger_captions, every exported
     caption in a group folder starts with that group's trigger word."""
+    return export_paths(
+        atlas.paths, folders, out_dir, mode, trigger_captions, layout, strip_tags, respell
+    )
+
+
+def export_paths(
+    paths: list[Path],
+    folders: list[str],
+    out_dir: Path,
+    mode: str = "copy",
+    trigger_captions: bool = False,
+    layout: str = "plain",
+    strip_tags: frozenset[str] = frozenset(),
+    respell: dict[str, str] | None = None,
+    allow_top: bool = False,
+) -> ExportResult:
+    """export_folders for a list of files. A folder may be nested ("10_x/sub": the trigger comes
+    from its first part); with allow_top, "" places an image at the top of the export."""
     if mode not in EXPORT_MODES:
         raise ValueError(f"mode must be one of {EXPORT_MODES}")
-    if len(folders) != len(atlas):
+    if len(folders) != len(paths):
         raise ValueError("one destination folder per image is required")
     result = ExportResult(fresh_dir(Path(out_dir)))
     used: dict[Path, set[str]] = {}
     root = result.folder.resolve()
     inside: dict[str, bool] = {}
-    for i, src in enumerate(atlas.paths):
+    for i, src in enumerate(paths):
         folder = result.folder / folders[i]
         if folders[i] not in inside:  # a folder name must not lead out of the export
-            inside[folders[i]] = folder.resolve().is_relative_to(root) and folder != result.folder
+            inside[folders[i]] = folder.resolve().is_relative_to(root) and (
+                allow_top or folder != result.folder
+            )
         if not inside[folders[i]]:
             result.failed.append((src, f"folder name {folders[i]!r} points outside the export"))
             continue
         stem = _unique_stem(src.stem, used.setdefault(folder, set()))
         try:
             folder.mkdir(parents=True, exist_ok=True)
-            trigger = trigger_of(folders[i], layout) if trigger_captions else None
+            group = folders[i].partition("/")[0]
+            trigger = trigger_of(group, layout) if trigger_captions else None
             _place_sidecars(src, folder, stem, mode, trigger, strip_tags, respell)
             result.upright += _place(src, folder / f"{stem}{src.suffix}", mode)
         except OSError as e:  # long path, permissions, full disk: report and keep going
@@ -358,7 +379,7 @@ def export_folders(
         result.placed += 1
     if layout == "kohya":
         write_trainer_configs(result.folder, folders, trigger_captions)
-    result.small_training = small_for_training(atlas.paths, folders)
+    result.small_training = small_for_training(paths, folders)
     return result
 
 

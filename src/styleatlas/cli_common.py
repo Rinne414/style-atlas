@@ -311,10 +311,10 @@ def export_notes(
     if done.small_training:
         log(
             tr(
-                f"{done.small_training} training image(s) have a short side under "
-                f"{SMALL_FOR_TRAINING} px: a 1024 training size enlarges them (blurry); "
+                f"{done.small_training} of the images placed in style folders have a short "
+                f"side under {SMALL_FOR_TRAINING} px: a 1024 training size enlarges them (blurry); "
                 "`style-atlas audit` lists them",
-                f"有 {done.small_training} 張訓練圖短邊小於 {SMALL_FOR_TRAINING} px："
+                f"放進畫風資料夾的圖裡有 {done.small_training} 張短邊小於 {SMALL_FOR_TRAINING} px："
                 "用 1024 訓練時會被放大（會模糊）；`style-atlas audit` 會列出它們",
             )
         )

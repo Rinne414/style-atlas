@@ -65,7 +65,9 @@ All of these are in `docs/BENCHMARKS.md`.
 - **Sorting new images** (`sort`, and the web app's fit check): about 31-39% of an artist's own
   new works land in `_unsure`. Other artists' works are let in 9% of the time with 25 images per
   sub-folder, 14% with 10 and 24% with 5; with the tool's own groups of a mixed folder, 11%.
-  Look through `_unsure` and through what landed in small groups.
+  Look through `_unsure` and through what landed in small groups. Within `_unsure`, closeness
+  to a group tells an own work from a stranger's only weakly (AUC 0.58-0.70), so `sort` lists
+  it closest first as a hint and does not split it.
 - **Enlarged images**: 2x enlargements (relative to the training size) are caught 92-100% of the
   time, 1.5x mostly not. AI upscalers were not tested.
 - **Families of artists** (`map --by-folder`): loose, with a split-half ARI of 0.32 at the default

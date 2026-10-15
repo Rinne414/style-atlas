@@ -27,15 +27,29 @@ from styleatlas.cluster import (
     fit_to_groups,
     from_labels,
 )
-from styleatlas.dataset import auto_repeats, group_labels, is_unassigned, spelling_fixes
+from styleatlas.dataset import (
+    SET_ASIDE,
+    auto_repeats,
+    group_labels,
+    is_unassigned,
+    spelling_fixes,
+)
 from styleatlas.duplicates import copies_of
-from styleatlas.export import export_folders, output_dir, parse_tags, write_csv
+from styleatlas.export import (
+    ExportResult,
+    export_folders,
+    export_paths,
+    output_dir,
+    parse_tags,
+    write_csv,
+)
 from styleatlas.images import labels_from_folders
 from styleatlas.lang import pad, tr
 
 UNSURE = "_unsure"  # closest group, but farther from it than 70% of its own images
 ALREADY = "_already_in_dataset"  # a near-copy of an image the dataset already holds
 RESERVED = {UNSURE.casefold(), ALREADY.casefold()}
+SHOWN = 10  # near-copies and _unsure images named in the summary (the rest: sorted.csv)
 VERDICTS_ZH = {
     "few": f"張數太少，不判斷整批（不到 {BATCH_MIN} 張）",
     "in": "大多是資料集的畫風",
@@ -75,13 +89,18 @@ def cmd_sort(a: argparse.Namespace) -> int:
     }
     folders = [_destination(i, f, labels, copies) for i, f in enumerate(fits)]
     table = write_csv(out / "sorted.csv", _rows(new, dataset, fits, labels, copies, folders))
-    _summary(fits, labels, folders)
-    if a.by_folder:
+    names = [new.rel(i) for i in range(len(new))]
+    _summary(fits, labels, folders, names, {i: dataset.rel(b) for i, b in copies.items()})
+    if a.by_folder and not a.merged:
         _repeats_notes(clustering, labels, folders)
+    placed = merged = None
     if a.export:
-        _place(a, new, folders, labels, out, dataset)
+        placed, options = _place(a, new, folders, labels, out, dataset)
+        if a.merged:
+            merged = _merge(dataset, new, folders, clustering, labels, skip, out, options)
     log(tr("table of every new image:", "每張新圖的結果表："))
-    print(table)
+    print(table, flush=True)  # before the next step, also when the output is piped
+    _next_step(a, placed, merged, UNSURE in folders)
     return 0
 
 
@@ -94,6 +113,14 @@ def _both_sides(a: argparse.Namespace, out: Path) -> tuple[Atlas, Atlas]:
             tr(
                 "the new images and the dataset are the same folder",
                 "新圖和資料集是同一個資料夾",
+            )
+        )
+    if a.merged and not (a.export and a.by_folder):
+        raise ValueError(
+            tr(
+                "--merged needs --export copy|link and --by-folder (the dataset's sub-folders are "
+                "the groups)",
+                "--merged 需要搭配 --export copy|link 和 --by-folder（資料集的子資料夾就是各群）",
             )
         )
     if (a.trigger_captions or a.strip_tags or a.fix_tag_spelling) and not a.export:
@@ -120,8 +147,9 @@ def _both_sides(a: argparse.Namespace, out: Path) -> tuple[Atlas, Atlas]:
 
 def _place(
     a: argparse.Namespace, new: Atlas, folders: list, labels: dict, out: Path, dataset: Atlas
-) -> None:
-    """--export: the new images (and captions) into <out>/sorted/<group>."""
+) -> tuple[Path, dict]:
+    """--export: the new images (and captions) into <out>/sorted/<group>; that folder and the
+    export options (--merged uses them too)."""
     matches = [bool(KOHYA_FOLDER.match(name)) for name in labels.values()]
     kohya = all(matches)
     if a.trigger_captions and any(matches) and not kohya:
@@ -135,25 +163,155 @@ def _place(
         )
     # the new captions follow the spelling the dataset and the new images use more
     respell = spelling_fixes([*dataset.paths, *new.paths]) if a.fix_tag_spelling else None
-    done = export_folders(
-        new,
-        folders,
-        out / "sorted",
-        mode=a.export,
-        trigger_captions=a.trigger_captions,
-        layout="kohya" if kohya else "plain",
-        strip_tags=parse_tags(a.strip_tags or ""),
-        respell=respell,
-    )
-    log(
-        tr(
-            f"{done.placed} images placed in {done.folder}",
-            f"已放 {done.placed} 張到 {done.folder}",
-        )
-    )
-    export_notes(done, folders, "kohya" if kohya else "plain", a.trigger_captions, respell)
+    options = {
+        "mode": a.export,
+        "trigger_captions": a.trigger_captions,
+        "layout": "kohya" if kohya else "plain",
+        "strip_tags": parse_tags(a.strip_tags or ""),
+        "respell": respell,
+    }
+    done = export_folders(new, folders, out / "sorted", **options)
+    log(_placed_line(done, new.paths, folders))
+    export_notes(done, folders, options["layout"], a.trigger_captions, respell)
     for p, why in done.failed:
         log(tr(f"not placed {p}: {why}", f"沒有放入 {p}：{why}"))
+    return done.folder, options
+
+
+def _placed_line(done: ExportResult, paths: list[Path], folders: list[str]) -> str:
+    failed = {p for p, _ in done.failed}
+    kinds = Counter(
+        d if d in (UNSURE, ALREADY) else ""
+        for p, d in zip(paths, folders, strict=True)
+        if p not in failed
+    )
+    return tr(
+        f"{done.placed} images placed in {done.folder}: {kinds['']} in style folders, "
+        f"{kinds[UNSURE]} in {UNSURE}, {kinds[ALREADY]} in {ALREADY}",
+        f"已放 {done.placed} 張到 {done.folder}：{kinds['']} 張進畫風資料夾、"
+        f"{kinds[UNSURE]} 張進 {UNSURE}、{kinds[ALREADY]} 張進 {ALREADY}",
+    )
+
+
+def _merge(
+    dataset: Atlas,
+    new: Atlas,
+    folders: list[str],
+    clustering: Clustering,
+    labels: dict[int, str],
+    skip: set[int],
+    out: Path,
+    options: dict,
+) -> Path:
+    """--merged: the dataset (its sub-folders as they are; images excluded in the web app in
+    _excluded) plus the new images that fit, in <out>/merged, ready to train. kohya folders
+    whose automatic repeats change with the new count are renamed. The dataset is not touched."""
+    excluded = SET_ASIDE["excluded"]
+    paths = list(dataset.paths)
+    places = [
+        excluded if i in skip else dataset.rel(i).rpartition("/")[0] for i in range(len(dataset))
+    ]
+    added = [(p, d) for p, d in zip(new.paths, folders, strict=True) if d not in (UNSURE, ALREADY)]
+    paths += [p for p, _ in added]
+    places += [d for _, d in added]
+    renames = _merged_renames(clustering, labels, places)
+    places = [_renamed(place, renames) for place in places]
+    done = export_paths(paths, places, out / "merged", allow_top=True, **options)
+    log(
+        tr(
+            f"merged dataset, ready to train: {done.folder} ({len(dataset)} dataset images + "
+            f"{len(added)} new ones that fit; the dataset itself is unchanged)",
+            f"合併好的資料集，可以直接訓練：{done.folder}（資料集 {len(dataset)} 張 + 符合的新圖 "
+            f"{len(added)} 張；原本的資料集沒有改動）",
+        )
+    )
+    if skip:
+        log(
+            tr(
+                f"{len(skip)} images excluded in the web app are in {excluded}",
+                f"網頁介面排除的 {len(skip)} 張放在 {excluded}",
+            )
+        )
+    for old, name in sorted(renames.items()):
+        log(
+            tr(
+                f"renamed {old} -> {name}: images x repeats stays near 100 (the trainer configs "
+                "in it list the new repeats)",
+                f"已改名 {old} -> {name}：讓張數 × repeats 維持在約 100（裡面的訓練設定檔用的是新的"
+                " repeats）",
+            )
+        )
+    for p, why in done.failed:
+        log(tr(f"not placed {p}: {why}", f"沒有放入 {p}：{why}"))
+    return done.folder
+
+
+def _merged_renames(
+    clustering: Clustering, labels: dict[int, str], places: list[str]
+) -> dict[str, str]:
+    """kohya folder -> its name for the merged image count, where the repeats change."""
+    count = Counter(place.partition("/")[0] for place in places)
+    taken, renames = set(count), {}
+    for c in clustering.clusters:
+        name = labels[c.id]
+        new = _repeats_for(name, c.size, count[name]) if count[name] else None
+        if new and new not in taken:  # never into a folder that is already there
+            renames[name] = new
+            taken.add(new)
+    return renames
+
+
+def _renamed(place: str, renames: dict[str, str]) -> str:
+    top, sep, rest = place.partition("/")
+    return renames.get(top, top) + sep + rest
+
+
+def _next_step(
+    a: argparse.Namespace, placed: Path | None, merged: Path | None, has_unsure: bool
+) -> None:
+    if placed is None:
+        log(
+            tr(
+                "next: add --export copy to place the new images in folders"
+                + (
+                    " (and --merged for the dataset plus them, ready to train)"
+                    if a.by_folder
+                    else ""
+                ),
+                "下一步：加上 --export copy 把新圖放進資料夾"
+                + ("（再加 --merged 會連同資料集合併好，可以直接訓練）" if a.by_folder else ""),
+            )
+        )
+        return
+    look = (
+        tr(f"look through {placed / UNSURE}; ", f"看一下 {placed / UNSURE}；") if has_unsure else ""
+    )
+    if merged is not None:
+        log(
+            tr(
+                f"next: {look}"
+                + (
+                    f"move any that belong into their group's folder in {merged}; "
+                    if has_unsure
+                    else ""
+                )
+                + f'then check it: style-atlas audit "{merged}"',
+                f"下一步：{look}"
+                + (f"屬於資料集的就移到 {merged} 裡對應的資料夾；" if has_unsure else "")
+                + f'然後檢查一遍：style-atlas audit "{merged}"',
+            )
+        )
+        return
+    log(
+        tr(
+            f"next: {look}move the images that belong into the dataset's folders"
+            + (" (or rerun with --merged for a copy ready to train)" if a.by_folder else "")
+            + f'; then check it: style-atlas audit "{a.into}"',
+            f"下一步：{look}把屬於資料集的圖移進資料集對應的資料夾"
+            + ("（或加 --merged 重跑，直接得到可以訓練的合併版）" if a.by_folder else "")
+            + f'；然後檢查一遍：style-atlas audit "{a.into}"',
+        )
+    )
 
 
 def _nested(inner: Path, outer: Path) -> list[Path]:
@@ -229,17 +387,29 @@ def _rows(
     ]
 
 
-def _summary(fits: list[Fit], labels: dict[int, str], folders: list[str]) -> None:
+def _summary(
+    fits: list[Fit],
+    labels: dict[int, str],
+    folders: list[str],
+    names: list[str],
+    copy_of: dict[int, str],
+) -> None:
+    """The batch in a few lines. `names` are the new images', `copy_of` maps a near-copy to the
+    dataset image it repeats."""
     rest = [(f, d) for f, d in zip(fits, folders, strict=True) if d != ALREADY]
     if len(rest) < len(fits):
         k = len(fits) - len(rest)
         log(
             tr(
                 f"{k} of {len(fits)} new images are near-copies of images the dataset already holds"
-                f" ({ALREADY})",
-                f"{len(fits)} 張新圖裡有 {k} 張和資料集裡的圖幾乎一樣（{ALREADY}）",
+                f" ({ALREADY}):",
+                f"{len(fits)} 張新圖裡有 {k} 張和資料集裡的圖幾乎一樣（{ALREADY}）：",
             )
         )
+        pairs = sorted(copy_of.items())
+        for i, base in pairs[:SHOWN]:
+            log(f"  {names[i]}  =  {base}")
+        _more(len(pairs), "copy_of")
     if not rest:
         return
     placed = Counter(labels[f.group] for f, _ in rest)
@@ -260,6 +430,45 @@ def _summary(fits: list[Fit], labels: dict[int, str], folders: list[str]) -> Non
             f"其餘放進 {UNSURE}，請看一下",
         )
     )
+    _list_unsure(fits, labels, folders, names)
+
+
+def _list_unsure(
+    fits: list[Fit], labels: dict[int, str], folders: list[str], names: list[str]
+) -> None:
+    """The _unsure images, the closest to a group (by how far past its limit) first."""
+    pairs = enumerate(zip(fits, folders, strict=True))
+    unsure = sorted((f.dist - f.limit, i) for i, (f, d) in pairs if d == UNSURE)
+    if not unsure:
+        return
+    log(
+        tr(
+            f"{UNSURE}, the closest to a group first (that group in brackets):",
+            f"{UNSURE} 裡越前面的越接近某一群（括號裡是那一群）：",
+        )
+    )
+    for _, i in unsure[:SHOWN]:
+        log(f"  {names[i]}  ({labels[fits[i].group]})")
+    _more(len(unsure), "distance - limit")
+    log(
+        tr(
+            "  the order is a hint, not a test: in benchmarks an image by a dataset artist came "
+            "before another artist's about 2 times in 3, and for 1 in 3 of them the group in "
+            "brackets was not their own",
+            "  順序只是參考：實測資料集畫師的圖排在其他畫師前面的機率約 2/3，"
+            "而且其中約 1/3 括號裡的群不是它真正的群",
+        )
+    )
+
+
+def _more(total: int, column: str) -> None:
+    if total > SHOWN:
+        log(
+            tr(
+                f"  ... and {total - SHOWN} more (sorted.csv: {column})",
+                f"  ……還有 {total - SHOWN} 張（見 sorted.csv：{column}）",
+            )
+        )
 
 
 def _repeats_notes(clustering: Clustering, labels: dict[int, str], folders: list[str]) -> None:
@@ -268,20 +477,28 @@ def _repeats_notes(clustering: Clustering, labels: dict[int, str], folders: list
     added = Counter(folders)
     for c in clustering.clusters:
         name = labels[c.id]
-        match = KOHYA_FOLDER.match(name)
-        if not match or not added[name] or int(match[1]) != auto_repeats(c.size):
-            continue  # not a kohya folder, nothing added, or repeats set by hand
-        new = auto_repeats(c.size + added[name])
-        if new != int(match[1]):
+        new = _repeats_for(name, c.size, c.size + added[name]) if added[name] else None
+        if new:
             log(
                 tr(
-                    f"{name}: {c.size} + {added[name]} images; rename it {new}_{match[2]} to keep "
+                    f"{name}: {c.size} + {added[name]} images; rename it {new} to keep "
                     "images x repeats near 100 (the trainer config files list the old repeats)",
-                    f"{name}：{c.size} + {added[name]} 張；建議改名成 {new}_{match[2]}，"
+                    f"{name}：{c.size} + {added[name]} 張；建議改名成 {new}，"
                     "讓張數 × repeats "
                     "維持在約 100（訓練設定檔裡的 repeats 也要跟著改）",
                 )
             )
+
+
+def _repeats_for(name: str, size: int, total: int) -> str | None:
+    """The kohya folder name for `total` images when `name` has the automatic repeats for `size`
+    (images x repeats near 100) and they change; None for other folders, repeats set by hand,
+    or no change."""
+    match = KOHYA_FOLDER.match(name)
+    if not match or int(match[1]) != auto_repeats(size):
+        return None
+    new = f"{auto_repeats(total)}_{match[2]}"
+    return None if new == name else new
 
 
 def sort_args(p: argparse.ArgumentParser) -> None:
@@ -322,6 +539,17 @@ def sort_args(p: argparse.ArgumentParser) -> None:
         help=tr(
             "also place the new images (with captions) into <out>/sorted/<group>",
             "也把新圖（連同標註檔）放進 <out>/sorted/<群>",
+        ),
+    )
+    p.add_argument(
+        "--merged",
+        action="store_true",
+        help=tr(
+            "with --export and --by-folder: also write <out>/merged, the dataset plus the new "
+            "images that fit, ready to train (kohya repeats and trainer configs updated; the "
+            "dataset itself is not changed)",
+            "搭配 --export 和 --by-folder：另外寫出 <out>/merged，即資料集加上符合的新圖，"
+            "可以直接訓練（kohya 的 repeats 和訓練設定檔會跟著更新；原本的資料集不會改動）",
         ),
     )
     p.add_argument(

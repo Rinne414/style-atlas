@@ -325,6 +325,10 @@ def test_sort_places_new_images_into_the_dataset_sub_folders(lib, tmp_path, caps
     assert placed == set(rows) and (out / "sorted" / "_unsure" / "grey.png").is_file()
     err = capsys.readouterr().err
     assert "near-copies of images the dataset already holds" in err and "fit their group" in err
+    assert "again.png  =  red/" in err  # which dataset image each near-copy repeats
+    assert "0 in style folders, 4 in _unsure, 1 in _already_in_dataset" in err
+    assert "_unsure, the closest to a group first" in err and "grey.png  (" in err
+    assert "next: look through" in err and "style-atlas audit" in err
 
 
 def test_sort_uses_the_dataset_style_groups_without_sub_folders(lib, tmp_path):
@@ -407,7 +411,8 @@ def test_sort_judges_a_batch_of_eight_or_more(lib, tmp_path, capsys):
     labels = {0: "a"}
     for fitting, verdict in ((6, "mostly the dataset's styles"), (3, "partly")):
         fits = [Fit(0, 0.1, i < fitting) for i in range(9)]
-        _summary(fits, labels, ["a" if f.fits else UNSURE for f in fits])
+        names = [f"g{i}.png" for i in range(9)]
+        _summary(fits, labels, ["a" if f.fits else UNSURE for f in fits], names, {})
         assert verdict in capsys.readouterr().err
     args = ["sort", str(greys), "--into", str(lib), "-o", str(tmp_path)]
     assert main([*args, "--device", "cpu"]) == 1
@@ -710,3 +715,46 @@ def test_audit_says_what_to_do_about_missing_captions_and_small_images(capsys):
     assert "trained without them" in err and "'sample' size" in err
     _audit_advice({"images": 60, "no_caption": 3, "smaller_than_min_side": 2}, 768)
     assert capsys.readouterr().err == ""
+
+
+def test_sort_merged_is_the_dataset_plus_the_new_images_ready_to_train(
+    lib, tmp_path, monkeypatch, capsys
+):
+    from styleatlas import cli_sort
+    from styleatlas.cluster import Fit
+
+    data = tmp_path / "data"
+    for colour in ("red", "blue"):
+        folder = data / f"17_x_{colour}"  # 6 images at the automatic 17 repeats
+        folder.mkdir(parents=True)
+        for p in (lib / colour).iterdir():
+            (folder / p.name).write_bytes(p.read_bytes())
+    (data / "top.png").write_bytes(next((lib / "green").glob("*.png")).read_bytes())
+    web = tmp_path / "data_style_atlas"  # one red image excluded in the web app
+    web.mkdir()
+    (web / "excluded.json").write_text(json.dumps({"17_x_red/red__100003.png": True}), "utf-8")
+    new = _new_images(lib, tmp_path)
+
+    def fits_red(style, clustering, query, skip=frozenset()):  # group 1: 17_x_red (sorted)
+        return [Fit(1, 0.1, True, 0.5) for _ in query]
+
+    monkeypatch.setattr(cli_sort, "fit_to_groups", fits_red)
+    out = tmp_path / "o"
+    args = ["sort", str(new), "--into", str(data), "-o", str(out), "--export", "copy"]
+    assert main([*args, "--merged", "--device", "cpu"]) == 1  # needs --by-folder
+    assert "--merged needs" in capsys.readouterr().err
+    assert main([*args, "--by-folder", "--merged", "--trigger-captions", "--device", "cpu"]) == 0
+    merged = out / "merged"
+    pngs = {f.name: len(list((merged / f).glob("*.png"))) for f in merged.iterdir() if f.is_dir()}
+    assert pngs == {"11_x_red": 5 + 4, "17_x_blue": 6, "_excluded": 1}  # 5 + 4 new: 11 repeats
+    assert (merged / "top.png").is_file() and not list(merged.rglob("again.png"))  # a copy
+    assert "num_repeats = 11" in (merged / "dataset_config.toml").read_text(encoding="utf-8")
+    caption = (merged / "11_x_red" / "red__100013.txt").read_text(encoding="utf-8")
+    assert caption == "x_red, 1girl, red_tag"
+    assert len(list((data / "17_x_red").glob("*.png"))) == 6  # the dataset is untouched
+    assert (data / "17_x_red" / "red__100013.txt").read_text(encoding="utf-8") == "1girl, red_tag"
+    err = capsys.readouterr().err
+    assert "renamed 17_x_red -> 11_x_red" in err and "merged dataset, ready to train" in err
+    assert "rename it" not in err  # the note for the dataset itself is left out
+    assert "4 of the images placed in style folders have a short side" in err  # new ones only
+    assert f'style-atlas audit "{merged}"' in err

@@ -156,9 +156,10 @@ ai_toolkit_datasets.yaml    ← ai-toolkit 的 datasets 段落（貼進訓練設
 style-atlas sort "D:\new" --into "D:\lora\artistX_style_atlas\folders" --by-folder --export copy
 ```
 
+- 加 `--merged` 會另外寫出 `merged` 資料夾：資料集加上符合的新圖，可以直接訓練（kohya 的 repeats 和訓練設定檔會自動更新，原本的資料集不動）。
 - 每張新圖會放進最像的子資料夾。不夠像的放進 `_unsure`：到群中心的距離，要不超過那群七成的圖（每張圖量的是到「其他圖」中心的距離）；和資料集裡某張幾乎一樣的放進 `_already_in_dataset`。結果在 `D:\new_style_atlas\sorted`，`sorted.csv` 列出每張的最近群、距離和重複的對象。kohya 資料夾補圖後，它也會提示新的 repeats 前綴（張數 × repeats 維持約 100）。
 - 不加 `--by-folder` 時，改用資料集的畫風群（網頁存過的分群和名稱，沒有就重新自動分群；加 `--fresh` 一律重新分群）。少於 3 張的群不會放新圖進去。
-- 實測（工具沒看過的畫師，資料集是 10 位畫師各一個子資料夾）：新作品放對資料夾 91.5%；被判「符合」的約 69%，其中 99% 放對；其他畫師的圖約 9% 被判符合（每群只有 10 張時 14%）。所以 `_unsure` 裡約有三成其實是同一位畫師的圖，值得看一眼。
+- 實測（工具沒看過的畫師，資料集是 10 位畫師各一個子資料夾）：新作品放對資料夾 91.5%；被判「符合」的約 69%，其中 99% 放對；其他畫師的圖約 9% 被判符合（每群只有 10 張時 14%）。所以 `_unsure` 裡約有三成其實是同一位畫師的圖，值得看一眼；`sort` 會把它們依離某一群的遠近排好列出（只是參考，實測同畫師的圖排在別人前面約 2/3 的機會）。
 
 **以圖找圖**：在圖庫 `D:\gallery` 裡找和兩張範例最像的 30 張。
 
@@ -231,7 +232,7 @@ style-atlas taste score "D:\new_batch" --model "D:\my_taste.npz"
 |---|---|
 | `style-atlas serve 資料夾` | 打開網頁介面（`StyleAtlas.bat` 做的就是這個） |
 | `style-atlas cluster 資料夾 [--layout kohya --name X] [--dedupe] [--export copy]` | 分畫風群，寫出 CSV／JSON 和地圖，可匯出成資料夾 |
-| `style-atlas sort 新圖資料夾 --into 資料集 [--by-folder] [--export copy]` | 把新圖分進已經分好的資料集 |
+| `style-atlas sort 新圖資料夾 --into 資料集 [--by-folder] [--export copy] [--merged]` | 把新圖分進已經分好的資料集（`--merged`：合併成可以直接訓練的一份） |
 | `style-atlas report 資料夾 [--artists 圖庫] [--renders 算圖資料夾] [--time name]` | 一頁畫風報告（HTML）；`--renders` 加上 LoRA 算圖檢查，`--time` 標出各群的時間位置 |
 | `style-atlas search 範例圖 --in 圖庫 [--combine] [--by-folder] [--copy-to 資料夾]` | 以圖找圖；`--by-folder` 列出最像的子資料夾（畫師） |
 | `style-atlas map 資料夾 [--by-folder]` | 3D 畫風地圖（單一 HTML 檔）；`--by-folder` 每位畫師一個點 |
@@ -509,9 +510,12 @@ groups are used: those saved by the web app (`--fresh` groups afresh instead), e
 grouping. Groups of fewer than 3 images take no new images. On artists the tool never
 saw, with 10 of them as sub-folders, 91.5% of their new works went to the right folder, 69%
 fitted (99% of those in the right folder), and 9% of other artists' works were let in (14% when
-each folder held only 10 images; docs/BENCHMARKS.md). In the web app, new images added to the
-folder start as "Unassigned"; open that row and press "Put each in its closest style" to apply
-the same rule (one undo step).
+each folder held only 10 images; docs/BENCHMARKS.md). `sort` lists the `_unsure` images closest
+to a group first, as a hint (an artist's own work comes first about 2 times in 3). Add `--merged`
+for `<out>/merged`: the dataset plus the new images that fit, ready to train, with kohya repeats
+and trainer configs updated; the dataset itself is not changed. In the web app, new images added
+to the folder start as "Unassigned"; open that row and press "Put each in its closest style" to
+apply the same rule (one undo step).
 
 ### Commands
 
@@ -524,8 +528,8 @@ style-atlas cluster DIR [--granularity auto|period|artists|fine|medium|coarse | 
                         [--trigger-captions] [--export copy|link] [--no-map] [--no-recursive]
                         [-o OUT]
 style-atlas embed DIR             # embed and cache only
-style-atlas sort NEW --into DATASET [--by-folder] [--export copy|link] [--trigger-captions]
-                 [--strip-tags TAGS] [--fresh] [-o OUT]
+style-atlas sort NEW --into DATASET [--by-folder] [--export copy|link] [--merged]
+                 [--trigger-captions] [--strip-tags TAGS] [--fresh] [-o OUT]
 style-atlas report DIR [-o style_report.html] [--artists DIR] [--renders DIR] [--lang zh|en]
                        [--time none|name|mtime] [--fresh]
 style-atlas doctor                 # check Python, torch, GPU, model download, disk space
