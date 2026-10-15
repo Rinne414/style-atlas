@@ -974,15 +974,47 @@ class HelpFormatter(argparse.HelpFormatter):
             return super()._split_lines(text, width)  # English: argparse's own wrapping
         return wrap(text, width)
 
-    def _fill_text(self, text: str, width: int, indent: str) -> str:
-        if all(columns(ch) == 1 for ch in text):
-            return super()._fill_text(text, width, indent)
-        return "\n".join(indent + line for line in wrap(text, width - len(indent)))
+    def _fill_text(self, text: str, width: int, indent: str) -> str:  # line by line
+        return "\n".join(self._fill_line(line, width, indent) for line in text.splitlines())
+
+    def _fill_line(self, line: str, width: int, indent: str) -> str:
+        if all(columns(ch) == 1 for ch in line):
+            return super()._fill_text(line, width, indent) if line.strip() else ""
+        return "\n".join(indent + part for part in wrap(line, width - len(indent)))
+
+
+def START_HERE() -> str:  # noqa: N802 - text, built when the language is known
+    return tr(
+        "where to start:\n"
+        "try it: demo\n"
+        "your own folder: serve (or drag the folder onto scripts\\StyleAtlas.bat)\n"
+        "a LoRA dataset: audit, then cluster (--export), then sort for new images; "
+        "duplicates, outliers\n"
+        "images in a similar style: search (or the image search in serve)\n"
+        "compare and share: compare, report, map\n"
+        "research: embed, calibrate, bench, taste\n"
+        "setup problems: doctor",
+        "從哪裡開始：\n"
+        "試玩：demo\n"
+        "打開自己的資料夾：serve（或把資料夾拖到 scripts\\StyleAtlas.bat 上）\n"
+        "整理 LoRA 資料集：audit，再 cluster（加 --export），之後的新圖用 sort；"
+        "另有 duplicates、outliers\n"
+        "找畫風相近的圖：search（或 serve 網頁裡的以圖搜尋）\n"
+        "比較和分享：compare、report、map\n"
+        "研究用：embed、calibrate、bench、taste\n"
+        "安裝有問題：doctor",
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(
-        prog="style-atlas", description=__doc__, formatter_class=HelpFormatter
+        prog="style-atlas",
+        description=tr(
+            "style-atlas <command> ...  (each command's options: style-atlas <command> -h)",
+            "style-atlas <指令> ...（各指令的選項：style-atlas <指令> -h）",
+        ),
+        epilog=START_HERE(),
+        formatter_class=HelpFormatter,
     )
     ap.add_argument("--version", action="version", version=f"style-atlas {__version__}")
     sub = ap.add_subparsers(dest="cmd", required=True)

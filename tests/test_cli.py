@@ -668,3 +668,12 @@ def test_demo_makes_the_images_once_and_opens_them(tmp_path, monkeypatch):
     first = sorted(p.stat().st_mtime_ns for p in folder.rglob("*.png"))
     assert main(["demo", str(folder), "--no-browser", "--device", "cpu"]) == 0
     assert sorted(p.stat().st_mtime_ns for p in folder.rglob("*.png")) == first  # kept
+
+
+def test_help_says_where_to_start(capsys):
+    import pytest
+
+    with pytest.raises(SystemExit):
+        main(["--help"])
+    out = capsys.readouterr().out
+    assert "where to start:\ntry it: demo\n" in out and "setup problems: doctor" in out
