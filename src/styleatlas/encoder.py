@@ -5,7 +5,9 @@ is OpenAI CLIP ViT-L/14 (QuickGELU) without its projection; CSD adds two 1024x76
 style and one for content. Outputs are L2-normalised 768-d vectors.
 
 The training checkpoint holds optimiser state (2.4 GB). On first load the needed tensors are copied
-to a small safetensors file in the cache folder so later loads are fast and pickle-free.
+to a small safetensors file in the cache folder so later loads are fast and pickle-free, and the
+checkpoint is removed again (it is downloaded into the cache folder too, unless HF_HOME or
+HF_HUB_CACHE names a Hugging Face cache of the user's own).
 """
 
 from __future__ import annotations
@@ -14,8 +16,10 @@ import argparse
 import logging
 import math
 import os
+import shutil
 import sys
 from dataclasses import dataclass
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -35,6 +39,9 @@ CLIP_STD = (0.26862954, 0.26130258, 0.27577711)
 CROP_MODES = ("center", "tiles")
 MAX_TILES = 3
 MAX_ASPECT = 4.0  # longer strips are centre-cropped first (keeps memory bounded)
+DOWNLOAD_DIR = "hf-download"  # the checkpoint while the slim copy is made; removed after
+MODEL_GB = 2.4  # the checkpoint
+NEED_GB = 3.9  # free space for the first run: the checkpoint and the 1.2 GB slim copy, plus room
 
 
 def resolve_device(device: str) -> str:
@@ -70,11 +77,44 @@ MIRROR_HINT_ZH = (
 )
 
 
+def download_dir() -> Path | None:
+    """Where the checkpoint is downloaded: into the cache folder (so STYLE_ATLAS_CACHE moves it
+    too and it can be removed after), or None for the user's own Hugging Face cache."""
+    if os.environ.get("HF_HUB_CACHE") or os.environ.get("HF_HOME"):
+        return None
+    return cache_dir() / DOWNLOAD_DIR
+
+
+def check_space() -> None:
+    """Fail before a download that cannot fit, saying how to put the cache elsewhere."""
+    from huggingface_hub import constants
+
+    where = {cache_dir(), Path(download_dir() or constants.HF_HUB_CACHE)}
+    for path in where:
+        probe = next((p for p in (path, *path.parents) if p.exists()), path)
+        free = shutil.disk_usage(probe).free / 1e9
+        if free < NEED_GB:
+            raise ModelDownloadError(
+                tr(
+                    f"the first run needs about {NEED_GB} GB free for the style model, but "
+                    f"{probe.anchor or probe} has {free:.1f} GB. Free some space, or set the "
+                    "environment variable STYLE_ATLAS_CACHE to a folder on another drive "
+                    "(Windows: set STYLE_ATLAS_CACHE=D:\\style-atlas-cache) and try again",
+                    f"第一次使用需要約 {NEED_GB} GB 的空間放畫風模型，"
+                    f"但 {probe.anchor or probe} 只剩 {free:.1f} GB。請清出空間，"
+                    "或把環境變數 STYLE_ATLAS_CACHE 設到別的磁碟上的資料夾"
+                    "（Windows：set STYLE_ATLAS_CACHE=D:\\style-atlas-cache）再試一次",
+                )
+            )
+
+
 def _extract_weights() -> dict[str, torch.Tensor]:
     from huggingface_hub import hf_hub_download
 
     try:
-        path = hf_hub_download(CSD_REPO, "pytorch_model.bin", revision=CSD_REVISION)
+        path = hf_hub_download(
+            CSD_REPO, "pytorch_model.bin", revision=CSD_REVISION, cache_dir=download_dir()
+        )
     except OSError as e:  # connection, HTTP and missing-file errors of huggingface_hub
         raise ModelDownloadError(
             tr(
@@ -97,6 +137,7 @@ def load_weights() -> dict[str, torch.Tensor]:
     slim = cache_dir() / f"csd_vit_l_{CSD_REVISION[:8]}.safetensors"
     if slim.exists():
         return load_file(str(slim))
+    check_space()
     print(
         tr(
             "first run: downloading the style model once (about 2.4 GB; a 1.2 GB copy is kept)",
@@ -109,6 +150,9 @@ def load_weights() -> dict[str, torch.Tensor]:
     tmp = slim.with_suffix(".tmp")
     save_file(weights, str(tmp))
     os.replace(tmp, slim)
+    ours = download_dir()
+    if ours is not None:  # the 2.4 GB checkpoint is not needed again
+        shutil.rmtree(ours, ignore_errors=True)
     return weights
 
 

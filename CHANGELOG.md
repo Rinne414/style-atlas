@@ -18,6 +18,11 @@ New:
 - **The web app opens at once.** `serve` (and `StyleAtlas.bat`) opens the browser before the
   model download and the embedding, shows their progress on a waiting page, and turns into the
   map when ready; if the folder cannot be opened, the page says why.
+- **The first model download fits where it should.** The 2.4 GB checkpoint is downloaded into the
+  style-atlas cache folder (so `STYLE_ATLAS_CACHE` moves it too) and removed once the 1.2 GB copy
+  is made; it used to stay in the Hugging Face cache on C:. The free space (3.9 GB) is checked
+  before the download, with how to move the cache. A Hugging Face cache of your own (`HF_HOME`,
+  `HF_HUB_CACHE`) is used and left alone; `doctor` points at an old checkpoint there.
 - **Search scores with a scale.** Each web image-search result shows its style similarity, with a
   line on what the numbers mean (measured on 306 Danbooru artists; 0.85 and up highlighted).
 - **Rating mode ignores a second L/D press** made before the next image is shown (it rated the

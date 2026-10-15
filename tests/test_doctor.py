@@ -37,3 +37,70 @@ def test_doctor_shows_how_big_the_caches_are(tmp_path, monkeypatch):
     (tmp_path / "thumbs" / "ab" / "t.webp").write_bytes(b"x" * 2_000_000)
     rows = {name: detail for _, name, detail in doctor.checks()}
     assert rows["vector cache"].startswith("3 MB") and rows["thumbnails"].startswith("2 MB")
+
+
+def _own_cache(monkeypatch, tmp_path):
+    monkeypatch.setenv("STYLE_ATLAS_CACHE", str(tmp_path))
+    monkeypatch.delenv("HF_HOME", raising=False)
+    monkeypatch.delenv("HF_HUB_CACHE", raising=False)
+
+
+def test_too_little_space_fails_before_the_download(monkeypatch, tmp_path):
+    import shutil
+    from collections import namedtuple
+
+    import pytest
+
+    from styleatlas import encoder
+
+    _own_cache(monkeypatch, tmp_path)
+    usage = namedtuple("usage", "total used free")
+    monkeypatch.setattr(shutil, "disk_usage", lambda path: usage(10**12, 10**12, 10**9))
+    with pytest.raises(encoder.ModelDownloadError, match="STYLE_ATLAS_CACHE"):
+        encoder.check_space()
+
+
+def test_the_checkpoint_is_downloaded_into_the_cache_and_removed_after(monkeypatch, tmp_path):
+    import torch
+
+    from styleatlas import encoder
+
+    _own_cache(monkeypatch, tmp_path)
+    monkeypatch.setattr(encoder, "check_space", lambda: None)
+
+    def download():
+        (encoder.download_dir() / "blob").parent.mkdir(parents=True, exist_ok=True)
+        (encoder.download_dir() / "blob").write_bytes(b"x" * 1000)  # stands in for 2.4 GB
+        return {"w": torch.zeros(2)}
+
+    monkeypatch.setattr(encoder, "_extract_weights", download)
+    weights = encoder.load_weights()
+    assert set(weights) == {"w"}
+    assert not (tmp_path / encoder.DOWNLOAD_DIR).exists()
+    assert list(tmp_path.glob("csd_vit_l_*.safetensors"))  # the slim copy stays
+
+
+def test_a_hugging_face_cache_of_the_users_own_is_left_alone(monkeypatch, tmp_path):
+    from styleatlas import encoder
+
+    _own_cache(monkeypatch, tmp_path)
+    assert encoder.download_dir() == tmp_path / encoder.DOWNLOAD_DIR
+    monkeypatch.setenv("HF_HOME", str(tmp_path / "hf"))
+    assert encoder.download_dir() is None
+
+
+def test_doctor_points_at_an_old_checkpoint_no_longer_needed(monkeypatch, tmp_path):
+    from huggingface_hub import constants
+
+    from styleatlas.encoder import CSD_REVISION
+
+    cache = tmp_path / "cache"
+    _own_cache(monkeypatch, cache)
+    cache.mkdir()
+    (cache / f"csd_vit_l_{CSD_REVISION[:8]}.safetensors").write_bytes(b"x")
+    old = tmp_path / "hub" / "models--tomg-group-umd--CSD-ViT-L"
+    old.mkdir(parents=True)
+    (old / "blob").write_bytes(b"x" * 1000)
+    monkeypatch.setattr(constants, "HF_HUB_CACHE", str(tmp_path / "hub"))
+    rows = {name: detail for _, name, detail in doctor.checks()}
+    assert "only uses its 1.2 GB copy" in rows["old download"]

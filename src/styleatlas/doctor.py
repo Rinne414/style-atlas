@@ -11,7 +11,6 @@ from styleatlas import __version__
 from styleatlas.cachedir import cache_dir
 from styleatlas.lang import tr
 
-MODEL_GB = 2.4  # first download; a 1.2 GB slim copy is kept afterwards
 OK, WARN, FAIL = "ok", "warn", "FAIL"
 
 
@@ -31,7 +30,7 @@ def _torch_lines() -> list[tuple[str, str, str]]:
 
 
 def _model_lines() -> list[tuple[str, str, str]]:
-    from styleatlas.encoder import CSD_REVISION
+    from styleatlas.encoder import CSD_REVISION, MODEL_GB, NEED_GB
 
     root = cache_dir()
     slim = root / f"csd_vit_l_{CSD_REVISION[:8]}.safetensors"
@@ -44,11 +43,31 @@ def _model_lines() -> list[tuple[str, str, str]]:
         )
     rows += _cache_lines(root)
     free_gb = shutil.disk_usage(root).free / 1e9
-    need = 0.5 if slim.exists() else MODEL_GB + 1.5
+    need = 0.5 if slim.exists() else NEED_GB
     rows.append(
         (OK if free_gb > need else FAIL, "free disk", f"{free_gb:.1f} GB (need ~{need:.1f} GB)")
     )
+    old = _old_checkpoint()
+    if slim.exists() and old is not None:
+        rows.append(
+            (
+                WARN,
+                "old download",
+                f"{old} ({_size(old.rglob('*')) / 1e9:.1f} GB): style-atlas only uses its 1.2 GB "
+                "copy now; delete this folder to free the space if nothing else uses it",
+            )
+        )
     return rows
+
+
+def _old_checkpoint() -> Path | None:
+    """The CSD checkpoint left in the default Hugging Face cache by versions before 0.44."""
+    try:
+        from huggingface_hub import constants
+    except ImportError:
+        return None
+    folder = Path(constants.HF_HUB_CACHE) / "models--tomg-group-umd--CSD-ViT-L"
+    return folder if folder.exists() else None
 
 
 def _cache_lines(root: Path) -> list[tuple[str, str, str]]:
