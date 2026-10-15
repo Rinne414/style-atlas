@@ -104,15 +104,30 @@ function showSearch(files, hits, fit, folders, copies, folded) {
   });
   const h2 = document.createElement("h3");
   h2.textContent = t("nearest") + (folded ? " · " + t("foldedNote").replace("{n}", folded) : "");
-  const g = document.createElement("div"); g.className = "grid";
-  hits.forEach((x) => g.append(scored(x)));
   const legend = document.createElement("div"); legend.className = "kv";
   legend.textContent = t(files.length > 1 ? "cosLegendSet" : "cosLegend");
+  const results = document.createElement("div");  // the copy button and the grid of the shown hits
+  const show = (list) => {
+    searchHits = new Set(list.map((x) => x.i)); recolor();
+    const g = document.createElement("div"); g.className = "grid"; g.append(...list.map(scored));
+    results.replaceChildren(...(list.length ? [copyButton(list)] : []), g);
+  };
+  const close = hits.filter((x) => x.cos >= CLOSE_COS);  // the scale holds for one query image only
+  const filter = files.length === 1 && close.length && close.length < hits.length ? [closeToggle(close, hits, show)] : [];
+  show(hits);
   pane.append(h, qs, ...(copies && copies.length ? copyList(files, copies) : []),
     ...(fit && fit.length ? fitSummary(fit) : []),
     ...(folders && folders.length ? folderList(folders) : []), h2,
-    ...(hits.length ? [legend, copyButton(hits)] : []), g);
+    ...(hits.length ? [legend, ...filter] : []), results);
   showPane("selected");
+}
+
+function closeToggle(close, all, show) {  // only the results at CLOSE_COS or more
+  const wrap = document.createElement("label"); wrap.className = "chip";
+  const box = document.createElement("input"); box.type = "checkbox";
+  box.addEventListener("change", () => show(box.checked ? close : all));
+  wrap.append(box, " " + t("onlyClose").replace("{n}", close.length));
+  return wrap;
 }
 
 const CLOSE_COS = 0.85;  // 9 in 10 pairs this close were by one artist (306 Danbooru artists)

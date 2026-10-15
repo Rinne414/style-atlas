@@ -27,7 +27,10 @@ New:
   before the download, with how to move the cache. A Hugging Face cache of your own (`HF_HOME`,
   `HF_HUB_CACHE`) is used and left alone; `doctor` points at an old checkpoint there.
 - **Search scores with a scale.** Each web image-search result shows its style similarity, with a
-  line on what the numbers mean (measured on 306 Danbooru artists; 0.85 and up highlighted).
+  line on what the numbers mean (measured on 306 Danbooru artists; 0.85 and up highlighted);
+  for one query image, 「只看很像的」 shows only those (and copies only those to a folder).
+- **「存圖」/Save PNG in the top toolbar** of every map, shared HTML maps included (it was under
+  More… or the P key).
 - **Rating mode ignores a second L/D press** made before the next image is shown (it rated the
   same image again).
 - **Periods along the timeline** (`--granularity timeline --time name|mtime`): one artist's works,
