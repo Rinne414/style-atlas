@@ -105,6 +105,15 @@ All of these are in `docs/BENCHMARKS.md`.
   tagging; github.com/akalavol/LoRA-Dataset-Coach), dghs-imgutils (anime image utilities), and
   "A LoRA is Worth a Thousand Pictures" (LoRA weights as style features; arxiv.org/abs/2412.12048).
   The Anima-Style-Embedding card was checked again: it still needs precomputed features.
+- **Periods along the timeline: related work (searched 2026-10-16).** No published tool applies
+  change-point detection to one artist's sequence of style embeddings. Nearest: film-scene style
+  evolution with change-point detection (iieta.org/node/22130), art-history style flows as
+  optimal transport (ICCV 2025, "Stochastic Interpolants for Revealing Stylistic Flows"; it notes
+  there is no established metric for such evolution), and context-aware embeddings over five
+  centuries (arxiv.org/abs/2503.13531). `--granularity timeline` uses the standard offline
+  formulation (dynamic programming with a squared-error cost, as `ruptures`' Dynp); the test
+  against shuffled time orders is what tells a user whether to split. Open: choosing the number
+  of periods from the data (a penalised search such as PELT), measured the same way.
 - **Related tools, checked again 2026-10-11.** LoRA Dataset Coach (github.com/akalavol/
   LoRA-Dataset-Coach) now covers face identity, sharpness, pose, expression, duplicates (dHash +
   face similarity), AI-image detection, bucket balance, CLIP-cluster diversity, "overfit attribute"
