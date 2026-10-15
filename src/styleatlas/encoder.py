@@ -41,7 +41,9 @@ MAX_TILES = 3
 MAX_ASPECT = 4.0  # longer strips are centre-cropped first (keeps memory bounded)
 DOWNLOAD_DIR = "hf-download"  # the checkpoint while the slim copy is made; removed after
 MODEL_GB = 2.4  # the checkpoint
-NEED_GB = 3.9  # free space for the first run: the checkpoint and the 1.2 GB slim copy, plus room
+SLIM_GB = 1.2  # the copy kept in the cache folder
+ROOM_GB = 0.3  # spare room per drive
+NEED_GB = MODEL_GB + SLIM_GB + ROOM_GB  # one drive holds both while the copy is made (3.9 GB)
 
 
 def resolve_device(device: str) -> str:
@@ -89,18 +91,25 @@ def check_space() -> None:
     """Fail before a download that cannot fit, saying how to put the cache elsewhere."""
     from huggingface_hub import constants
 
-    where = {cache_dir(), Path(download_dir() or constants.HF_HUB_CACHE)}
-    for path in where:
+    drives: dict[int, list] = {}  # device -> [a path on it, GB it must hold]
+    for path, gb in (
+        (cache_dir(), SLIM_GB),
+        (Path(download_dir() or constants.HF_HUB_CACHE), MODEL_GB),
+    ):
         probe = next((p for p in (path, *path.parents) if p.exists()), path)
+        entry = drives.setdefault(probe.stat().st_dev, [probe, ROOM_GB])
+        entry[1] += gb  # the checkpoint and the copy on one drive add up
+    for probe, need in drives.values():
+        need = round(need, 1)
         free = shutil.disk_usage(probe).free / 1e9
-        if free < NEED_GB:
+        if free < need:
             raise ModelDownloadError(
                 tr(
-                    f"the first run needs about {NEED_GB} GB free for the style model, but "
+                    f"the first run needs about {need} GB free for the style model, but "
                     f"{probe.anchor or probe} has {free:.1f} GB. Free some space, or set the "
                     "environment variable STYLE_ATLAS_CACHE to a folder on another drive "
                     "(Windows: set STYLE_ATLAS_CACHE=D:\\style-atlas-cache) and try again",
-                    f"第一次使用需要約 {NEED_GB} GB 的空間放畫風模型，"
+                    f"第一次使用需要約 {need} GB 的空間放畫風模型，"
                     f"但 {probe.anchor or probe} 只剩 {free:.1f} GB。請清出空間，"
                     "或把環境變數 STYLE_ATLAS_CACHE 設到別的磁碟上的資料夾"
                     "（Windows：set STYLE_ATLAS_CACHE=D:\\style-atlas-cache）再試一次",

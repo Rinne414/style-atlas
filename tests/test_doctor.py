@@ -120,3 +120,20 @@ def test_a_checkpoint_left_by_a_stopped_run_is_removed(monkeypatch, tmp_path):
     (tmp_path / encoder.DOWNLOAD_DIR / "blob").write_bytes(b"x")
     assert set(encoder.load_weights()) == {"w"}
     assert not (tmp_path / encoder.DOWNLOAD_DIR).exists()
+
+
+def test_the_space_check_adds_up_what_one_drive_must_hold(monkeypatch, tmp_path):
+    import shutil
+    from collections import namedtuple
+
+    import pytest
+
+    from styleatlas import encoder
+
+    _own_cache(monkeypatch, tmp_path)
+    usage = namedtuple("usage", "total used free")
+    monkeypatch.setattr(shutil, "disk_usage", lambda path: usage(10**12, 0, 4 * 10**9))
+    encoder.check_space()  # 4 GB holds the 2.4 GB checkpoint and the 1.2 GB copy (3.9 GB)
+    monkeypatch.setattr(shutil, "disk_usage", lambda path: usage(10**12, 0, 3 * 10**9))
+    with pytest.raises(encoder.ModelDownloadError, match="3.9 GB"):
+        encoder.check_space()
