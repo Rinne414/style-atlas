@@ -608,6 +608,7 @@ function setupRegroup() {  // granularity, cut, periods, the regroup button and 
       const verdict = key  // the timeline's tests (timeline.verdict), shown after the reload
         ? t(key).replace("{n}", r.distinct).replace("{p}", r.p_time).replace("{q}", r.p_turns)
           .replace("{sep}", (r.separation ?? 0).toFixed(3)) + (r.edge && r.verdict !== "turns" ? " " + t("edge_" + r.edge) : "")
+          + " " + t("timelineSizes")
         : "";
       reloadKeepingView(verdict);
     } catch (e) { setStatus(String(e.message || e)); }

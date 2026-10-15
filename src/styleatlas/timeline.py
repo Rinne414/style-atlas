@@ -179,7 +179,13 @@ def verdict_text(params: dict) -> str:
             "within it is arbitrary)",
             f"（{params['tied']:.0%} 的圖和別張時間相同，同一時間內的先後是任意的）",
         )
-    return text
+    return text + tr(SIZES_NOTE_EN, SIZES_NOTE_ZH)
+
+
+SIZES_NOTE_EN = (
+    ". Periods are cut where the style changes most, so they hold different numbers of works"
+)
+SIZES_NOTE_ZH = "。時期切在畫風變化最大的地方，所以每個時期的張數不一樣"
 
 
 TIED_NOTE = 0.2  # share of tied times from which the verdict mentions them
