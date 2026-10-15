@@ -67,6 +67,9 @@ New:
   sub-folder (one artist in two styles or periods) and how to merge them; voting shows the
   running like/dislike count; the quantified axes say low → high; the comparison's footnote says
   plainly where its z scale comes from.
+- Web app, after a code review: Enter in the note and group-name boxes waits for a Chinese input
+  method to finish picking characters (it saved half-typed text); the same-sub-folder note is
+  worked out once per list (it took about a second per rebuild at 10k images and 400 groups).
 - **Notes on the map** (web app): a short note on an image (type it under the image's buttons,
   Enter) is drawn at its point on the map, kept next to the folder in `notes.json` and carried
   into saved shareable maps, so what someone found while exploring can be shown to others.

@@ -269,7 +269,8 @@ function homeView() {  // looking at the centre from HOME's direction, every poi
     const x = Math.abs(q.dot(right)) + pointSize / 2, y = Math.abs(q.dot(up)) + pointSize / 2;
     need = Math.max(need, q.dot(back) + x / tanH, q.dot(back) + y / tanV);
   }
-  return back.multiplyScalar(Math.min(HOME_MAX, Math.max(1, need * HOME_MARGIN)));
+  const distance = Math.min(HOME_MAX, Math.max(1, need * HOME_MARGIN));
+  return back.multiplyScalar(Number.isFinite(distance) ? distance : HOME.length());  // a 0x0 canvas
 }
 
 function setupAxes() {

@@ -304,7 +304,7 @@ function noteBox(i) {  // live app: a note on this image, saved with Enter, show
   box.value = NOTES[String(i)] || ""; box.setAttribute("aria-label", t("notePlaceholder"));
   box.addEventListener("keydown", async (e) => {
     e.stopPropagation();
-    if (e.key !== "Enter") return;
+    if (e.key !== "Enter" || e.isComposing || e.keyCode === 229) return;  // not while an IME picks
     try {
       const r = await post("api/note", JSON.stringify({ i, text: box.value }), "application/json");
       NOTES = r.notes; drawNames(); setStatus(t(box.value.trim() ? "noteSaved" : "noteCleared"));
@@ -357,6 +357,7 @@ document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("cli
 function buildClusters() {
   const pane = $("pane-clusters");
   pane.replaceChildren();
+  MAIN_FOLDERS = null;
   const groups = [...DATA.clusters.map((c) => ({ ...c, members: [] }))];
   const un = { id: -1, size: 0, medoid: -1, members: [] };
   PTS.forEach((p, i) => (p.c >= 0 ? groups[p.c].members : un.members).push(i));
@@ -427,17 +428,26 @@ const MAIN_SHARE = 0.8;  // a group "comes from" a sub-folder when this share of
 function mainFolder(members) {  // the sub-folder most of a group comes from, or null
   if (!SEVERAL_FOLDERS || !members.length) return null;
   const counts = new Map();
-  members.forEach((i) => counts.set(folderOf(i), (counts.get(folderOf(i)) || 0) + 1));
+  members.forEach((i) => { const f = folderOf(i); counts.set(f, (counts.get(f) || 0) + 1); });
   const [folder, n] = [...counts].sort((a, b) => b[1] - a[1])[0];
   return n / members.length >= MAIN_SHARE ? folder : null;
 }
 
-function sameFolderGroups(c) {  // the other groups that come from the same sub-folder as c
-  const own = mainFolder(c.members);
-  if (own === null || c.id < 0) return [];
+let MAIN_FOLDERS = null;  // group id -> its main sub-folder; one pass per rebuild of the list
+
+function mainFolders() {
+  if (MAIN_FOLDERS) return MAIN_FOLDERS;
   const members = new Map();  // DATA.clusters carry no member lists: gather them from the points
-  PTS.forEach((p, i) => { if (p.c >= 0 && p.c !== c.id) (members.get(p.c) || members.set(p.c, []).get(p.c)).push(i); });
-  return [...members].filter(([, m]) => mainFolder(m) === own).map(([id]) => id).sort((a, b) => a - b);
+  PTS.forEach((p, i) => { if (p.c >= 0) (members.get(p.c) || members.set(p.c, []).get(p.c)).push(i); });
+  MAIN_FOLDERS = new Map([...members].map(([id, m]) => [id, mainFolder(m)]));
+  return MAIN_FOLDERS;
+}
+
+function sameFolderGroups(c) {  // the other groups that come from the same sub-folder as c
+  if (c.id < 0 || !SEVERAL_FOLDERS) return [];
+  const own = mainFolders().get(c.id);
+  if (own === null || own === undefined || own === ".") return [];  // "." = images in the root
+  return [...mainFolders()].filter(([id, f]) => id !== c.id && f === own).map(([id]) => id).sort((a, b) => a - b);
 }
 
 function folderMix(members) {  // which sub-folders a group's images come from, most first
@@ -490,7 +500,10 @@ function groupBar(c) {  // live app only: the edits for a group, or placing the 
   nameBox.placeholder = t("nameGroup"); nameBox.title = t("nameGroupTip"); nameBox.value = (DATA.live.names || {})[String(c.id)] || "";
   nameBox.style.cssText = "margin-left:6px;width:120px;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:5px 8px;font:inherit;font-size:12px";
   nameBox.addEventListener("click", (e) => e.stopPropagation());
-  nameBox.addEventListener("keydown", (e) => { e.stopPropagation(); if (e.key === "Enter") editPost("api/rename", { group: c.id, name: nameBox.value }); });
+  nameBox.addEventListener("keydown", (e) => {
+    e.stopPropagation();
+    if (e.key === "Enter" && !e.isComposing && e.keyCode !== 229) editPost("api/rename", { group: c.id, name: nameBox.value });
+  });
   bar.append(nameBox, button(t("moreLike"), () => showSimilar(c.id)));
   if (c.size >= 2) bar.append(button(t("splitGroup"), () => editPost("api/split", { group: c.id })));
   return bar;
