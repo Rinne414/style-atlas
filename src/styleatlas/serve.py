@@ -129,6 +129,13 @@ def local_folder(text: str) -> Path:
     return path
 
 
+def _besides(found: list, copies: list[dict]) -> list:
+    """Search hits other than the folder's copies of a query image, which the page lists apart
+    (an image dragged in from the folder would otherwise lead its own results at 1.00)."""
+    shown = {c["i"] for c in copies}
+    return [h for h in found if h.index not in shown]
+
+
 class StyleAtlasApp(GroupEdits):
     """Holds one scanned folder in memory and answers the web page's requests."""
 
@@ -457,13 +464,14 @@ class StyleAtlasApp(GroupEdits):
 
     def search_image(self, data: bytes, top: int = SEARCH_TOP) -> dict:
         query, raw = self._embed([data])
-        found = search(query, self.atlas.style, top=2 * top)[0]
+        copies = self.copies(*raw)
+        found = _besides(search(query, self.atlas.style, top=2 * top)[0], copies)
         hits, folded = fold_hits(found, self.raw.style, self.raw.content, top)
         return {
             "hits": [{"i": h.index, "cos": round(h.cosine, 4)} for h in hits],
             "folded": folded,
             "folders": self.closest_folders(query),
-            "copies": self.copies(*raw),
+            "copies": copies,
         }
 
     def copies(self, style: np.ndarray, content: np.ndarray) -> list[dict]:
@@ -507,6 +515,7 @@ class StyleAtlasApp(GroupEdits):
         ):
             raise ValueError(f"images must be a list of 1 to {MAX_QUERY_IMAGES} base64 strings")
         query, raw = self._embed([base64.b64decode(s, validate=True) for s in images])
+        copies = self.copies(*raw)
         only = body.get("only")
         if only is None:
             found = search(query, self.atlas.style, top=2 * SEARCH_TOP, combine=True)[0]
@@ -514,13 +523,15 @@ class StyleAtlasApp(GroupEdits):
             allowed = set(self._indices({"items": only}))
             ranked = search(query, self.atlas.style, top=len(self.atlas), combine=True)[0]
             found = [h for h in ranked if h.index in allowed][: 2 * SEARCH_TOP]
-        hits, folded = fold_hits(found, self.raw.style, self.raw.content, SEARCH_TOP)
+        hits, folded = fold_hits(
+            _besides(found, copies), self.raw.style, self.raw.content, SEARCH_TOP
+        )
         return {
             "hits": [{"i": h.index, "cos": round(h.cosine, 4)} for h in hits],
             "folded": folded,
             "fit": self.fit(raw[0]),
             "folders": self.closest_folders(query, combine=True),
-            "copies": self.copies(*raw),
+            "copies": copies,
         }
 
     def _embed(self, datas: list[bytes]) -> tuple[np.ndarray, tuple[np.ndarray, np.ndarray]]:

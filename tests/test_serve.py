@@ -321,7 +321,9 @@ def test_several_dropped_images_search_as_one_style(tmp_path, monkeypatch):
         return base64.b64encode(buf.getvalue()).decode()
 
     got = app.search_set({"images": [png(0), png(1), png(2)]})
-    assert {h["i"] for h in got["hits"][:8]} == set(range(8))  # the first blob, examples included
+    hits = [h["i"] for h in got["hits"]]
+    assert set(hits[:5]) == set(range(3, 8))  # the rest of the first blob
+    assert not {0, 1, 2} & set(hits)  # the examples themselves are listed as copies, not hits
     assert got["folders"] == []  # no sub-folders to rank
     assert [c["q"] for c in got["copies"]] == [0, 1, 2]  # the examples are the folder's own
     assert all(c["i"] == c["q"] and c["score"] > 0.99 for c in got["copies"])
