@@ -638,8 +638,7 @@ function setupExport() {
 
 const LARGE_SHARE_MB = 10;  // Discord's upload limit without Nitro
 
-function setupSaves() {  // PNG, report and shareable map under "More..."
-  $("savePng").addEventListener("click", snapNow);
+function setupSaves() {  // the report and the shareable map
   $("saveReport").addEventListener("click", async () => {
     setStatus(t("savingMap"));
     try {
@@ -678,7 +677,6 @@ function liveText() {
   $("drop").textContent = t("drop");
   document.querySelectorAll("#steps button").forEach((b) => { b.textContent = t("step_" + b.dataset.step); });
   $("saveMap").textContent = t("saveMap"); $("saveReport").textContent = t("saveReport");
-  $("savePng").textContent = t("savePng");
   $("undo").textContent = t("undo");
   $("expLayout").options[0].textContent = t("plainFolders");
   $("expName").placeholder = t("conceptName");

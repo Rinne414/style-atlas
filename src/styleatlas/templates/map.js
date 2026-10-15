@@ -656,6 +656,7 @@ function applyText() {
   $("theme").title = t("tipTheme"); $("mode").title = t("tipMode"); $("names").title = t("tipNames"); $("home").title = t("tipHome");
   if (!recordingNow) $("rec").textContent = t("rec");
   $("rec").title = t("tipRec");
+  $("savePng").textContent = t("savePngShort"); $("savePng").title = t("tipSavePng");
   $("layoutSel").title = t("tipLayoutSel");
   $("lang").textContent = lang === "zh" ? "EN" : "中";
   $("helpBtn").title = t("keys");
@@ -715,6 +716,7 @@ let spinPref = null;
 try { spinPref = sessionStorage.getItem(SPIN_KEY); } catch (e) { /* storage off */ }
 setSpin(spinPref !== "0");
 $("spin").addEventListener("click", () => setSpin(!controls.autoRotate));
+$("savePng").addEventListener("click", snapNow);
 canvas.addEventListener("pointerdown", () => { if (controls.autoRotate) setSpin(false); });
 $("home").addEventListener("click", () => {
   focusCluster = null; selected = null; searchHits = null; filter = ""; folderFilter = null; tagOnly = null;
