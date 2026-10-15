@@ -9,7 +9,9 @@ the style changes most (optimal change points), with two tests:
   second says the periods are worth training apart. A drift no quadratic can follow, such as fast
   changes at both ends around a long stable middle, also counts as turns.
 
-Both use the same cuts the user sees, on the distinct works (near-duplicates counted once).
+Both use the same cuts the user sees, on the distinct works (near-duplicates counted once), and
+both shuffle with the neighbours' likeness kept (an AR(1) sieve): artists post series, and plain
+shuffles of such works make any time order look special.
 docs/BENCHMARKS.md, "Periods along the timeline", has the measurements."""
 
 from __future__ import annotations
@@ -28,6 +30,7 @@ TEST_MIN = 20  # distinct works the tests need at least (and 2 per period's mini
 TREND_DEGREE = (
     2  # the turns test's smooth trend; a cubic or quartic absorbed real steps (BENCHMARKS)
 )
+MAX_LAG1 = 0.9  # neighbour dependence the tests allow for at most
 CLEAR_P = 0.05
 
 
@@ -218,15 +221,40 @@ def _tests(z: np.ndarray, cuts: np.ndarray, k: int, min_size: int, seed: int) ->
     observed = _separation(z, cuts)
     rng = np.random.default_rng(seed)
     trend, resid, off_trend = _smooth_trend(z)
+    phi = _lag1(resid)  # neighbours alike beyond the trend (a series posted together)
+    centred = z - z.mean(axis=0)
     hits_time = hits_turns = 0
     for _ in range(TEST_ROUNDS):
-        shuffled = z[rng.permutation(len(z))]
+        shuffled = _ar_shuffle(rng, centred, phi)
         hits_time += _separation(shuffled, segment(shuffled, k, min_size)) >= observed
-        drifting = trend + off_trend(resid[rng.permutation(len(z))])  # the same trend exactly
+        drifting = trend + off_trend(_ar_shuffle(rng, resid, phi))  # the same trend exactly
         hits_turns += _separation(drifting, segment(drifting, k, min_size)) >= observed
     p_time = (1 + hits_time) / (1 + TEST_ROUNDS)
     p_turns = (1 + hits_turns) / (1 + TEST_ROUNDS)
     return round(p_time, 3), round(p_turns, 3)
+
+
+def _lag1(x: np.ndarray) -> float:
+    """How alike neighbouring rows are: the pooled lag-1 autocorrelation, corrected for its
+    downward bias in short series (Kendall 1954), between 0 and MAX_LAG1."""
+    phi = float((x[1:] * x[:-1]).sum() / (x * x).sum())
+    phi += (1 + 3 * phi) / len(x)
+    return min(max(phi, 0.0), MAX_LAG1)
+
+
+def _ar_shuffle(rng: np.random.Generator, x: np.ndarray, phi: float) -> np.ndarray:
+    """The rows of `x` in a random order that keeps a lag-1 dependence `phi`: the innovations of
+    an AR(1) fit, shuffled and rebuilt (a sieve bootstrap). With phi 0, a plain shuffle. A plain
+    shuffle of works whose neighbours are alike makes any time order look special (BENCHMARKS)."""
+    if phi <= 0:
+        return x[rng.permutation(len(x))]
+    from scipy.signal import lfilter
+
+    innovations = x[1:] - phi * x[:-1]
+    start = x[rng.integers(len(x))][None, :]
+    return lfilter(
+        [1.0], [1.0, -phi], np.vstack([start, innovations[rng.permutation(len(x) - 1)]]), axis=0
+    )
 
 
 def _smooth_trend(z: np.ndarray) -> tuple:

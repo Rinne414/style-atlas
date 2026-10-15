@@ -56,6 +56,18 @@ def test_a_single_turn_is_told_from_drift():
     assert verdict(params) == "turns"
 
 
+def test_a_series_of_alike_neighbours_is_not_a_time_effect():
+    # no change over time, but each work is a bit like the one before (series posted together):
+    # plain shuffles of such works made pure noise look time-dependent
+    rng = np.random.default_rng(4)
+    n, d, phi = 60, 64, 0.4
+    x = np.empty((n, d))
+    x[0] = rng.normal(size=d)
+    for i in range(1, n):
+        x[i] = phi * x[i - 1] + np.sqrt(1 - phi**2) * rng.normal(size=d)
+    assert verdict(cluster_timeline(x, np.arange(n, dtype=float), 3).params) == "none"
+
+
 def test_too_few_distinct_works_are_not_tested():
     x = _styles([8, 8, 8])
     params = cluster_timeline(x, np.arange(24, dtype=float), 3).params

@@ -551,30 +551,58 @@ C, D = cubic, quartic trend with orthogonal residuals. Drifts have amplitude 6, 
   the page and the command say "more abruptly than a smooth curve explains", not "proven eras".
 - The time test is about 5% on pure noise at 60 works (a second Sonnet review, 2026-10-16).
 
+**Neighbours alike: shuffle with the dependence kept.** Artists post series, so a work is often
+a bit like the one before even when near-duplicates are removed. On the 13 artists below with 30+
+distinct works, the residuals (after the quadratic trend, PCA-32) of neighbours had a mean cosine
+of +0.06 (up to +0.16, rebecca and yaegashi_nan; higher than for works more than 10 apart, -0.02
+to +0.01, in 11 of 13), and about 0 from lag 2 on. Shuffling single works destroys that, so any time order
+looks special. Simulated with AR(1) noise (phi = lag-1 correlation), 60 works, 40 runs:
+
+| Data, phi | single shuffles | blocks of 5 | AR(1) sieve |
+|---|---|---|---|
+| Noise 0.15: time called significant | 40% | 8% | 10% |
+| Noise 0.30: time called significant | 100% | 15% | 12% |
+| Linear drift 0.15: *turns* | 20% | 5% | 8% |
+| Linear drift 0.30: *turns* | 62% | 12% | 5% |
+| One step of 6, phi 0-0.30: *turns* | 95-100% | 55-60% | 90-95% |
+
+Both tests now use the sieve: one lag-1 coefficient pooled over dimensions is fitted to the
+residuals (Kendall's small-sample bias correction, clipped to 0-0.9), and each round shuffles the
+AR(1) innovations and rebuilds the series (with phi 0 it is a plain shuffle). Block permutations
+(Kirch; Chen, arXiv 1903.01598) also hold the level but lose much of the power here. The shipped
+code, same 40 runs per row:
+
+| Data (60 works) | phi 0 | phi 0.15 | phi 0.30 |
+|---|---|---|---|
+| Noise: time significant (*drift* or *turns*) | 10% | 7% | 7% |
+| Linear drift: *turns* | 2% | 5% | 5% |
+| One step of 4: *turns* | 68% | 55% | 48% |
+| One step of 6: *turns* | 98% | 98% | 82% |
+
 Real artists: the 14 period_corpus artists (Danbooru posting order as time), 3 periods:
 
 | Artist | Works | Distinct | time p | turns p | Separation | Verdict |
 |---|---|---|---|---|---|---|
-| bow_(bhp) | 60 | 48 | 0.09 | 0.11 | +0.010 | none |
+| bow_(bhp) | 60 | 48 | 0.15 | 0.25 | +0.010 | none |
 | dairi | 60 | 13 | - | - | +0.250 | few |
-| ebifurya | 54 | 51 | 0.01 | 0.05 | +0.057 | drift |
-| hammer_(sunset_beach) | 55 | 53 | 0.01 | 0.21 | +0.044 | drift |
+| ebifurya | 54 | 51 | 0.02 | 0.05 | +0.057 | drift |
+| hammer_(sunset_beach) | 55 | 53 | 0.01 | 0.24 | +0.044 | drift |
 | haruyama_kazunori | 60 | 60 | 0.09 | 0.63 | +0.008 | none |
-| itomugi-kun | 54 | 54 | 0.01 | 0.06 | +0.096 | drift |
+| itomugi-kun | 54 | 54 | 0.01 | 0.08 | +0.096 | drift |
 | kanon_(kurogane_knights) | 60 | 59 | 0.49 | 0.98 | -0.004 | none |
-| matsunaga_kouyou | 51 | 46 | 0.04 | 0.24 | +0.021 | drift |
-| naga_u | 60 | 60 | 0.08 | 0.05 | +0.027 | none |
-| ojipon | 60 | 59 | 0.22 | 0.86 | +0.007 | none |
-| onikobe_rin | 60 | 60 | 0.01 | 0.07 | +0.029 | drift |
+| matsunaga_kouyou | 51 | 46 | 0.06 | 0.29 | +0.021 | none |
+| naga_u | 60 | 60 | 0.05 | 0.09 | +0.027 | none |
+| ojipon | 60 | 59 | 0.31 | 0.94 | +0.007 | none |
+| onikobe_rin | 60 | 60 | 0.02 | 0.09 | +0.029 | drift |
 | pageratta | 30 | 30 | 0.01 | 0.01 | +0.095 | turns |
-| rebecca_(keinelove) | 60 | 60 | 0.01 | 0.01 | +0.072 | turns |
+| rebecca_(keinelove) | 60 | 60 | 0.01 | 0.02 | +0.072 | turns |
 | yaegashi_nan | 60 | 49 | 0.01 | 0.01 | +0.047 | turns |
 
 (Separation: silhouette of the periods on the distinct works, 32 PCA dimensions.)
 
-- 3 of 14 have clear turns, 5 only drift (3 of them with turns p 0.05-0.07, at the edge), 5
-  showed no clear link to time with 3 periods (3 of them at time p 0.08-0.09, so "not found" rather
-  than "none"), 1 has too few distinct works. The first version's "8 of 13 beyond chance" counted
+- 3 of 14 have turns, 4 only drift, 6 showed no clear link to time with 3 periods (matsunaga_kouyou
+  and naga_u at time p 0.05-0.06, so "not found" rather than "none"), 1 has too few distinct works.
+  Allowing for alike neighbours moved matsunaga_kouyou from *drift* to *none*. The first version's "8 of 13 beyond chance" counted
   the drifting artists as eras.
 - dairi shows why near-duplicates must count once: 60 posts are 13 pictures, and with the copies
   the cuts look like clear turns (p 0.01 on both tests).

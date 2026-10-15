@@ -118,9 +118,10 @@ All of these are in `docs/BENCHMARKS.md`.
   2026-10-16: a break in a polynomial regression (Aue, Horvath, Huskova and Kokoszka, Bernoulli
   2008; projecteuclid.org/download/pdf_1/euclid.bj/1219669624) and smooth versus abrupt change
   (Chen and Hong, Econometrica 2012). Open: choosing the number of periods from the data (a
-  penalised search such as PELT), measured the same way; and residuals that are not exchangeable
-  (a series of similar works posted together that near-duplicate removal does not catch makes
-  the turns test too lenient; a block permutation would be the fix).
+  penalised search such as PELT), measured the same way. Done 2026-10-16: residuals are not
+  exchangeable (neighbours alike, mean lag-1 cosine +0.06), so both nulls now shuffle AR(1)
+  innovations (a sieve) instead of single works; block permutations (Kirch; Chen, arXiv
+  1903.01598) held the level but lost much power (BENCHMARKS).
 - **Related tools, checked again 2026-10-11.** LoRA Dataset Coach (github.com/akalavol/
   LoRA-Dataset-Coach) now covers face identity, sharpness, pose, expression, duplicates (dHash +
   face similarity), AI-image detection, bucket balance, CLIP-cluster diversity, "overfit attribute"

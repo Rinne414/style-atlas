@@ -16,7 +16,7 @@
   - 13 位中有 12 位，畫風距離會隨發表時間差而變大，而且顯著。
   - `period`（分成 3 段）和發表時間的吻合度，跟以前用的固定門檻 0.35 差不多（兩者都遠好於「中」）；差別在 0.35 有 4 位畫師有 36～77% 的圖沒分到任何群，新的幾乎每張圖都有分到。
   - 作品少（約 50 張）時，分段結果不太穩定，請在網頁上看時間分佈，必要時合併或移動。分群結果請當作**初步整理**。
-  - 檔名有時間時，`--granularity timeline` 依時間順序在畫風變化最大的地方切段，再用兩個檢定區分「沒找到和時間的關係」、「只有漸變」和「有轉折」。14 位畫師裡 3 位有轉折，5 位只有漸變，5 位沒找到和時間的明顯關係，1 位去掉近重複後作品太少；有幾位的 p 值剛好在門檻邊緣。只檢驗「切點比打亂時間順序明顯」是不夠的：單純的漸變也會顯著，舊版因此高估成 8 位。「有轉折」的意思是「變化比隨時間平滑變化的曲線（二次曲線）更突然」：一開始和最後變很快、中間很穩定的畫風也會判成有轉折。
+  - 檔名有時間時，`--granularity timeline` 依時間順序在畫風變化最大的地方切段，再用兩個檢定區分「沒找到和時間的關係」、「只有漸變」和「有轉折」。14 位畫師裡 3 位有轉折，4 位只有漸變，6 位沒找到和時間的明顯關係，1 位去掉近重複後作品太少；有幾位的 p 值剛好在門檻邊緣。畫師常連續發表一系列相像的作品，檢定會把這種「相鄰作品比較像」考慮進去，否則純雜訊也會被當成和時間有關。只檢驗「切點比打亂時間順序明顯」是不夠的：單純的漸變也會顯著，舊版因此高估成 8 位。「有轉折」的意思是「變化比隨時間平滑變化的曲線（二次曲線）更突然」：一開始和最後變很快、中間很穩定的畫風也會判成有轉折。
 - **先排除重複圖再分群**，也就是加 `--dedupe`。否則同一張圖的多個版本會自成一群。近重複的門檻刻意設得保守（0.95）：在 0.92～0.95 之間，常常是同一角色換了姿勢的不同圖，對 LoRA 來說那是有效的訓練圖。
 - `compare` 的 z 值門檻（z ≥ 2.3 為「明顯不同」、z < 1.5 為「同一畫風」）來自一位使用者在固定內容的 NovelAI 算圖上的人眼校準，不是通用標準。換了資料，最好先用 `calibrate` 重新校準。
 
@@ -96,9 +96,9 @@ Blind clustering of 2-5 mixed artists scores ARI about 0.5.
 
 Splitting one artist's periods: when the file names carry a time, use `--granularity timeline
 --time name`: contiguous periods cut where the style changes most, and two tests that tell a
-style with no clear link to time, a smooth drift and turns apart. Of 14 artists, 3 had turns, 5
-only drifted, 5 showed no clear link to time and 1 had too few distinct works (several near the
-p = 0.05 edge); a test against shuffled time orders alone passes smooth drift too, and the first
+style with no clear link to time, a smooth drift and turns apart. Of 14 artists, 3 had turns, 4
+only drifted, 6 showed no clear link to time and 1 had too few distinct works (several near the
+p = 0.05 edge). The tests allow for neighbouring works being alike (series posted together); a test against shuffled time orders alone passes smooth drift too, and the first
 version counted 8 of 13 that way. "Turns" means more abrupt than a quadratic trend over time: a
 style that changes fast at the start and the end with a long stable middle counts too.
 Without a time, use `--granularity period`, with `--time name` to see each
