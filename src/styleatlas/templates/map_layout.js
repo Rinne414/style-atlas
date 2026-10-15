@@ -152,6 +152,30 @@ function drawNames() {
   fadeNames();
 }
 
+const DECLUTTER_MS = 250;  // how often overlapping group names are sorted out
+let lastDeclutter = 0;
+function declutterNames(now) {  // where group names overlap on screen, the larger (or focused) group's wins
+  if (!nameSprites || now - lastDeclutter < DECLUTTER_MS) return;
+  lastDeclutter = now;
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+  const up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+  const toPx = (v) => { const p = v.clone().project(camera); return [(p.x + 1) / 2 * w, (1 - p.y) / 2 * h, p.z]; };
+  const names = nameSprites.children.filter((sp) => sp.userData.note === undefined);  // notes always stay
+  names.sort((a, b) => (b.userData.c === focusCluster) - (a.userData.c === focusCluster));  // stable: larger first
+  const kept = [];
+  names.forEach((sp) => {
+    const [x, y, z] = toPx(sp.position);
+    const [xr] = toPx(sp.position.clone().addScaledVector(right, sp.scale.x / 2));
+    const [, yu] = toPx(sp.position.clone().addScaledVector(up, sp.scale.y / 2));
+    const hw = Math.abs(xr - x), hh = Math.abs(y - yu);
+    const box = [x - hw, y - hh, x + hw, y + hh];
+    const clash = z > 1 || kept.some((b) => box[0] < b[2] && box[2] > b[0] && box[1] < b[3] && box[3] > b[1]);
+    sp.visible = !clash;
+    if (!clash) kept.push(box);
+  });
+}
+
 function fadeNames() {  // names step back with the points: a focused group keeps its own
   if (!nameSprites) return;
   const dimmed = selected !== null || searchHits !== null || filter !== "" || folderFilter !== null;

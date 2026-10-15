@@ -826,7 +826,7 @@ function setSize(s) { pointSize = Math.min(0.6, Math.max(0.02, s)); pages.forEac
 
 // P, or the button in Advanced: draw a frame now and save it, so it works in a background tab too
 // (no animation frames run there); toBlob reads the canvas right after the render
-function snapNow() { renderer.render(scene, camera); saveSnapshot(); }
+function snapNow() { lastDeclutter = 0; declutterNames(performance.now()); renderer.render(scene, camera); saveSnapshot(); }
 function saveSnapshot() {  // right after render(), while the frame is still in the canvas
   canvas.toBlob((blob) => {
     if (!blob) return;
@@ -850,5 +850,6 @@ function animate() {
     if (flyTo.k >= 1) flyTo = null;
   }
   controls.update(Math.min(clock.getDelta(), 0.1));  // real time: same turn speed at any frame rate
+  declutterNames(performance.now());
   renderer.render(scene, camera);
 }
