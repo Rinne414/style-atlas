@@ -53,6 +53,7 @@ JSON_ROUTES = {  # POST route -> StyleAtlasApp method taking the JSON body
     "api/note": "note",
     "api/search_set": "search_set",
     "api/save_map": "save_map",
+    "api/artist_map": "artist_map",
     "api/save_report": "save_report",
     "api/open_output": "open_output",
     "api/copy_hits": "copy_hits",
@@ -175,6 +176,13 @@ class StyleAtlasHandler(BaseHTTPRequestHandler):
         if parts == ["status"]:  # the waiting page asks until the app is ready
             app = self.app
             self._json(200, app.status() if isinstance(app, Preparing) else {"ready": True})
+            return
+        if parts == ["artist_map"] and not isinstance(self.app, Preparing):  # written on request
+            page = self.app.artist_map_html()
+            if page is None:
+                self.send_error(HTTPStatus.NOT_FOUND)
+            else:
+                self._send(200, page, "text/html; charset=utf-8")
             return
         if parts == ["favicon.ico"]:
             self.send_response(HTTPStatus.NO_CONTENT)

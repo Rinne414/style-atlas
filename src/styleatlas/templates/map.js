@@ -438,6 +438,7 @@ function copiesIn(members) {  // images of the group that have a near-duplicate 
 
 const folderOf = (i) => { const n = PTS[i].n; const k = n.indexOf("/"); return k < 0 ? "." : n.slice(0, k); };
 const SEVERAL_FOLDERS = new Set(PTS.map((_, i) => folderOf(i))).size > 1;
+function folderCount() { return new Set(PTS.map((_, i) => folderOf(i)).filter((f) => f !== ".")).size; }
 
 const MAIN_SHARE = 0.8;  // a group "comes from" a sub-folder when this share of it does
 

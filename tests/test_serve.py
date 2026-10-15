@@ -834,3 +834,31 @@ def test_a_title_with_a_placeholder_stays_as_it_is():
     page = Preparing("__HEADING__ /*__TEXT__*/{}").page()
     assert "<title>__HEADING__ /*__TEXT__*/{}</title>" in page
     assert '"elapsed"' in page  # the script still got its texts
+
+
+def test_the_artist_map_shows_one_point_per_sub_folder(tmp_path):
+    x, _ = make_blobs([5, 5, 5])
+    paths = []
+    for i in range(len(x)):
+        p = tmp_path / f"artist{i // 5}" / f"img{i}.png"
+        p.parent.mkdir(exist_ok=True)
+        Image.new("RGB", (16, 16), (i, 0, 0)).save(p)
+        paths.append(p)
+    app = StyleAtlasApp(Atlas(tmp_path, paths, x, x, "sig"), EncodeOptions(device="cpu"), "pca")
+    assert app.artist_map_html() is None  # nothing until it is asked for
+    done = app.artist_map({})
+    assert done["folders"] == 3 and done["url"] == "artist_map" and Path(done["file"]).exists()
+    srv = bind(app, port=0)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        status, page = request(srv.server_address[1], "GET", "/artist_map")
+        assert status == 200 and b"artist0" in page
+    finally:
+        srv.shutdown()
+        srv.server_close()
+
+
+def test_the_artist_map_needs_sub_folders(tmp_path):
+    app, _ = _app(tmp_path)
+    with pytest.raises(ValueError, match="sub-folders"):
+        app.artist_map({})

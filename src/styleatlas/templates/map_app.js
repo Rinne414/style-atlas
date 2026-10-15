@@ -666,6 +666,20 @@ function setupSaves() {  // the report and the shareable map
       addOpenFolder();
     } catch (e) { setStatus(String(e.message || e)); }
   });
+  $("artistMap").hidden = folderCount() < 3;  // one point per sub-folder (artist)
+  $("artistMap").addEventListener("click", async () => {
+    const tab = window.open("", "_blank");  // opened now, while the click still counts
+    setStatus(t("savingMap"));
+    try {
+      const r = await post("api/artist_map", "{}", "application/json");
+      setStatus(t("artistMapDone").replace("{n}", r.folders).replace("{k}", r.families).replace("{f}", r.file));
+      if (tab) tab.location = r.url;
+      else {  // the browser blocked the new tab: a link instead
+        const a = document.createElement("a"); a.href = r.url; a.target = "_blank"; a.textContent = t("openArtistMap");
+        a.style.marginLeft = "8px"; $("status").append(a);
+      }
+    } catch (e) { if (tab) tab.close(); setStatus(String(e.message || e)); }
+  });
   $("saveMap").addEventListener("click", async () => {
     setStatus(t("savingMap"));
     try {
@@ -696,6 +710,7 @@ function liveText() {
   $("drop").textContent = t("drop");
   document.querySelectorAll("#steps button").forEach((b) => { b.textContent = t("step_" + b.dataset.step); });
   $("saveMap").textContent = t("saveMap"); $("saveReport").textContent = t("saveReport");
+  $("artistMap").textContent = t("artistMap"); $("artistMap").title = t("tipArtistMap");
   $("undo").textContent = t("undo");
   $("expLayout").options[0].textContent = t("plainFolders");
   $("expName").placeholder = t("conceptName");

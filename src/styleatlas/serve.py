@@ -22,7 +22,16 @@ from pathlib import Path
 
 import numpy as np
 
-from styleatlas.atlas import LOAD_ERRORS, Atlas, EncodeOptions, build_atlas, get_encoder
+from styleatlas.atlas import (
+    FAMILY_CUT,
+    LOAD_ERRORS,
+    MIN_FOLDERS,
+    Atlas,
+    EncodeOptions,
+    build_atlas,
+    folder_atlas,
+    get_encoder,
+)
 from styleatlas.cluster import (
     ARTISTS,
     GRANULARITY,
@@ -81,6 +90,7 @@ from styleatlas.report import (
     map_payload,
     render_html,
     with_reference,
+    write_map,
     write_payload,
 )
 from styleatlas.search import fold_hits, rank_folders, search, style_path, warm
@@ -134,6 +144,9 @@ def _besides(found: list, copies: list[dict]) -> list:
     (an image dragged in from the folder would otherwise lead its own results at 1.00)."""
     shown = {c["i"] for c in copies}
     return [h for h in found if h.index not in shown]
+
+
+ARTIST_MAP = "artist_map.html"
 
 
 class StyleAtlasApp(GroupEdits):
@@ -384,6 +397,38 @@ class StyleAtlasApp(GroupEdits):
             payload["notes"] = self.notes()
         path = write_payload(payload, out)
         return {"file": str(path), "mb": round(path.stat().st_size / 1e6, 1)}
+
+    def artist_map(self, body: dict) -> dict:
+        """The sub-folders (e.g. one per artist) as one point each at their average style,
+        grouped into families of similar folders, as `map --by-folder`: written next to the
+        exports and served at /artist_map."""
+        folders = folder_atlas(self.raw)  # plain CSD, as the family cut was measured
+        if len(folders) < MIN_FOLDERS:
+            raise ValueError(
+                tr(
+                    f"the artist map needs {MIN_FOLDERS} or more sub-folders (e.g. one per "
+                    f"artist); this folder has {len(folders)}",
+                    f"畫師地圖需要 {MIN_FOLDERS} 個以上的子資料夾（例如每位畫師一個）；"
+                    f"這個資料夾有 {len(folders)} 個",
+                )
+            )
+        families = cluster_styles(folders.style, threshold=FAMILY_CUT, min_size=2)
+        title = tr(
+            f"{self.title or self.raw.root.name}: artists",
+            f"{self.title or self.raw.root.name}：畫師地圖",
+        )
+        path = write_map(folders, families, self.out_dir / ARTIST_MAP, self.projection, title=title)
+        return {
+            "file": str(path),
+            "folders": len(folders),
+            "families": families.n_clusters,
+            "url": "artist_map",
+        }
+
+    def artist_map_html(self) -> bytes | None:
+        """The artist map written by artist_map, or None before."""
+        path = self.out_dir / ARTIST_MAP
+        return path.read_bytes() if path.exists() else None
 
     def copy_hits(self, body: dict) -> dict:
         """Copy images ("items", e.g. search results) with their captions into a new

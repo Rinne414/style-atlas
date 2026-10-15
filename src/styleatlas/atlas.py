@@ -80,6 +80,10 @@ class Atlas:
         return replace(self, looks=measure_looks(self.paths, opts, progress))
 
 
+FAMILY_CUT = 0.35  # folder means: about 11 families of 269 artists, loose (BENCHMARKS.md)
+MIN_FOLDERS = 3  # sub-folders an artist map needs
+
+
 def folder_atlas(atlas: Atlas) -> Atlas:
     """One point per first-level sub-folder (an artist, a style): the folder's mean style,
     shown by its most typical image (the one closest to that mean). Loose images at the top

@@ -31,6 +31,9 @@ New:
   for one query image, 「只看很像的」 shows only those (and copies only those to a folder).
 - **「存圖」/Save PNG in the top toolbar** of every map, shared HTML maps included (it was under
   More… or the P key).
+- **「畫師地圖」/Artist map in the web app**: with three or more sub-folders (e.g. one per artist), one
+  click writes and opens the map `map --by-folder` makes (one point per sub-folder at its average
+  style, grouped into families), saved as `artist_map.html` next to the exports.
 - **Clearer exploring** (from a Sonnet first-time-user test of an illustration fan with 12 artists):
   search results below 0.43 (the median of pairs by different artists) are faded and the legend
   says why the numbers do not always go down (the order comes from the search itself); the

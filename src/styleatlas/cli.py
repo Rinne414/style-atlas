@@ -53,7 +53,6 @@ def cmd_embed(a: argparse.Namespace) -> int:
 
 LARGE_MAP = 8000  # thumbnails make the single-file map ~2 KB per image
 LARGE_SHARE_MB = 10  # Discord's upload limit without Nitro
-FAMILY_CUT = 0.35  # folder means: about 11 families of 269 artists, loose (BENCHMARKS.md)
 
 
 def cmd_map(a: argparse.Namespace) -> int:
@@ -62,10 +61,10 @@ def cmd_map(a: argparse.Namespace) -> int:
 
     atlas = _atlas(a, a.folder).with_looks(_opts(a), log)
     if a.by_folder:
-        from styleatlas.atlas import folder_atlas
+        from styleatlas.atlas import FAMILY_CUT, MIN_FOLDERS, folder_atlas
 
         atlas = folder_atlas(atlas)
-        if len(atlas) < 3:
+        if len(atlas) < MIN_FOLDERS:
             log(
                 tr(
                     f"{a.folder} has {len(atlas)} sub-folders; --by-folder needs at least 3",
