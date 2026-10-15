@@ -338,7 +338,8 @@ function select(i) {
       (HAS_TIME && PTS[i].ts !== null ? `${fmtTime(PTS[i].ts)} · ` : "") +
       (DATA.reference && PTS[i].r !== null ? `${t("m_ref")} ${PTS[i].r.toFixed(3)} (${PTS[i].rn}) · ` : "")));
   const a = document.createElement("a"); a.href = PTS[i].f; a.target = "_blank"; a.rel = "noopener";
-  a.textContent = t("open"); a.style.color = "var(--accent)"; kv.append(a);
+  a.textContent = t(DATA.live ? "open" : "openShared"); a.style.color = "var(--accent)"; kv.append(a);
+  if (!DATA.live) a.title = t("openSharedTip");  // a shared file links to the sender's folder
   pane.append(kv);
   if (DATA.live) pane.append(voteButtons(i), captionLine(i), noteBox(i));
   else if (NOTES[String(i)]) { const n = document.createElement("div"); n.className = "meta"; n.textContent = `${t("noteLabel")}${NOTES[String(i)]}`; pane.append(n); }
@@ -639,7 +640,7 @@ function buildDups() {
   const pane = $("pane-dups"); pane.replaceChildren();
   const groups = DATA.duplicates || [];
   const help = document.createElement("div"); help.className = "kv";
-  help.textContent = groups.length ? t("dupHelp") : t("noDups");
+  help.textContent = groups.length ? t(DATA.live ? "dupHelp" : "dupHelpShared") : t("noDups");
   pane.append(help);
   groups.forEach((g, n) => {
     const h = document.createElement("h3"); h.textContent = `#${n + 1} · ${g.length}`;
@@ -710,7 +711,13 @@ $("find").addEventListener("input", (e) => {
     tagTimer = setTimeout(() => findTag(text.slice(1)), 300);
     return;
   }
-  filter = text; searchHits = null; recolor();
+  filter = text; searchHits = null;
+  if (text) { selected = null; focusCluster = null; }  // else they hide what the filter matches
+  recolor();
+  if (text) {
+    const q = text.toLowerCase();
+    setStatus(t("filterHits").replace("{n}", PTS.filter((p) => p.n.toLowerCase().includes(q)).length));
+  }
 });
 
 async function findTag(tag) {

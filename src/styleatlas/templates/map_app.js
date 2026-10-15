@@ -2,7 +2,23 @@
 // one module script by report.render_html, so it shares map.js's scope; the start-up lines
 // run last, once every declaration in both files exists.
 
-function setStatus(msg) { $("status").textContent = msg || ""; }
+function setStatus(msg) {
+  $("status").textContent = msg || "";
+  if (!DATA.live) toast(msg);  // a shared map has no bottom bar: show the message for a moment
+}
+
+const TOAST_MS = 6000;
+let toastTimer = null;
+function toast(msg) {
+  let el = document.getElementById("toast");
+  if (!el) {
+    el = document.createElement("div"); el.id = "toast"; el.setAttribute("role", "status");
+    document.querySelector("main").append(el);
+  }
+  el.textContent = msg || ""; el.hidden = !msg;
+  clearTimeout(toastTimer);
+  if (msg) toastTimer = setTimeout(() => { el.hidden = true; }, TOAST_MS);
+}
 
 // A button after a status message that names a file or folder in the output folder.
 function addOpenFolder() {

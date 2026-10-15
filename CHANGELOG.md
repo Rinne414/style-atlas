@@ -31,6 +31,11 @@ New:
   for one query image, 「只看很像的」 shows only those (and copies only those to a folder).
 - **「存圖」/Save PNG in the top toolbar** of every map, shared HTML maps included (it was under
   More… or the P key).
+- **Shared map files work for the person they are sent to** (from a Sonnet test of someone who
+  received one): messages (saved picture, recording, filter) show in a toast instead of the hidden
+  bottom bar; the file link says it needs the sender's folder; the Duplicates tab no longer talks
+  about exporting; the file-name filter clears an earlier selection so its matches show, and counts
+  them.
 - **The taste tab explains itself** (from a Sonnet first-time-user test of the taste features, which
   learned its acted-out taste at AUC 0.98 from 27 ratings): rating mode shows the like/dislike
   counts, the AUC says how many ratings it rests on and that few or very different ones read high,
