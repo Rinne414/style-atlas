@@ -218,9 +218,12 @@ def test_cluster_can_cap_each_group(lib, tmp_path, capsys):
 
 
 def test_calibrate_taste_embed_and_audit_text(lib, tmp_path, capsys):
-    assert main(["calibrate", str(lib), "--device", "cpu"]) == 0
+    assert main(["calibrate", str(lib), "--json", "--device", "cpu"]) == 0
     floors = json.loads(capsys.readouterr().out)
     assert set(floors["per_group"]) == {"red", "green", "blue"} and floors["noise_floor"] >= 0
+    assert main(["calibrate", str(lib), "--device", "cpu"]) == 0
+    out = capsys.readouterr().out
+    assert f"--noise-floor {floors['noise_floor']}" in out and "(6 images)" in out
     assert main(["calibrate", str(lib / "red"), "--device", "cpu"]) == 1  # no sub-folders
 
     votes = tmp_path / "votes"  # shades, so that no two pictures share a vector

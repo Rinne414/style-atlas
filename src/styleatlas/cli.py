@@ -34,7 +34,7 @@ from styleatlas.cli_sort import cmd_sort, sort_args
 from styleatlas.cluster import ARTISTS, GRANULARITY, METHODS, PERIODS
 from styleatlas.encoder import CROP_MODES, RESOLUTIONS
 from styleatlas.images import TIME_SOURCES, find_images, labels_from_folders
-from styleatlas.lang import columns, tr, wrap
+from styleatlas.lang import columns, pad, tr, wrap
 from styleatlas.metrics import (
     PLAIN,
     split_half_noise,
@@ -358,11 +358,12 @@ def cmd_calibrate(a: argparse.Namespace) -> int:
     paths = find_images(root)
     kept, style, _, _ = embed_paths(paths, _opts(a), log)
     labels = np.array(labels_from_folders(kept, root))
-    floors = {}
+    floors, sizes = {}, {}
     for lbl in sorted(set(labels.tolist()) - {""}):
         idx = np.flatnonzero(labels == lbl)
         if len(idx) >= 4:
             floors[lbl] = round(split_half_noise(style[idx]), 4)
+            sizes[lbl] = len(idx)
     if not floors:
         log(
             tr(
@@ -371,10 +372,34 @@ def cmd_calibrate(a: argparse.Namespace) -> int:
             )
         )
         return 1
+    floor = round(float(np.median(list(floors.values()))), 4)
+    if a.json:
+        print(json.dumps({"per_group": floors, "noise_floor": floor}, indent=1))
+        return 0
     print(
-        json.dumps(
-            {"per_group": floors, "noise_floor": round(float(np.median(list(floors.values()))), 4)},
-            indent=1,
+        tr(
+            "each sub-folder's noise: the distance between two random halves of it",
+            "每個子資料夾的雜訊：隨機分成兩半之後，兩半之間的距離",
+        )
+    )
+    for lbl, value in floors.items():
+        print(
+            f"  {pad(lbl, 30)}{value:.4f}  " + tr(f"({sizes[lbl]} images)", f"（{sizes[lbl]} 張）")
+        )
+    print(
+        tr(
+            f"median {floor:.4f}: pass it to compare as --noise-floor {floor}",
+            f"中位數 {floor:.4f}：compare 時加上 --noise-floor {floor}",
+        ),
+        flush=True,  # before the note below, also when the output is piped
+    )
+    log(
+        tr(
+            "each sub-folder must hold one style (mixed periods make the number too large); "
+            "--noise-floor makes compare use the z scale, also with 5 or more images a side, "
+            "where it would otherwise read the distance next to 443 real artists",
+            "每個子資料夾都要是同一種畫風（混了不同時期，數字會偏大）；加了 --noise-floor，"
+            "compare 就改用 z 值，每邊 5 張以上時也一樣（不加的話會和 443 位真實畫師比）",
         )
     )
     return 0
@@ -940,6 +965,7 @@ def _add_measure_commands(add: Adder) -> None:
         ),
     )
     p.add_argument("folder")
+    p.add_argument("--json", action="store_true", help=tr("print JSON", "輸出 JSON 格式"))
     p = add(
         "bench",
         cmd_bench,

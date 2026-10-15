@@ -9,6 +9,8 @@ Changed output (scripts that parse the text should use `--json`):
   z scale (z and its verdict stay in `--json`, and in the text with fewer images or
   `--noise-floor`); `--json` adds `separable` and `artist_reading`; the near-copy line shows only
   when there are near-copies (or with few images).
+- `calibrate` prints each sub-folder's noise and the `--noise-floor` to pass to `compare`; the
+  JSON it printed before needs `--json`.
 - `duplicates` prints a header line per group and one file per line (was one line per group).
 - On a Chinese system `audit` adds the meaning to each item name (`no_caption（沒有標註檔）`).
 - `cluster.fit_to_groups` takes plain CSD vectors and whitens them itself: code that passed
