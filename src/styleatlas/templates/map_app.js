@@ -692,10 +692,10 @@ function liveText() {
   $("refPath").placeholder = DATA.reference ? DATA.reference : t("refPath");
   $("refLoad").textContent = DATA.reference && !$("refPath").value.trim() ? t("refClear") : t("refLoad");
   const cur = $("gran").value;
-  const kinds = ["auto", "period", ...(HAS_TIME ? ["timeline"] : []), "artists", ...Object.keys(DATA.live.granularity), "custom"];
-  $("gran").replaceChildren(...kinds.map((k) => {
-    const o = document.createElement("option"); o.value = k; o.textContent = t(k); return o;
-  }));
+  const option = (k) => { const o = document.createElement("option"); o.value = k; o.textContent = t(k); return o; };
+  const more = document.createElement("optgroup"); more.label = t("granMore");  // less common ways
+  more.append(...["period", ...Object.keys(DATA.live.granularity), "custom"].map(option));
+  $("gran").replaceChildren(...["auto", ...(HAS_TIME ? ["timeline"] : []), "artists"].map(option), more);
   const thr = parseFloat($("thr").value);
   const match = Object.entries(DATA.live.granularity).find(([, v]) => Math.abs(v - thr) < 1e-6);
   const s = DATA.live.settings;
