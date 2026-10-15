@@ -344,9 +344,10 @@ function select(i) {
   if (DATA.live) pane.append(voteButtons(i), captionLine(i), noteBox(i));
   else if (NOTES[String(i)]) { const n = document.createElement("div"); n.className = "meta"; n.textContent = `${t("noteLabel")}${NOTES[String(i)]}`; pane.append(n); }
   const h = document.createElement("h3"); h.textContent = t("nearest"); pane.append(h);
+  const order = document.createElement("div"); order.className = "kv"; order.textContent = t("nearestOrder");
   const g = document.createElement("div"); g.className = "grid";
   PTS[i].k.forEach((j) => g.append(thumb(j)));
-  pane.append(g);
+  pane.append(order, g);
   showPane("selected");
 }
 
