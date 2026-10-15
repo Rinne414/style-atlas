@@ -61,3 +61,15 @@ def test_a_line_that_fills_placeholders_fills_all_of_them():
                 if filled and wanted - filled:
                     missing.append(f"{name}:{number} {match.group(1)} lacks {wanted - filled}")
     assert not missing, missing
+
+
+def test_no_text_key_is_defined_twice():
+    """A repeated key silently replaces the first text (the later one wins in a JS object)."""
+    from collections import Counter
+
+    text = TEMPLATES.joinpath("map_i18n.js").read_text("utf-8")
+    en_start, zh_start = text.index("en: {"), text.index("zh: {")
+    for part in (text[en_start:zh_start], text[zh_start:]):
+        keys = [k for k, _ in STRING.findall(part)] + ARRAY.findall(part)
+        twice = [k for k, n in Counter(keys).items() if n > 1]
+        assert not twice, twice

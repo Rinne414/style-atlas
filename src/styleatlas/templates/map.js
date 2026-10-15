@@ -638,6 +638,7 @@ function methodText() {
   if (DATA.method === "kmeans") return t("periodsN").replace("{n}", p.n_clusters);
   if (DATA.method === "timeline") return t("timelineN").replace("{n}", p.n_clusters);
   if (DATA.method === "hdbscan") return "HDBSCAN";
+  if (p.n_clusters === 1) return t("oneGroupLabel");
   if (p.n_clusters) return t("forcedN").replace("{n}", p.n_clusters);
   if (p.threshold === undefined) return DATA.method;
   return (p.auto ? t("autoCut") : t("cut")).replace("{t}", Number(p.threshold).toFixed(2));
@@ -671,7 +672,8 @@ function applyText() {
   }
   buildClusters(); buildOutliers(); buildDups(); liveText(); if (DATA.live) buildTaste();
   const many = DATA.clusters.length > Math.max(12, N / 8);  // e.g. one varied artist cut into dozens
-  if (DATA.live && DATA.clusters.length <= 1 && N > 10) setStatus(t("oneGroup"));
+  const chosen = DATA.live && DATA.live.settings && DATA.live.settings.k === 1;  // "one group" on purpose
+  if (DATA.live && DATA.clusters.length <= 1 && N > 10 && !chosen) setStatus(t("oneGroup"));
   else if (DATA.live && many && !DATA.live.restored && !(DATA.params || {}).edited) setStatus(t("manyGroups"));
   else if (DATA.live && DATA.live.restored && !$("status").textContent) setStatus(t("restored"));
   else if (DATA.live && !DATA.live.restored && !$("status").textContent) setStatus(t("firstHint"));

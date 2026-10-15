@@ -558,6 +558,7 @@ function setupRegroup() {  // granularity, cut, periods, the regroup button and 
       const body = g === "period" ? { method: "kmeans", k: periods }
         : g === "timeline" ? { method: "timeline", k: periods }
         : g === "artists" ? { method: "artists" }
+        : g === "one" ? { method: "agglomerative", k: 1 }  // one LoRA: every image in one group
         : { threshold: g === "auto" ? null : parseFloat($("thr").value) };
       const r = await post("api/regroup", JSON.stringify(body), "application/json");
       const key = { few: "timelineFew", none: "timelineNone", drift: "timelineDrift", turns: "timelineTurns" }[r.verdict];
@@ -708,12 +709,13 @@ function liveText() {
   const option = (k) => { const o = document.createElement("option"); o.value = k; o.textContent = t(k); return o; };
   const more = document.createElement("optgroup"); more.label = t("granMore");  // less common ways
   more.append(...["period", ...Object.keys(DATA.live.granularity), "custom"].map(option));
-  $("gran").replaceChildren(...["auto", ...(HAS_TIME ? ["timeline"] : []), "artists"].map(option), more);
+  $("gran").replaceChildren(...["auto", ...(HAS_TIME ? ["timeline"] : []), "artists", "one"].map(option), more);
   const thr = parseFloat($("thr").value);
   const match = Object.entries(DATA.live.granularity).find(([, v]) => Math.abs(v - thr) < 1e-6);
   const s = DATA.live.settings;
   const auto = s.threshold == null && !s.k;
-  const initial = s.method === "kmeans" ? "period" : s.method === "timeline" ? "timeline" : s.method === "artists" ? "artists"
+  const initial = s.method === "agglomerative" && s.k === 1 ? "one"
+    : s.method === "kmeans" ? "period" : s.method === "timeline" ? "timeline" : s.method === "artists" ? "artists"
     : (auto ? "auto" : (match ? match[0] : "custom"));
   $("gran").value = cur && cur !== "custom" ? cur : initial;
   $("periods").title = t("periods");

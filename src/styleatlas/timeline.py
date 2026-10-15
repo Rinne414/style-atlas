@@ -180,19 +180,26 @@ TIED_NOTE = 0.2  # share of tied times from which the verdict mentions them
 def _edge_note(en: str, zh: str):
     from styleatlas.lang import tr
 
-    return lambda: tr(f" ({en}; more works would tell)", f"（{zh}；作品多一些才分得清）")
+    return lambda: tr(f" ({en})", f"（{zh}）")
 
 
-EDGE_NOTES = {  # what an edge verdict leans towards, in plain words (map_i18n.js has a copy)
+EDGE_NOTES = {  # what an edge verdict leans towards, and what to do (map_i18n.js has a copy)
     "weak_link": _edge_note(
-        "a faint hint of a link to time, not enough to rely on",
-        "有一點和時間有關的跡象，但不夠確定",
+        "p is right at the line: perhaps a faint link, not enough to train the periods apart",
+        "p 剛好在門檻附近：可能有一點關係，但不足以分開訓練",
     ),
     "barely_time": _edge_note(
-        "the link to time itself is only faint", "和時間的關係本身也只是勉強看得出來"
+        "the link to time is itself faint: not enough to train the periods apart",
+        "和時間的關係本身也很弱：不足以分開訓練",
     ),
-    "maybe_turn": _edge_note("there may also be a faint turn", "也可能有一個不明顯的轉折"),
-    "maybe_drift": _edge_note("it may also be only gradual change", "也可能只是漸變"),
+    "maybe_turn": _edge_note(
+        "there may also be a faint turn; more works would tell",
+        "也可能有一個不明顯的轉折；作品多一些才分得清",
+    ),
+    "maybe_drift": _edge_note(
+        "it may also be only gradual change; when unsure, one LoRA is the safer choice",
+        "也可能只是漸變；不確定時，合在一起訓練比較穩妥",
+    ),
 }
 
 

@@ -31,6 +31,11 @@ New:
   for one query image, 「只看很像的」 shows only those (and copies only those to a folder).
 - **「存圖」/Save PNG in the top toolbar** of every map, shared HTML maps included (it was under
   More… or the P key).
+- **「全部一群（訓一個 LoRA）」 in the web app's grouping menu** puts every image in one group (one
+  export folder) in one click; the timeline's verdicts point at it (a Sonnet web first-time-user
+  test merged periods by hand, two merges of two clicks each). The first image search says it
+  loads the model (10-20 s); the check's advice on missing captions and small images matches
+  `audit`; edge verdicts say what to do ("not enough to train the periods apart").
 - **Clearer `cluster` and `audit` output for a first LoRA** (from a Sonnet first-time-user test): one line
   accounts for every image (in folders, set aside and why); when the timeline finds no link or only
   drift, or the automatic groups split a folder as consistent as one artist, the command says how to
