@@ -336,6 +336,24 @@ Danbooru, deduplicated: plain CSD distance (1 - cosine) between single images.
 - At the Style Gate's default of 0.5, 72.5% of same-artist pairs and 31% of different-artist
   pairs fall below it.
 
+**More artists for the whitening? (2026-10-16)** A review asked whether a larger training set
+would help. Learning curve: WCCN (shrinkage 0.3, as shipped) fitted on N artists of artists300 (3
+draws below 306) and tested on the 104 unseen_corpus artists in no training set (1,140 works;
+leave-one-out within them):
+
+| Fitted on | Image top-1 | Folder top-1 |
+|---|---|---|
+| plain CSD, no whitening | 53.9% | 58.1% |
+| 50 artists | 59.8% | 66.8% |
+| 100 | 60.9% | 68.6% |
+| 200 | 61.4% | 69.6% |
+| 306 (shipped) | 61.6% | 69.8% |
+| 330: + unseen_big + period_corpus (many works each) | 61.1% | 70.4% |
+
+The curve is flat from about 200 artists: refitting on more labelled artists would move these by
+under a point, so the shipped whitening stays. (A non-linear head would need far more artists than
+are labelled here to beat this plateau; not tried.)
+
 ### Query expansion for single-image search (tried, not used)
 
 Average query expansion: search, add the top 3 hits to the query, search again, all in the
