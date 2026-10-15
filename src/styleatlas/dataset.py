@@ -265,9 +265,11 @@ def is_unassigned(folder: str) -> bool:
 def group_labels(
     clustering: Clustering, layout: str = "plain", group_names: dict[int, str] | None = None
 ) -> dict[int, str]:
-    """Folder label per group: its name, else style_01 (plain) / style01 (kohya). Labels are made
-    unique ignoring case (Windows folders are case-insensitive); names are placed first."""
+    """Folder label per group: its name, else style_01 (plain) / style01 (kohya), or period_01 /
+    period01 for periods along the timeline. Labels are made unique ignoring case (Windows folders
+    are case-insensitive); names are placed first."""
     n_groups = clustering.n_clusters
+    stem = "period" if clustering.method == "timeline" else "style"
     width = max(2, len(str(n_groups)))
     names = group_names or {}
     taken = {"unassigned"}
@@ -275,7 +277,7 @@ def group_labels(
     order = sorted(range(n_groups), key=lambda c: (c not in names, c))
     for cid in order:
         sep = "_" if layout == "plain" else ""
-        base = names.get(cid) or f"style{sep}{cid + 1:0{width}d}"
+        base = names.get(cid) or f"{stem}{sep}{cid + 1:0{width}d}"
         label, n = base, 2
         while label.casefold() in taken:
             label, n = f"{base}_{n}", n + 1

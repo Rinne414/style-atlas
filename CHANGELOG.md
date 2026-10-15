@@ -37,6 +37,7 @@ New:
   (BENCHMARKS.md). In the web app (opened with `--time`) it is 「依時間分時期」 in the grouping
   menu, and the verdict shows after regrouping. A folder last grouped this way and reopened
   without `--time` falls back to automatic grouping.
+  Periods export as `<repeats>_<name>_period01`… folders and show as 「時期 1」… in the web app.
 - **LoRA render check in the report.** `style-atlas report TRAIN --renders RENDERS` adds a section
   that checks a LoRA's test images against its training set: the style distance and verdict (as
   `compare`), how many renders fall inside a training style group (the rule `sort` uses, with

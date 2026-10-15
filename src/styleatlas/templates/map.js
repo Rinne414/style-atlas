@@ -287,7 +287,8 @@ function timeStrip(members, color) {
 function clusterName(c) {
   if (c < 0) return t("unassigned");
   const named = ((DATA.live && DATA.live.names) || DATA.names || {})[String(c)];
-  return named ? `${t("style")} ${c + 1} · ${named}` : `${t("style")} ${c + 1}`;
+  const word = t(DATA.method === "timeline" ? "periodName" : "style");  // periods are numbered earliest first
+  return named ? `${word} ${c + 1} · ${named}` : `${word} ${c + 1}`;
 }
 
 function thumb(i, onClick) {

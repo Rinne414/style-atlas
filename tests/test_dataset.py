@@ -40,6 +40,15 @@ def test_plain_plan_and_fixed_repeats(tmp_path):
     assert auto_repeats(1000) == 1
 
 
+def test_periods_along_the_timeline_export_as_periods(tmp_path):
+    from styleatlas.timeline import cluster_timeline
+
+    x, _ = make_blobs([6, 6])
+    paths = [_img(tmp_path / f"i{i}.png") for i in range(12)]
+    result = cluster_timeline(x, np.arange(12, dtype=float), 2)
+    assert set(plan_folders(paths, result, "kohya", "a", "3")) == {"3_a_period01", "3_a_period02"}
+
+
 def test_best_copy_is_largest_then_captioned(tmp_path):
     small = _img(tmp_path / "small.png", (64, 64))
     big = _img(tmp_path / "big.png", (128, 128))
