@@ -334,7 +334,8 @@ function select(i) {
   const kv = document.createElement("div"); kv.className = "kv";
   const b = document.createElement("b"); b.textContent = PTS[i].n;
   kv.append(b, document.createElement("br"),
-    document.createTextNode(`${clusterName(PTS[i].c)} · ${t("m_outlier")} ${PTS[i].o.toFixed(3)} · ` +
+    document.createTextNode(`${clusterName(PTS[i].c)} · ${t("m_outlier")} ${PTS[i].o.toFixed(3)}` +
+      paren(t("outlierRank").replace("{p}", outlierRank(PTS[i].o))) + " · " +
       (HAS_TIME && PTS[i].ts !== null ? `${fmtTime(PTS[i].ts)} · ` : "") +
       (DATA.reference && PTS[i].r !== null ? `${t("m_ref")} ${PTS[i].r.toFixed(3)} (${PTS[i].rn}) · ` : "")));
   const a = document.createElement("a"); a.href = PTS[i].f; a.target = "_blank"; a.rel = "noopener";
@@ -431,9 +432,15 @@ function clusterText(c, pane) {  // name, size, typical tags, closest groups, lo
 
 // one artist's whole works spread 0.15-0.29 (10th-90th percentile, median 0.20) on 393 Danbooru
 // artists (docs/BENCHMARKS.md, "How spread is one artist?")
-const SPREAD_TIGHT = 0.15, SPREAD_LOOSE = 0.29;
-const paren = (text) => (lang === "zh" ? `（${text}）` : ` (${text})`);
-function spreadWord(s) { return s < SPREAD_TIGHT ? "spreadTight" : s > SPREAD_LOOSE ? "spreadLoose" : "spreadArtist"; }
+function spreadWord(s) { return s < 0.15 ? "spreadTight" : s > 0.29 ? "spreadLoose" : "spreadArtist"; }
+function paren(text) { return lang === "zh" ? `（${text}）` : ` (${text})`; }  // hoisted: used while the page builds
+
+function outlierRank(o) {  // share of this folder's images less of an outlier than o (the scale depends on the folder)
+  const sorted = outlierRank.sorted || (outlierRank.sorted = PTS.map((p) => p.o).sort((a, b) => a - b));
+  let lo = 0, hi = sorted.length;
+  while (lo < hi) { const mid = (lo + hi) >> 1; if (sorted[mid] < o) lo = mid + 1; else hi = mid; }
+  return Math.round((100 * lo) / Math.max(1, sorted.length));
+}
 
 function copiesIn(members) {  // images of the group that have a near-duplicate inside the group
   const inGroup = new Set(members);
