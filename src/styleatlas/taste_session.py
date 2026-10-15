@@ -37,8 +37,9 @@ class TasteSession:
         if len(like) < MIN_PER_CLASS or len(dislike) < MIN_PER_CLASS:
             return
         style = self.atlas.style
+        names = ([self.atlas.rel(i) for i in like], [self.atlas.rel(i) for i in dislike])
         try:  # identical files count once, so enough votes may still be too few examples
-            model = train_taste(style[like], style[dislike], self.atlas.signature)
+            model = train_taste(style[like], style[dislike], self.atlas.signature, names=names)
         except ValueError:
             return
         self.model, self.scores = model, model.score(style)

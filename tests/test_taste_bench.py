@@ -68,6 +68,9 @@ def test_taste_session_fits_saves_and_reloads(tmp_path):
     assert state["auc"] is not None and state["auc"] > 0.9
     assert len(state["scores"]) == len(x)
     assert (tmp_path / "out" / "taste_model.npz").exists()
+    assert state["auc_groups"] is None  # 2 looks: no grouped AUC, and None (not NaN) in JSON
+    saved = TasteModel.load(tmp_path / "out" / "taste_model.npz")
+    assert set(saved.example_names) == {f"img{i}.png" for i in range(len(x))}  # real names
     again = TasteSession(atlas, tmp_path / "out")
     assert again.state()["likes"] == 10 and again.state()["scores"] is not None
 
@@ -140,13 +143,16 @@ def test_taste_keeps_its_examples_and_a_grouped_auc(tmp_path):
     like, dislike = x[y <= 1], x[y >= 2]  # two looks liked, two disliked
     names = ([f"l{i}" for i in range(24)], [f"d{i}" for i in range(24)])
     model = train_taste(like, dislike, "sig", names=names)
-    assert 0.0 <= model.cv_auc_groups <= 1.0  # whole looks held out: 2 a class
+    assert np.isnan(model.cv_auc_groups)  # 2 looks a side: holding one out swaps the looks
+    many, labels = make_blobs([8] * 10)
+    wide = train_taste(many[labels < 5], many[labels >= 5], "sig")  # 5 looks a side
+    assert 0.0 <= wide.cv_auc_groups <= 1.0
     rows, cos = model.nearest_example(x[:1])
     assert model.example_names[rows[0]] == "l0" and cos[0] > 0.99 and model.example_liked[rows[0]]
     path = model.save(tmp_path / "m")
     loaded = TasteModel.load(path)
     assert loaded.example_names == model.example_names
-    assert np.isclose(loaded.cv_auc_groups, model.cv_auc_groups)
+    assert np.isnan(loaded.cv_auc_groups)  # NaN saved and read back
     new = ("examples", "example_names", "example_liked", "cv_auc_groups")
     with np.load(path) as z:  # a model file from before 0.44
         old = {k: z[k] for k in z.files if k not in new}
@@ -154,3 +160,25 @@ def test_taste_keeps_its_examples_and_a_grouped_auc(tmp_path):
     old_model = TasteModel.load(tmp_path / "old.npz")
     assert old_model.nearest_example(x) is None and np.isnan(old_model.cv_auc_groups)
     assert np.allclose(old_model.score(x), model.score(x))
+
+
+def test_taste_names_stay_with_their_pictures_after_dedupe(tmp_path):
+    x, _ = make_blobs([6, 6])
+    like = np.vstack([x[:6], x[:1]])  # the first liked picture twice
+    dislike = np.vstack([x[6:], x[1:2]])  # x[1] liked and disliked: dropped from both
+    names = ([f"l{i}" for i in range(7)], [f"d{i}" for i in range(7)])
+    model = train_taste(like, dislike, "sig", names=names)
+    assert model.example_names == ("l0", "l2", "l3", "l4", "l5", *(f"d{i}" for i in range(6)))
+    rows, _ = model.nearest_example(x[6:7])
+    assert model.example_names[rows[0]] == "d0" and not model.example_liked[rows[0]]
+
+
+def test_a_damaged_shared_model_file_is_refused(tmp_path):
+    x, y = make_blobs([10, 10], spread=0.9)
+    path = train_taste(x[y == 0], x[y == 1], "sig").save(tmp_path / "m")
+    with np.load(path) as z:
+        fields = {k: z[k] for k in z.files}
+    fields["example_names"] = fields["example_names"][:3]  # fewer names than pictures
+    np.savez(tmp_path / "bad.npz", **fields)
+    with pytest.raises(ValueError, match="damaged"):
+        TasteModel.load(tmp_path / "bad.npz")

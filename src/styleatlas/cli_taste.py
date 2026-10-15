@@ -53,14 +53,19 @@ def _trust_line(auc: float, auc_groups: float) -> str:
             f"整組相似畫風留出來驗證 {auc_groups:.2f}",
         )
         if not np.isnan(auc_groups)
-        else tr("too few look-alike groups to hold out", "相似畫風的群太少，無法整組留出來驗證")
+        else tr(
+            "too few look-alike groups to hold out (4 a side are needed)",
+            "相似畫風的群太少，無法整組留出來驗證（喜歡和不喜歡各需要 4 群）",
+        )
     )
     return tr(
         f"how well it tells them apart (AUC, 0.5 = guessing, 1 = always right): the rated "
-        f"artists' other works {auc:.2f}; {grouped}. On artists you never rated, expect a little "
-        "below the latter: a rough filter, not a score of beauty",
+        f"artists' other works {auc:.2f}; {grouped}. On artists you never rated, expect clearly "
+        "less than the latter, near guessing when your taste is not one coherent look: a rough "
+        "filter, not a score of beauty",
         f"分得多開（AUC，0.5 = 亂猜，1 = 全對）：同一批畫師的其他圖 {auc:.2f}；{grouped}。"
-        "遇到沒評過的畫師，通常比後者再低一點：口味模型適合粗篩，不是美的分數",
+        "遇到沒評過的畫師，會明顯比後者低；口味不是同一種畫風時，接近亂猜。口味模型適合粗篩，"
+        "不是美的分數",
     )
 
 
@@ -124,13 +129,19 @@ def _closest(model, near, i: int, unfamiliar: float) -> str:
         return ""
     j, cos = int(near[0][i]), float(near[1][i])
     side = tr("liked", "喜歡") if model.example_liked[j] else tr("disliked", "不喜歡")
+    name = _printable(model.example_names[j])
     text = tr(
-        f"   closest rated: {side} {model.example_names[j]} ({cos:.2f})",
-        f"   最像評過的：{side} {model.example_names[j]}（{cos:.2f}）",
+        f"   closest rated: {side} {name} ({cos:.2f})",
+        f"   最像評過的：{side} {name}（{cos:.2f}）",
     )
     if cos < unfamiliar:
         text += tr("   <- unlike every rated picture", "   ← 和評過的圖都不太像")
     return text
+
+
+def _printable(name: str) -> str:
+    """A name from a shared model file, without control characters (terminal escapes)."""
+    return "".join(ch if ch.isprintable() else "?" for ch in name)
 
 
 def _score_notes(model, near, unfamiliar: float) -> None:
@@ -149,9 +160,11 @@ def _score_notes(model, near, unfamiliar: float) -> None:
             tr(
                 f"{far} images are unlike every rated picture (highest similarity under "
                 f"{unfamiliar}): their scores are close to guessing; rate a few of them to teach "
-                "the model",
+                "the model. Measured with about 50 rated pictures; images not flagged can be "
+                "unfamiliar too",
                 f"{far} 張和評過的圖都不太像（最高相似度低於 {unfamiliar}）：它們的分數接近亂猜；"
-                "挑幾張評分後重新訓練，模型就學得到",
+                "挑幾張評分後重新訓練，模型就學得到。這是用約 50 張評分量的；沒被標出的圖也可能是"
+                "模型沒看過的畫風",
             )
         )
 
@@ -204,9 +217,11 @@ def taste_args(
         default="taste_model.npz",
         help=tr(
             "trained model file (default taste_model.npz here; the web app saves one as "
-            "<folder>_style_atlas/taste_model.npz)",
+            "<folder>_style_atlas/taste_model.npz). It holds the rated pictures' file names and "
+            "style vectors: whoever gets the file sees what you rated",
             "訓練好的模型檔（預設是這裡的 taste_model.npz；網頁介面存的在 "
-            "<資料夾>_style_atlas/taste_model.npz）",
+            "<資料夾>_style_atlas/taste_model.npz）。檔案裡有評過的圖的檔名和畫風向量："
+            "拿到檔案的人看得到你評過哪些圖",
         ),
     )
     t2.add_argument(

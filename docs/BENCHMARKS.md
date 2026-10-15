@@ -1176,13 +1176,15 @@ direction (a coherent taste):
 
 | Taste | CV AUC (images) | CV AUC, look-alike groups held out | Rated artists' other works | Other artists |
 |---|---|---|---|---|
-| arbitrary artists | 0.958 | 0.626 | 0.972 | 0.472 |
-| along a style direction | 0.962 | 0.739 | 0.986 | 0.638 |
+| arbitrary artists | 0.958 | 0.663 | 0.972 | 0.472 |
+| along a style direction | 0.962 | 0.762 | 0.986 | 0.638 |
 
 The usual cross-validation keeps an artist's works on both sides, so it reports how the model
 does on more of the same artists. Holding out whole look-alike groups (the tool's own style
 groups, StratifiedGroupKFold) is much closer to how it does on artists never rated, though
-still 0.1-0.15 above. Since 0.44 `taste train` and the web app's taste tab show both.
+still 0.12-0.19 above. It needs 4 look-alike groups a side (a Sonnet review: with 2, four tight
+looks read 0.04), so in 26% / 22% of these draws it was not computed; the medians are of the
+rest. Since 0.44 `taste train` and the web app's taste tab show both.
 
 **Unlike every rated picture.** The highest cosine of a new image to the rated ones: other
 artists' works median 0.644 (5-95%: 0.443-0.755), the rated artists' other works median 0.752

@@ -106,12 +106,14 @@ New:
   Sonnet review of the first version removed its over-claims.
 - **`taste` says how far to trust it and why it ranks so** (from a Sonnet first-time-user test
   that read a CV AUC of 0.993 as "99% reliable"): training also reports the AUC with whole
-  look-alike groups held out, closer to how it does on artists never rated (simulated 0.63-0.74
-  against 0.96; BENCHMARKS "Taste: new artists"; the web app's taste tab too), and how the liked
+  look-alike groups held out, closer to how it does on artists never rated (simulated 0.66-0.76
+  against 0.96, new artists 0.47-0.64; BENCHMARKS "Taste: new artists"; the web app's taste tab too), and how the liked
   folder looks next to the disliked one; scoring names each image's closest rated picture,
   flags images unlike every rated one (their scores are near chance), and `--copy-to` copies the
-  best (20, `--top`) into a new folder by rank. The model file keeps the rated vectors; older
-  files still load. The taste command moved to `cli_taste.py`.
+  best (20, `--top`) into a new folder by rank. The model file keeps the rated vectors and file
+  names (so whoever gets it sees what you rated; a damaged one is refused); older files still
+  load. The grouped AUC needs 4 look-alike groups a side (with 2, a Sonnet review's test read
+  0.04). The taste command moved to `cli_taste.py`.
 - **`sort` never writes into the dataset** (from a Sonnet code review): with the new images in a
   sub-folder of the dataset, the results go next to the dataset, and an `-o` inside either folder
   is refused; `sorted\` no longer gets trainer configs that list only the new images; `--merged`

@@ -32,6 +32,7 @@ MIN_PER_CLASS = 5  # with diverse picks, 10 ratings already gave AUC ~0.69
 # artists300 (6 rated artists, 8 works each) 30% of other artists' works fell below it and 10% of
 # the rated artists' other works; their scores were at chance (BENCHMARKS "Taste: new artists").
 UNFAMILIAR = 0.6
+MIN_GROUPS = 4  # look-alike groups a class needs for the grouped AUC (with 2, whole looks swap)
 
 
 @dataclass(frozen=True)
@@ -97,6 +98,20 @@ class TasteModel:
         """Model files from before 0.44 have no grouped AUC and no examples; they still load."""
         with np.load(path, allow_pickle=False) as z:
             examples = z["examples"] if "examples" in z.files and z["examples"].size else None
+            if examples is not None:  # a shared file is checked before it is used
+                fine = (
+                    {"example_names", "example_liked"} <= set(z.files)
+                    and examples.ndim == 2
+                    and examples.shape[1] == z["pca_mean"].shape[0]
+                    and len(z["example_names"]) == len(z["example_liked"]) == len(examples)
+                )
+                if not fine:
+                    raise ValueError(
+                        tr(
+                            f"{path} is damaged: its rated pictures do not match; train again",
+                            f"{path} 已損壞：裡面評過的圖對不上；請重新訓練",
+                        )
+                    )
             return cls(
                 z["pca_mean"],
                 z["pca_components"],
@@ -139,11 +154,14 @@ def cross_val_auc_groups(
 ) -> float:
     """AUC with whole look-alike groups held out together (StratifiedGroupKFold): a rated
     artist's other works no longer sit on both sides, so this reads closer to the AUC on styles
-    the ratings never covered. NaN when each class has fewer than 2 groups."""
+    the ratings never covered. NaN when a class has fewer than MIN_GROUPS groups (with 2 a
+    side, a reviewer's test of four tight looks read 0.04), or when over half the rows could not
+    be scored."""
     groups = look_alike_groups(x)
-    folds = min(folds, *(len(set(groups[y == k])) for k in (0, 1)))
-    if folds < 2:
+    per_class = min(len(set(groups[y == k].tolist())) for k in (0, 1))
+    if per_class < MIN_GROUPS:
         return float("nan")
+    folds = min(folds, per_class)
     pred = np.full(len(y), np.nan)
     split = StratifiedGroupKFold(folds, shuffle=True, random_state=0).split(x, y, groups)
     for fit_rows, te in split:
@@ -152,7 +170,7 @@ def cross_val_auc_groups(
         model = _pipeline(min(dims, len(fit_rows) - 1), c).fit(x[fit_rows], y[fit_rows])
         pred[te] = model.predict_proba(x[te])[:, 1]
     ok = ~np.isnan(pred)
-    if len(set(y[ok].tolist())) < 2:
+    if ok.sum() < len(y) / 2 or len(set(y[ok].tolist())) < 2:
         return float("nan")
     return float(roc_auc_score(y[ok], pred[ok]))
 
