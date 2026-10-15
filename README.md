@@ -351,7 +351,7 @@ how a picture is drawn rather than what it shows. On top of those vectors it can
   LoRA repeats a training image (`compare A B` lists them; with `--json` they are in
   `b_copies_of_a`).
 - **Find images in a similar style**: drop one image, or several of one style, into the web app,
-  or use `search` (`--combine` learns from several examples, `--copy-to` gathers the matches). A
+  or use `search` (`--combine` treats several examples as one style, `--copy-to` gathers the matches). A
   "style path" lists the images that lead from one picked style to another.
 - **Which artist does this look like?** `search --by-folder` ranks the sub-folders of a library
   (one per artist or style) by their overall style. On 284 Danbooru artists it named the right
