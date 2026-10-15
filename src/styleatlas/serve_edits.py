@@ -130,7 +130,7 @@ class GroupEdits:
         """Saved groups (new images start unassigned), with their names."""
         moves = dict(enumerate(saved.labels.tolist()))
         self.clustering = edit_groups(self._edit_vectors, self.clustering, moves)
-        self.settings = {**self.settings, **saved.settings, "edited": True}
+        self.settings = {**self.settings, "edited": True}  # saved.settings went in before grouping
         self.group_names = carry_names(saved.labels, self.clustering.labels, saved.names)
 
     def move(self, body: dict) -> dict:

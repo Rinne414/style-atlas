@@ -258,8 +258,8 @@ def _groups_line(result: Clustering, how: str, how_zh: str) -> str:
 
 def _cluster_timeline(a: argparse.Namespace, atlas: Atlas):
     """--granularity timeline: contiguous periods along the --time order, with their test."""
-    from styleatlas.images import timeline
-    from styleatlas.timeline import cluster_timeline
+    from styleatlas.images import file_times
+    from styleatlas.timeline import cluster_timeline, verdict_text
 
     source = getattr(a, "time", "none")
     if source == "none":
@@ -271,14 +271,11 @@ def _cluster_timeline(a: argparse.Namespace, atlas: Atlas):
                 "或 --time mtime",
             )
         )
-    pos = timeline(atlas.paths, source)
-    if pos is None:
-        raise ValueError(tr("fewer than 2 images have a time", "有時間資訊的圖不到 2 張"))
     k = a.k or PERIODS
-    result = cluster_timeline(atlas.style, pos, k, content=atlas.content)
-    p, sep = result.params["p"], result.params["separation"]
+    result = cluster_timeline(
+        atlas.style, file_times(atlas.paths, source), k, content=atlas.content
+    )
     sizes = ", ".join(str(c.size) for c in result.clusters)
-    clear = p < TIMELINE_CLEAR_P
     log(
         tr(
             f"{k} periods along the timeline ({sizes} images, earliest first; "
@@ -286,23 +283,8 @@ def _cluster_timeline(a: argparse.Namespace, atlas: Atlas):
             f"依時間分成 {k} 個時期（由早到晚各 {sizes} 張；{result.n_unassigned} 張沒有時間資訊）",
         )
     )
-    log(
-        tr(
-            f"the periods are told apart beyond chance (p {p:.2f}, separation {sep:+.3f}): "
-            "training them separately can make sense"
-            if clear
-            else f"the periods are not told apart beyond chance (p {p:.2f}): the style drifts "
-            "but does not split into eras here; one LoRA for all is fine",
-            f"各時期的畫風差異比隨機切點明顯（p {p:.2f}，分離度 {sep:+.3f}）：分時期訓練有道理"
-            if clear
-            else f"各時期的畫風差異不比隨機切點明顯（p {p:.2f}）："
-            "畫風有漸變，但沒有分成明顯的時期；合在一起訓練即可",
-        )
-    )
+    log(verdict_text(result.params))
     return result
-
-
-TIMELINE_CLEAR_P = 0.05
 
 
 def _families_line(result: Clustering, min_size: int) -> str:

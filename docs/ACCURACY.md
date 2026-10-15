@@ -16,7 +16,7 @@
   - 13 位中有 12 位，畫風距離會隨發表時間差而變大，而且顯著。
   - `period`（分成 3 段）和發表時間的吻合度，跟以前用的固定門檻 0.35 差不多（兩者都遠好於「中」）；差別在 0.35 有 4 位畫師有 36～77% 的圖沒分到任何群，新的幾乎每張圖都有分到。
   - 作品少（約 50 張）時，分段結果不太穩定，請在網頁上看時間分佈，必要時合併或移動。分群結果請當作**初步整理**。
-  - 檔名有時間時，`--granularity timeline` 依時間順序在畫風變化最大的地方切段，並檢驗切點是否比隨機切點明顯：13 位畫師中 8 位分得開；其餘 5 位只有漸變，指令會建議合在一起訓練。
+  - 檔名有時間時，`--granularity timeline` 依時間順序在畫風變化最大的地方切段，再用兩個檢定區分「和時間無關」、「只有漸變」和「有明確轉折」。14 位畫師裡只有 2 位有明確轉折，6 位只有漸變，5 位和時間無關，1 位去掉近重複後作品太少。只檢驗「切點比打亂時間順序明顯」是不夠的：單純的漸變也會顯著，舊版因此高估成 8 位。
 - **先排除重複圖再分群**，也就是加 `--dedupe`。否則同一張圖的多個版本會自成一群。近重複的門檻刻意設得保守（0.95）：在 0.92～0.95 之間，常常是同一角色換了姿勢的不同圖，對 LoRA 來說那是有效的訓練圖。
 - `compare` 的 z 值門檻（z ≥ 2.3 為「明顯不同」、z < 1.5 為「同一畫風」）來自一位使用者在固定內容的 NovelAI 算圖上的人眼校準，不是通用標準。換了資料，最好先用 `calibrate` 重新校準。
 
@@ -95,8 +95,10 @@ works by 297 artists (512 px thumbnails, near-duplicates removed). Same-artist r
 Blind clustering of 2-5 mixed artists scores ARI about 0.5.
 
 Splitting one artist's periods: when the file names carry a time, use `--granularity timeline
---time name`: contiguous periods cut where the style changes most, and a test of whether the
-cuts beat chance (8 of 13 artists' periods did; for the rest the command advises one LoRA).
+--time name`: contiguous periods cut where the style changes most, and two tests that tell a
+style unrelated to time, a smooth drift and clear turns apart. Of 14 artists, 2 had clear turns,
+6 only drifted, 5 did not follow time and 1 had too few distinct works; a test against shuffled
+time orders alone passes smooth drift too, and the first version counted 8 of 13 that way.
 Without a time, use `--granularity period`, with `--time name` to see each
 group's time span. It splits the work into 3 groups with k-means (`--k 4` for four), and every
 image lands in one of them. On 13 prolific Danbooru artists (30-300 works each, spread over

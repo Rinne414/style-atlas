@@ -111,9 +111,16 @@ All of these are in `docs/BENCHMARKS.md`.
   optimal transport (ICCV 2025, "Stochastic Interpolants for Revealing Stylistic Flows"; it notes
   there is no established metric for such evolution), and context-aware embeddings over five
   centuries (arxiv.org/abs/2503.13531). `--granularity timeline` uses the standard offline
-  formulation (dynamic programming with a squared-error cost, as `ruptures`' Dynp); the test
-  against shuffled time orders is what tells a user whether to split. Open: choosing the number
-  of periods from the data (a penalised search such as PELT), measured the same way.
+  formulation (dynamic programming with a squared-error cost, as `ruptures`' Dynp). Shuffled time
+  orders alone pass smooth drift too, so the turns test permutes the residuals of a smooth trend
+  and adds the trend back: the Freedman-Lane scheme (permute the residuals of the reduced model;
+  brainder.org/2020/05/19/simplifying-freedman-lane). Closest time-series tests, searched
+  2026-10-16: a break in a polynomial regression (Aue, Horvath, Huskova and Kokoszka, Bernoulli
+  2008; projecteuclid.org/download/pdf_1/euclid.bj/1219669624) and smooth versus abrupt change
+  (Chen and Hong, Econometrica 2012). Open: choosing the number of periods from the data (a
+  penalised search such as PELT), measured the same way; and residuals that are not exchangeable
+  (a series of similar works posted together that near-duplicate removal does not catch makes
+  the turns test too lenient; a block permutation would be the fix).
 - **Related tools, checked again 2026-10-11.** LoRA Dataset Coach (github.com/akalavol/
   LoRA-Dataset-Coach) now covers face identity, sharpness, pose, expression, duplicates (dHash +
   face similarity), AI-image detection, bucket balance, CLIP-cluster diversity, "overfit attribute"

@@ -651,4 +651,5 @@ def test_cluster_by_timeline_needs_a_time_and_reports_its_test(lib, tmp_path, ca
     assert "--time" in capsys.readouterr().err
     assert main([*base, "--time", "name", "--device", "cpu"]) == 0
     err = capsys.readouterr().err
-    assert "periods along the timeline" in err and "told apart" in err
+    verdicts = ("too few distinct", "does not follow time", "gradually", "turns at clear")
+    assert "periods along the timeline" in err and any(v in err for v in verdicts)

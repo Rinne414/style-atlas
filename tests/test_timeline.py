@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from styleatlas.cluster import UNASSIGNED
-from styleatlas.timeline import cluster_timeline, segment
+from styleatlas.timeline import cluster_timeline, segment, verdict
 
 
 def _styles(sizes, spread=0.15, seed=0):
@@ -28,13 +28,60 @@ def test_periods_follow_time_and_are_tested():
     times = np.arange(len(x), dtype=float)[::-1]  # newest first on disk: time order is reversed
     result = cluster_timeline(x[::-1], times, 3)
     assert [c.size for c in result.clusters] == [12, 9, 15]  # numbered earliest first
-    assert result.params["p"] < 0.05 and result.params["separation"] > 0.3
+    assert verdict(result.params) == "turns" and result.params["separation"] > 0.3
 
 
 def test_no_era_when_the_style_does_not_follow_time():
     x = _styles([12, 9, 15])
     times = np.random.default_rng(1).permutation(len(x)).astype(float)
-    assert cluster_timeline(x, times, 3).params["p"] > 0.05
+    assert verdict(cluster_timeline(x, times, 3).params) == "none"
+
+
+def test_smooth_drift_is_told_from_turns():
+    # the style moves steadily along one direction: it follows time, but has no turning point
+    rng = np.random.default_rng(2)
+    n, d = 80, 32
+    t = np.linspace(0, 1, n)[:, None]
+    x = 3 * np.eye(1, d) + 2 * t * np.eye(1, d, 1) + 0.5 * rng.normal(size=(n, d))
+    params = cluster_timeline(x, np.arange(n, dtype=float), 3).params
+    assert params["p_time"] < 0.05 and verdict(params) == "drift"
+
+
+def test_too_few_distinct_works_are_not_tested():
+    x = _styles([8, 8, 8])
+    params = cluster_timeline(x, np.arange(24, dtype=float), 3).params
+    assert params["p_time"] is None and verdict(params) == "few"
+
+
+def test_mostly_copies_of_a_few_pictures_are_not_tested():
+    # 13 pictures, each posted 4 times in a row: the copies would make any cut look real
+    x = np.repeat(_styles([5, 4, 4]), 4, axis=0)
+    params = cluster_timeline(x, np.arange(len(x), dtype=float), 3, content=x).params
+    assert params["distinct"] == 13 and verdict(params) == "few"
+
+
+def test_near_duplicates_count_once_and_take_the_period_of_their_time():
+    x = _styles([12, 9, 15])
+    copies = np.repeat(x[11:12], 6, axis=0)  # six re-posts of the last early work, all at once
+    style = np.vstack([x[:12], copies, x[12:]])
+    result = cluster_timeline(style, np.arange(len(style), dtype=float), 3, content=style)
+    assert [c.size for c in result.clusters] == [18, 9, 15]
+
+
+def test_large_folders_cut_on_a_sample_and_stay_contiguous(monkeypatch):
+    import styleatlas.timeline as tl
+
+    monkeypatch.setattr(tl, "SEGMENT_MAX", 20)
+    x = _styles([30, 25, 35])
+    result = cluster_timeline(x, np.arange(90, dtype=float), 3)
+    assert (np.diff(result.labels) >= 0).all()  # each period one stretch of time
+    assert abs(result.clusters[0].size - 30) <= 3 and abs(result.clusters[2].size - 35) <= 3
+
+
+def test_tied_times_are_reported():
+    x = _styles([12, 9, 15])
+    times = np.repeat(np.arange(12, dtype=float), 3)  # three images per time stamp
+    assert cluster_timeline(x, times, 3).params["tied"] == pytest.approx(0.67, abs=0.01)
 
 
 def test_images_without_a_time_are_unassigned():

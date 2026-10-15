@@ -173,10 +173,16 @@ def labels_from_folders(paths: Iterable[Path], root: Path) -> list[str]:
     return out
 
 
+def file_times(paths: list[Path], source: str) -> np.ndarray:
+    """file_time of each path, NaN when unknown."""
+    times = (file_time(p, source) for p in paths)
+    return np.array([np.nan if t is None else t for t in times], dtype=float)
+
+
 def timeline(paths: list[Path], source: str) -> np.ndarray | None:
     """Each image's position in the folder's timeline (0 oldest, 1 newest; NaN when unknown),
     from file-name ids or modification times; None without a source or with under 2 times."""
-    times = np.array([file_time(p, source) or np.nan for p in paths], dtype=float)
+    times = file_times(paths, source)
     known = ~np.isnan(times)
     if source == "none" or known.sum() < 2:
         return None

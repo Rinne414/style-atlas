@@ -217,5 +217,8 @@ def test_the_web_app_cuts_periods_along_the_timeline_when_it_knows_the_time(tmp_
         app.regroup({"method": "timeline", "k": 2})
     timed = StyleAtlasApp(atlas, EncodeOptions(device="cpu"), "pca", time_source="mtime")
     done = timed.regroup({"method": "timeline", "k": 2})
-    assert done["clusters"] == 2 and 0 < done["p"] <= 1 and "separation" in done
+    assert done["clusters"] == 2 and done["verdict"] in ("few", "none", "drift", "turns")
     assert timed.settings["method"] == "timeline"
+    # reopened without --time, the saved timeline grouping falls back instead of failing
+    again = StyleAtlasApp(atlas, EncodeOptions(device="cpu"), "pca")
+    assert again.settings["method"] == "agglomerative" and again.clustering.n_clusters >= 1

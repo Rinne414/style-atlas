@@ -273,6 +273,13 @@ def test_cluster_output_places_each_group_on_the_timeline(tmp_path):
     assert timeline(atlas.paths, "none") is None and _when(None, [0]) == ""
 
 
+def test_a_time_of_zero_is_a_time():
+    from styleatlas.images import file_times
+
+    times = file_times([Path("a_00000.png"), Path("b_00007.png"), Path("c.png")], "name")
+    assert times[0] == 0.0 and times[1] == 7.0 and np.isnan(times[2])
+
+
 def test_tags_are_removed_in_the_exported_captions_only(tmp_path):
     from styleatlas.export import parse_tags
 

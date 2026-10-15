@@ -526,8 +526,11 @@ function setupRegroup() {  // granularity, cut, periods, the regroup button and 
         : g === "artists" ? { method: "artists" }
         : { threshold: g === "auto" ? null : parseFloat($("thr").value) };
       const r = await post("api/regroup", JSON.stringify(body), "application/json");
-      const verdict = typeof r.p === "number"  // the timeline's test, shown after the reload
-        ? t(r.p < 0.05 ? "timelineClear" : "timelineDrift").replace("{p}", r.p.toFixed(2)) : "";
+      const key = { few: "timelineFew", none: "timelineNone", drift: "timelineDrift", turns: "timelineTurns" }[r.verdict];
+      const verdict = key  // the timeline's tests (timeline.verdict), shown after the reload
+        ? t(key).replace("{n}", r.distinct).replace("{p}", r.p_time).replace("{q}", r.p_turns)
+          .replace("{sep}", (r.separation ?? 0).toFixed(3))
+        : "";
       reloadKeepingView(verdict);
     } catch (e) { setStatus(String(e.message || e)); }
   });
