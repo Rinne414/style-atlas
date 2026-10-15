@@ -28,6 +28,7 @@ from styleatlas.metrics import (
     PLAIN,
     SubjectCentring,
 )
+from styleatlas.timeline import TIMELINE
 
 SOFT_PERIODS = 100  # below this, k-means periods changed with the seed (agreement ARI 0.3-0.7)
 
@@ -159,6 +160,8 @@ def _reference(a: argparse.Namespace) -> Atlas | None:
 def _cluster(a: argparse.Namespace, atlas: Atlas):
     if a.granularity == ARTISTS:
         return _cluster_by_artist(a, atlas)
+    if a.granularity == TIMELINE:
+        return _cluster_timeline(a, atlas)
     method, k, threshold = a.method, a.k, a.threshold
     if a.granularity == "period" and threshold is None:
         if method != "agglomerative":
@@ -251,6 +254,55 @@ METHOD_ZH = {"agglomerative": "階層式分群", "kmeans": "k-means 分段", "hd
 def _groups_line(result: Clustering, how: str, how_zh: str) -> str:
     n, u = result.n_clusters, result.n_unassigned
     return tr(f"{n} styles, {u} unassigned ({how})", f"分成 {n} 群，{u} 張未分群（{how_zh}）")
+
+
+def _cluster_timeline(a: argparse.Namespace, atlas: Atlas):
+    """--granularity timeline: contiguous periods along the --time order, with their test."""
+    from styleatlas.images import timeline
+    from styleatlas.timeline import cluster_timeline
+
+    source = getattr(a, "time", "none")
+    if source == "none":
+        raise ValueError(
+            tr(
+                "--granularity timeline needs a time: add --time name (ids or dates in the file "
+                "names) or --time mtime",
+                "--granularity timeline 需要時間：加 --time name（檔名裡的編號或日期）"
+                "或 --time mtime",
+            )
+        )
+    pos = timeline(atlas.paths, source)
+    if pos is None:
+        raise ValueError(tr("fewer than 2 images have a time", "有時間資訊的圖不到 2 張"))
+    k = a.k or PERIODS
+    result = cluster_timeline(atlas.style, pos, k, content=atlas.content)
+    p, sep = result.params["p"], result.params["separation"]
+    sizes = ", ".join(str(c.size) for c in result.clusters)
+    clear = p < TIMELINE_CLEAR_P
+    log(
+        tr(
+            f"{k} periods along the timeline ({sizes} images, earliest first; "
+            f"{result.n_unassigned} without a time)",
+            f"依時間分成 {k} 個時期（由早到晚各 {sizes} 張；{result.n_unassigned} 張沒有時間資訊）",
+        )
+    )
+    log(
+        tr(
+            f"the periods are told apart beyond chance (p {p:.2f}, separation {sep:+.3f}): "
+            "training them separately can make sense"
+            if clear
+            else f"the periods are not told apart beyond chance (p {p:.2f}): the style drifts "
+            "but does not split into eras here; one LoRA for all is fine",
+            f"各時期的畫風差異比隨機切點明顯（p {p:.2f}，分離度 {sep:+.3f}）：分時期訓練有道理"
+            if clear
+            else f"各時期的畫風差異不比隨機切點明顯（p {p:.2f}）："
+            "畫風有漸變，但沒有分成明顯的時期；合在一起訓練即可",
+        )
+    )
+    return result
+
+
+TIMELINE_CLEAR_P = 0.05
 
 
 def _families_line(result: Clustering, min_size: int) -> str:

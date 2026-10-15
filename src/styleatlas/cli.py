@@ -41,6 +41,7 @@ from styleatlas.metrics import (
     unit,
 )
 from styleatlas.project import PROJECTIONS
+from styleatlas.timeline import TIMELINE
 
 
 def cmd_embed(a: argparse.Namespace) -> int:
@@ -515,13 +516,16 @@ def _grouping_args(p: argparse.ArgumentParser) -> argparse._ArgumentGroup:
     g.add_argument(
         "--granularity",
         default="auto",
-        choices=["auto", "period", ARTISTS, *GRANULARITY],
+        choices=["auto", "period", TIMELINE, ARTISTS, *GRANULARITY],
         help=tr(
             "auto picks the cut from the data; period splits one artist into --k periods "
-            f"(default {PERIODS}, k-means, every image assigned); artists groups a gallery of many "
-            "artists (20 or more) by artist",
+            f"(default {PERIODS}, k-means, every image assigned); timeline cuts one artist's works "
+            "into --k contiguous periods where the style changes most and tests the cuts (needs "
+            "--time); artists groups a gallery of many artists (20 or more) by artist",
             "auto 依圖片自動挑切分距離；period 把同一位畫師分成 --k 個時期"
-            f"（預設 {PERIODS}，k-means，每張圖都會分進一段）；artists 依畫師分群，"
+            f"（預設 {PERIODS}，k-means，每張圖都會分進一段）；"
+            "timeline 依時間順序，在畫風變化最大處切成 --k 個連續時期，並檢驗切點是否明顯"
+            "（需要 --time）；artists 依畫師分群，"
             "給有很多位畫師（20 位以上）的圖庫用",
         ),
     )

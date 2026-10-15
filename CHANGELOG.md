@@ -15,6 +15,11 @@ Changed output (scripts that parse the text should use `--json`):
 
 New:
 
+- **Periods along the timeline** (`--granularity timeline --time name|mtime`): one artist's works,
+  in time order, cut into contiguous periods where the style changes most, with a test against
+  shuffled time orders that says whether the periods are told apart (training them separately
+  makes sense) or the style only drifts (one LoRA is fine). On 13 Danbooru artists the cuts beat
+  equal time thirds for 11 and chance for 8 (BENCHMARKS.md).
 - **LoRA render check in the report.** `style-atlas report TRAIN --renders RENDERS` adds a section
   that checks a LoRA's test images against its training set: the style distance and verdict (as
   `compare`), how many renders fall inside a training style group (the rule `sort` uses, with

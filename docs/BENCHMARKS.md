@@ -475,6 +475,46 @@ This is the LoRA case where one artist's style changes between periods.
   to 46 groups from 60 works. Look at the time strips in the web app and merge groups by hand,
   or raise the cut.
 
+## Periods along the timeline: `--granularity timeline` (2026-10-16)
+
+`period` (k-means) separates styles but ignores time, so its periods mix eras (NMI with posting
+time 0.05-0.34 on the artists below). When the files carry a time (`--time name|mtime`), the works
+can instead be cut, in time order, into contiguous periods where the style changes most: the
+optimal change points (dynamic programming on the CSD vectors). Whether those cuts are more than
+chance is tested by cutting shuffled time orders the same way.
+
+Same 13 Danbooru artists as "One artist over time" (posting order as time, near-duplicates
+reduced, 3 periods of at least 5 works). Cosine silhouette of the periods in style space (higher =
+more distinct styles), and p of the optimal cuts against 200 shuffled orders:
+
+| Artist | Works | Optimal cuts | Equal time thirds | k-means (`period`) | p (cuts vs shuffled) |
+|---|---|---|---|---|---|
+| bow_(bhp) | 48 | +0.009 | -0.015 | +0.202 | 0.13 |
+| ebifurya | 51 | +0.088 | +0.018 | +0.124 | 0.03 |
+| hammer_(sunset_beach) | 53 | +0.069 | +0.021 | +0.112 | 0.005 |
+| haruyama_kazunori | 60 | +0.010 | -0.013 | +0.100 | 0.09 |
+| itomugi-kun | 54 | +0.137 | +0.090 | +0.215 | 0.005 |
+| kanon_(kurogane_knights) | 59 | -0.018 | +0.016 | +0.070 | 0.68 |
+| matsunaga_kouyou | 46 | +0.029 | +0.014 | +0.134 | 0.06 |
+| naga_u | 60 | +0.029 | -0.026 | +0.162 | 0.05 |
+| ojipon | 59 | +0.007 | +0.012 | +0.103 | 0.23 |
+| onikobe_rin | 60 | +0.036 | +0.018 | +0.059 | 0.005 |
+| pageratta | 30 | +0.155 | +0.071 | +0.224 | 0.005 |
+| rebecca_(keinelove) | 60 | +0.101 | -0.005 | +0.127 | 0.005 |
+| yaegashi_nan | 49 | +0.066 | +0.019 | +0.114 | 0.005 |
+| **Mean** | | **+0.055** | **+0.017** | **+0.134** | 8 of 13 below 0.05 |
+
+- The optimal cuts beat equal time thirds for 11 of 13 artists: they find where the style turns.
+- They are beyond chance for 8 of 13. For the other 5 the style drifts (12 of 13 drift, Mantel
+  test above) without breaking into eras, and the command says so: one LoRA for all their works.
+- k-means separates styles more (it optimises exactly that) but its groups are not eras.
+- The product searches the cuts in 32 PCA dimensions and tests them with 99 shuffled orders on at
+  most 400 works, near-duplicates counted once (otherwise variants posted one after another make
+  cuts look real: with them 8 of 13 were significant, without 7). Statistic: the cosine
+  silhouette. The share of variance the periods explain was tried first and rejected: it is
+  significant for all 13 (it measures drift, which nearly every artist has), so it cannot tell
+  the user whether to split.
+
 ## Same subjects in many styles: `--neutralize` (2026-10-09)
 
 This is the style-exploration case, where the same characters are rendered in many styles.

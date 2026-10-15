@@ -61,7 +61,8 @@ style-atlas cluster "D:\lora\artistX" --layout kohya --name artistX --dedupe --d
 
 - **在網頁上做過移動、合併、拆群或取名時，請改用網頁的「匯出資料夾」**（選 kohya、填「LoRA 名稱（資料夾名）」，必要時勾「標註加觸發詞」）：只有它會用到這些手動修正。上面的 `cluster` 指令會重新分群，只沿用你按 X 排除的圖（放進 `_excluded\`）。
 - 每群會匯出成 `<repeats>_artistX_styleNN\` 資料夾（取過名的群用名字），標註檔一起複製。
-- 要按時期拆就加 `--granularity period --time name`（`report` 加 `--time name` 也會在每群標出時間位置，方便存檔或傳給別人）。指令會在每群後面印出它在作品時間軸上的位置，例如 `when 9% [3%-28%]` 表示這群的中位數落在最早的 9%（中間一半落在 3%～28%），一看就知道哪群是早期、哪群是近期。
+- 檔名帶有時間（Pixiv、Danbooru 作品編號、推文編號，或 `2023-05-12` 這種日期）時，用 `--granularity timeline --time name`：依時間順序，在畫風變化最大的地方切成 3 個連續的時期（`--k` 改段數），並檢驗切點是否比隨機切點明顯。檢驗不明顯時，指令會說「畫風有漸變，但沒有分成明顯的時期；合在一起訓練即可」。實測 13 位畫師裡有 8 位的時期分得開（docs/BENCHMARKS.md）。
+- 沒有時間資訊、或想純粹依畫風拆時，用 `--granularity period --time name`（`report` 加 `--time name` 也會在每群標出時間位置，方便存檔或傳給別人）。指令會在每群後面印出它在作品時間軸上的位置，例如 `when 9% [3%-28%]` 表示這群的中位數落在最早的 9%（中間一半落在 3%～28%），一看就知道哪群是早期、哪群是近期。
 - repeats 會自動調成「張數 × repeats ≈ 100」，也可以用 `--repeats N` 指定。例如某群 20 張 → repeats 5，每個 epoch 這群看 100 次；batch size 1 時就是 100 步，訓 10 個 epoch 是 1,000 步。張數少的群 repeats 高，各群份量就接近。匯出完網頁和 `cluster` 指令都會直接告訴你每個 epoch 約幾步。
 - 某群太多張（例如 300 張）時，加 `--max-per-group 40`（網頁：「每群最多幾張」）只保留 40 張能涵蓋整群變化的圖，其餘放到 `_trimmed\`。
 - 匯出資料夾裡會一起寫一份 `dataset_config.toml`（kohya sd-scripts 用 `--dataset_config` 指定），列出每群的資料夾路徑與 repeats；有勾觸發詞時會設 `keep_tokens = 1`，讓觸發詞在打亂標籤時固定在最前面。解析度與 batch size 請依模型自行調整（SDXL／Illustrious／Anima 用 1024）。

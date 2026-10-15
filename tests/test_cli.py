@@ -642,3 +642,13 @@ def test_wrap_keeps_curly_quotes_and_brackets_with_their_text():
 def test_fixing_tag_spelling_needs_an_export(lib, capsys):
     assert main(["cluster", str(lib), "--fix-tag-spelling", "--device", "cpu"]) == 1
     assert "--fix-tag-spelling" in capsys.readouterr().err
+
+
+def test_cluster_by_timeline_needs_a_time_and_reports_its_test(lib, tmp_path, capsys):
+    out = tmp_path / "t"
+    base = ["cluster", str(lib), "--granularity", "timeline", "--no-map", "-o", str(out)]
+    assert main([*base, "--device", "cpu"]) == 1
+    assert "--time" in capsys.readouterr().err
+    assert main([*base, "--time", "name", "--device", "cpu"]) == 0
+    err = capsys.readouterr().err
+    assert "periods along the timeline" in err and "told apart" in err
