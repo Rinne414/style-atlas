@@ -107,22 +107,26 @@ def verdict_text(params: dict) -> str:
             f"去掉近重複後只有 {n} 張作品，太少，無法檢定各時期：請在地圖上直接看圖判斷",
         ),
         "none": tr(
-            f"the style does not follow time here (p {p}): the periods are arbitrary cuts; "
-            "one LoRA for all",
-            f"畫風和時間沒有明顯關係（p {p}）：這些時期只是任意切點，合在一起訓練即可",
+            f"no clear link between style and time found (p {p}; with few works only large "
+            "changes show): the cuts may be arbitrary, so one LoRA for all is the safe choice",
+            f"沒有找到畫風和時間的明顯關係（p {p}；作品少時只看得出大的變化）："
+            "這些切點可能只是任意的，合在一起訓練比較穩妥",
         ),
         "drift": tr(
-            f"the style changes gradually over time (p {p}) but has no clear turning point "
-            f"(turns p {q}): the cuts split a smooth drift. One LoRA for all usually works; to "
-            "get one period's look, keep only that period",
-            f"畫風隨時間慢慢變（p {p}），但沒有明確的轉折點（轉折 p {q}）："
-            "切點只是把連續的變化切開。通常合在一起訓練即可；想要某個時期的畫風，就只留那一段",
+            f"the style changes with time (p {p}) but no clear turning point was found (turns "
+            f"p {q}): the cuts may split a gradual change (a single modest turn can look like "
+            "this too, below about 100 works). One LoRA for all usually works; for one period's "
+            "look, keep only that period",
+            f"畫風隨時間改變（p {p}），但沒有找到明確的轉折點（轉折 p {q}）："
+            "切點可能只是把漸進的變化切開（作品不到約 100 張時，幅度不大的單一轉折也會這樣）。"
+            "通常合在一起訓練即可；想要某個時期的畫風，就只留那一段",
         ),
         "turns": tr(
-            f"the style turns at clear points (turns p {q}, separation {sep:+.3f}): the periods "
-            "are distinct eras; training them separately can make sense",
-            f"畫風在某些時間點有明確的轉折（轉折 p {q}，分離度 {sep:+.3f}）：各時期是不同階段，"
-            "分開訓練有道理",
+            f"the style changes more abruptly than a smooth curve over time explains (turns p "
+            f"{q}, separation {sep:+.3f}): likely distinct periods; training them separately "
+            "can make sense",
+            f"畫風的變化比隨時間平滑變化的曲線更突然（轉折 p {q}，分離度 {sep:+.3f}）："
+            "很可能是不同的時期，分開訓練有道理",
         ),
     }[verdict(params)]
     if params.get("tied", 0) >= TIED_NOTE:
@@ -209,23 +213,27 @@ def _tests(z: np.ndarray, cuts: np.ndarray, k: int, min_size: int, seed: int) ->
     """(p_time, p_turns) of the cuts on the works `z` (in time order)."""
     observed = _separation(z, cuts)
     rng = np.random.default_rng(seed)
-    trend, resid = _smooth_trend(z)
+    trend, resid, off_trend = _smooth_trend(z)
     hits_time = hits_turns = 0
     for _ in range(TEST_ROUNDS):
         shuffled = z[rng.permutation(len(z))]
         hits_time += _separation(shuffled, segment(shuffled, k, min_size)) >= observed
-        drifting = trend + resid[rng.permutation(len(z))]
+        drifting = trend + off_trend(resid[rng.permutation(len(z))])  # the same trend exactly
         hits_turns += _separation(drifting, segment(drifting, k, min_size)) >= observed
     p_time = (1 + hits_time) / (1 + TEST_ROUNDS)
     p_turns = (1 + hits_turns) / (1 + TEST_ROUNDS)
     return round(p_time, 3), round(p_turns, 3)
 
 
-def _smooth_trend(z: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+def _smooth_trend(z: np.ndarray) -> tuple:
     """The smooth part of the style's course (a low-degree polynomial of the time rank, per
-    dimension) and what is left over."""
+    dimension), what is left over, and a function that removes any such trend from rows in time
+    order (shuffled residuals carry a little by chance, which would make the test conservative)."""
     t = np.linspace(-1.0, 1.0, len(z))
-    basis = np.vander(t, TREND_DEGREE + 1)
-    coef, *_ = np.linalg.lstsq(basis, z, rcond=None)
-    trend = basis @ coef
-    return trend, z - trend
+    q, _ = np.linalg.qr(np.vander(t, TREND_DEGREE + 1))
+
+    def off_trend(x: np.ndarray) -> np.ndarray:
+        return x - q @ (q.T @ x)
+
+    resid = off_trend(z)
+    return z - resid, resid, off_trend

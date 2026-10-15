@@ -105,11 +105,25 @@ function showSearch(files, hits, fit, folders, copies, folded) {
   const h2 = document.createElement("h3");
   h2.textContent = t("nearest") + (folded ? " · " + t("foldedNote").replace("{n}", folded) : "");
   const g = document.createElement("div"); g.className = "grid";
-  hits.forEach((x) => { const im = thumb(x.i); im.title = `${PTS[x.i].n} · cos ${x.cos.toFixed(3)}`; g.append(im); });
+  hits.forEach((x) => g.append(scored(x)));
+  const legend = document.createElement("div"); legend.className = "kv";
+  legend.textContent = t(files.length > 1 ? "cosLegendSet" : "cosLegend");
   pane.append(h, qs, ...(copies && copies.length ? copyList(files, copies) : []),
     ...(fit && fit.length ? fitSummary(fit) : []),
-    ...(folders && folders.length ? folderList(folders) : []), h2, ...(hits.length ? [copyButton(hits)] : []), g);
+    ...(folders && folders.length ? folderList(folders) : []), h2,
+    ...(hits.length ? [legend, copyButton(hits)] : []), g);
   showPane("selected");
+}
+
+const CLOSE_COS = 0.85;  // 9 in 10 pairs this close were by one artist (306 Danbooru artists)
+
+function scored(x) {  // a search result with its style similarity in the corner
+  const cell = document.createElement("figure"); cell.className = "hit";
+  const im = thumb(x.i); im.title = `${PTS[x.i].n} · cos ${x.cos.toFixed(3)}`;
+  const cap = document.createElement("figcaption"); cap.textContent = x.cos.toFixed(2);
+  if (x.cos >= CLOSE_COS) cap.className = "close";
+  cell.append(im, cap);
+  return cell;
 }
 
 function copyButton(hits) {  // gather the results into a folder, e.g. to grow a training set

@@ -475,6 +475,24 @@ This is the LoRA case where one artist's style changes between periods.
   to 46 groups from 60 works. Look at the time strips in the web app and merge groups by hand,
   or raise the cut.
 
+## What a search score means (2026-10-16)
+
+The web app shows each search result's plain CSD cosine. To give it a scale: 3,012 Danbooru works
+by 306 artists (near-duplicates removed), every pair:
+
+| Pairs | 5% | 25% | median | 75% | 95% | 99% |
+|---|---|---|---|---|---|---|
+| Same artist (14,911) | 0.31 | 0.49 | 0.59 | 0.69 | 0.82 | 0.90 |
+| Different artists (4.5 M) | 0.16 | 0.33 | 0.43 | 0.52 | 0.63 | 0.70 |
+
+- Share of pairs by one artist: 7% at cosine 0.70 or more, 20% at 0.75, 53% at 0.80, 91% at 0.85,
+  99% at 0.90 (in this corpus, where 0.3% of all pairs are same-artist). The page highlights
+  0.85 and up.
+- Each work's closest work by another artist scores 0.755 at the median (0.60-0.84 for 90% of
+  works): in a library of a few thousand images a top hit around 0.75 says little about the artist.
+- A set query compares with the queries' shared style, which sits closer to each work than one work
+  to another; those numbers run higher and the page says so.
+
 ## Periods along the timeline: `--granularity timeline` (2026-10-16)
 
 `period` (k-means) separates styles but ignores time, so its periods mix eras (NMI with posting

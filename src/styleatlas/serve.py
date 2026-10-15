@@ -195,7 +195,9 @@ class StyleAtlasApp(GroupEdits):
                 s.get("method", "agglomerative"), s.get("threshold"), s.get("k")
             )
         except ValueError as e:  # e.g. saved as periods along the timeline, reopened without --time
-            self.progress(tr(f"{e}; grouping automatically instead", f"{e}；改用自動分群"))
+            self.progress(
+                tr(f"{e}; the grouping menu is back to automatic", f"{e}；分群方式改回自動")
+            )
             s = {"method": "agglomerative", "threshold": None}
             self.clustering = self._grouped("agglomerative", None, None)
         self.settings = {key: v for key, v in s.items() if key != "edited"}
