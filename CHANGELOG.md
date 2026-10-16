@@ -135,6 +135,10 @@ New:
   groups, then the rest, each with its closest training image; the check comes first on the page;
   the distance is read as in `compare` (5+ images a side: among pairs of artists, not the z
   scale). In the test, the 4 off-style renders were the first 4 outside the groups.
+- **A library of many artists is pointed at 「依畫師」/by artist**: when the automatic cut makes
+  many small groups in a folder with 20 or more sub-folders, the hint suggests grouping by artist
+  instead of "medium"/"period" (checked on 3,800 works by 106 artists: ready in 52 s on the CPU
+  with cached vectors, a 2 MB page).
 - **`doctor` speaks Chinese on a Chinese system** and, when an NVIDIA card is present but torch is
   the CPU build, gives the pip command that swaps it (`--force-reinstall`: running setup.bat again
   would keep the CPU build, which pip counts as installed).

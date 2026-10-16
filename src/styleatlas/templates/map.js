@@ -458,6 +458,14 @@ function copiesIn(members) {  // images of the group that have a near-duplicate 
 
 const folderOf = (i) => { const n = PTS[i].n; const k = n.indexOf("/"); return k < 0 ? "." : n.slice(0, k); };
 const SEVERAL_FOLDERS = new Set(PTS.map((_, i) => folderOf(i))).size > 1;
+const LIBRARY_FOLDERS = 20;  // from 20 artists "by artist" follows them better (README, BENCHMARKS)
+
+function manyGroupsHint() {  // a library of many artists, or one varied artist
+  const byArtist = DATA.live && DATA.live.settings && DATA.live.settings.method === "artists";
+  const folders = folderCount();
+  return folders >= LIBRARY_FOLDERS && !byArtist ? t("manyGroupsLibrary").replace("{n}", folders) : t("manyGroups");
+}
+
 function folderCount() { return new Set(PTS.map((_, i) => folderOf(i)).filter((f) => f !== ".")).size; }
 
 const MAIN_SHARE = 0.8;  // a group "comes from" a sub-folder when this share of it does
@@ -712,7 +720,7 @@ function applyText() {
   const many = DATA.clusters.length > Math.max(12, N / 8);  // e.g. one varied artist cut into dozens
   const chosen = DATA.live && DATA.live.settings && DATA.live.settings.k === 1;  // "one group" on purpose
   if (DATA.live && DATA.clusters.length <= 1 && N > 10 && !chosen) setStatus(t("oneGroup"));
-  else if (DATA.live && many && !DATA.live.restored && !(DATA.params || {}).edited) setStatus(t("manyGroups"));
+  else if (DATA.live && many && !DATA.live.restored && !(DATA.params || {}).edited) setStatus(manyGroupsHint());
   else if (DATA.live && DATA.live.restored && !$("status").textContent) setStatus(t("restored"));
   else if (DATA.live && !DATA.live.restored && !$("status").textContent) setStatus(t("firstHint"));
   setupAxes(); if (layoutMode === "measures") drawAxes();
