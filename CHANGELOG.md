@@ -129,6 +129,9 @@ New:
   are; a short line at the top says what the page shows.
 - **The web app's Dataset check says it is for LoRA training sets** and can be skipped when
   browsing styles.
+- **`doctor` speaks Chinese on a Chinese system** and, when an NVIDIA card is present but torch is
+  the CPU build, gives the pip command that swaps it (`--force-reinstall`: running setup.bat again
+  would keep the CPU build, which pip counts as installed).
 - **Periods along the timeline** (`--granularity timeline --time name|mtime`): one artist's works,
   in time order, cut into contiguous periods where the style changes most. Two tests on the same
   cuts say whether no link to time was found, the style only drifts smoothly (one LoRA is usually

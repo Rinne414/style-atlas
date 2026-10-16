@@ -137,3 +137,16 @@ def test_the_space_check_adds_up_what_one_drive_must_hold(monkeypatch, tmp_path)
     monkeypatch.setattr(shutil, "disk_usage", lambda path: usage(10**12, 0, 3 * 10**9))
     with pytest.raises(encoder.ModelDownloadError, match="3.9 GB"):
         encoder.check_space()
+
+
+def test_doctor_says_how_to_use_a_gpu_the_cpu_torch_cannot(monkeypatch):
+    import torch
+
+    monkeypatch.setattr(torch.cuda, "is_available", lambda: False)
+    monkeypatch.setattr(torch.version, "cuda", None)  # the CPU build
+    monkeypatch.setattr(doctor.shutil, "which", lambda name: "C:/nvidia-smi.exe")
+    gpu = next(detail for _, name, detail in doctor._torch_lines() if name == "GPU")
+    assert "--force-reinstall torch" in gpu and doctor.CUDA_INDEX in gpu
+    monkeypatch.setattr(doctor.shutil, "which", lambda name: None)  # no NVIDIA card
+    gpu = next(detail for _, name, detail in doctor._torch_lines() if name == "GPU")
+    assert "CPU-only torch build" in gpu
