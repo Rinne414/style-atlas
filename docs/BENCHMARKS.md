@@ -328,6 +328,11 @@ switched to it on its own when `auto` found 10 or more groups gave the same gain
 0.388 -> 0.517, 50 artists 0.349 -> 0.420, 2-5 unchanged) but could also fire on one prolific
 artist, whose sub-styles whitening would merge, so it is a choice, not automatic.
 
+Checked again on a larger library (2026-10-16): 3,800 works by 106 Danbooru artists
+(compare_corpus, 20-50 general-rated works each). `auto`: 533 groups, ARI 0.138, AMI 0.387;
+by artist: 156 groups, ARI 0.258, AMI 0.473. Since 0.44 the web app's "many small groups" hint
+suggests "by artist" when the folder has 20 or more sub-folders.
+
 ### Single-image distances (the Style Gate's scale)
 
 Danbooru, deduplicated: plain CSD distance (1 - cosine) between single images.
