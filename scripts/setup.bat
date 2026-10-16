@@ -35,9 +35,15 @@ if errorlevel 1 (
   echo No NVIDIA GPU found: installing CPU torch ^(about 200 MB; slower, still works^).
   "%VPY%" -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
 ) else (
-  echo 找到 NVIDIA 顯卡：安裝 CUDA 版 torch（約 2.5 GB，請稍候）
-  echo NVIDIA GPU found: installing CUDA torch ^(about 2.5 GB download, please wait^).
-  "%VPY%" -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
+  rem a CPU build installed earlier counts as installed for pip: check, then swap it
+  "%VPY%" -c "import torch, sys; sys.exit(0 if torch.version.cuda else 1)" >nul 2>nul
+  if errorlevel 1 (
+    echo 找到 NVIDIA 顯卡：安裝 CUDA 版 torch（約 2.5 GB，請稍候）
+    echo NVIDIA GPU found: installing CUDA torch ^(about 2.5 GB download, please wait^).
+    "%VPY%" -m pip install --force-reinstall torch torchvision --index-url https://download.pytorch.org/whl/cu128
+  ) else (
+    echo 已經是 CUDA 版 torch / CUDA torch is already installed.
+  )
 )
 if errorlevel 1 ( echo torch 安裝失敗 / torch install failed. & pause & exit /b 1 )
 "%VPY%" -m pip install -e .

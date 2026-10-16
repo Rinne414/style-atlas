@@ -132,6 +132,9 @@ New:
 - **`doctor` speaks Chinese on a Chinese system** and, when an NVIDIA card is present but torch is
   the CPU build, gives the pip command that swaps it (`--force-reinstall`: running setup.bat again
   would keep the CPU build, which pip counts as installed).
+- **`scripts\setup.bat` swaps a CPU torch for the CUDA build** when an NVIDIA card is found (pip
+  counted the CPU build as installed and kept it); an installed CUDA build is left alone (both
+  paths checked with a dry run of the script).
 - **Periods along the timeline** (`--granularity timeline --time name|mtime`): one artist's works,
   in time order, cut into contiguous periods where the style changes most. Two tests on the same
   cuts say whether no link to time was found, the style only drifts smoothly (one LoRA is usually
