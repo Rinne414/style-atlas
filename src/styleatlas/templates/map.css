@@ -2,9 +2,9 @@
     --bg: #0d0f12; --panel: #15181d; --panel2: #1c2027; --ink: #e9e6e1; --muted: #8f949c;
     --line: #2a2f37; --accent: #f2c38b; --focus: #ffffff;
   }
-  :root[data-theme="light"] {
+  :root[data-theme="light"] {  /* accent 5:1 on the page, for small orange links */
     --bg: #f4f2ee; --panel: #ffffff; --panel2: #f0ede8; --ink: #1d1f23; --muted: #6b7078;
-    --line: #dcd8d1; --accent: #b4682a; --focus: #000000;
+    --line: #dcd8d1; --accent: #95501c; --focus: #000000;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink);
@@ -78,6 +78,9 @@
     color: var(--ink); max-width: 340px; line-height: 1.7; }
   #help b { display: inline-block; min-width: 108px; margin-right: 10px; color: var(--muted); font-weight: 600; }
   #help p.about { margin: 0 0 8px; line-height: 1.5; }
+  #help h4 { margin: 0 0 6px; font-size: 13px; }
+  #help ol.quick { margin: 0 0 12px; padding-left: 20px; line-height: 1.6; }
+  #help button.close { float: right; margin: -4px -8px 0 8px; padding: 2px 8px; }
   .grid img.excluded { opacity: .35; }
   input.note { width: 100%; box-sizing: border-box; margin: 6px 0; background: var(--panel); color: var(--ink);
     border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; font: inherit; font-size: 12px; }
@@ -164,8 +167,14 @@
     font-size: 10px; line-height: 15px; background: rgba(0, 0, 0, .62); color: #fff; pointer-events: none; }
   .grid figure.hit figcaption.close { background: var(--accent); color: #000; }
   .grid figure.hit.far img { opacity: .5; }
+  .grid figure.dup { margin: 0; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .grid figure.dup figcaption { font-size: 10px; line-height: 1.3; color: var(--muted); overflow-wrap: anywhere; }
+  .grid figure.dup.kept img { border-color: #6fcf97; }
+  .grid figure.dup .badge { align-self: flex-start; font-size: 10px; padding: 0 6px; border-radius: 999px;
+    background: #6fcf97; color: #1d1f23; }
+  .grid figure.dup button { align-self: flex-start; font-size: 10px; padding: 2px 8px; }
   .big { width: 100%; border-radius: 10px; background: var(--panel2); display: block; }
-  .kv { color: var(--muted); font-size: 12px; margin: 8px 0; word-break: break-all; }
+  .kv { color: var(--muted); font-size: 12px; margin: 8px 0; overflow-wrap: anywhere; }
   .kv.consist { color: var(--ink); font-size: 13px; border-left: 3px solid var(--line);
     padding-left: 8px; }
   .kv.consist.mixed { border-left-color: var(--accent); color: var(--accent); }

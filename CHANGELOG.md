@@ -2,8 +2,34 @@
 
 ## Unreleased
 
-Fixed:
+Fixed, from four Sonnet usability tests of the web app (a newcomer with a downloads folder, a
+LoRA trainer with one artist's 60 works, a collector with 3,800 images of 108 artists, a UI
+designer on the demo):
 
+- The map no longer turns by default (pictures moved under the cursor); the 旋轉 button still
+  turns it.
+- Theme and language are remembered (an edit reloads the page and used to reset both).
+- The ? help starts with a quick start, has a close button, and Esc closes it from a text box too.
+- Group cards in the side list are three lines: name, size and spread in words, and the artists
+  it comes from (or its look). The rest moved to the group view.
+- Every edit says what it did, and Undo says what it took back ("已復原：已把 畫風 3 合併到 畫風 1").
+- The steps ① ② ③ work while the group view is open (③ opened the export bar behind it).
+- **Near-duplicates show which copy the export keeps** (file names, a 保留 badge) and
+  「改留這張」 picks another (kept in `kept_copies.json`; `plan_folders(prefer=...)`).
+- **Export: one group is named by the LoRA name alone** (`12_artistX`, was `12_artistX_style01`,
+  which made `artistX_style01` the trigger), and repeats can be set on the export bar (empty:
+  automatic).
+- **Periods along the timeline keep their time order after hand edits** (they were renumbered by
+  size, so period 1 could become the newest).
+- **Artist-map families no longer swallow the library**: the fixed cut 0.35 put 106 of 108
+  artists in one family (35-50 works each sit closer than the 10 the cut was set on); the cut now
+  drops until no family holds more than a quarter of the folders (108 artists: 16 families, the
+  largest 21; 306: 37, the largest 62).
+- **Comparing groups that mix artists** no longer reads the distance against pairs of artists
+  (two different-looking groups of 6-8 artists each read "closer than 95% of pairs"): it says
+  whether the two can be told apart, and why.
+- English: no words broken mid-word, the start-up hint follows the language switch; orange links
+  in the light theme reach 5.5:1 contrast (were 3.8:1).
 - **The map no longer disappears after a long scroll.** The wheel could zoom the camera past the
   far plane (the whole map gone) or into the points; zoom now stops at both ends.
 - **No more tracebacks in the console when the browser cancels a thumbnail** (scrolling a list,

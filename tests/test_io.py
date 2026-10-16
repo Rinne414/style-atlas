@@ -307,6 +307,33 @@ def test_each_image_has_its_distance_to_its_group_centre():
     assert d[0] == pytest.approx(d[1]) and d[0] > 0 and np.isnan(d[2])
 
 
+def test_artist_families_never_swallow_the_library():
+    from styleatlas.cluster import FAMILY_CUT, family_cut, folder_families
+
+    angles = np.linspace(0.0, 3.0, 40)  # 40 folder means along a smooth run of styles
+    x = np.zeros((40, 16), dtype=np.float32)
+    x[:, 0], x[:, 1] = np.cos(angles), np.sin(angles)
+    fixed = cluster_styles(x, threshold=FAMILY_CUT, min_size=2)
+    assert max(c.size for c in fixed.clusters) > 10  # the old fixed cut: a dominant family
+    assert family_cut(x) < FAMILY_CUT
+    assert max(c.size for c in folder_families(x).clusters) <= 10  # a quarter at most
+
+
+def test_periods_keep_their_time_order_through_hand_edits():
+    from dataclasses import replace
+
+    from styleatlas.cluster import edit_groups
+
+    x, _ = make_blobs([4, 8])
+    first = cluster_styles(x, n_clusters=2)
+    periods = replace(first, method="timeline")  # period 0 earliest, whatever its size
+    small = int(np.argmin([c.size for c in periods.clusters]))
+    moved = edit_groups(x, periods, {int(periods.clusters[1 - small].members[0]): small})
+    assert moved.clusters[small].size == periods.clusters[small].size + 1  # same ids, in order
+    by_size = edit_groups(x, first, {int(first.clusters[1 - small].members[0]): small})
+    assert by_size.clusters[0].size >= by_size.clusters[1].size  # styles: largest first
+
+
 def test_tags_are_removed_in_the_exported_captions_only(tmp_path):
     from styleatlas.export import parse_tags
 

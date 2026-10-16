@@ -18,8 +18,14 @@ from pathlib import Path
 
 import numpy as np
 
-from styleatlas.atlas import FAMILY_CUT, LOAD_ERRORS, MIN_FOLDERS, Atlas, folder_atlas
-from styleatlas.cluster import UNASSIGNED, Clustering, batch_verdict, cluster_styles, keep_rows
+from styleatlas.atlas import LOAD_ERRORS, MIN_FOLDERS, Atlas, folder_atlas
+from styleatlas.cluster import (
+    UNASSIGNED,
+    Clustering,
+    batch_verdict,
+    folder_families,
+    keep_rows,
+)
 from styleatlas.consistency import consistency
 from styleatlas.dataset import distinctive_tags, tag_summary
 from styleatlas.duplicates import near_duplicate_groups
@@ -346,7 +352,7 @@ def _folder_section(atlas: Atlas, t: dict, lang: str) -> str:
             f'<td>{e(name)} <span class="sub">{sizes[name]} {t["images"]}</span></td>'
             f"<td>{e(t['closest_to'] + closest)}</td></tr>"
         )
-    families = cluster_styles(means.style, threshold=FAMILY_CUT, min_size=2)
+    families = folder_families(means.style)
     lines = [
         f"{t['family'].format(k=n + 1)}{'：' if lang == 'zh' else ': '}"
         + sep.join(names[i] for i in c.members)

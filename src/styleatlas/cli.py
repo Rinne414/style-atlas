@@ -62,7 +62,8 @@ def cmd_map(a: argparse.Namespace) -> int:
 
     atlas = _atlas(a, a.folder).with_looks(_opts(a), log)
     if a.by_folder:
-        from styleatlas.atlas import FAMILY_CUT, MIN_FOLDERS, folder_atlas
+        from styleatlas.atlas import MIN_FOLDERS, folder_atlas
+        from styleatlas.cluster import family_cut
 
         atlas = folder_atlas(atlas)
         if len(atlas) < MIN_FOLDERS:
@@ -81,7 +82,7 @@ def cmd_map(a: argparse.Namespace) -> int:
         )
         a.families = True
         if a.granularity == "auto" and a.threshold is None and a.k is None:
-            a.threshold = FAMILY_CUT  # the automatic cut lumps folder means into 1-2 groups
+            a.threshold = family_cut(atlas.style)  # the automatic cut lumps folder means
     if len(atlas) > LARGE_MAP:
         log(
             tr(

@@ -225,11 +225,20 @@ def _hdbscan(x: np.ndarray, min_size: int, hub_k: int) -> np.ndarray:
     return model.fit_predict(reduced)
 
 
-def _finish(x: np.ndarray, raw: np.ndarray, method: str, params: dict, min_size: int) -> Clustering:
-    """Drop groups smaller than min_size, renumber by size (0 = largest), compute summaries."""
+def _finish(
+    x: np.ndarray,
+    raw: np.ndarray,
+    method: str,
+    params: dict,
+    min_size: int,
+    by_size: bool = True,
+) -> Clustering:
+    """Drop groups smaller than min_size, renumber by size (0 = largest; or keeping the ids'
+    order, as periods keep time order), compute summaries."""
     ids, counts = np.unique(raw[raw >= 0], return_counts=True)
-    by_size = sorted(zip(ids, counts, strict=True), key=lambda t: -t[1])
-    keep = [i for i, c in by_size if c >= min_size]
+    order = zip(ids, counts, strict=True)
+    ranked = sorted(order, key=lambda t: -t[1]) if by_size else list(order)
+    keep = [i for i, c in ranked if c >= min_size]
     remap = {old: new for new, old in enumerate(keep)}
     labels = np.array([remap.get(int(v), UNASSIGNED) for v in raw], dtype=int)
     clusters = [_info(x, cid, np.flatnonzero(labels == cid)) for cid in range(len(keep))]
@@ -245,6 +254,33 @@ def _info(x: np.ndarray, cid: int, members: np.ndarray) -> ClusterInfo:
         cohesion=float(d.mean()),
         members=members.tolist(),
     )
+
+
+# Families of similar sub-folders (the artist map): average linkage on folder means from this cut
+# (about 11 families of 269 artists, BENCHMARKS.md), lowered until no family holds more than a
+# quarter of the folders. A fixed cut does not carry over: folder means of 35-50 works sit closer
+# than those of 10 (108 artists: 106 folders in one family at 0.35; 16 families at 0.20)
+FAMILY_CUT = 0.35
+FAMILY_SHARE = 0.25
+FAMILY_STEP = 0.025
+FAMILY_FLOOR = 0.1
+FAMILY_MIN_CAP = 3  # a few folders: a family of 3 is fine however large its share
+
+
+def family_cut(x: np.ndarray) -> float:
+    """The cut for families of the folder means `x`: see FAMILY_CUT."""
+    cap = max(FAMILY_MIN_CAP, FAMILY_SHARE * len(x))
+    cut = FAMILY_CUT
+    while cut - FAMILY_STEP >= FAMILY_FLOOR:
+        sizes = [c.size for c in cluster_styles(x, threshold=cut, min_size=2).clusters]
+        if max(sizes, default=0) <= cap:
+            break
+        cut = round(cut - FAMILY_STEP, 3)
+    return cut
+
+
+def folder_families(x: np.ndarray) -> Clustering:
+    return cluster_styles(x, threshold=family_cut(x), min_size=2)
 
 
 def cluster_by_artist(style: np.ndarray, min_size: int = 3) -> Clustering:
@@ -343,13 +379,14 @@ def keep_rows(x: np.ndarray, clustering: Clustering, kept: np.ndarray | list[int
 
 def edit_groups(x: np.ndarray, clustering: Clustering, moves: dict[int, int]) -> Clustering:
     """Apply hand edits: {image index: target group id or UNASSIGNED}. Groups are then renumbered
-    by size again (0 = largest) and their medoid and spread recomputed. Merging group a into b
-    is moves = {i: b for i in a.members}."""
+    by size again (0 = largest; periods along the timeline keep their time order) and their
+    medoid and spread recomputed. Merging group a into b is moves = {i: b for i in a.members}."""
     labels = clustering.labels.copy()
     for i, target in moves.items():
         labels[int(i)] = int(target)
     params = {**clustering.params, "edited": True}
-    return _finish(x, labels, clustering.method, params, min_size=1)
+    in_time = clustering.method == "timeline"  # timeline.TIMELINE (it imports this module)
+    return _finish(x, labels, clustering.method, params, min_size=1, by_size=not in_time)
 
 
 def split_group(x: np.ndarray, clustering: Clustering, group: int) -> Clustering:

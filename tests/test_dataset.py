@@ -40,6 +40,28 @@ def test_plain_plan_and_fixed_repeats(tmp_path):
     assert auto_repeats(1000) == 1
 
 
+def test_one_kohya_group_is_named_by_the_lora_alone(tmp_path):
+    x, _ = make_blobs([6])
+    paths = [_img(tmp_path / f"i{i}.png") for i in range(6)]
+    one = cluster_styles(x, n_clusters=1)
+    assert set(plan_folders(paths, one, "kohya", "artistX", "4")) == {"4_artistX"}
+    named = plan_folders(paths, one, "kohya", "artistX", "4", group_names={0: "early"})
+    assert set(named) == {"4_artistX_early"}  # a name given by hand stays
+
+
+def test_a_copy_picked_by_hand_is_the_one_kept(tmp_path):
+    from styleatlas.dataset import kept_copy
+
+    x, _ = make_blobs([6, 6])
+    paths = [_img(tmp_path / f"i{i}.png", (64 + 8 * (i == 1), 64)) for i in range(12)]
+    result = cluster_styles(x, min_size=2)
+    assert kept_copy(paths, [0, 1, 2], set()) == 1  # the largest by default
+    assert kept_copy(paths, [0, 1, 2], set(), prefer={2}) == 2
+    assert kept_copy(paths, [0, 1, 2], {2}, prefer={2}) == 1  # an excluded pick does not count
+    folders = plan_folders(paths, result, "plain", duplicate_groups=[[0, 1, 2]], prefer={0})
+    assert folders[0] != "_duplicates" and folders[1] == folders[2] == "_duplicates"
+
+
 def test_periods_along_the_timeline_export_as_periods(tmp_path):
     from styleatlas.timeline import cluster_timeline
 

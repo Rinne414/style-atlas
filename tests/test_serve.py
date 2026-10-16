@@ -637,6 +637,25 @@ def test_two_groups_compared(server, tmp_path):
     assert request(port, "POST", "/api/compare", json.dumps({"a": 0, "b": 0}), hdr)[0] == 400
 
 
+def test_groups_mixing_artists_are_not_read_on_the_artist_scale():
+    from styleatlas.serve import mixes_artists
+
+    folders = ["a"] * 6 + ["b"] * 6 + ["c"] * 6
+    assert not mixes_artists(folders, list(range(6)))  # one artist
+    assert not mixes_artists(folders, list(range(5)) + [6])  # 5 of 6 from one: still one
+    assert mixes_artists(folders, [0, 1, 2, 6, 7, 12])  # three artists, none 80%
+    assert not mixes_artists([""] * 18, [0, 1, 2, 6, 7, 12])  # no sub-folders: one artist's folder
+
+
+def test_export_takes_repeats_from_the_page(tmp_path):
+    app, _ = _app(tmp_path, (10, 10, 10))
+    plan = app.export_plan({"layout": "kohya", "name": "x", "repeats": 7})
+    assert {r["repeats"] for r in plan["rows"] if r["training"]} == {7}
+    for bad in (0, 101, "7", 2.5):
+        with pytest.raises(ValueError):
+            app.export_plan({"layout": "kohya", "name": "x", "repeats": bad})
+
+
 def test_the_check_tab_lists_problems_by_index(tmp_path):
     app, _ = _app(tmp_path, (8, 7))  # 16 px pictures, no captions
     (tmp_path / "img0.txt").write_text("1girl, solo", encoding="utf-8")

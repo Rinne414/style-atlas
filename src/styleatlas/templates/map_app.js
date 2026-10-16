@@ -199,6 +199,7 @@ async function showSimilar(group) {  // a group id, or "excluded": the images ex
 
 const VERDICT_KEYS = { "same style": "v_same", related: "v_related", "clearly different": "v_different" };
 const POSITION_KEYS = { below_p5: "r_below", p5_to_median: "r_mid", above_median: "r_above" };  // among pairs of artists
+const SEPARABLE_P = 0.05;  // metrics.SEPARABLE_P
 
 const COMPARE_THUMBS = 6;  // a sample of each side under a comparison
 
@@ -225,11 +226,16 @@ async function showCompare(a, b, items, itemsB) {  // picked images in place of 
     const zh = lang === "zh";
     const line = (k, v) => { const d = document.createElement("div"); d.textContent = `${k}${zh ? "：" : ": "}${v}`; kv.append(d); };
     const real = r.reading;  // 5 or more images a side: read next to real artists, not the z scale
-    const verdict = real ? t(POSITION_KEYS[real.position]) : t(VERDICT_KEYS[r.verdict] || "v_related");
+    // sides mixing artists: their means drift together, so only "can the two be told apart" holds
+    const verdict = r.mixed ? t(r.p < SEPARABLE_P ? "cmpMixedDiffer" : "cmpMixedSame")
+      : real ? t(POSITION_KEYS[real.position]) : t(VERDICT_KEYS[r.verdict] || "v_related");
     const head = document.createElement("div"); head.className = "verdict";
     const strong = document.createElement("b"); strong.textContent = verdict; head.append(strong);
     kv.append(head);  // the answer first, the numbers below it
-    if (real) {
+    if (r.mixed) {
+      line(t("cmpDistance"), r.distance.toFixed(3));
+      const why = document.createElement("div"); why.textContent = t("cmpMixedNote"); kv.append(why);
+    } else if (real) {
       line(t("cmpDistance"), r.distance.toFixed(3));
       const ref = document.createElement("div");
       ref.textContent = t("cmpReading").replace("{n}", Math.round(real.n)).replace("{p5}", real.p5.toFixed(3))
@@ -368,19 +374,51 @@ function groupSelect(title, current, withUnassigned, onPick) {
   return sel;
 }
 
-// note: shown after the page reloads; anchor: an image whose group the group view opens on then
+// What each undo step takes back, in words (this tab; the server keeps the steps themselves)
+const LOG_KEY = "styleAtlasEdits";
+const LOG_STEPS = 30;  // serve_edits.UNDO_STEPS
+function editLog() { try { return JSON.parse(sessionStorage.getItem(LOG_KEY) || "[]"); } catch (e) { return []; } }
+function setEditLog(log) { try { sessionStorage.setItem(LOG_KEY, JSON.stringify(log.slice(-LOG_STEPS))); } catch (e) { /* storage off */ } }
+function logEdit(label) { const log = editLog(); log.push(label); setEditLog(log); }
+
+function editLabel(url, body) {
+  const g = (id) => clusterName(id);
+  if (url === "api/merge") return t("logMerge").replace("{a}", g(body.from)).replace("{b}", g(body.into));
+  if (url === "api/split") return t("logSplit").replace("{a}", g(body.group));
+  if (url === "api/move") return t("logMove").replace("{n}", body.items ? body.items.length : 1).replace("{b}", g(body.to));
+  if (url === "api/rename" && body.name.trim()) return t("logRename").replace("{a}", g(body.group)).replace("{b}", body.name.trim());
+  if (url === "api/rename") return t("logUnname").replace("{a}", g(body.group));
+  return t("logEdit");
+}
+
+// note: shown after the page reloads (else what was done); anchor: an image whose group the
+// group view opens on then
 async function editPost(url, body, note = "", anchor = null) {
+  const undo = url === "api/undo";
+  const log = editLog();
+  const label = undo ? log.pop() : editLabel(url, body);
   try {
     await post(url, JSON.stringify({ ...body, rev: DATA.live.revision }), "application/json");
-    reloadKeepingView(note, anchor);
+    if (!undo) log.push(label);
+    setEditLog(log);
+    const said = undo ? (label ? t("undoneWhat").replace("{what}", label) : t("undoneAny")) : `${label}${t("undoHint")}`;
+    reloadKeepingView(note || said, anchor);
   }
   catch (e) { setStatus(String(e.message || e)); }
+}
+
+async function keepCopy(i) {  // keep this one of its near-duplicates at export
+  try {
+    const r = await post("api/keep_copy", JSON.stringify({ i }), "application/json");
+    DATA.live.dup_keep = r.dup_keep; buildDups();
+    setStatus(t("dupKeptNote").replace("{f}", PTS[i].n));
+  } catch (e) { setStatus(String(e.message || e)); }
 }
 
 async function placeUnassigned() {  // fitting images move; a reload shows the new groups
   try {
     const r = await post("api/place_unassigned", JSON.stringify({ rev: DATA.live.revision }), "application/json");
-    if (r.moved) reloadKeepingView();
+    if (r.moved) { logEdit(t("logPlace").replace("{n}", r.moved)); reloadKeepingView(t("logPlace").replace("{n}", r.moved) + t("undoHint")); }
     else setStatus(t("placedNone").replace("{n}", r.left));
   } catch (e) { setStatus(String(e.message || e)); }
 }
@@ -552,7 +590,8 @@ function setupSteps() {  // the LoRA workflow at a glance: check, sort the group
     groups: () => showPane("clusters"),
     export: () => { if ($("exportPanel").hidden) $("exportOpen").click(); $("expName").focus(); },
   };
-  box.querySelectorAll("button").forEach((b) => b.addEventListener("click", go[b.dataset.step]));
+  // the group view covers the map and its bottom bar: each step goes back to the map first
+  box.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => { closeGroup(false); go[b.dataset.step](); }));
 }
 
 function setupLive() {
@@ -612,13 +651,14 @@ function setupRegroup() {  // granularity, cut, periods, the regroup button and 
           .replace("{sep}", (r.separation ?? 0).toFixed(3)) + (r.edge && r.verdict !== "turns" ? " " + t("edge_" + r.edge) : "")
           + " " + t("timelineSizes")
         : "";
-      reloadKeepingView(verdict);
+      logEdit(t("logRegroup"));
+      reloadKeepingView(verdict || t("logRegroup") + t("undoHint"));
     } catch (e) { setStatus(String(e.message || e)); }
   });
 }
 
 const EXPORT_KEY = "styleAtlasExport";  // the export options, kept while the tab is open
-const EXPORT_FIELDS = ["expLayout", "expName", "expMax", "expStrip"];
+const EXPORT_FIELDS = ["expLayout", "expName", "expMax", "expRep", "expStrip"];
 
 function saveExportOptions() {
   const options = Object.fromEntries(EXPORT_FIELDS.map((id) => [id, $(id).value]));
@@ -638,9 +678,16 @@ function restoreExportOptions() {  // an edit reloads the page: the bar comes ba
 
 function exportBody() {  // the export bar's options, as the server reads them
   const cap = parseInt($("expMax").value, 10);
+  const rep = parseInt($("expRep").value, 10);
+  const kohya = $("expLayout").value === "kohya";
   return { mode: "copy", layout: $("expLayout").value, name: $("expName").value.trim(),
     trigger: $("expTrig").checked, fix_spelling: $("expSpell").checked, max_per_group: cap > 0 ? cap : null,
-    strip_tags: $("expStrip").value.trim() };
+    repeats: kohya && rep > 0 ? rep : null, strip_tags: $("expStrip").value.trim() };
+}
+
+function syncRepeats() {  // repeats are a kohya folder's prefix: no field for plain folders
+  const kohya = $("expLayout").value === "kohya";
+  $("expRep").hidden = !kohya; $("expRepLbl").hidden = !kohya;
 }
 
 async function showExportPlan() {  // what the export would write, before it writes anything
@@ -659,7 +706,7 @@ async function showExportPlan() {  // what the export would write, before it wri
     });
     const kv = document.createElement("div"); kv.className = "kv";
     const lines = [t("planTraining").replace("{k}", r.training)];
-    if (r.steps) lines.push(t("stepsNote").replace("{n}", r.steps) + " " + t("repeatsNote"));
+    if (r.steps) lines.push(t("stepsNote").replace("{n}", r.steps) + (exportBody().repeats ? "" : " " + t("repeatsNote")));
     if (r.small_groups) {
       const groups = r.small_ids.map(clusterName).join(lang === "zh" ? "、" : ", ");
       lines.push(t("smallGroups").replace("{n}", r.small_groups).replace("{g}", groups));
@@ -677,6 +724,7 @@ function setupExport() {
   });
   $("exportOpen").addEventListener("click", saveExportOptions);  // after setupPanels toggled it
   restoreExportOptions();
+  syncRepeats(); $("expLayout").addEventListener("change", syncRepeats);
   $("exportPreview").addEventListener("click", showExportPlan);
   $("export").addEventListener("click", async () => {
     try {
@@ -685,7 +733,7 @@ function setupExport() {
       const small = r.small_groups ? " " + t("smallGroups").replace("{n}", r.small_groups).replace("{g}", groups) : "";
       const config = r.config ? " " + t("configWritten") : "";
       const trimmed = r.trimmed ? " " + t("trimmedNote").replace("{n}", r.trimmed) : "";
-      const steps = r.steps ? " " + t("stepsNote").replace("{n}", r.steps) + " " + t("repeatsNote") : "";
+      const steps = r.steps ? " " + t("stepsNote").replace("{n}", r.steps) + (exportBody().repeats ? "" : " " + t("repeatsNote")) : "";
       const tiny = r.small_training ? " " + t("smallTraining").replace("{n}", r.small_training) : "";
       const done = t("exported").replace("{n}", r.placed).replace("{f}", r.folder).replace("{k}", r.training);
       const upright = r.upright ? " " + t("uprightNote").replace("{n}", r.upright) : "";
@@ -760,6 +808,7 @@ function liveText() {
   $("expMax").placeholder = t("maxPerGroup");
   $("expStrip").placeholder = t("stripTags");
   $("expNameLbl").textContent = t("lblName"); $("expMaxLbl").textContent = t("lblMax");
+  $("expRepLbl").textContent = t("lblRepeats"); $("expRep").placeholder = t("repeatsAuto"); $("expRep").title = t("repeatsTip");
   $("expStripLbl").textContent = t("lblStrip");
   $("expTrigWrap").querySelector("span").textContent = t("triggerCaptions");
   $("expSpellWrap").querySelector("span").textContent = t("fixSpelling");

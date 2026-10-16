@@ -195,7 +195,7 @@ function mergeButton(c, into) {  // two clicks: the first only asks
   b.addEventListener("click", () => {
     if (!b.classList.contains("on")) { b.classList.add("on"); b.textContent = t("gvMergeSure"); return; }
     const anchor = typicalOrder(into.members)[0];  // the merged group: where the view reopens
-    editPost("api/merge", { from: c.id, into: into.id }, t("mergedNote"), anchor);
+    editPost("api/merge", { from: c.id, into: into.id }, "", anchor);
   });
   return b;
 }

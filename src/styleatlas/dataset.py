@@ -160,6 +160,18 @@ def best_in_group(paths: list[Path], blocked: set[int] | None = None) -> int:
     return max(range(len(paths)), key=rank)
 
 
+def kept_copy(
+    paths: list[Path], group: list[int], aside: set[int] | dict, prefer: set[int] | None = None
+) -> int:
+    """The image of a near-duplicate group an export keeps: one picked by hand (and not set
+    aside), else best_in_group."""
+    for i in group:
+        if i in (prefer or ()) and i not in aside:
+            return i
+    blocked = {k for k, i in enumerate(group) if i in aside}
+    return group[best_in_group([paths[i] for i in group], blocked)]
+
+
 def duplicate_keepers(
     paths: list[Path], groups: list[list[int]], blocked: set[int] | None = None
 ) -> np.ndarray:
@@ -303,6 +315,7 @@ def plan_folders(
     group_names: dict[int, str] | None = None,
     max_per_group: int | None = None,
     style: np.ndarray | None = None,
+    prefer: set[int] | None = None,
 ) -> list[str]:
     """Destination folder name for every image. A style group left with fewer than `min_size`
     images after duplicates and outliers are set aside counts as unassigned. With
@@ -313,15 +326,17 @@ def plan_folders(
     fixed = parse_repeats(repeats)
     aside: dict[int, str] = {i: SET_ASIDE["outlier"] for i in outliers or []}
     aside.update({i: SET_ASIDE["excluded"] for i in excluded or []})  # a person's call wins
-    for group in duplicate_groups or []:
-        local = {k for k, i in enumerate(group) if i in aside}
-        keep = group[best_in_group([paths[i] for i in group], local)]
+    for group in duplicate_groups or []:  # prefer: copies picked by hand to keep
+        keep = kept_copy(paths, group, aside, prefer)
         aside.update({i: SET_ASIDE["duplicate"] for i in group if i != keep and i not in aside})
     full = Counter(int(c) for i, c in enumerate(clustering.labels) if i not in aside)
     if max_per_group is not None and style is not None:
         aside.update(_trimmed(clustering, style, aside, max_per_group))
     sizes = Counter(int(c) for i, c in enumerate(clustering.labels) if i not in aside)
     labels = group_labels(clustering, layout, group_names)
+    trained = {c for c in sizes if c != UNASSIGNED and full[c] >= min_size}
+    # one kohya folder: the LoRA's name is the whole trigger ("12_artistX", not "..._style01")
+    alone = len(trained) == 1 and not (group_names or {}).get(next(iter(trained)))
     folders = []
     for i, cid in enumerate(int(c) for c in clustering.labels):
         if i in aside:
@@ -332,7 +347,7 @@ def plan_folders(
             folders.append(labels[cid])
         else:
             n = auto_repeats(sizes[cid]) if fixed is None else fixed
-            folders.append(f"{n}_{name}_{labels[cid]}")
+            folders.append(f"{n}_{name}" if alone else f"{n}_{name}_{labels[cid]}")
     return folders
 
 

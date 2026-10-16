@@ -5,7 +5,13 @@ const DATA = JSON.parse(document.getElementById("atlas-data").textContent);
 const PTS = DATA.points;
 const N = PTS.length;
 let NOTES = DATA.notes || {};  // index -> a note on that image, drawn at its point
-let lang = (navigator.language || "en").toLowerCase().startsWith("zh") ? "zh" : "en";
+// per-viewer choices kept across the reload an edit makes (and the next visit)
+const LANG_KEY = "styleAtlasLang", THEME_KEY = "styleAtlasTheme";
+function stored(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
+function store(key, value) { try { localStorage.setItem(key, value); } catch (e) { /* storage off */ } }
+let lang = ["zh", "en"].includes(stored(LANG_KEY)) ? stored(LANG_KEY)
+  : (navigator.language || "en").toLowerCase().startsWith("zh") ? "zh" : "en";
+if (["light", "dark"].includes(stored(THEME_KEY))) document.documentElement.dataset.theme = stored(THEME_KEY);
 const t = (k) => T[lang][k];
 const $ = (id) => document.getElementById(id);
 
@@ -394,14 +400,28 @@ function buildClusters() {
     row.tabIndex = 0; row.setAttribute("role", "button"); row.title = t("gvOpenTip");
     const img = document.createElement("img"); img.src = PTS[c.medoid]?.t || ""; img.alt = "";
     img.style.borderColor = colorOf(c.id);
-    row.append(img, clusterText(c, pane));
+    row.append(img, clusterCard(c));
     row.addEventListener("click", () => (viewGroup === c.id ? closeGroup() : openGroup(c.id)));  // map_group.js
     row.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target === row) row.click(); });
     pane.append(row);
   }
 }
 
-function clusterText(c, pane) {  // name, size, typical tags, closest groups, look, time strip
+function clusterCard(c) {  // the side list: name, size and spread in words, one line of what it is
+  const txt = document.createElement("div");
+  const nm = document.createElement("div"); nm.className = "name"; nm.textContent = clusterName(c.id);
+  const mt = document.createElement("div"); mt.className = "meta";
+  const out = c.members.filter((i) => EXCLUDED.has(i)).length;
+  mt.textContent = `${c.size} ${t(DATA.families ? "folderUnit" : "size")}` + (out ? t("excludedOf").replace("{n}", out) : "") +
+    (c.cohesion !== undefined && !DATA.families ? ` · ${t(spreadWord(c.cohesion))}` : "");
+  if (c.cohesion !== undefined && !DATA.families) mt.title = t("cohesionTip");
+  txt.append(nm, mt);
+  const what = folderMix(c.members) || lookWords(c.members);  // which artists, or else the look
+  if (what) { const w = document.createElement("div"); w.className = "meta"; w.textContent = what; txt.append(w); }
+  return txt;
+}
+
+function clusterText(c, pane) {  // the group view: size, tags, folders, closest groups, look, time strip
   const txt = document.createElement("div");
   const nm = document.createElement("div"); nm.className = "name"; nm.textContent = clusterName(c.id);
   const mt = document.createElement("div"); mt.className = "meta";
@@ -544,7 +564,7 @@ function groupBar(c) {  // live app only: the edits for a group, or placing the 
   const confirmMerge = document.createElement("span");  // a merge waits for its own button
   bar.append(groupSelect(t("mergeInto"), c.id, false, (into) => {
     const go = button(t("mergeConfirm").replace("{a}", clusterName(c.id)).replace("{b}", clusterName(into)),
-      () => editPost("api/merge", { from: c.id, into }, t("mergedNote")));
+      () => editPost("api/merge", { from: c.id, into }));
     go.classList.add("on"); confirmMerge.replaceChildren(go);
   }), confirmMerge);
   if (DATA.clusters.length >= 2) bar.append(groupSelect(t("compareWith"), c.id, false, (other) => showCompare(c.id, other)));
@@ -677,12 +697,28 @@ function buildDups() {
   const help = document.createElement("div"); help.className = "kv";
   help.textContent = groups.length ? t(DATA.live ? "dupHelp" : "dupHelpShared") : t("noDups");
   pane.append(help);
+  const keep = (DATA.live && DATA.live.dup_keep) || [];  // live app: the copy each export keeps
   groups.forEach((g, n) => {
     const h = document.createElement("h3"); h.textContent = `#${n + 1} · ${g.length}`;
     const grid = document.createElement("div"); grid.className = "grid";
-    g.forEach((i) => grid.append(thumb(i)));
+    g.forEach((i) => grid.append(dupTile(i, keep.length ? keep[n] === i : null)));
     pane.append(h, grid);
   });
+}
+
+function dupTile(i, kept) {  // a near-duplicate with its file name; kept: true / false / null (unknown)
+  const fig = document.createElement("figure"); fig.className = "dup" + (kept ? " kept" : "");
+  const cap = document.createElement("figcaption");
+  cap.textContent = PTS[i].n.split("/").pop(); cap.title = PTS[i].n;
+  fig.append(thumb(i), cap);
+  if (kept) {
+    const b = document.createElement("span"); b.className = "badge"; b.textContent = t("dupKept"); fig.append(b);
+  } else if (kept === false) {
+    const b = document.createElement("button"); b.textContent = t("dupKeepThis"); b.title = t("dupKeepTip");
+    b.addEventListener("click", () => keepCopy(i));  // map_app.js
+    fig.append(b);
+  }
+  return fig;
 }
 
 // How the groups were made, in words: "auto cut 0.43", "3 periods", ...
@@ -697,6 +733,7 @@ function methodText() {
   return (p.auto ? t("autoCut") : t("cut")).replace("{t}", Number(p.threshold).toFixed(2));
 }
 
+let shownHint = "";  // the start-up hint on the status line, as last drawn
 function applyText() {
   document.documentElement.lang = lang === "zh" ? "zh-Hant" : "en";
   $("title").querySelector("h1").textContent = DATA.title;
@@ -727,10 +764,13 @@ function applyText() {
   refreshGroupView();  // map_group.js: an open group view, rebuilt where it was
   const many = DATA.clusters.length > Math.max(12, N / 8);  // e.g. one varied artist cut into dozens
   const chosen = DATA.live && DATA.live.settings && DATA.live.settings.k === 1;  // "one group" on purpose
-  if (DATA.live && DATA.clusters.length <= 1 && N > 10 && !chosen) setStatus(t("oneGroup"));
-  else if (DATA.live && many && !DATA.live.restored && !(DATA.params || {}).edited) setStatus(manyGroupsHint());
-  else if (DATA.live && DATA.live.restored && !$("status").textContent) setStatus(t("restored"));
-  else if (DATA.live && !DATA.live.restored && !$("status").textContent) setStatus(t("firstHint"));
+  // a hint already showing is redrawn in the new language; other messages are left alone
+  const free = !$("status").textContent || $("status").textContent === shownHint;
+  let hint = "";
+  if (DATA.live && DATA.clusters.length <= 1 && N > 10 && !chosen) hint = t("oneGroup");
+  else if (DATA.live && many && !DATA.live.restored && !(DATA.params || {}).edited) hint = manyGroupsHint();
+  else if (DATA.live && free) hint = t(DATA.live.restored ? "restored" : "firstHint");
+  if (hint) { shownHint = hint; setStatus(hint); }
   setupAxes(); if (layoutMode === "measures") drawAxes();
   drawNames();
 }
@@ -780,7 +820,7 @@ function setSpin(on) {
 }
 let spinPref = null;
 try { spinPref = sessionStorage.getItem(SPIN_KEY); } catch (e) { /* storage off */ }
-setSpin(spinPref !== "0");
+setSpin(spinPref === "1");  // still by default: a turning map moves pictures under the cursor
 $("spin").addEventListener("click", () => setSpin(!controls.autoRotate));
 $("savePng").addEventListener("click", snapNow);
 canvas.addEventListener("pointerdown", () => { if (controls.autoRotate) setSpin(false); });
@@ -790,7 +830,7 @@ $("home").addEventListener("click", () => {
   flyTo = { target: new THREE.Vector3(), cam: homeView(), k: 0 };
   document.querySelectorAll(".cl").forEach((r) => r.classList.remove("on"));
 });
-$("lang").addEventListener("click", () => { lang = lang === "zh" ? "en" : "zh"; applyText(); });
+$("lang").addEventListener("click", () => { lang = lang === "zh" ? "en" : "zh"; store(LANG_KEY, lang); applyText(); });
 
 // The keyboard and mouse shortcuts, toggled by "?" (built with textContent, like the rest).
 function showHelp(on) {
@@ -799,10 +839,18 @@ function showHelp(on) {
   if (!on) return;
   const rows = [["drag", "keyRotate"], ["wheel", "keyZoom"], ["sizeKeys", "keySize"],
     ["Esc", "keyHome"], ["P", "keySnap"], ...(DATA.live ? [["shiftKeys", "keyMark"], ["L / D", "keyVote"], ["X", "keyExclude"], ["Ctrl + Z", "keyUndo"]] : [])];
+  const close = document.createElement("button"); close.className = "close"; close.textContent = "✕";
+  close.title = t("close"); close.setAttribute("aria-label", t("close")); close.addEventListener("click", () => showHelp(false));
+  const start = document.createElement("h4"); start.textContent = t("quickStart");
+  const steps = document.createElement("ol"); steps.className = "quick";
+  ["quick1", "quick2", "quick3", ...(DATA.live ? ["quick4"] : [])].forEach((key) => {
+    const li = document.createElement("li"); li.textContent = t(key); steps.append(li);
+  });
   const about = ["helpWhat1", "helpWhat2", "helpWhat3", ...(DATA.live ? ["helpNotes"] : [])].map((key) => {
     const p = document.createElement("p"); p.className = "about"; p.textContent = t(key); return p;
   });
-  box.replaceChildren(...about, ...rows.map(([key, what]) => {
+  const keys = document.createElement("h4"); keys.textContent = t("keysTitle");
+  box.replaceChildren(close, start, steps, ...about, keys, ...rows.map(([key, what]) => {
     const line = document.createElement("div");
     const b = document.createElement("b"); b.textContent = ["drag", "wheel", "sizeKeys", "shiftKeys"].includes(key) ? t(key) : key;
     line.append(b, document.createTextNode(t(what)));
@@ -816,9 +864,11 @@ document.addEventListener("pointerdown", (e) => {  // a click elsewhere closes t
 $("theme").addEventListener("click", () => {
   const root = document.documentElement;
   root.dataset.theme = root.dataset.theme === "light" ? "dark" : "light";
+  store(THEME_KEY, root.dataset.theme);
   setBackground();
 });
 addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !$("help").hidden) { showHelp(false); return; }  // also from a text box
   if (["INPUT", "SELECT", "TEXTAREA"].includes(e.target.tagName)) return;
   if (groupViewKey(e)) { e.preventDefault(); return; }  // map_group.js: arrows step, Esc closes
   if (e.repeat) return;  // holding a key must not vote on images never looked at

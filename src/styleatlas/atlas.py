@@ -80,7 +80,6 @@ class Atlas:
         return replace(self, looks=measure_looks(self.paths, opts, progress))
 
 
-FAMILY_CUT = 0.35  # folder means: about 11 families of 269 artists, loose (BENCHMARKS.md)
 MIN_FOLDERS = 3  # sub-folders an artist map needs
 
 

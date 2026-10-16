@@ -23,7 +23,6 @@ from pathlib import Path
 import numpy as np
 
 from styleatlas.atlas import (
-    FAMILY_CUT,
     LOAD_ERRORS,
     MIN_FOLDERS,
     Atlas,
@@ -40,6 +39,7 @@ from styleatlas.cluster import (
     cluster_by_artist,
     cluster_styles,
     fit_to_groups,
+    folder_families,
 )
 from styleatlas.consistency import consistency
 from styleatlas.dataset import (
@@ -51,6 +51,7 @@ from styleatlas.dataset import (
     clean_group_name,
     distinctive_tags,
     is_unassigned,
+    kept_copy,
     norm_tag,
     plan_folders,
     read_tags,
@@ -112,9 +113,13 @@ MAX_QUERY_IMAGES = 32
 EXPORT_MIN_GROUP = 3  # groups left smaller after set-asides go to _unassigned (as in the CLI)
 MAX_NOTE = 80  # characters of a note on an image (it is drawn on the map)
 COMPARE_ROUNDS = 199  # permutations for a group comparison's p-value (resolution 0.005)
+# a side whose largest sub-folder holds less than this share is several artists: the artist scale
+# (one artist against another) does not read it
+MIXED_SHARE = 0.8
 MIN_SIDE_RANGE = (64, 8192)  # the check tab's smallest-side setting
 MAX_PATH_TEXT = 1000  # longest folder path accepted from the page
 MAX_TAG_TEXT = 200
+MAX_REPEATS = 100  # kohya repeats set by hand on the export bar
 VIEW_PX = 320  # the group view's tiles go up to 240 px wide, sharp on 1.25x screens
 
 
@@ -156,6 +161,15 @@ def _besides(found: list, copies: list[dict]) -> list:
 
 
 ARTIST_MAP = "artist_map.html"
+
+
+def mixes_artists(folders: list[str], rows: list[int]) -> bool:
+    """Whether these images come from several sub-folders (artists, in a library), none holding
+    MIXED_SHARE of them. A folder without sub-folders is one artist's work."""
+    if len(set(folders) - {""}) < 2 or not rows:
+        return False
+    counts = Counter(folders[i] for i in rows)
+    return max(counts.values()) / len(rows) < MIXED_SHARE
 
 
 class StyleAtlasApp(GroupEdits):
@@ -204,6 +218,9 @@ class StyleAtlasApp(GroupEdits):
         self.taste = TasteSession(self.atlas, self.out_dir)
         self._excluded = RelPathMap(self.out_dir / "excluded.json", atlas)
         self.excluded: set[int] = {i for i, v in self._excluded.values.items() if v is True}
+        # the copy picked by hand to keep in a near-duplicate group (else the largest is kept)
+        self._kept = RelPathMap(self.out_dir / "kept_copies.json", atlas)
+        self.kept_copies: set[int] = {i for i, v in self._kept.values.items() if v is True}
         self._notes = RelPathMap(self.out_dir / "notes.json", atlas)  # rel path -> note
 
     def _apply_space(self, name: str) -> None:
@@ -307,9 +324,30 @@ class StyleAtlasApp(GroupEdits):
                 "names": {str(k): v for k, v in self.names_by_group().items()},
                 "restored": self.restored,
                 "can_undo": bool(self._history),
+                "dup_keep": self._dup_keep(),
             }
             payload["notes"] = self.notes()
         return render_html(payload)
+
+    def _dup_keep(self) -> list[int]:
+        """The image each near-duplicate group keeps at export (call under the lock)."""
+        aside = set(self.excluded)
+        return [
+            kept_copy(self.atlas.paths, group, aside, self.kept_copies)
+            for group in self.layout.duplicates
+        ]
+
+    def keep_copy(self, body: dict) -> dict:
+        """Keep image "i" at export instead of the other copies in its near-duplicate group."""
+        i = self._index(body)
+        with self._lock:
+            group = next((g for g in self.layout.duplicates if i in g), None)
+            if group is None:
+                raise ValueError(tr("this image has no near-duplicates", "這張圖沒有近重複的圖"))
+            self.kept_copies = (self.kept_copies - set(group)) | {i}
+            self._kept.values = {j: True for j in self.kept_copies}
+            self._kept.save()
+            return {"dup_keep": self._dup_keep()}
 
     def notes(self) -> dict[str, str]:
         """The notes on images, by index (as the page numbers them)."""
@@ -425,7 +463,7 @@ class StyleAtlasApp(GroupEdits):
                     f"這個資料夾有 {len(folders)} 個",
                 )
             )
-        families = cluster_styles(folders.style, threshold=FAMILY_CUT, min_size=2)
+        families = folder_families(folders.style)
         title = tr(
             f"{self.title or self.raw.root.name}: artists",
             f"{self.title or self.raw.root.name}：畫師地圖",
@@ -744,6 +782,7 @@ class StyleAtlasApp(GroupEdits):
             ma, mb = self._compare_sides(body)
             # plain CSD whatever space the map is in: the z scale and ARTIST_SCALE were made there
             x, looks = self.raw.style, self.atlas.looks
+            folders = labels_from_folders(self.atlas.paths, self.atlas.root)
         dist, p = group_difference(x[ma], x[mb], rounds=COMPARE_ROUNDS)
         scale = StyleScale()
         out = {
@@ -759,6 +798,9 @@ class StyleAtlasApp(GroupEdits):
         if looks is not None:
             d = difference(looks[ma], looks[mb])
             out["look"] = dict(zip(LOOK_NAMES, (round(float(v), 2) for v in d), strict=True))
+        if mixes_artists(folders, ma) or mixes_artists(folders, mb):
+            out["mixed"] = True
+            return out
         reading = artist_reading(dist, len(ma), len(mb))
         if reading is not None:
             out["reading"] = {
@@ -792,8 +834,8 @@ class StyleAtlasApp(GroupEdits):
         with self._lock:
             return self.taste.vote(i, like)
 
-    def _export_options(self, body: dict) -> tuple[str, bool, str, str, int | None]:
-        """(layout, trigger, name, strip_tags, max_per_group) from the page, checked."""
+    def _export_options(self, body: dict) -> tuple[str, bool, str, str, int | None, str]:
+        """(layout, trigger, name, strip_tags, max_per_group, repeats) from the page, checked."""
         layout = body.get("layout", "plain")
         trigger = body.get("trigger", False)
         if layout not in LAYOUTS or not isinstance(trigger, bool):
@@ -806,21 +848,26 @@ class StyleAtlasApp(GroupEdits):
         low, high = MAX_PER_GROUP_RANGE
         if cap is not None and (type(cap) is not int or not low <= cap <= high):
             raise ValueError(f"max_per_group must be empty or a whole number from {low} to {high}")
-        return layout, trigger, name, strip, cap
+        repeats = body.get("repeats")
+        if repeats is not None and (type(repeats) is not int or not 1 <= repeats <= MAX_REPEATS):
+            raise ValueError(f"repeats must be empty (automatic) or a whole number 1-{MAX_REPEATS}")
+        return layout, trigger, name, strip, cap, "auto" if repeats is None else str(repeats)
 
-    def _plan(self, layout: str, name: str, cap: int | None) -> list[str]:
+    def _plan(self, layout: str, name: str, cap: int | None, repeats: str = "auto") -> list[str]:
         """Each image's export folder, as the export would place it (call under the lock)."""
         return plan_folders(
             self.atlas.paths,
             self.clustering,
             layout=layout,
             name=name,
+            repeats=repeats,
             duplicate_groups=self.layout.duplicates,
             excluded=sorted(self.excluded),
             group_names=self.names_by_group(),
             min_size=EXPORT_MIN_GROUP,
             max_per_group=cap,
             style=self.atlas.style,
+            prefer=self.kept_copies,
         )
 
     def _plan_summary(self, folders: list[str], layout: str, trigger: bool) -> dict:
@@ -845,9 +892,9 @@ class StyleAtlasApp(GroupEdits):
     def export_plan(self, body: dict) -> dict:
         """The export's plan without writing anything: one row per folder (images, and the
         repeats of a kohya folder), and the same summary as an export."""
-        layout, trigger, name, _, cap = self._export_options(body)
+        layout, trigger, name, _, cap, repeats = self._export_options(body)
         with self._lock:
-            folders = self._plan(layout, name, cap)
+            folders = self._plan(layout, name, cap, repeats)
         rows = []
         for folder, n in sorted(Counter(folders).items()):
             head, _, rest = folder.partition("_")
@@ -865,14 +912,14 @@ class StyleAtlasApp(GroupEdits):
 
     def export(self, body: dict) -> dict:
         mode = body.get("mode", "copy")
-        layout, trigger, name, strip, cap = self._export_options(body)
+        layout, trigger, name, strip, cap, repeats = self._export_options(body)
         fix = body.get("fix_spelling", False)
         if not isinstance(fix, bool):
             raise ValueError("fix_spelling must be true or false")
         out = self.out_dir
         respell = spelling_fixes(self.atlas.paths) if fix else None  # reads captions: no lock
         with self._lock:
-            folders = self._plan(layout, name, cap)
+            folders = self._plan(layout, name, cap, repeats)
             write_table(self.atlas, self.clustering, out, folders)
             result = export_folders(
                 self.atlas,
