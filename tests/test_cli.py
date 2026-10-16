@@ -575,7 +575,9 @@ def test_render_check_without_any_training_group_of_three(lib, tmp_path):
     out = tmp_path / "r.html"
     args = ["report", str(small), "-o", str(out), "--renders", str(lib / "green"), "--lang", "en"]
     assert main([*args, "--device", "cpu"]) == 0  # was a ZeroDivisionError
-    assert "no style group of 3 images or more" in out.read_text(encoding="utf-8")
+    page = out.read_text(encoding="utf-8")
+    assert "no style group of 3 images or more" in page
+    assert page.count("closest training image (") == 6  # every render is still listed
 
 
 def test_messages_are_in_chinese_when_asked(lib, tmp_path, monkeypatch, capsys):

@@ -41,14 +41,14 @@ class RenderCheck:
         alike first), then those outside the training set's style groups, then the rest (each
         the farthest first)."""
         copied = {i: s for i, _, s in self.copies}
-        return sorted(
-            range(len(self.fits)),
-            key=lambda i: (
-                0 if i in copied else 1 if not self.fits[i].fits else 2,
-                -copied.get(i, 0.0),
-                -self.fits[i].dist,
-            ),
-        )
+
+        def key(i: int) -> tuple:
+            fit = self.fits[i] if self.fits else None  # no fits: no training group of 3+
+            outside = fit is not None and not fit.fits
+            far = fit.dist if fit is not None else -self.nearest[i][1]
+            return (0 if i in copied else 1 if outside else 2, -copied.get(i, 0.0), -far)
+
+        return sorted(range(len(self.renders)), key=key)
 
 
 def check_renders(train: Atlas, clustering: Clustering, renders: Atlas) -> RenderCheck:
