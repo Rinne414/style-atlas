@@ -319,10 +319,38 @@ def test_more_like_a_group_finds_its_strays(tmp_path):
     app.move({"i": stray, "to": -1, "rev": app.revision})
     group = int(app.clustering.labels[target.members[1]])
     hits = app.similar({"group": group})["hits"]
-    assert hits[0] == {"i": stray, "group": -1}
+    assert (hits[0]["i"], hits[0]["group"]) == (stray, -1) and 0 < hits[0]["cos"] <= 1
     assert all(h["group"] != group for h in hits)
     with pytest.raises(ValueError):
         app.similar({"group": 99})
+
+
+def test_find_similar_from_one_picture(tmp_path):
+    app, _ = _app(tmp_path, (8, 7, 6))
+    labels = app.clustering.labels
+    hits = app.similar({"items": [0]})["hits"]
+    assert 0 not in {h["i"] for h in hits}  # the example itself is left out
+    assert labels[hits[0]["i"]] == labels[0]  # the closest is from its own style
+    for bad in ({"items": []}, {"items": [999]}, {"items": list(range(33))}):
+        with pytest.raises(ValueError):
+            app.similar(bad)
+
+
+def test_the_artists_tab_lists_each_folder_with_the_closest(tmp_path):
+    x, _ = make_blobs([5, 5, 5, 5])
+    paths = []
+    for i in range(len(x)):
+        p = tmp_path / ("ab"[i // 10] + "cd"[(i // 5) % 2]) / f"img{i}.png"
+        p.parent.mkdir(exist_ok=True)
+        Image.new("RGB", (16, 16), (i, 0, 0)).save(p)
+        paths.append(p)
+    app = StyleAtlasApp(Atlas(tmp_path, paths, x, x, "sig"), EncodeOptions(device="cpu"), "pca")
+    artists = app.artists({})["artists"]
+    assert [a["name"] for a in artists] == ["ac", "ad", "bc", "bd"]
+    assert all(a["size"] == 5 and 0 <= a["rep"] < 20 and len(a["near"]) == 3 for a in artists)
+    first = artists[0]
+    assert app.atlas.rel(first["rep"]).startswith("ac/")  # its own most typical picture
+    assert [s for _, s in first["near"]] == sorted((s for _, s in first["near"]), reverse=True)
 
 
 def test_several_dropped_images_search_as_one_style(tmp_path, monkeypatch):

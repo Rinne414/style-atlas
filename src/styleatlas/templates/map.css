@@ -57,7 +57,8 @@
   #live .panel #expStrip { width: 210px; }
   #live .lbl { color: var(--muted); font-size: 12px; margin-left: 4px; }
   #live .panel input[type=number] { width: 110px; }
-  #live button.primary { border-color: var(--accent); color: var(--accent); }
+  button.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 600; }
+  button.wide { display: block; width: 100%; margin: 8px 0; padding: 8px 12px; font-size: 13px; }
   #exportOpen.on, #moreOpen.on { border-color: var(--accent); }
   #title { background: color-mix(in srgb, var(--bg) 72%, transparent); border-radius: 10px;
     padding: 4px 8px; margin: -4px 0 0 -8px; }
@@ -124,6 +125,51 @@
   .near a:hover, .near a:focus-visible { text-decoration: underline; }
   .cl .when, .gv-about .when { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 11px; margin-top: 3px; }
   .cl canvas, .gv-about canvas { display: block; flex: none; }
+  /* two ways to use it (map_browse.js): each hides the other's tools */
+  body[data-mode="browse"] #steps, body[data-mode="browse"] #exportOpen, body[data-mode="browse"] #exportPanel,
+  body[data-mode="browse"] .tabs button[data-pane="outliers"], body[data-mode="browse"] .tabs button[data-pane="dups"],
+  body[data-mode="lora"] .tabs button[data-pane="taste"], body[data-mode="lora"] .tabs button[data-pane="artists"] {
+    display: none !important; }
+  #modes { display: flex; gap: 4px; padding: 8px 10px 0; }
+  #modes[hidden] { display: none; }
+  #modes button { flex: 1; border-radius: 8px; padding: 6px 4px; }
+  #welcome { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 9;
+    width: min(520px, calc(100% - 32px)); background: var(--panel); border: 1px solid var(--line);
+    border-radius: 16px; padding: 22px 24px; box-shadow: 0 20px 60px rgba(0, 0, 0, .45); }
+  #welcome[hidden] { display: none; }
+  #welcome h2 { margin: 0 0 14px; font-size: 18px; }
+  #welcome button { display: block; width: 100%; text-align: left; border-radius: 12px; padding: 12px 14px;
+    margin-bottom: 10px; }
+  #welcome button:hover, #welcome button:focus-visible { border-color: var(--accent); }
+  #welcome button b { display: block; font-size: 15px; margin-bottom: 3px; }
+  #welcome button span { color: var(--muted); font-size: 12px; }
+  #welcome p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+  /* the export dialog */
+  #exportPanel { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 9;
+    width: min(560px, calc(100% - 32px)); max-height: calc(100% - 32px); overflow: auto;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, .45); display: flex; flex-direction: column; gap: 10px; }
+  #exportPanel[hidden] { display: none; }
+  #exportPanel .dlg-head { display: flex; align-items: center; justify-content: space-between; font-size: 15px; }
+  #exportPanel .sub { margin: 0; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+  #exportPanel .form { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 8px 10px; align-items: center;
+    margin: 6px 0; }
+  #exportPanel .form label { color: var(--muted); font-size: 12px; }
+  #exportPanel .form [hidden] { display: none; }
+  #exportPanel input[type=text], #exportPanel input[type=number], #exportPanel select { width: 100%;
+    background: var(--panel2); color: var(--ink); border: 1px solid var(--line); border-radius: 8px;
+    padding: 7px 10px; font: inherit; }
+  #exportPanel details summary { cursor: pointer; color: var(--muted); font-size: 12px; margin: 4px 0; }
+  #exportPanel .chip { display: inline-block; margin: 4px 6px 0 0; }
+  #exportPanel .actions { display: flex; gap: 8px; justify-content: flex-end; }
+  #exportPanel .done b { display: block; font-size: 14px; margin-bottom: 2px; }
+  #exportPanel ul.notes { margin: 6px 0 0; padding-left: 18px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+  /* the artists tab */
+  .artist-find { width: 100%; margin: 4px 0 8px; }
+  #pane-artists .back { color: var(--accent); text-decoration: none; font-size: 12px; }
+  #pane-artists .artist-name { margin: 8px 0 4px; font-size: 17px; }
+  #pane-artists .gv-bar select { background: var(--panel); color: var(--ink); border: 1px solid var(--line);
+    border-radius: 999px; padding: 5px 8px; font: inherit; font-size: 12px; }
   /* the group view (map_group.js): one group over the whole map area */
   #groupView { position: absolute; inset: 0; z-index: 7; background: var(--bg); overflow: auto; outline: none;
     --gv-size: 128px; }

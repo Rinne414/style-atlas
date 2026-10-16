@@ -120,6 +120,7 @@ MIN_SIDE_RANGE = (64, 8192)  # the check tab's smallest-side setting
 MAX_PATH_TEXT = 1000  # longest folder path accepted from the page
 MAX_TAG_TEXT = 200
 MAX_REPEATS = 100  # kohya repeats set by hand on the export bar
+NEAR_ARTISTS = 8  # closest folders listed for each in the artists tab
 VIEW_PX = 320  # the group view's tiles go up to 240 px wide, sharp on 1.25x screens
 
 
@@ -673,9 +674,14 @@ class StyleAtlasApp(GroupEdits):
         """Images outside a group that look most like it (a model learned from the group, as in
         `search --combine`): strays that belong in it, or more of the same style. With
         {"excluded": true} the images excluded by hand are the examples: from three strays by
-        another artist, the top 30 held 98% of the rest of them (docs/BENCHMARKS.md)."""
+        another artist, the top 30 held 98% of the rest of them (docs/BENCHMARKS.md). With
+        {"items": [...]} the examples are those images (one: "find similar" on a picture)."""
         with self._lock:
-            if body.get("excluded") is True:
+            if body.get("items") is not None:
+                members = self._indices(body)
+                if len(members) > MAX_QUERY_IMAGES:
+                    raise ValueError(f"at most {MAX_QUERY_IMAGES} example images")
+            elif body.get("excluded") is True:
                 members = sorted(self.excluded)
                 if not members:
                     raise ValueError(tr("no image is excluded yet", "還沒有排除任何圖"))
@@ -685,7 +691,40 @@ class StyleAtlasApp(GroupEdits):
             labels = self.clustering.labels.copy()
             x = self.atlas.style
         hits = search(x[members], x, top=SEARCH_TOP, combine=True, exclude=set(members))[0]
-        return {"hits": [{"i": h.index, "group": int(labels[h.index])} for h in hits]}
+        return {
+            "hits": [
+                {"i": h.index, "group": int(labels[h.index]), "cos": round(h.cosine, 4)}
+                for h in hits
+            ]
+        }
+
+    def artists(self, body: dict) -> dict:
+        """The sub-folders (artists, in a library) for the artists tab: name, image count, the
+        most typical image (as a page index) and the NEAR_ARTISTS folders closest in mean style."""
+        with self._lock:  # images excluded by hand do not pull their folder's average
+            kept = [i for i in range(len(self.raw)) if i not in self.excluded]
+            raw = self.raw.subset(kept)
+            index = {p: i for i, p in enumerate(self.atlas.paths)}
+        folders = labels_from_folders(raw.paths, raw.root)
+        sizes = Counter(f for f in folders if f)
+        means = folder_atlas(raw)  # plain CSD; one row per folder, in sorted name order
+        names = sorted(sizes)
+        if len(names) < MIN_FOLDERS:
+            return {"artists": []}
+        sims = means.style @ means.style.T
+        np.fill_diagonal(sims, -np.inf)
+        near = np.argsort(-sims, axis=1)[:, : min(NEAR_ARTISTS, len(names) - 1)]  # never itself
+        return {
+            "artists": [
+                {
+                    "name": name,
+                    "size": sizes[name],
+                    "rep": index[means.paths[k]],
+                    "near": [[int(j), round(float(sims[k, j]), 3)] for j in near[k]],
+                }
+                for k, name in enumerate(names)
+            ]
+        }
 
     def set_reference(self, body: dict) -> dict:
         """A folder of styles you already know becomes the reference: the measures layout gets

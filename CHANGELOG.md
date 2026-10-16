@@ -68,6 +68,21 @@ Changed output (scripts that parse the text should use `--json`):
 
 New:
 
+- **Two ways to use the web app**, from the same four Sonnet tests (every tester said the screen
+  offered everything at once): the first visit asks "what do you want to do?" (remembered,
+  switchable at the top right). *Browse styles* hides the LoRA tools (steps, check, duplicates,
+  export); *Prepare a LoRA dataset* shows them and hides the taste and artists tabs.
+- **Export opens as a dialog**: format, LoRA name and repeats up front, the rest under "More
+  options", the preview and what was written (a headline, then one note per line) inside it, and
+  a filled main button.
+- **Find pictures in this style** on every picture (the details pane), and "Copy these N to a
+  folder" on its results and in the group view; search results say "very close" / "close"
+  instead of numbers that did not run in order (the number is on hover).
+- **Artists tab** for libraries with sub-folders: find an artist, see the 8 closest by mean style
+  (sorted, with the similarity), show them on the map, or compare two artists by name
+  (`api/artists`; `api/similar` takes example images).
+- The cut field on the bottom bar shows only for a hand-set cut; the empty Details tab shows only
+  once something is in it.
 - **A group view for going through the groups one by one** (asked for by the owner): clicking a
   group in the list fills the map area with that group, its most typical images first (by style
   distance to the group's centre, a new per-image field `g` in the map data), the ones that sit

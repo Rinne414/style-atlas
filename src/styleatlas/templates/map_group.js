@@ -127,7 +127,11 @@ function viewBody(c) {
   about.classList.add("gv-about");
   body.append(about);
   const bar = groupBar(c);
-  if (bar) { bar.style.cssText = ""; bar.className = "gv-bar"; body.append(bar); }
+  if (bar) {
+    bar.style.cssText = ""; bar.className = "gv-bar";
+    bar.append(copyButton(c.members.map((i) => ({ i }))));  // map_app.js: these pictures, to a folder
+    body.append(bar);
+  }
   const strays = straysOf(c);
   const stray = new Set(strays);
   const typical = typicalOrder(c.members).filter((i) => !stray.has(i));

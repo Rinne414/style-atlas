@@ -359,6 +359,7 @@ function select(i) {
   big.className = "big"; big.src = PTS[i].f; big.alt = PTS[i].n;
   big.onerror = () => { big.onerror = null; big.src = PTS[i].t; };
   pane.append(big);
+  if (DATA.live) pane.append(findSimilarButton(i));  // map_browse.js: the one thing people want here
   const kv = document.createElement("div"); kv.className = "kv";
   const b = document.createElement("b"); b.textContent = PTS[i].n;
   kv.append(b, document.createElement("br"),
@@ -380,7 +381,8 @@ function select(i) {
   showPane("selected");
 }
 
-function showPane(name) {
+function showPane(name) {  // the details tab shows once something is in it
+  if (name === "selected") document.querySelector('.tabs button[data-pane="selected"]').hidden = false;
   document.querySelectorAll(".tabs button").forEach((b) => b.classList.toggle("on", b.dataset.pane === name));
   document.querySelectorAll(".pane").forEach((p) => p.classList.toggle("on", p.id === "pane-" + name));
 }
@@ -758,6 +760,7 @@ function applyText() {
   document.querySelector("footer").textContent = t("foot");
   if (selected === null) {
     const e = document.createElement("div"); e.className = "empty"; e.textContent = t("pick");
+    tabs[1].hidden = !$("pane-selected").classList.contains("on");  // nothing picked yet: no empty tab
     $("pane-selected").replaceChildren(e);
   }
   buildClusters(); buildOutliers(); buildDups(); liveText(); if (DATA.live) buildTaste();
@@ -769,7 +772,7 @@ function applyText() {
   let hint = "";
   if (DATA.live && DATA.clusters.length <= 1 && N > 10 && !chosen) hint = t("oneGroup");
   else if (DATA.live && many && !DATA.live.restored && !(DATA.params || {}).edited) hint = manyGroupsHint();
-  else if (DATA.live && free) hint = t(DATA.live.restored ? "restored" : "firstHint");
+  else if (DATA.live && free) hint = t(DATA.live.restored ? "restored" : firstHintKey());
   if (hint) { shownHint = hint; setStatus(hint); }
   setupAxes(); if (layoutMode === "measures") drawAxes();
   drawNames();

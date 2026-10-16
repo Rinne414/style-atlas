@@ -45,18 +45,6 @@
       <button id="artistMap" hidden></button>
       <button id="moreOpen"></button>
       <span id="status"></span>
-      <div id="exportPanel" class="panel" hidden>
-        <b id="exportTitle"></b>
-        <select id="expLayout"><option value="plain"></option><option value="kohya">kohya</option></select>
-        <label class="lbl" for="expName" id="expNameLbl"></label><input id="expName" type="text">
-        <label class="lbl" for="expMax" id="expMaxLbl"></label><input id="expMax" type="number" min="1" step="1">
-        <label class="lbl" for="expRep" id="expRepLbl"></label><input id="expRep" type="number" min="1" max="100" step="1">
-        <label class="lbl" for="expStrip" id="expStripLbl"></label><input id="expStrip" type="text">
-        <label id="expTrigWrap" class="chip"><input id="expTrig" type="checkbox"> <span></span></label>
-        <label id="expSpellWrap" class="chip"><input id="expSpell" type="checkbox"> <span></span></label>
-        <button id="exportPreview"></button>
-        <button id="export" class="primary"></button>
-      </div>
       <div id="morePanel" class="panel" hidden>
         <label id="neutralWrap" class="chip"><input id="neutral" type="checkbox"> <span></span></label>
         <input id="refPath" type="text">
@@ -68,21 +56,50 @@
     <div id="tip"><img alt=""><div class="cap"></div></div>
     <div id="loading">…</div>
     <div id="help" hidden></div>
+    <div id="exportPanel" role="dialog" aria-labelledby="exportTitle" hidden>
+      <div class="dlg-head"><b id="exportTitle"></b><button id="exportClose" class="close">✕</button></div>
+      <p id="exportWhere" class="sub"></p>
+      <div class="form">
+        <label for="expLayout" id="expLayoutLbl"></label>
+        <select id="expLayout"><option value="plain"></option><option value="kohya">kohya</option></select>
+        <label for="expName" id="expNameLbl"></label><input id="expName" type="text">
+        <label for="expRep" id="expRepLbl"></label><input id="expRep" type="number" min="1" max="100" step="1">
+      </div>
+      <details id="expMore"><summary id="expMoreLbl"></summary>
+        <div class="form">
+          <label for="expMax" id="expMaxLbl"></label><input id="expMax" type="number" min="1" step="1">
+          <label for="expStrip" id="expStripLbl"></label><input id="expStrip" type="text">
+        </div>
+        <label id="expTrigWrap" class="chip"><input id="expTrig" type="checkbox"> <span></span></label>
+        <label id="expSpellWrap" class="chip"><input id="expSpell" type="checkbox"> <span></span></label>
+      </details>
+      <div id="expPlan"></div>
+      <div class="actions"><button id="exportPreview"></button><button id="export" class="primary"></button></div>
+    </div>
+    <div id="welcome" hidden>
+      <h2></h2>
+      <button data-mode="browse"><b></b><span></span></button>
+      <button data-mode="lora"><b></b><span></span></button>
+      <p></p>
+    </div>
     <section id="groupView" tabindex="-1" hidden></section>
   </main>
   <aside>
+    <div id="modes" hidden><button data-mode="browse"></button><button data-mode="lora"></button></div>
     <div id="steps" hidden><button data-step="check"></button><span>→</span><button data-step="groups"></button><span>→</span><button data-step="export"></button></div>
     <div class="tabs">
       <button data-pane="clusters" class="on"></button>
       <button data-pane="selected"></button>
       <button data-pane="outliers"></button>
       <button data-pane="dups"></button>
+      <button data-pane="artists" hidden></button>
       <button data-pane="taste" hidden></button>
     </div>
     <div class="pane on" id="pane-clusters"></div>
     <div class="pane" id="pane-selected"></div>
     <div class="pane" id="pane-outliers"></div>
     <div class="pane" id="pane-dups"></div>
+    <div class="pane" id="pane-artists"></div>
     <div class="pane" id="pane-taste"></div>
     <footer></footer>
   </aside>

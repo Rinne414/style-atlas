@@ -154,14 +154,19 @@ function closeToggle(close, all, show) {  // only the results at CLOSE_COS or mo
 
 const CLOSE_COS = 0.85;  // 9 in 10 pairs this close were by one artist (306 Danbooru artists)
 const FAR_COS = 0.43;  // the median of pairs by different artists there: shown faded
+const LIKE_COS = 0.59;  // the median of two works by one artist there: "close"
 
 function scored(x) {  // a search result with its style similarity in the corner
   const cell = document.createElement("figure"); cell.className = "hit";
   const im = thumb(x.i); im.title = `${PTS[x.i].n} · cos ${x.cos.toFixed(3)}`;
-  const cap = document.createElement("figcaption"); cap.textContent = x.cos.toFixed(2);
-  if (x.cos >= CLOSE_COS) cap.className = "close";
+  cell.append(im);
+  if (x.cos >= LIKE_COS) {  // a word, not a number: the order is the search's, not the cosine's
+    const cap = document.createElement("figcaption");
+    cap.textContent = t(x.cos >= CLOSE_COS ? "simVery" : "simLike");
+    if (x.cos >= CLOSE_COS) cap.className = "close";
+    cell.append(cap);
+  }
   if (x.cos < FAR_COS) cell.classList.add("far");
-  cell.append(im, cap);
   return cell;
 }
 
@@ -179,9 +184,10 @@ function copyButton(hits) {  // gather the results into a folder, e.g. to grow a
   return copy;
 }
 
-async function showSimilar(group) {  // a group id, or "excluded": the images excluded by hand
+// a group id, "excluded" (the images excluded by hand) or {items: [...]} (pictures as examples)
+async function showSimilar(group) {
   setStatus(t("searching"));
-  const body = group === "excluded" ? { excluded: true } : { group };
+  const body = group === "excluded" ? { excluded: true } : group.items ? group : { group };
   try {
     const { hits } = await post("api/similar", JSON.stringify(body), "application/json");
     setStatus("");
@@ -189,10 +195,13 @@ async function showSimilar(group) {  // a group id, or "excluded": the images ex
     if (hits.length) focusOn(hits.slice(0, 8).map((h) => h.i));
     const pane = $("pane-selected"); pane.replaceChildren();
     const h = document.createElement("h3");
-    h.textContent = group === "excluded" ? t("moreLikeExcluded") : t("moreLikeTitle").replace("{g}", clusterName(group));
+    h.textContent = group === "excluded" ? t("moreLikeExcluded")
+      : group.items ? t("similarTitle") : t("moreLikeTitle").replace("{g}", clusterName(group));
     const g = document.createElement("div"); g.className = "grid";
-    hits.forEach((x) => { const im = thumb(x.i); im.title = `${PTS[x.i].n} · ${clusterName(x.group)}`; g.append(im); });
-    pane.append(h, g);
+    hits.forEach((x) => { const cell = scored(x); cell.querySelector("img").title += ` · ${clusterName(x.group)}`; g.append(cell); });
+    const legend = document.createElement("div"); legend.className = "kv"; legend.textContent = t("cosLegend");
+    if (group.items) pane.append(...group.items.map((i) => { const q = tile(i); q.className = "query"; return q; }));  // map_group.js: sharp
+    pane.append(h, copyButton(hits), g, legend);
     showPane("selected");
   } catch (e) { setStatus(String(e.message || e)); }
 }
@@ -203,7 +212,8 @@ const SEPARABLE_P = 0.05;  // metrics.SEPARABLE_P
 
 const COMPARE_THUMBS = 6;  // a sample of each side under a comparison
 
-async function showCompare(a, b, items, itemsB) {  // picked images in place of group a / group b
+// picked images in place of group a / group b; names: what to call the two sides (two artists)
+async function showCompare(a, b, items, itemsB, names = null) {
   setStatus(t("searching"));
   try {
     const body = itemsB ? { items, items_b: itemsB } : items ? { items, b } : { a, b };
@@ -218,8 +228,8 @@ async function showCompare(a, b, items, itemsB) {  // picked images in place of 
     // the images that best show the difference first (the server's order), else as they come
     const sideA = r.order_a && r.order_a.length === sideA0.length ? r.order_a : sideA0;
     const sideB = r.order_b && r.order_b.length === sideB0.length ? r.order_b : sideB0;
-    const nameA = items ? t("marked").replace("{n}", items.length) : clusterName(a);
-    const nameB = itemsB ? t("markedA").replace("{n}", sideB.length) : clusterName(b);
+    const nameA = names ? names[0] : items ? t("marked").replace("{n}", items.length) : clusterName(a);
+    const nameB = names ? names[1] : itemsB ? t("markedA").replace("{n}", sideB.length) : clusterName(b);
     const h = document.createElement("h3");
     h.textContent = t("compareTitle").replace("{a}", nameA).replace("{b}", nameB);
     const kv = document.createElement("div"); kv.className = "kv";
@@ -595,6 +605,7 @@ function setupSteps() {  // the LoRA workflow at a glance: check, sort the group
 }
 
 function setupLive() {
+  setupModes();  // map_browse.js
   setupUndo();
   setupPanels();
   setupSteps();
@@ -632,7 +643,6 @@ function setupRegroup() {  // granularity, cut, periods, the regroup button and 
     if (e.target.value in DATA.live.granularity) $("thr").value = DATA.live.granularity[e.target.value].toFixed(2);
     showPeriods(e.target.value === "period" || e.target.value === "timeline");
   });
-  $("thr").addEventListener("input", () => { $("gran").value = "custom"; });
   $("regroup").addEventListener("click", async () => {
     setStatus(t("regrouping"));
     try {
@@ -690,11 +700,14 @@ function syncRepeats() {  // repeats are a kohya folder's prefix: no field for p
   $("expRep").hidden = !kohya; $("expRepLbl").hidden = !kohya;
 }
 
-async function showExportPlan() {  // what the export would write, before it writes anything
+// what the export would write, before it writes anything; after an export (done: its answer),
+// what it wrote, in the export dialog
+async function showExportPlan(done = null) {
   try {
     const r = await post("api/export_plan", JSON.stringify(exportBody()), "application/json");
-    const pane = $("pane-selected"); pane.replaceChildren();
-    const h = document.createElement("h3"); h.textContent = t("planTitle");
+    const pane = $("expPlan"); pane.replaceChildren();
+    if (done) pane.append(exportDone(done));
+    const h = document.createElement("h3"); h.textContent = t(done ? "planWritten" : "planTitle");
     const table = document.createElement("table"); table.className = "plan";
     const head = document.createElement("tr");
     [t("planFolder"), t("planImages"), t("planRepeats")].forEach((x) => { const th = document.createElement("th"); th.textContent = x; head.append(th); });
@@ -714,8 +727,30 @@ async function showExportPlan() {  // what the export would write, before it wri
     if (r.triggers.length) lines.push(t("triggersNote").replace("{w}", r.triggers.join(", ")));
     kv.textContent = lines.join(" ");
     pane.append(h, kv, table);
-    showPane("selected");
   } catch (e) { setStatus(String(e.message || e)); }
+}
+
+function exportDone(r) {  // the headline of a finished export, then its notes one per line
+  const box = document.createElement("div"); box.className = "done";
+  const head = document.createElement("b");
+  head.textContent = t("exportedHead").replace("{k}", r.training).replace("{n}", r.placed);
+  const where = document.createElement("div"); where.className = "kv"; where.textContent = r.folder;
+  const groups = (r.small_ids || []).map(clusterName).join(lang === "zh" ? "、" : ", ");
+  const notes = [
+    r.small_groups && t("smallGroups").replace("{n}", r.small_groups).replace("{g}", groups),
+    r.trimmed && t("trimmedNote").replace("{n}", r.trimmed),
+    r.steps && t("stepsNote").replace("{n}", r.steps) + (exportBody().repeats ? "" : " " + t("repeatsNote")),
+    r.small_training && t("smallTraining").replace("{n}", r.small_training),
+    r.upright && t("uprightNote").replace("{n}", r.upright),
+    r.respelt && r.respelt.length && t("respeltNote").replace("{w}", r.respelt.join(", ")),
+    r.triggers && r.triggers.length && t("triggersNote").replace("{w}", r.triggers.join(", ")),
+    (r.triggers || []).some((w) => /[^\x00-\x7f]/.test(w)) && t("nonAsciiTrigger"),
+    r.config && t("configWritten"),
+  ].filter(Boolean);
+  const list = document.createElement("ul"); list.className = "notes";
+  notes.forEach((text) => { const li = document.createElement("li"); li.textContent = text; list.append(li); });
+  box.append(head, where, list);
+  return box;
 }
 
 function setupExport() {
@@ -725,22 +760,13 @@ function setupExport() {
   $("exportOpen").addEventListener("click", saveExportOptions);  // after setupPanels toggled it
   restoreExportOptions();
   syncRepeats(); $("expLayout").addEventListener("change", syncRepeats);
-  $("exportPreview").addEventListener("click", showExportPlan);
+  $("exportPreview").addEventListener("click", () => showExportPlan());
+  $("exportClose").addEventListener("click", () => { $("exportPanel").hidden = true; $("exportOpen").classList.remove("on"); });
   $("export").addEventListener("click", async () => {
     try {
       const r = await post("api/export", JSON.stringify(exportBody()), "application/json");
-      const groups = (r.small_ids || []).map(clusterName).join(lang === "zh" ? "、" : ", ");
-      const small = r.small_groups ? " " + t("smallGroups").replace("{n}", r.small_groups).replace("{g}", groups) : "";
-      const config = r.config ? " " + t("configWritten") : "";
-      const trimmed = r.trimmed ? " " + t("trimmedNote").replace("{n}", r.trimmed) : "";
-      const steps = r.steps ? " " + t("stepsNote").replace("{n}", r.steps) + (exportBody().repeats ? "" : " " + t("repeatsNote")) : "";
-      const tiny = r.small_training ? " " + t("smallTraining").replace("{n}", r.small_training) : "";
-      const done = t("exported").replace("{n}", r.placed).replace("{f}", r.folder).replace("{k}", r.training);
-      const upright = r.upright ? " " + t("uprightNote").replace("{n}", r.upright) : "";
-      const respelt = r.respelt && r.respelt.length ? " " + t("respeltNote").replace("{w}", r.respelt.join(", ")) : "";
-      const words = r.triggers && r.triggers.length ? " " + t("triggersNote").replace("{w}", r.triggers.join(", ")) : "";
-      const ascii = (r.triggers || []).some((w) => /[^\x00-\x7f]/.test(w)) ? " " + t("nonAsciiTrigger") : "";
-      setStatus(done + small + trimmed + steps + tiny + upright + respelt + words + ascii + config);
+      setStatus(t("exportedHead").replace("{k}", r.training).replace("{n}", r.placed));
+      await showExportPlan(r);
       addOpenFolder();
     } catch (e) { setStatus(String(e.message || e)); }
   });
@@ -795,6 +821,9 @@ function setupDrop() {  // images dropped anywhere on the page are searched
 
 function liveText() {
   if (!DATA.live) return;
+  modesText();  // map_browse.js
+  $("expLayoutLbl").textContent = t("lblLayout"); $("expMoreLbl").textContent = t("moreOptions");
+  $("exportWhere").textContent = t("exportWhere");
   $("pickBtn").textContent = t("searchImg"); $("regroup").textContent = t("regroup");
   $("export").textContent = t("exportGo"); $("exportPreview").textContent = t("exportPreview"); $("exportOpen").textContent = t("exportOpen");
   $("exportTitle").textContent = t("exportTitle"); $("moreOpen").textContent = t("moreOpen");
@@ -837,8 +866,10 @@ function liveText() {
 }
 
 // "period" asks for a number of periods instead of a distance cut.
-function showPeriods(on) {
-  $("thr").hidden = on; $("periods").hidden = !on;
+function showPeriods(on) {  // the number field: periods, or the cut (only when set by hand)
+  const cut = $("gran").value === "custom";
+  $("thr").hidden = on || !cut; $("periods").hidden = !on;
+  $("thrLbl").hidden = !on && !cut;
   $("thrLbl").textContent = t(on ? "lblPeriods" : "lblCut");
   $("thrLbl").htmlFor = on ? "periods" : "thr";
 }

@@ -242,7 +242,14 @@ def page_script() -> str:
     """The page's module script: the map viewer, its layouts and labels, then the web-app
     features and start-up."""
     files = resources.files("styleatlas").joinpath("templates")
-    parts = ("map_i18n.js", "map.js", "map_layout.js", "map_group.js", "map_app.js")
+    parts = (
+        "map_i18n.js",
+        "map.js",
+        "map_layout.js",
+        "map_group.js",
+        "map_browse.js",
+        "map_app.js",
+    )
     return "\n".join(files.joinpath(f).read_text("utf-8") for f in parts)
 
 
