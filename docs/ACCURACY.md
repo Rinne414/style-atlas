@@ -18,7 +18,7 @@
   - 作品少（約 50 張）時，分段結果不太穩定，請在網頁上看時間分佈，必要時合併或移動。分群結果請當作**初步整理**。
   - 檔名有時間時，`--granularity timeline` 依時間順序在畫風變化最大的地方切段，再用兩個檢定區分「沒找到和時間的關係」、「只有漸變」和「有轉折」。14 位畫師裡只有 1 位有轉折，5 位只有漸變，6 位沒找到和時間的明顯關係，2 位作品太少；14 位裡有 6 位的 p 值在門檻邊緣，指令和網頁會註明「結論可能翻轉」。畫師常連續發表一系列相像的作品，檢定會把連續的相似作品（cos 0.80 以上）當成一個系列只算一次，否則純雜訊也會被當成和時間有關。結論請當成「去地圖上看一看」的提示，不是定論。只檢驗「切點比打亂時間順序明顯」是不夠的：單純的漸變也會顯著，舊版因此高估成 8 位。「有轉折」的意思是「變化比隨時間平滑變化的曲線（二次曲線）更突然」：一開始和最後變很快、中間很穩定的畫風也會判成有轉折。
 - **先排除重複圖再分群**，也就是加 `--dedupe`。否則同一張圖的多個版本會自成一群。近重複的門檻刻意設得保守（0.95）：在 0.92～0.95 之間，常常是同一角色換了姿勢的不同圖，對 LoRA 來說那是有效的訓練圖。
-- `compare` 兩邊都有 5 張以上時，會把距離放到「兩位不同畫師」的分布裡看：每邊 20 張時，兩位不同畫師有 95% 相差 0.133 以上，同一位畫師最早和最新的作品中位數相差 0.094，同一位畫師的作品隨機分兩半中位數只差 0.031。這只是位置，不是判斷是不是同一位畫師畫的：畫風很像的兩位畫師也會落在「比 95% 都接近」。p 值說的是兩邊是否很可能不同（畫師常連續發表很像的系列作品，p 會顯得偏小）；p 很小時合在一起訓練，LoRA 會學到兩邊混合的畫風。
+- `compare` 兩邊都有 5 張以上時，會把距離放到「兩位不同畫師」的分布裡看：每邊 20 張時（87 位畫師），兩位不同畫師有 95% 相差 0.130 以上，同一位畫師最早和最新的作品中位數相差 0.086，同一位畫師的作品隨機分兩半中位數只差 0.034。這只是位置，不是判斷是不是同一位畫師畫的：畫風很像的兩位畫師也會落在「比 95% 都接近」，而同一位畫師早期和近期的作品，每 5 位約有 1 位比這更遠。p 值說的是兩邊是否很可能不同（畫師常連續發表很像的系列作品，p 會顯得偏小）；p 很小時合在一起訓練，LoRA 會學到兩邊混合的畫風。
 - 張數更少（例如 LoRA 算圖）或給了 `--noise-floor` 時，改用 z 值門檻（z ≥ 2.3 為「明顯不同」、z < 1.5 為「同一畫風」），它來自一位使用者在固定內容的 NovelAI 算圖上的人眼校準，不是通用標準；換了資料，最好先用 `calibrate` 重新校準。
 
 ### 資料集檢查準不準？
@@ -118,9 +118,10 @@ their history):
 Style drift is gradual, so treat groups as a first pass and review them in the map.
 
 With 5 or more images a side, `compare` places the distance among pairs of different Danbooru
-artists: at 20 works a side, 95% of them are 0.133 or more apart, one artist's oldest and
-newest works 0.094 (median), random halves of one artist's works 0.031 (median). It is a
-position, not a verdict on who drew them (two similar artists also sit low). The p value says
+artists: at 20 works a side (87 artists), 95% of them are 0.130 or more apart, one artist's
+oldest and newest works 0.086 (median), random halves of one artist's works 0.034 (median). It
+is a position, not a verdict on who drew them: two similar artists also sit low, and about 1
+artist in 5 has older and newer works farther apart than that. The p value says
 whether the two sides likely differ; a small p means a LoRA trained on both learns both looks
 mixed. With fewer images (LoRA renders) or `--noise-floor`, the z
 thresholds are used; they come from one person's calibration on fixed-content NovelAI renders,

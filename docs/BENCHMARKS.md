@@ -548,19 +548,23 @@ A first-time-user test of `compare` (one artist's 20 oldest against 20 newest wo
 "same style" from the z scale while the typical images showed a clear change from soft painting
 to cel shading. The z scale was measured on NovelAI renders, 2 images a side, so it says little
 about folders of real artworks. Measured instead: centroid distance (as `compare` computes it,
-plain CSD) between n works a side, on 443 Danbooru artists (period_corpus, unseen_big,
-big_artist_corpus, unseen_corpus, artists300; one sample per artist, the largest; 20 random
-halves per artist, 2,000 random pairs of different artists):
+plain CSD) between n works a side, on one pool of 87 Danbooru artists with 40 works or more
+(period_corpus, unseen_big, big_artist_corpus, and 65 artists of artists300 fetched again with
+40-50 general-rated works each across their posting history; one sample per artist, the
+largest). Every pair of artists once (3,741 pairs, the mean of 3 draws each), 20 random halves
+per artist; 95% intervals by resampling the artists (200 rounds):
 
-| n a side (artists) | One artist, random halves: median / 95th pct | One artist, oldest n vs newest n: median | Different artists: 5th pct / median |
-|---|---|---|---|
-| 5 (368) | 0.113 / 0.231 | 0.158 | 0.192 / 0.348 |
-| 10 (34) | 0.063 / 0.125 | 0.139 | 0.149 / 0.268 |
-| 20 (22) | 0.031 / 0.059 | 0.094 | 0.133 / 0.234 |
+| n a side | One artist, random halves: median / 95th pct | One artist, oldest n vs newest n: median / 95th pct | Different artists: 5th pct | Different artists: median |
+|---|---|---|---|---|
+| 5 | 0.123 / 0.243 | 0.212 / 0.396 | 0.201 [0.190, 0.216] | 0.325 [0.301, 0.350] |
+| 10 | 0.065 / 0.133 | 0.142 / 0.318 | 0.153 [0.142, 0.169] | 0.276 [0.251, 0.304] |
+| 20 | 0.034 / 0.068 | 0.086 / 0.201 | 0.130 [0.116, 0.141] | 0.249 [0.227, 0.271] |
 
-An artist's oldest and newest works are farther apart than random halves (at 20 a side, 73%
-of artists past 0.06, which 5% of random halves reach), but closer than almost any two
-different artists. Since 0.44 `compare` places two folders of 5 or more images against this
+An artist's oldest and newest works are farther apart than random halves, and closer than most
+pairs of different artists, but not always: at 20 a side 79% of artists' oldest-vs-newest
+distances fall below the different artists' 5th percentile (46% at 5, 55% at 10). The first
+table (443 artists, but rows from 368 / 34 / 22 of them) gave 0.133 / 0.234 at 20 a side, inside
+these intervals. Since 0.44 `compare` places two folders of 5 or more images against this
 table (linear in 1/n, n = 2 / (1/nA + 1/nB); past the last row along its last segment, since
 noise keeps shrinking): closer than 95% of pairs of different artists, as far apart as the
 closer half, or farther than half. It is a position, not a verdict on who drew them: two
@@ -575,8 +579,8 @@ comparison uses the same placement on plain CSD, where the tool's own groups rea
 A Sonnet review of the first version: "within one artist's range" over-claimed (it only says
 the pair is unlike most artist pairs), the rows came from different artists (368 / 34 / 22),
 pairs were drawn with replacement from a small pool, clamping at 20 a side was too generous for
-large folders, and the training advice was stated as fact. All fixed as above; the rows are
-being rebuilt on one pool of artists with 40 or more works each.
+large folders, and the training advice was stated as fact. All fixed as above, and the rows
+rebuilt on one pool (the table).
 
 ## Periods along the timeline: `--granularity timeline` (2026-10-16)
 

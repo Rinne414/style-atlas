@@ -255,11 +255,12 @@ class StyleScale:
         return "related"
 
 
-# Centroid distance between two folders of real artworks with n works a side (plain CSD; 443
-# Danbooru artists, 22-368 per row; docs/BENCHMARKS.md "What a compare distance means"):
-# (n, different artists' 5th percentile, their median, one artist's oldest n against newest n).
-ARTIST_SCALE = ((5, 0.192, 0.348, 0.158), (10, 0.149, 0.268, 0.139), (20, 0.133, 0.234, 0.094))
-ARTIST_SCALE_ARTISTS = 22  # artists behind every row (the same ones: 40 works or more each)
+# Centroid distance between two folders of real artworks with n works a side (plain CSD; the same
+# 87 Danbooru artists with 40 works or more behind every row, every pair once; docs/BENCHMARKS.md
+# "What a compare distance means"): (n, different artists' 5th percentile, their median, one
+# artist's oldest n against newest n, median).
+ARTIST_SCALE = ((5, 0.201, 0.325, 0.212), (10, 0.153, 0.276, 0.142), (20, 0.130, 0.249, 0.086))
+ARTIST_SCALE_ARTISTS = 87
 SEPARABLE_P = 0.05  # compare's permutation p below which the two sides really differ
 
 
