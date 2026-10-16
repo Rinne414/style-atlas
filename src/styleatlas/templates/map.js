@@ -27,6 +27,10 @@ const HOME_MAX = 9;
 camera.position.copy(HOME);
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
+// A long scroll used to carry the camera past the far plane (the whole map gone) or into the
+// points; the widest home view is HOME_MAX away
+controls.minDistance = 0.15;
+controls.maxDistance = HOME_MAX * 2;
 controls.autoRotate = true;
 controls.autoRotateSpeed = 0.6;
 const SPREAD = 1.6;
@@ -264,9 +268,22 @@ const TMIN = TIMES.reduce((a, b) => Math.min(a, b), Infinity);
 const TMAX = TIMES.reduce((a, b) => Math.max(a, b), -Infinity);
 const HAS_TIME = DATA.time_source && DATA.time_source !== "none" && TIMES.length > 1 && TMAX > TMIN;
 
-function fmtTime(v) {
+const SORTED_TIMES = [...TIMES].sort((a, b) => a - b);
+
+const DATE_NUMBER = /^(19|20)\d\d(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])$/;  // 20230512 from a name
+// months only when every time in the folder reads as a date: a Pixiv id like 20121215 alone is not
+const NAME_DATES = TIMES.length > 0 && TIMES.every((v) => DATE_NUMBER.test(String(Math.round(v))));
+
+function fmtTime(v) {  // a month, or null for an id in a file name (its number says no date)
   if (DATA.time_source === "mtime") return new Date(v * 1000).toISOString().slice(0, 7);
-  return "#" + Math.round(v).toLocaleString();
+  const s = String(Math.round(v));
+  return NAME_DATES ? `${s.slice(0, 4)}-${s.slice(4, 6)}` : null;
+}
+
+function timeRank(v) {  // 0 the folder's oldest .. 1 its newest: ids far apart do not squash the rest
+  let lo = 0, hi = SORTED_TIMES.length;
+  while (lo < hi) { const mid = (lo + hi) >> 1; if (SORTED_TIMES[mid] < v) lo = mid + 1; else hi = mid; }
+  return lo / Math.max(1, SORTED_TIMES.length - 1);
 }
 
 function timeStrip(members, color) {
@@ -274,7 +291,7 @@ function timeStrip(members, color) {
   if (!HAS_TIME || !ts.length) return null;
   const BINS = 30, W = 120, H = 16;
   const bins = new Array(BINS).fill(0);
-  ts.forEach((v) => bins[Math.min(BINS - 1, Math.floor((v - TMIN) / (TMAX - TMIN) * BINS))]++);
+  ts.forEach((v) => bins[Math.min(BINS - 1, Math.floor(timeRank(v) * BINS))]++);
   const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
   const g = cv.getContext("2d"); const top = Math.max(...bins);
   g.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--line"); g.fillRect(0, H - 1, W, 1);
@@ -282,7 +299,9 @@ function timeStrip(members, color) {
   bins.forEach((b, i) => { if (b) { const h = Math.max(2, b / top * (H - 2)); g.fillRect(i * (W / BINS), H - 1 - h, W / BINS - 1, h); } });
   const wrap = document.createElement("div"); wrap.className = "when";
   const label = document.createElement("span");
-  label.textContent = `${fmtTime(Math.min(...ts))} – ${fmtTime(Math.max(...ts))}`;
+  const [first, last] = [fmtTime(Math.min(...ts)), fmtTime(Math.max(...ts))];
+  label.textContent = first && last ? `${first} – ${last}` : t("whenOrder");
+  wrap.title = t(DATA.time_source === "mtime" ? "whenMtime" : "whenName");
   wrap.append(cv, label);
   return wrap;
 }
@@ -339,7 +358,7 @@ function select(i) {
   kv.append(b, document.createElement("br"),
     document.createTextNode(`${clusterName(PTS[i].c)} · ${t("m_outlier")} ${PTS[i].o.toFixed(3)}` +
       paren(t("outlierRank").replace("{p}", outlierRank(PTS[i].o))) + " · " +
-      (HAS_TIME && PTS[i].ts !== null ? `${fmtTime(PTS[i].ts)} · ` : "") +
+      (HAS_TIME && PTS[i].ts !== null && fmtTime(PTS[i].ts) ? `${fmtTime(PTS[i].ts)} · ` : "") +
       (DATA.reference && PTS[i].r !== null ? `${t("m_ref")} ${PTS[i].r.toFixed(3)} (${PTS[i].rn}) · ` : "")));
   const a = document.createElement("a"); a.href = PTS[i].f; a.target = "_blank"; a.rel = "noopener";
   a.textContent = t(DATA.live ? "open" : "openShared"); a.style.color = "var(--accent)"; kv.append(a);
@@ -369,28 +388,16 @@ function buildClusters() {
   const un = { id: -1, size: 0, medoid: -1, members: [] };
   PTS.forEach((p, i) => (p.c >= 0 ? groups[p.c].members : un.members).push(i));
   un.size = un.members.length; if (un.size) un.medoid = un.members[0];
-  for (const c of [...groups, ...(un.size ? [un] : [])]) {
+  GROUPS = [...groups, ...(un.size ? [un] : [])];
+  for (const c of GROUPS) {
     const row = document.createElement("div"); row.className = "cl"; row.dataset.id = String(c.id);
+    row.tabIndex = 0; row.setAttribute("role", "button"); row.title = t("gvOpenTip");
     const img = document.createElement("img"); img.src = PTS[c.medoid]?.t || ""; img.alt = "";
     img.style.borderColor = colorOf(c.id);
     row.append(img, clusterText(c, pane));
-    const grid = document.createElement("div"); grid.className = "grid"; grid.style.display = "none";
-    grid.style.margin = "4px 0 10px";
-    row.addEventListener("click", () => {
-      const on = focusCluster !== c.id;
-      focusCluster = on ? c.id : null; selected = null; recolor();
-      pane.querySelectorAll(".cl").forEach((r) => r.classList.remove("on"));
-      pane.querySelectorAll(".grid").forEach((g) => (g.style.display = "none"));
-      if (!on) return;
-      row.classList.add("on"); grid.style.display = "grid";
-      if (!grid.childElementCount) {
-        const bar = groupBar(c);
-        if (bar) grid.append(bar);
-        c.members.slice(0, 120).forEach((j) => grid.append(thumb(j)));
-      }
-      focusOn(c.members);
-    });
-    pane.append(row, grid);
+    row.addEventListener("click", () => (viewGroup === c.id ? closeGroup() : openGroup(c.id)));  // map_group.js
+    row.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target === row) row.click(); });
+    pane.append(row);
   }
 }
 
@@ -717,6 +724,7 @@ function applyText() {
     $("pane-selected").replaceChildren(e);
   }
   buildClusters(); buildOutliers(); buildDups(); liveText(); if (DATA.live) buildTaste();
+  refreshGroupView();  // map_group.js: an open group view, rebuilt where it was
   const many = DATA.clusters.length > Math.max(12, N / 8);  // e.g. one varied artist cut into dozens
   const chosen = DATA.live && DATA.live.settings && DATA.live.settings.k === 1;  // "one group" on purpose
   if (DATA.live && DATA.clusters.length <= 1 && N > 10 && !chosen) setStatus(t("oneGroup"));
@@ -812,6 +820,7 @@ $("theme").addEventListener("click", () => {
 });
 addEventListener("keydown", (e) => {
   if (["INPUT", "SELECT", "TEXTAREA"].includes(e.target.tagName)) return;
+  if (groupViewKey(e)) { e.preventDefault(); return; }  // map_group.js: arrows step, Esc closes
   if (e.repeat) return;  // holding a key must not vote on images never looked at
   if (DATA.live && DATA.live.can_undo && (e.ctrlKey || e.metaKey) && !e.altKey && (e.key === "z" || e.key === "Z")) {
     e.preventDefault(); editPost("api/undo", {}); return;
@@ -859,6 +868,7 @@ function animate() {
     if (flyTo.k >= 1) flyTo = null;
   }
   controls.update(Math.min(clock.getDelta(), 0.1));  // real time: same turn speed at any frame rate
+  if (viewGroup !== null) return;  // the group view covers the map: no need to draw it
   declutterNames(performance.now());
   renderer.render(scene, camera);
 }

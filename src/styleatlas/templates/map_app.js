@@ -268,7 +268,7 @@ function toggleMark(i) {
 }
 
 function showMarks() {
-  recolor();
+  recolor(); markTiles();
   let bar = $("markBar");
   if (!MARKED.size) { if (bar) bar.remove(); return; }
   if (!bar) { bar = document.createElement("div"); bar.id = "markBar"; $("stage").append(bar); }
@@ -368,10 +368,11 @@ function groupSelect(title, current, withUnassigned, onPick) {
   return sel;
 }
 
-async function editPost(url, body, note = "") {  // note: shown after the page reloads
+// note: shown after the page reloads; anchor: an image whose group the group view opens on then
+async function editPost(url, body, note = "", anchor = null) {
   try {
     await post(url, JSON.stringify({ ...body, rev: DATA.live.revision }), "application/json");
-    reloadKeepingView(note);
+    reloadKeepingView(note, anchor);
   }
   catch (e) { setStatus(String(e.message || e)); }
 }
@@ -794,8 +795,9 @@ function showPeriods(on) {
 }
 
 const VIEW_KEY = "styleAtlasView";  // the camera, carried over the reload after an edit
-function reloadKeepingView(note = "") {
-  const view = { cam: camera.position.toArray(), target: controls.target.toArray(), note };
+function reloadKeepingView(note = "", anchor = null) {
+  const view = { cam: camera.position.toArray(), target: controls.target.toArray(), note,
+    anchor: anchor ?? anchorForReload() };
   try { sessionStorage.setItem(VIEW_KEY, JSON.stringify(view)); } catch (e) { /* storage off */ }
   location.reload();
 }
@@ -810,6 +812,7 @@ function restoreView() {
   if (!view || !point(view.cam) || !point(view.target)) return false;
   camera.position.fromArray(view.cam); controls.target.fromArray(view.target); controls.update();
   if (typeof view.note === "string" && view.note) setTimeout(() => setStatus(view.note), 0);
+  viewAnchor = Number.isInteger(view.anchor) ? view.anchor : null;  // the group view reopens on it
   return true;
 }
 
@@ -821,5 +824,6 @@ buildPages();
 resize();
 if (!restored) camera.position.copy(homeView());  // every point in view, whatever the window
 $("loading").classList.add("badge");  // thumbnails keep loading behind a small corner note
+if (viewAnchor !== null) { const a = viewAnchor; viewAnchor = null; reopenGroup(a); }
 animate();
 fillPages();

@@ -17,7 +17,7 @@ from styleatlas.atlas import LOAD_ERRORS, Atlas
 from styleatlas.cluster import Clustering, outlier_scores
 from styleatlas.dataset import distinctive_tags, tag_summary
 from styleatlas.duplicates import near_duplicate_groups
-from styleatlas.images import file_time, thumbnail_data_url
+from styleatlas.images import thumbnail_data_url, usable_times
 from styleatlas.lang import tr
 from styleatlas.look import LOOK_NAMES
 from styleatlas.metrics import centroid
@@ -121,7 +121,8 @@ def build_payload(
     time_source: str = "none",
     group_tags: dict[int, list[str]] | None = None,
 ) -> dict:
-    times = [file_time(p, time_source) for p in atlas.paths]
+    usable = usable_times(atlas.paths, time_source)
+    times = [None] * len(atlas) if usable is None else [_or_none(v) for v in usable]
     return {
         "title": title or atlas.root.name or "style atlas",
         "projection": layout.projection,
@@ -131,7 +132,7 @@ def build_payload(
         "clusters": _cluster_rows(atlas, clustering, group_tags or {}),
         "points": _points(atlas, clustering, layout, thumb_of, link_of, times),
         "duplicates": layout.duplicates,
-        "time_source": time_source if any(v is not None for v in times) else "none",
+        "time_source": time_source if usable is not None else "none",
         "reference": layout.ref_title,
         "look_names": list(LOOK_NAMES) if atlas.looks is not None else [],
     }
@@ -152,6 +153,21 @@ def _cluster_rows(atlas: Atlas, clustering: Clustering, group_tags: dict) -> lis
     ]
 
 
+def centre_distances(x: np.ndarray, labels: np.ndarray) -> np.ndarray:
+    """Each image's style distance to its group's centre (as a group's cohesion averages it),
+    NaN for the unassigned: the group view lists the most typical first."""
+    labels = np.asarray(labels)
+    out = np.full(len(labels), np.nan)
+    for cid in np.unique(labels[labels >= 0]):
+        rows = np.flatnonzero(labels == cid)
+        out[rows] = 1.0 - x[rows] @ centroid(x[rows])
+    return out
+
+
+def _or_none(v: float) -> float | None:  # JSON has no NaN
+    return None if np.isnan(v) else float(v)
+
+
 def _points(
     atlas: Atlas,
     clustering: Clustering,
@@ -160,10 +176,12 @@ def _points(
     link_of: Callable[[int], str],
     times: list,
 ) -> list[dict]:
+    centre = centre_distances(atlas.style, clustering.labels)
     points = [
         {
             "p": layout.coords[i].round(4).tolist(),
             "c": int(clustering.labels[i]),
+            "g": _or_none(round(float(centre[i]), 4)),
             "t": thumb_of(i),
             "n": atlas.rel(i),
             "f": link_of(i),
@@ -224,7 +242,7 @@ def page_script() -> str:
     """The page's module script: the map viewer, its layouts and labels, then the web-app
     features and start-up."""
     files = resources.files("styleatlas").joinpath("templates")
-    parts = ("map_i18n.js", "map.js", "map_layout.js", "map_app.js")
+    parts = ("map_i18n.js", "map.js", "map_layout.js", "map_group.js", "map_app.js")
     return "\n".join(files.joinpath(f).read_text("utf-8") for f in parts)
 
 

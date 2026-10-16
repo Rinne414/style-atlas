@@ -16,6 +16,7 @@ import numpy as np
 from PIL import Image, ImageOps
 
 from styleatlas.cachedir import cache_dir
+from styleatlas.lang import tr
 
 IMAGE_TYPES = {  # suffix -> media type; Windows' registry may lack some (.webp)
     ".png": "image/png",
@@ -179,13 +180,58 @@ def file_times(paths: list[Path], source: str) -> np.ndarray:
     return np.array([np.nan if t is None else t for t in times], dtype=float)
 
 
+# One numbering over the years stays within this many orders of magnitude of its median: Pixiv
+# ids 2009-2026 (2e6-1.4e8), Danbooru 2007-2026, tweet ids 2011-2026 (5e16-2e18)
+NAME_SPAN = 1.5
+NAME_SHARE = 0.8  # the share of file-name times that must sit within NAME_SPAN
+
+
+def one_numbering(times: np.ndarray) -> bool:
+    """Whether file-name times can be ordered: most of them from one numbering. A downloads
+    folder mixing tweet ids (19 digits) with Pixiv or Danbooru ids (7-9) or plain counters has
+    no order across them."""
+    known = times[np.isfinite(times)]
+    if len(known) < 2:
+        return False
+    logs = np.log10(np.abs(known) + 1)  # counters from 00000 have a 0
+    return float(np.mean(np.abs(logs - np.median(logs)) <= NAME_SPAN)) >= NAME_SHARE
+
+
+def mixed_numbering(times: np.ndarray) -> bool:
+    """File-name times that exist but come from different numberings (no numbers at all is
+    another problem, with its own message)."""
+    return int(np.isfinite(times).sum()) >= 2 and not one_numbering(times)
+
+
+def mixed_names_error() -> ValueError:
+    return ValueError(
+        tr(
+            "the numbers in these file names come from different sources (e.g. tweet ids next to "
+            "Pixiv ids), so they give no time order: use --time mtime, or rename the files",
+            "這些檔名裡的編號來自不同來源（例如推文編號和 Pixiv 編號混在一起），排不出時間順序："
+            "請改用 --time mtime，或統一檔名",
+        )
+    )
+
+
+def usable_times(paths: list[Path], source: str) -> np.ndarray | None:
+    """file_times when they give an order: None without a source, with under 2 times, or with
+    file names from mixed numberings."""
+    if source == "none":
+        return None
+    times = file_times(paths, source)
+    if np.isfinite(times).sum() < 2 or (source == "name" and not one_numbering(times)):
+        return None
+    return times
+
+
 def timeline(paths: list[Path], source: str) -> np.ndarray | None:
     """Each image's position in the folder's timeline (0 oldest, 1 newest; NaN when unknown),
-    from file-name ids or modification times; None without a source or with under 2 times."""
-    times = file_times(paths, source)
-    known = ~np.isnan(times)
-    if source == "none" or known.sum() < 2:
+    from file-name ids or modification times; None when usable_times has none."""
+    times = usable_times(paths, source)
+    if times is None:
         return None
+    known = ~np.isnan(times)
     pos = np.full(len(times), np.nan)
     order = np.argsort(times[known], kind="stable")
     pos[np.flatnonzero(known)[order]] = np.arange(known.sum()) / (known.sum() - 1)

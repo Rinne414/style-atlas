@@ -284,7 +284,7 @@ def _groups_line(result: Clustering, how: str, how_zh: str) -> str:
 
 def _cluster_timeline(a: argparse.Namespace, atlas: Atlas):
     """--granularity timeline: contiguous periods along the --time order, with their test."""
-    from styleatlas.images import file_times
+    from styleatlas.images import file_times, mixed_names_error, mixed_numbering
     from styleatlas.timeline import cluster_timeline, verdict_text
 
     source = getattr(a, "time", "none")
@@ -298,9 +298,10 @@ def _cluster_timeline(a: argparse.Namespace, atlas: Atlas):
             )
         )
     k = a.k or PERIODS
-    result = cluster_timeline(
-        atlas.style, file_times(atlas.paths, source), k, content=atlas.content
-    )
+    times = file_times(atlas.paths, source)
+    if source == "name" and mixed_numbering(times):
+        raise mixed_names_error()
+    result = cluster_timeline(atlas.style, times, k, content=atlas.content)
     sizes = ", ".join(str(c.size) for c in result.clusters)
     log(
         tr(

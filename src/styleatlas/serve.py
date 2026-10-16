@@ -69,7 +69,14 @@ from styleatlas.export import (
     write_table,
 )
 from styleatlas.groupfile import carry_names, load_groups
-from styleatlas.images import cached_thumbnail, file_times, labels_from_folders, load_rgb
+from styleatlas.images import (
+    cached_thumbnail,
+    file_times,
+    labels_from_folders,
+    load_rgb,
+    mixed_names_error,
+    mixed_numbering,
+)
 from styleatlas.lang import tr
 from styleatlas.look import LOOK_NAMES, difference
 from styleatlas.metrics import (
@@ -108,6 +115,7 @@ COMPARE_ROUNDS = 199  # permutations for a group comparison's p-value (resolutio
 MIN_SIDE_RANGE = (64, 8192)  # the check tab's smallest-side setting
 MAX_PATH_TEXT = 1000  # longest folder path accepted from the page
 MAX_TAG_TEXT = 200
+VIEW_PX = 320  # the group view's tiles go up to 240 px wide, sharp on 1.25x screens
 
 
 DRIVE_REMOTE = 4  # GetDriveTypeW: a mapped network drive
@@ -241,6 +249,8 @@ class StyleAtlasApp(GroupEdits):
                     )
                 )
             times = file_times(atlas.paths, self.time_source)
+            if self.time_source == "name" and mixed_numbering(times):
+                raise mixed_names_error()
             return cluster_timeline(
                 atlas.style, times, k or PERIODS, content=self.raw.content, plain=self.raw.style
             )
@@ -467,13 +477,20 @@ class StyleAtlasApp(GroupEdits):
             subprocess.Popen([opener, str(folder)])  # noqa: S603
         return {"folder": str(folder)}
 
-    def thumb(self, i: int) -> bytes:
+    def thumb(self, i: int) -> bytes:  # the map's and the lists' small tiles, kept in memory
         if i not in self._thumbs:
             try:
                 self._thumbs[i] = cached_thumbnail(self.atlas.paths[i], size=self.thumb_px)
             except LOAD_ERRORS:
                 self._thumbs[i] = b""
         return self._thumbs[i]
+
+    def view_thumb(self, i: int) -> bytes:
+        """A sharper thumbnail for the group view's large tiles (kept in the disk cache only)."""
+        try:
+            return cached_thumbnail(self.atlas.paths[i], size=VIEW_PX)
+        except LOAD_ERRORS:
+            return b""
 
     def prewarm(self, workers: int = 4) -> None:
         """Read the captions, prepare search and make every thumbnail in the background, so the

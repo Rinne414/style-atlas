@@ -280,6 +280,33 @@ def test_a_time_of_zero_is_a_time():
     assert times[0] == 0.0 and times[1] == 7.0 and np.isnan(times[2])
 
 
+def test_file_names_from_mixed_numberings_give_no_timeline():
+    from styleatlas.images import (
+        file_times,
+        mixed_numbering,
+        one_numbering,
+        timeline,
+        usable_times,
+    )
+
+    pixiv = [Path(f"{n}_p0.png") for n in (98000000, 99000000, 101000000, 120000000, 3100000)]
+    assert timeline(pixiv, "name") is not None  # 2009 to 2024 in one numbering
+    tweets = [Path(f"x_{1840000000000000000 + k}.jpg") for k in range(4)]
+    mixed = pixiv + tweets + [Path("IMG_2023-05-12.png")]
+    assert usable_times(mixed, "name") is None and timeline(mixed, "name") is None
+    assert one_numbering(np.array([0.0, 7.0, np.nan]))  # counters from 00000
+    assert mixed_numbering(file_times(mixed, "name"))
+    assert not mixed_numbering(np.array([np.nan, np.nan, 5.0]))  # no numbers: another message
+
+
+def test_each_image_has_its_distance_to_its_group_centre():
+    from styleatlas.report import centre_distances
+
+    x = np.array([[1.0, 0.0], [0.6, 0.8], [0.0, 1.0]])
+    d = centre_distances(x, np.array([0, 0, -1]))
+    assert d[0] == pytest.approx(d[1]) and d[0] > 0 and np.isnan(d[2])
+
+
 def test_tags_are_removed_in_the_exported_captions_only(tmp_path):
     from styleatlas.export import parse_tags
 

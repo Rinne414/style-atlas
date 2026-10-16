@@ -198,6 +198,8 @@ class StyleAtlasHandler(BaseHTTPRequestHandler):
             return
         if parts[0] == "thumb" and i is not None:
             self._send(200, self.app.thumb(i), "image/webp")
+        elif parts[0] == "view" and i is not None:
+            self._send(200, self.app.view_thumb(i), "image/webp")
         elif parts[0] == "image" and i is not None:
             path = self.app.atlas.paths[i]
             ctype = IMAGE_TYPES.get(path.suffix.lower(), "application/octet-stream")
@@ -263,6 +265,13 @@ class _Server(ThreadingHTTPServer):
     # backlog (5 by default) while the server is busy, e.g. making thumbnails right after start.
     request_queue_size = 64
     daemon_threads = True
+
+    def handle_error(self, request, client_address) -> None:
+        # The browser drops thumbnail requests it no longer needs (a scrolled-past list, a closed
+        # tab): nothing went wrong, so no traceback in the console
+        if isinstance(sys.exc_info()[1], ConnectionError):
+            return
+        super().handle_error(request, client_address)
 
 
 def bind(app: StyleAtlasApp | Preparing, port: int = 8770) -> ThreadingHTTPServer:

@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+Fixed:
+
+- **The map no longer disappears after a long scroll.** The wheel could zoom the camera past the
+  far plane (the whole map gone) or into the points; zoom now stops at both ends.
+- **No more tracebacks in the console when the browser cancels a thumbnail** (scrolling a list,
+  closing the tab): `ConnectionAbortedError` and other dropped connections are ignored.
+- **File-name times from mixed sources are no longer used.** `--time name` (the launcher's
+  default) read the largest number in each file name; in a downloads folder mixing tweet ids (19
+  digits) with Pixiv or Danbooru ids, group cards showed ranges like "#583 - #1,928,042,784,..."
+  and timelines followed the id lengths. Times now count only when 80% of them lie within 1.5
+  orders of magnitude of their median (one numbering over the years does); otherwise no
+  timeline is drawn, periods by time say why, and the time strip bins by order, not by raw value,
+  and shows a month only for dates.
+- The side list no longer scrolls sideways when a line holds a long word or number.
+
 Changed output (scripts that parse the text should use `--json`):
 
 - `compare` prints a readable summary by default; the JSON it printed before needs `--json`.
@@ -27,6 +42,15 @@ Changed output (scripts that parse the text should use `--json`):
 
 New:
 
+- **A group view for going through the groups one by one** (asked for by the owner): clicking a
+  group in the list fills the map area with that group, its most typical images first (by style
+  distance to the group's centre, a new per-image field `g` in the map data), the ones that sit
+  apart from it (past Tukey's upper fence) in their own row, and its 3 closest groups side by
+  side with a two-click merge; the edits of the old in-list panel sit above. Arrow keys step
+  through the groups, Esc goes back to the map, a size menu sets the tile size (remembered), and
+  the live app sends sharper 320 px tiles (`/view/<i>`). After an edit reloads the page, the view
+  opens again on the same group (or the merged one). Shared HTML maps get the view without the
+  edits.
 - **`style-atlas demo`** (or double-click `scripts\StyleAtlas-demo.bat`) makes the 72 demo
   images (four procedural styles, no one's artwork) and opens them in the web app, in one step
   (`scripts/make_demo_images.py` moved into the package as `styleatlas.demo`).

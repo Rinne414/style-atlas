@@ -55,6 +55,30 @@ def test_page_and_thumbnails(server):
     assert request(port, "GET", "/image/..%2Fsecret")[0] == 404
 
 
+def test_the_group_view_gets_sharper_tiles_and_each_image_its_centre_distance(server):
+    port, _ = server
+    status, data = request(port, "GET", "/view/0")
+    assert status == 200 and data[:4] == b"RIFF"
+    assert request(port, "GET", "/view/999")[0] == 404
+    assert b'"g":' in request(port, "GET", "/")[1]
+
+
+def test_a_dropped_connection_prints_no_traceback(capsys):
+    from styleatlas.webserver import _Server
+
+    srv = _Server.__new__(_Server)  # handle_error reads only the exception being handled
+    try:
+        raise ConnectionAbortedError(10053, "the browser cancelled the thumbnail")
+    except ConnectionAbortedError:
+        srv.handle_error(None, ("127.0.0.1", 1))
+    assert capsys.readouterr().err == ""
+    try:
+        raise ValueError("a real error")
+    except ValueError:
+        srv.handle_error(None, ("127.0.0.1", 1))
+    assert "ValueError" in capsys.readouterr().err
+
+
 def test_rejects_foreign_host_and_missing_post_header(server):
     port, _ = server
     assert request(port, "GET", "/", headers={"Host": "evil.example"})[0] == 403
