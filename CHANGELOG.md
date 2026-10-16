@@ -129,6 +129,12 @@ New:
   are; a short line at the top says what the page shows.
 - **The web app's Dataset check says it is for LoRA training sets** and can be skipped when
   browsing styles.
+- **`report --renders` lists every render** (from a Sonnet first-time-user test that could not
+  tell which renders were off-style): likely copies of a training image first, with their
+  similarity and the training image beside them, then renders outside the training set's style
+  groups, then the rest, each with its closest training image; the check comes first on the page;
+  the distance is read as in `compare` (5+ images a side: among pairs of artists, not the z
+  scale). In the test, the 4 off-style renders were the first 4 outside the groups.
 - **`doctor` speaks Chinese on a Chinese system** and, when an NVIDIA card is present but torch is
   the CPU build, gives the pip command that swaps it (`--force-reinstall`: running setup.bat again
   would keep the CPU build, which pip counts as installed).

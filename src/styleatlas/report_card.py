@@ -26,12 +26,12 @@ from styleatlas.duplicates import near_duplicate_groups
 from styleatlas.images import cached_thumbnail, labels_from_folders, timeline, timeline_span
 from styleatlas.lang import tr
 from styleatlas.look import LOOK_NAMES, NOTABLE, THAN_ZH, WORDS_ZH, profile
-from styleatlas.metrics import centroid
+from styleatlas.metrics import SEPARABLE_P, centroid
 from styleatlas.render_check import RenderCheck, check_renders
 
 THUMBS = 6  # most typical images shown per group (one of each set of near-duplicates)
 FOLDER_NEIGHBOURS = 2  # closest other sub-folders named per sub-folder
-RENDER_THUMBS = 12  # renders least like the training set, and memorised pairs, shown
+RENDER_ROWS = 100  # renders listed one by one (copies and those outside the groups first)
 THUMB_PX = 160
 PLACEHOLDER = re.compile(r"\{(title|lang|body)\}")
 
@@ -41,6 +41,8 @@ TEXT = {
         "made": "製作日期",
         "intro": "這頁依序是：畫風有多一致、外觀和 Danbooru 畫師比起來如何、"
         "（有子資料夾時）哪些子資料夾畫風相近、自動分出的畫風群。數字只描述畫風怎麼不同，不評好壞。",
+        "intro_renders": "這頁先檢查 LoRA 算圖（和訓練集差多少、哪幾張可能背下訓練圖、"
+        "哪幾張不在訓練集的畫風範圍內），後面再整理訓練集本身。數字只描述畫風怎麼不同，不評好壞。",
         "ends_consistency": ("很一致", "很分散"),
         "consist_folders": "這個資料夾有 {n} 個子資料夾：一致性是把全部當成同一位畫師來比的，"
         "收藏了多位畫師的圖庫本來就會顯得很分散。",
@@ -78,6 +80,10 @@ TEXT = {
         "intro": "This page shows, in order: how consistent the style is, how it looks next to "
         "Danbooru artists, which sub-folders draw alike (when there are any), and the style groups "
         "found automatically. The numbers describe how styles differ, not which is better.",
+        "intro_renders": "This page checks the LoRA renders first (how far they are from the "
+        "training set, which may repeat a training image, which fall outside its style groups), "
+        "then sums up the training set. The numbers describe how styles differ, not which is "
+        "better.",
         "ends_consistency": ("very consistent", "very spread"),
         "consist_folders": "This folder has {n} sub-folders: the measure treats everything as one "
         "artist, so a collection of several artists is expected to read as spread.",
@@ -114,7 +120,26 @@ TEXT = {
 }
 RENDER_TEXT = {
     "zh": {
-        "title": "LoRA 算圖檢查（{n} 張算圖，和上面的訓練集比）",
+        "title": "LoRA 算圖檢查（{n} 張算圖，和這個訓練集比）",
+        "separable": "畫風距離 {d:.3f}；p {p}：算圖和訓練集很可能不同"
+        "（把這些圖隨機分成兩半，很少差這麼多）",
+        "not_separable": "畫風距離 {d:.3f}；p {p}：算圖和訓練集看不出明顯差異",
+        "position": "和 Danbooru 畫師比：{w}（兩位不同畫師有 95% 相差 {p5:.3f} 以上；"
+        "同一位畫師最早和最新的作品，中位數相差 {c:.3f}）",
+        "positions": {
+            "below_p5": "比 95% 的「兩位不同畫師」都接近",
+            "p5_to_median": "和比較接近的那一半「兩位不同畫師」差不多",
+            "above_median": "比一半的「兩位不同畫師」還遠",
+        },
+        "each": "每張算圖",
+        "each_sub": "先列可能背下訓練圖的（最像的在前），再列不在訓練集畫風範圍內的，"
+        "最後是在範圍內的（各自最遠的在前）。右邊是最像的訓練圖。相似度 1.000 是同一張，"
+        "0.95 以上多半是同一張的裁切、差分或連續畫面。",
+        "is_copy": "可能背下訓練圖（相似度 {s:.3f}）",
+        "outside": "不在訓練集的畫風範圍內",
+        "inside": "在訓練集的畫風範圍內",
+        "closest": "最像的訓練圖（{c:.2f}）",
+        "more_rows": "另有 {n} 張沒有列出",
         "distance": "畫風距離 {d:.3f}（z {z:.1f}，{v}；p {p}）",
         "verdict": {"same style": "同一畫風", "related": "相關", "clearly different": "明顯不同"},
         "fit": "{k} / {n} 張落在訓練集某一群的範圍內：{v}",
@@ -128,14 +153,32 @@ RENDER_TEXT = {
         "no_groups": "訓練集沒有 3 張以上的畫風群，不判斷算圖落在範圍內的比例。",
         "look": "外觀（算圖和訓練集比）：{w}",
         "look_same": "沒有明顯差異",
-        "copies": "可能背下的訓練圖：{n} 張算圖和某張訓練圖幾乎一樣"
-        "（每組左邊是算圖，右邊是訓練圖）",
+        "copies": "可能背下的訓練圖：{n} 張算圖和某張訓練圖幾乎一樣（列在下面最前面）",
         "no_copies": "沒有算圖和訓練圖幾乎一樣。",
-        "far": "算圖（最不像訓練集的排前面）",
         "z_note": "z 的尺度來自一位使用者在 NovelAI 算圖上的校準；同一畫風的兩半約為 1。",
     },
     "en": {
-        "title": "LoRA renders ({n}, against the training set above)",
+        "title": "LoRA renders ({n}, against this training set)",
+        "separable": "Style distance {d:.3f}; p {p}: the renders likely differ from the training "
+        "set (random splits of these images seldom come out this far apart)",
+        "not_separable": "Style distance {d:.3f}; p {p}: no clear difference from the training set",
+        "position": "Next to Danbooru artists: {w} (95% of pairs of different artists are "
+        "{p5:.3f} or more apart; one artist's oldest and newest works {c:.3f}, median)",
+        "positions": {
+            "below_p5": "closer than 95% of pairs of different artists",
+            "p5_to_median": "as far apart as the closer half of pairs of different artists",
+            "above_median": "farther apart than half of pairs of different artists",
+        },
+        "each": "Each render",
+        "each_sub": "Likely copies of a training image first (most alike first), then renders "
+        "outside the training set's style groups, then those inside (each the farthest first). "
+        "On the right, the closest training image. A similarity of 1.000 is the same picture; "
+        "0.95 and up are mostly crops, variants or frames of it.",
+        "is_copy": "likely repeats a training image (similarity {s:.3f})",
+        "outside": "outside the training set's style groups",
+        "inside": "inside the training set's style groups",
+        "closest": "closest training image ({c:.2f})",
+        "more_rows": "{n} more not listed",
         "distance": "Style distance {d:.3f} (z {z:.1f}, {v}; p {p})",
         "verdict": {
             "same style": "same style",
@@ -155,10 +198,9 @@ RENDER_TEXT = {
         "renders inside one is not judged.",
         "look": "Look (renders against the training set): {w}",
         "look_same": "no clear difference",
-        "copies": "Possibly memorised: {n} renders nearly repeat a training image (render left, "
-        "training image right)",
+        "copies": "Possibly memorised: {n} renders nearly repeat a training image (first in the "
+        "list below)",
         "no_copies": "No render repeats a training image.",
-        "far": "Renders, least like the training set first",
         "z_note": "The z scale comes from one person's calibration on NovelAI renders; two "
         "halves of one style are about 1 apart.",
     },
@@ -343,12 +385,12 @@ def _looks_section(looks: np.ndarray, t: dict, lang: str) -> str:
 
 
 def _renders_section(check: RenderCheck, train: Atlas, lang: str) -> str:
-    """The LoRA render check: distance, fit share, look change, memorised pairs, the farthest."""
+    """The LoRA render check: distance, fit share, look change, then every render with its verdict
+    and closest training image."""
     r, e = RENDER_TEXT[lang], html.escape
     n = len(check.renders)
     p = "< 0.01" if check.p < 0.01 else f"{check.p:.2f}"
-    verdict = r["verdict"].get(check.verdict, check.verdict)
-    lines = [r["distance"].format(d=check.distance, z=check.z, v=verdict, p=p)]
+    lines = _render_distance_lines(check, r, p)
     if check.fits:  # empty when no training group has 3 images or more
         reading = r["batch"][batch_verdict(check.fitting / n, n)]
         lines.append(r["fit"].format(k=check.fitting, n=n, v=reading))
@@ -358,19 +400,58 @@ def _renders_section(check: RenderCheck, train: Atlas, lang: str) -> str:
         lines.append(r["look"].format(w=_look_change(check.look, lang) or r["look_same"]))
     out = [f"<section><h2>{e(r['title'].format(n=n))}</h2>"]
     out += [f"<p>{e(line)}</p>" for line in lines]
-    out.append(f'<p class="sub">{e(r["fit_note"])} {e(r["z_note"])}</p>')
-    if check.copies:
-        out.append(f"<h3>{e(r['copies'].format(n=len(check.copies)))}</h3>")
-        pairs = [(check.renders.paths[i], train.paths[j]) for i, j, _ in check.copies]
-        cells = "".join(f'<div class="pair">{_imgs(pair)}</div>' for pair in pairs[:RENDER_THUMBS])
-        out.append(f'<div class="thumbs">{cells}</div>')
-    else:
-        out.append(f"<p>{e(r['no_copies'])}</p>")
-    if check.fits:
-        farthest = np.argsort([-f.dist for f in check.fits])[:RENDER_THUMBS]
-        out.append(f"<h3>{e(r['far'])}</h3>")
-        out.append(_thumb_grid([check.renders.paths[i] for i in farthest]))
+    note = r["fit_note"] + ("" if check.reading else " " + r["z_note"])
+    out.append(f'<p class="sub">{e(note)}</p>')
+    out.append(
+        f"<p><b>{e(r['copies'].format(n=len(check.copies)))}</b></p>"
+        if check.copies
+        else f"<p>{e(r['no_copies'])}</p>"
+    )
+    out.append(_render_rows(check, train, r))
     return "".join(out) + "</section>"
+
+
+def _render_distance_lines(check: RenderCheck, r: dict, p: str) -> list[str]:
+    """Next to real artists with 5 or more images a side (as `compare`), else the z scale."""
+    if check.reading is None:
+        verdict = r["verdict"].get(check.verdict, check.verdict)
+        return [r["distance"].format(d=check.distance, z=check.z, v=verdict, p=p)]
+    key = "separable" if check.p < SEPARABLE_P else "not_separable"
+    where = r["positions"][check.reading.position]
+    return [
+        r[key].format(d=check.distance, p=p),
+        r["position"].format(
+            w=where, p5=check.reading.others_p5, c=check.reading.one_artist_change
+        ),
+    ]
+
+
+def _render_rows(check: RenderCheck, train: Atlas, r: dict) -> str:
+    """One row per render: its picture and name, its verdict, its closest training image."""
+    e = html.escape
+    copied = {i: s for i, _, s in check.copies}
+    order = check.order()
+    rows = []
+    for i in order[:RENDER_ROWS]:
+        if i in copied:
+            verdict, cls = r["is_copy"].format(s=copied[i]), "copy"
+        elif check.fits and not check.fits[i].fits:
+            verdict, cls = r["outside"], "out"
+        else:
+            verdict, cls = r["inside"] if check.fits else "", "in"
+        j, cos = check.nearest[i]
+        rows.append(
+            f'<tr class="{cls}"><td><img class="mini" src="{_thumb(check.renders.paths[i])}" '
+            f'alt=""></td><td>{e(check.renders.rel(i))}<br><span class="sub">{e(verdict)}'
+            f'</span></td><td><img class="mini" src="{_thumb(train.paths[j])}" alt=""></td>'
+            f'<td class="sub">{e(train.rel(j))}<br>{e(r["closest"].format(c=cos))}</td></tr>'
+        )
+    more = len(order) - RENDER_ROWS
+    tail = f'<p class="sub">{e(r["more_rows"].format(n=more))}</p>' if more > 0 else ""
+    return (
+        f'<h3>{e(r["each"])}</h3><p class="sub">{e(r["each_sub"])}</p>'
+        f'<table class="renders">{"".join(rows)}</table>{tail}'
+    )
 
 
 def _look_change(z: np.ndarray, lang: str) -> str:
@@ -378,14 +459,6 @@ def _look_change(z: np.ndarray, lang: str) -> str:
     picked = [j for j in np.argsort(-np.abs(z)) if abs(z[j]) >= NOTABLE]
     sep = "、" if lang == "zh" else ", "
     return sep.join(LOOK_WORDS[lang][LOOK_NAMES[j]][0 if z[j] > 0 else 1] for j in picked)
-
-
-def _imgs(paths) -> str:
-    return "".join(f'<img src="{s}" alt="">' for s in (_thumb(p) for p in paths) if s)
-
-
-def _thumb_grid(paths: list) -> str:
-    return f'<div class="thumbs">{_imgs(paths)}</div>'
 
 
 def _group_section(cards: list, t: dict) -> str:
@@ -446,13 +519,13 @@ def render(
     parts = [
         f"<h1>{e(title)}</h1>",
         f'<p class="sub">{sub}</p>',
-        f"<p>{e(t['intro'])}</p>",
-        _consistency_section(atlas, t),
+        f"<p>{e(t['intro' if renders is None else 'intro_renders'])}</p>",
     ]
+    if renders is not None:  # what the reader came for, first; the training set follows
+        parts.append(_renders_section(check_renders(atlas, clustering, renders), atlas, lang))
+    parts.append(_consistency_section(atlas, t))
     if atlas.looks is not None:
         parts.append(_looks_section(atlas.looks, t, lang))
-    if renders is not None:
-        parts.append(_renders_section(check_renders(atlas, clustering, renders), atlas, lang))
     if closest:
         rows = "".join(f'<li>{e(n)} <span class="sub">{s:.3f}</span></li>' for n, s in closest)
         parts.append(f"<section><h2>{t['artists']}</h2><ol>{rows}</ol></section>")
@@ -504,6 +577,10 @@ PAGE = """<!doctype html>
   .folders td { padding: 3px 10px 3px 0; } .folders td:first-child { width: 52px; }
   img.mini { width: 44px; height: 44px; object-fit: cover; border-radius: 4px; display: block;
     background: var(--line); }
+  .renders td { padding: 4px 10px 4px 0; vertical-align: top; }
+  .renders td:first-child, .renders td:nth-child(3) { width: 52px; }
+  .renders tr.copy td:nth-child(2) .sub { color: var(--accent); font-weight: 600; }
+  .renders tr.out td:nth-child(2) .sub { color: var(--accent); }
   .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
     padding: 12px; margin: 10px 0; }
   .card p { margin: 2px 0; }

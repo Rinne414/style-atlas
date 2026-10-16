@@ -551,10 +551,15 @@ def test_report_checks_lora_renders_against_the_training_set(lib, tmp_path, caps
     base = ["report", str(lib), "-o", str(out), "--renders", str(renders), "--device", "cpu"]
     assert main([*base, "--lang", "en"]) == 0
     page = out.read_text(encoding="utf-8")
-    assert "LoRA renders (8, against the training set above)" in page
-    assert "Possibly memorised: 3 renders" in page and "least like the training set first" in page
-    assert page.count('<div class="pair">') == 3  # render and training image side by side
-    assert "of 8 fall inside a style group of the training set" in page
+    assert "LoRA renders (8, against this training set)" in page
+    assert page.index("LoRA renders") < page.index("Style consistency")  # the renders first
+    assert "Possibly memorised: 3 renders" in page and "of 8 fall inside a style group" in page
+    rows = page.split('<table class="renders">')[1].split("</table>")[0].split("<tr ")[1:]
+    assert len(rows) == 8  # every render, with its verdict and closest training image
+    assert all('class="copy"' in row and "copy_red" in row for row in rows[:3])  # copies first
+    assert "likely repeats a training image (similarity 1.000" in rows[0]
+    assert "closest training image" in rows[-1]
+    assert "Next to Danbooru artists" in page and "z_note" not in page  # 5+ a side: no z
     assert main([*base, "--lang", "zh"]) == 0
     assert "LoRA 算圖檢查" in out.read_text(encoding="utf-8")
     assert main([*base, "--neutralize", "1"]) == 1

@@ -14,7 +14,7 @@ from styleatlas.atlas import Atlas
 from styleatlas.cluster import Clustering, Fit, fit_to_groups
 from styleatlas.duplicates import copies_of
 from styleatlas.look import difference
-from styleatlas.metrics import StyleScale, group_difference
+from styleatlas.metrics import ArtistReading, StyleScale, artist_reading, group_difference
 
 ROUNDS = 199  # permutations for the p-value (resolution 0.005), as in the web app
 
@@ -29,10 +29,26 @@ class RenderCheck:
     fits: list[Fit]  # per render: closest training group and whether it fits it
     look: np.ndarray | None  # renders minus training set, per look measure, in pooled SDs
     copies: list[tuple[int, int, float]]  # (render, training image, similarity)
+    nearest: list[tuple[int, float]]  # per render: closest training image, style cosine
+    reading: ArtistReading | None  # the distance among pairs of artists (5+ images a side)
 
     @property
     def fitting(self) -> int:
         return sum(f.fits for f in self.fits)
+
+    def order(self) -> list[int]:
+        """Renders as a reader goes through them: likely copies of a training image first (most
+        alike first), then those outside the training set's style groups, then the rest (each
+        the farthest first)."""
+        copied = {i: s for i, _, s in self.copies}
+        return sorted(
+            range(len(self.fits)),
+            key=lambda i: (
+                0 if i in copied else 1 if not self.fits[i].fits else 2,
+                -copied.get(i, 0.0),
+                -self.fits[i].dist,
+            ),
+        )
 
 
 def check_renders(train: Atlas, clustering: Clustering, renders: Atlas) -> RenderCheck:
@@ -46,6 +62,19 @@ def check_renders(train: Atlas, clustering: Clustering, renders: Atlas) -> Rende
     if train.looks is not None and renders.looks is not None:
         look = difference(train.looks, renders.looks)
     copies = copies_of(renders.style, renders.content, train.style, train.content)
+    sims = renders.style @ train.style.T
+    best = sims.argmax(axis=1)
+    nearest = [(int(j), float(sims[i, j])) for i, j in enumerate(best)]
+    reading = artist_reading(distance, len(train), len(renders))
     return RenderCheck(
-        renders, distance, scale.z(distance), scale.verdict(distance), p, fits, look, copies
+        renders,
+        distance,
+        scale.z(distance),
+        scale.verdict(distance),
+        p,
+        fits,
+        look,
+        copies,
+        nearest,
+        reading,
     )
