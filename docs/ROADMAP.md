@@ -57,7 +57,12 @@ All of these are in `docs/BENCHMARKS.md`.
   must not be used on mixed artists. A character the folder never showed gets a wrong offset.
 - **Taste model**: it separates like from dislike (AUC about 0.77 on one person's votes). It does
   not rank degrees of liking, and it may fail on a new generator. The look measures add nothing
-  to it (AUC 0.53 alone).
+  to it (AUC 0.53 alone). On artists never rated it is much weaker (simulated 0.47-0.64, against
+  0.96 on the rated artists' other works); the grouped AUC it now shows is closer to that, but
+  still 0.12-0.19 above.
+- **Comparing two folders**: at 20 works a side, 95% of pairs of different artists are 0.130 or
+  more apart, yet 1 artist in 5 has older and newer works farther apart than that, so `compare`
+  gives a position among artist pairs, not a verdict on who drew them.
 - **Strays by another artist** in one artist's folder: neither the grouping nor the outlier
   scores find them reliably (about half). From two or three that the user excludes, "Find more
   like these" lists the rest first (98% in the top 30).
