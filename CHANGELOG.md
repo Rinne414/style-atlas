@@ -138,7 +138,8 @@ New:
 - **A library of many artists is pointed at 「依畫師」/by artist**: when the automatic cut makes
   many small groups in a folder with 20 or more sub-folders, the hint suggests grouping by artist
   instead of "medium"/"period" (checked on 3,800 works by 106 artists: ready in 52 s on the CPU
-  with cached vectors, a 2 MB page).
+  with cached vectors, a 2 MB page). `cluster` says the same (`--granularity artists`); on those 106 artists
+  it matched them at ARI 0.258 against 0.138 for the automatic cut.
 - **`doctor` speaks Chinese on a Chinese system** and, when an NVIDIA card is present but torch is
   the CPU build, gives the pip command that swaps it (`--force-reinstall`: running setup.bat again
   would keep the CPU build, which pip counts as installed).

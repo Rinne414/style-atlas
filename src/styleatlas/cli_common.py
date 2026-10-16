@@ -199,7 +199,30 @@ def _cluster(a: argparse.Namespace, atlas: Atlas):
         log(_groups_line(result, f"{result.method}{how}", f"{method_zh}{how_zh}"))
     if "note" in result.params:
         log(tr("note: ", "注意：") + result.params["note"])
+    if a.granularity == "auto" and not getattr(a, "families", False):
+        _library_hint(atlas, result)
     return result
+
+
+LIBRARY_FOLDERS = 20  # sub-folders from which "by artist" follows the artists better
+
+
+def _library_hint(atlas: Atlas, result: Clustering) -> None:
+    """Many small groups in a folder of 20+ sub-folders: likely a library of many artists, which
+    `--granularity artists` follows better (106 artists: ARI 0.258 against 0.138; BENCHMARKS)."""
+    from styleatlas.images import labels_from_folders
+
+    folders = len(set(labels_from_folders(atlas.paths, atlas.root)) - {""})
+    if folders < LIBRARY_FOLDERS or result.n_clusters <= max(12, len(atlas) / 8):
+        return
+    log(
+        tr(
+            f"{result.n_clusters} small groups in a folder of {folders} sub-folders: for a library "
+            "of many artists, --granularity artists follows them better",
+            f"{folders} 個子資料夾分出 {result.n_clusters} 個小群：如果是很多位畫師的圖庫，"
+            "改用 --granularity artists（依畫師）會更貼近畫師",
+        )
+    )
 
 
 def saved_groups(

@@ -869,3 +869,20 @@ def test_merged_renames_never_take_a_folder_that_is_there():
     assert renames == {} and blocked == [("17_x_red", "11_x_red")]  # 9 images: 11 repeats
     renames, _ = _merged_renames(groups, names, Counter({"17_x_red": 4, "11_x_red": 9}))
     assert renames == {"17_x_red": "25_x_red"}  # fewer images (some excluded): more repeats
+
+
+def test_cluster_points_a_library_of_many_artists_at_by_artist(tmp_path, capsys):
+    from types import SimpleNamespace
+
+    from styleatlas.atlas import Atlas
+    from styleatlas.cli_common import _library_hint
+
+    paths = [tmp_path / f"artist{k}" / f"{i}.png" for k in range(25) for i in range(2)]
+    x = np.zeros((len(paths), 4), np.float32)
+    atlas = Atlas(tmp_path, paths, x, x, "sig")
+    _library_hint(atlas, SimpleNamespace(n_clusters=20))  # 25 sub-folders, 20 groups of 50
+    assert "--granularity artists" in capsys.readouterr().err
+    _library_hint(atlas, SimpleNamespace(n_clusters=6))  # few groups: no hint
+    flat = Atlas(tmp_path, [tmp_path / f"{i}.png" for i in range(50)], x, x, "sig")
+    _library_hint(flat, SimpleNamespace(n_clusters=20))  # no sub-folders: one artist, maybe
+    assert "--granularity artists" not in capsys.readouterr().err
