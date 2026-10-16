@@ -31,6 +31,7 @@ from styleatlas.render_check import RenderCheck, check_renders
 
 THUMBS = 6  # most typical images shown per group (one of each set of near-duplicates)
 FOLDER_NEIGHBOURS = 2  # closest other sub-folders named per sub-folder
+FOLDERS_LISTED = 300  # beyond this many sub-folders the list is left to the artist map
 RENDER_ROWS = 100  # renders listed one by one (copies and those outside the groups first)
 THUMB_PX = 160
 PLACEHOLDER = re.compile(r"\{(title|lang|body)\}")
@@ -49,6 +50,8 @@ TEXT = {
         "folders": "子資料夾：哪些畫風相近",
         "folders_sub": "把每個子資料夾（例如每位畫師）的平均畫風拿來互相比較。",
         "closest_to": "最像：",
+        "folders_many": "這個資料夾有 {n} 個子資料夾，太多了，不在這裡列出：請用畫師地圖"
+        "（style-atlas map --by-folder，或網頁介面的「畫師地圖」）。",
         "family": "家族 {k}",
         "alone": "自成一格",
         "folders_note": "家族分得很鬆（每位畫師換一半作品重算，結果只部分相同），請以「最像」為主。"
@@ -91,6 +94,8 @@ TEXT = {
         "folders_sub": "Each sub-folder's (e.g. each artist's) average style, compared with the "
         "others.",
         "closest_to": "Closest: ",
+        "folders_many": "This folder has {n} sub-folders, too many to list here: use the artist "
+        "map (style-atlas map --by-folder, or Artist map in the web app).",
         "family": "Family {k}",
         "alone": "On their own",
         "folders_note": "Families are loose (recomputed on half of each artist's works they agree "
@@ -237,12 +242,23 @@ def look_percentiles(looks: np.ndarray) -> dict[str, float]:
     }
 
 
-def _thumb(path: Path) -> str:
+def _thumb(path: Path, px: int = THUMB_PX) -> str:
     try:
-        data = cached_thumbnail(path, THUMB_PX)
+        data = cached_thumbnail(path, px)
     except LOAD_ERRORS:
         return ""
     return "data:image/webp;base64," + base64.b64encode(data).decode()
+
+
+MINI_PX = 88  # the 44 px list thumbnails, at twice their size for sharp screens
+
+
+@lru_cache(maxsize=512)  # a training image closest to many renders is encoded once
+def _mini(path: Path) -> str:
+    """A small list thumbnail, or nothing for an image that cannot be read (an empty src would
+    make the browser fetch the page itself)."""
+    src = _thumb(path, MINI_PX)
+    return f'<img class="mini" src="{src}" alt="">' if src else ""
 
 
 def _words(looks: np.ndarray, members: np.ndarray, lang: str) -> str:
@@ -313,16 +329,20 @@ def _folder_section(atlas: Atlas, t: dict, lang: str) -> str:
     names = sorted(set(labels) - {""})  # folder_atlas's order
     if len(names) < MIN_FOLDERS:
         return ""
+    if len(names) > FOLDERS_LISTED:  # a page a person reads; the artist map scales further
+        note = t["folders_many"].format(n=len(names))
+        return f"<section><h2>{t['folders']}</h2><p>{html.escape(note)}</p></section>"
     means = folder_atlas(atlas)
     sizes = Counter(labels)
     sims = means.style @ means.style.T
     np.fill_diagonal(sims, -np.inf)
     e, sep = html.escape, "、" if lang == "zh" else ", "
     rows = []
+    top = np.argsort(-sims, axis=1)[:, :FOLDER_NEIGHBOURS]  # at most FOLDERS_LISTED rows
     for k, name in enumerate(names):
-        closest = sep.join(names[j] for j in np.argsort(-sims[k])[:FOLDER_NEIGHBOURS])
+        closest = sep.join(names[j] for j in top[k])
         rows.append(
-            f'<tr><td><img class="mini" src="{_thumb(means.paths[k])}" alt=""></td>'
+            f"<tr><td>{_mini(means.paths[k])}</td>"
             f'<td>{e(name)} <span class="sub">{sizes[name]} {t["images"]}</span></td>'
             f"<td>{e(t['closest_to'] + closest)}</td></tr>"
         )
@@ -441,9 +461,9 @@ def _render_rows(check: RenderCheck, train: Atlas, r: dict) -> str:
             verdict, cls = r["inside"] if check.fits else "", "in"
         j, cos = check.nearest[i]
         rows.append(
-            f'<tr class="{cls}"><td><img class="mini" src="{_thumb(check.renders.paths[i])}" '
-            f'alt=""></td><td>{e(check.renders.rel(i))}<br><span class="sub">{e(verdict)}'
-            f'</span></td><td><img class="mini" src="{_thumb(train.paths[j])}" alt=""></td>'
+            f'<tr class="{cls}"><td>{_mini(check.renders.paths[i])}</td>'
+            f'<td>{e(check.renders.rel(i))}<br><span class="sub">{e(verdict)}'
+            f"</span></td><td>{_mini(train.paths[j])}</td>"
             f'<td class="sub">{e(train.rel(j))}<br>{e(r["closest"].format(c=cos))}</td></tr>'
         )
     more = len(order) - RENDER_ROWS

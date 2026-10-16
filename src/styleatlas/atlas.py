@@ -90,10 +90,13 @@ def folder_atlas(atlas: Atlas) -> Atlas:
     level are left out. Grouping these points finds families of similar folders."""
     folders = labels_from_folders(atlas.paths, atlas.root)
     names = sorted(set(folders) - {""})
-    labels = np.asarray(folders, dtype=object)
+    rows: dict[str, list[int]] = {name: [] for name in names}
+    for i, folder in enumerate(folders):  # one pass, not one comparison of all per folder
+        if folder:
+            rows[folder].append(i)
     paths, style, content, looks = [], [], [], []
     for name in names:
-        members = np.flatnonzero(labels == name)
+        members = np.asarray(rows[name])
         mean = centroid(atlas.style[members])
         paths.append(atlas.paths[int(members[np.argmax(atlas.style[members] @ mean)])])
         style.append(mean)

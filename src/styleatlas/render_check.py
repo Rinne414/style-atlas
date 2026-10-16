@@ -62,6 +62,8 @@ def check_renders(train: Atlas, clustering: Clustering, renders: Atlas) -> Rende
     if train.looks is not None and renders.looks is not None:
         look = difference(train.looks, renders.looks)
     copies = copies_of(renders.style, renders.content, train.style, train.content)
+    # the closest training image by plain style; the inside / outside verdict comes from
+    # fit_to_groups (whitened, against group centres), so the two can point at different groups
     sims = renders.style @ train.style.T
     best = sims.argmax(axis=1)
     nearest = [(int(j), float(sims[i, j])) for i, j in enumerate(best)]

@@ -886,3 +886,32 @@ def test_cluster_points_a_library_of_many_artists_at_by_artist(tmp_path, capsys)
     flat = Atlas(tmp_path, [tmp_path / f"{i}.png" for i in range(50)], x, x, "sig")
     _library_hint(flat, SimpleNamespace(n_clusters=20))  # no sub-folders: one artist, maybe
     assert "--granularity artists" not in capsys.readouterr().err
+
+
+def test_render_order_puts_copies_then_strays_first():
+    from styleatlas.cluster import Fit
+    from styleatlas.render_check import RenderCheck
+
+    fits = [Fit(0, 0.2, True), Fit(0, 0.5, False), Fit(0, 0.9, False), Fit(0, 0.4, True)]
+    nearest = [(0, 0.9), (0, 0.5), (0, 0.4), (0, 0.6)]
+    renders = [None] * 4  # only its length is used
+    check = RenderCheck(
+        renders, 0.1, 1, "", 0.5, fits, None, [(3, 0, 0.97), (0, 1, 0.99)], nearest, None
+    )
+    assert check.order() == [0, 3, 2, 1]  # copies (most alike first), then outside (farthest)
+    check.fits = []  # no training group of 3+: copies, then the least like any training image
+    assert check.order() == [0, 3, 2, 1]
+
+
+def test_report_escapes_folder_names_and_caps_the_folder_list(lib, tmp_path, monkeypatch):
+    import styleatlas.report_card as card
+
+    (lib / "red").rename(lib / "a&b'c")  # Windows allows & and ' in a name, not < > "
+    out = tmp_path / "r.html"
+    assert main(["report", str(lib), "-o", str(out), "--lang", "en", "--device", "cpu"]) == 0
+    page = out.read_text(encoding="utf-8")
+    assert "a&b'c" not in page and "a&amp;b&#x27;c" in page
+    assert 'src=""' not in page  # an unreadable picture leaves out its thumbnail
+    monkeypatch.setattr(card, "FOLDERS_LISTED", 2)  # 3 sub-folders: left to the artist map
+    assert main(["report", str(lib), "-o", str(out), "--lang", "en", "--device", "cpu"]) == 0
+    assert "too many to list here" in out.read_text(encoding="utf-8")
