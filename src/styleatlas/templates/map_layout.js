@@ -2,8 +2,20 @@
 // scene, and recording a turn of the map. Joined after map.js by report.page_script.
 
 /* ---------- measure axes ---------- */
-let layoutMode = "style";
+// Groups apart: each group drawn as its own island around its centre (the similarity layout,
+// pulled in), the centres pushed out, so names sit on their groups. The default for 2 to
+// GROUPS_APART_MAX groups; a gallery of hundreds keeps the similarity layout.
+const GROUPS_APART_MAX = 60;
+const ISLAND_SHRINK = 0.35;  // a group's spread around its centre
+const ISLAND_SPREAD = 1.6;  // the centres' distance from the middle, before they are pushed apart
+const ISLAND_GAP = 0.15;  // room between two islands
+const ISLAND_REACH = 0.9;  // an island's radius: this share of its members lie within it
+const ISLAND_ROUNDS = 300;  // pushing apart (60 groups: a few ms)
+const LAYOUT_PICK_KEY = "styleAtlasLayout";  // the layout picked last (not the measures)
+let layoutMode = ["style", "groups"].includes(stored(LAYOUT_PICK_KEY)) ? stored(LAYOUT_PICK_KEY)
+  : DATA.clusters.length >= 2 && DATA.clusters.length <= GROUPS_APART_MAX ? "groups" : "style";
 let axisLines = null;
+if (layoutMode === "groups") pos.set(islandPositions());  // drawn that way from the first frame
 
 const LOOKS = DATA.look_names || [];
 const LOOK_NOTABLE = 0.5;  // as look.NOTABLE: |z| from which a difference is put into words
@@ -62,7 +74,47 @@ function rankNorm(vals) {
   return out;
 }
 
+// groups apart (see GROUPS_APART_MAX): each group pulled in around its centre, the centres
+// spread out and then pushed apart until no two islands overlap; the unassigned stay put
+function islandPositions() {
+  const target = basePos.slice();
+  const members = new Map();
+  PTS.forEach((p, i) => { if (p.c >= 0) (members.get(p.c) || members.set(p.c, []).get(p.c)).push(i); });
+  const ids = [...members.keys()];
+  const at = (i) => [0, 1, 2].map((d) => basePos[i * 3 + d]);
+  const centre = ids.map((c) => {
+    const m = members.get(c);
+    return [0, 1, 2].map((d) => m.reduce((s, i) => s + basePos[i * 3 + d], 0) / m.length);
+  });
+  const radius = ids.map((c, g) => {  // the island's size once pulled in (a few strays aside)
+    const d = members.get(c).map((i) => Math.hypot(...at(i).map((v, k) => v - centre[g][k]))).sort((a, b) => a - b);
+    return d[Math.min(d.length - 1, Math.floor(ISLAND_REACH * d.length))] * ISLAND_SHRINK + pointSize / 2;
+  });
+  const place = centre.map((c) => c.map((v) => v * ISLAND_SPREAD));
+  for (let round = 0; round < ISLAND_ROUNDS; round++) {
+    let moved = false;
+    for (let a = 0; a < ids.length; a++) {
+      for (let b = a + 1; b < ids.length; b++) {
+        const gap = place[b].map((v, k) => v - place[a][k]);
+        let dist = Math.hypot(...gap);
+        const need = radius[a] + radius[b] + ISLAND_GAP;
+        if (dist >= need) continue;
+        if (dist < 1e-6) { gap[0] = 1e-3 * (b - a); dist = Math.hypot(...gap); }  // the same spot: any way
+        const push = (need - dist) / 2 / dist;
+        for (let k = 0; k < 3; k++) { place[a][k] -= gap[k] * push; place[b][k] += gap[k] * push; }
+        moved = true;
+      }
+    }
+    if (!moved) break;
+  }
+  ids.forEach((c, g) => members.get(c).forEach((i) => {
+    for (let d = 0; d < 3; d++) target[i * 3 + d] = place[g][d] + (basePos[i * 3 + d] - centre[g][d]) * ISLAND_SHRINK;
+  }));
+  return target;
+}
+
 function targetPositions() {
+  if (layoutMode === "groups") return islandPositions();
   const target = basePos.slice();
   if (layoutMode !== "measures") return target;
   ["axX", "axY", "axZ"].forEach((id, d) => {
@@ -299,22 +351,24 @@ function homeView() {  // looking at the centre from HOME's direction, every poi
 
 function setupAxes() {
   const opts = ["map", ...availableMeasures()];
-  const defaults = availableMeasures();
+  // a library of many artists: time across them says little, so it is not a default axis
+  const defaults = availableMeasures().filter((k) => k !== "time" || folderNames().length < 2);
   ["axX", "axY", "axZ"].forEach((id, d) => {
     const sel = $(id); const cur = sel.value;
     sel.replaceChildren(...opts.map((k) => { const o = document.createElement("option"); o.value = k; o.textContent = t("m_" + k); return o; }));
     sel.value = cur && opts.includes(cur) ? cur : (defaults[d] || "map");
   });
   const ls = $("layoutSel");
-  ls.replaceChildren(...["style", "measures"].map((k) => {
+  ls.replaceChildren(...["groups", "style", "measures"].map((k) => {
     const o = document.createElement("option"); o.value = k;
-    o.textContent = t(k === "style" ? "layoutStyle" : "layoutMeasures"); return o;
+    o.textContent = t({ style: "layoutStyle", groups: "layoutGroups", measures: "layoutMeasures" }[k]); return o;
   }));
   ls.value = layoutMode;
 }
 
 $("layoutSel").addEventListener("change", (e) => {
   layoutMode = e.target.value; $("axes").hidden = layoutMode !== "measures"; applyLayout();
+  if (layoutMode !== "measures") store(LAYOUT_PICK_KEY, layoutMode);
   flyTo = { target: new THREE.Vector3(), cam: homeView(), k: 0 };
 });
 ["axX", "axY", "axZ"].forEach((id) => $(id).addEventListener("change", applyLayout));

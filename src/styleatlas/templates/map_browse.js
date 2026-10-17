@@ -16,6 +16,50 @@ function setMode(next) {
   const open = document.querySelector(".tabs button.on");
   if (open && getComputedStyle(open).display === "none") showPane("clusters");  // a tab this mode hides
   if (shownHint && $("status").textContent === shownHint) { shownHint = t(firstHintKey()); setStatus(shownHint); }
+  if (GROUPS.length) buildClusters();  // cards and the LoRA advice differ by mode
+}
+
+/* ---------- the LoRA steps: a tick on each one done (this tab) ---------- */
+const STEPS_KEY = "styleAtlasSteps";
+function stepsDone() { try { return JSON.parse(sessionStorage.getItem(STEPS_KEY) || "{}"); } catch (e) { return {}; } }
+function markStep(step) {
+  const done = stepsDone();
+  if (done[step]) return;
+  done[step] = true;
+  try { sessionStorage.setItem(STEPS_KEY, JSON.stringify(done)); } catch (e) { /* storage off */ }
+  stepsText();
+}
+function stepsText() {
+  const done = stepsDone();
+  document.querySelectorAll("#steps button").forEach((b) => {
+    b.textContent = (done[b.dataset.step] ? "✓ " : "") + t("step_" + b.dataset.step);
+    b.classList.toggle("done", Boolean(done[b.dataset.step]));
+  });
+}
+
+/* ---------- the LoRA advice: one or several, in words, with the step that settles it ---------- */
+function loraAdvice() {
+  const box = document.createElement("div"); box.className = "advice";
+  const say = (key, extra = "") => { const p = document.createElement("p"); p.textContent = t(key) + extra; box.append(p); };
+  const act = (key, fn) => { const b = document.createElement("button"); b.className = "primary"; b.textContent = t(key); b.addEventListener("click", fn); box.append(b); };
+  const regroupTo = (g) => { $("gran").value = g; showPeriods(g === "timeline"); $("regroup").click(); };  // map_app.js
+  const reading = DATA.live.timeline;
+  const folders = folderNames().length;
+  if (reading) {  // periods along the timeline: their tests have spoken
+    const edge = reading.edge ? t("adviceEdge") : "";
+    if (reading.verdict === "turns") { say("adviceTurns", edge); act("adviceExport", () => $("exportOpen").click()); }
+    else { say(reading.verdict === "few" ? "adviceFew" : reading.verdict === "drift" ? "adviceDrift" : "adviceNone", edge); act("one", () => regroupTo("one")); }
+  } else if (DATA.clusters.length <= 1) {
+    say("adviceOneGroup"); act("adviceExport", () => $("exportOpen").click());
+  } else if (folders >= 2 && DATA.method !== "folders") {
+    say("adviceFolders", ""); box.lastChild.textContent = t("adviceFolders").replace("{n}", folders);
+    act("folders", () => regroupTo("folders"));
+  } else if (HAS_TIME) {
+    say("adviceAskTime"); act("adviceTime", () => regroupTo("timeline"));
+  } else {
+    say("adviceAskCheck"); act("adviceCheck", () => document.querySelector('#steps button[data-step="check"]').click());
+  }
+  return box;
 }
 
 function firstHintKey() { return useMode === "lora" ? "firstHint" : "firstHintBrowse"; }

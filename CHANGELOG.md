@@ -6,6 +6,9 @@ Fixed, from four Sonnet usability tests of the web app (a newcomer with a downlo
 LoRA trainer with one artist's 60 works, a collector with 3,800 images of 108 artists, a UI
 designer on the demo):
 
+- The export dialog closes with Esc and no longer reopens itself after an edit reloads the page;
+  switching the language no longer wipes search or compare results from the details pane; the
+  quick start's last step matches the mode; the hover card no longer stays over search results.
 - The map no longer turns by default (pictures moved under the cursor); the 旋轉 button still
   turns it.
 - Theme and language are remembered (an edit reloads the page and used to reset both).
@@ -68,6 +71,20 @@ Changed output (scripts that parse the text should use `--json`):
 
 New:
 
+- **Groups apart** (Layout menu, the default for 2-60 groups): each group drawn as its own island
+  around its centre, the islands pushed apart until none overlap, so every name sits on its own
+  group. A gallery of hundreds of groups keeps the similarity layout; the choice is remembered.
+- **One group per folder** in the grouping menu (folders with sub-folders): each group named after
+  its folder, so in a library every group is one artist, by name.
+- **LoRA mode says what to do**: a box above the groups gives a plain recommendation ("train one
+  LoRA on everything: the style shows no clear change over time", "train the periods
+  separately", "one sub-folder makes one LoRA", ...) with the button that does it; periods'
+  verdicts come with the page (`live.timeline`). Steps ① ② ③ get a tick once done.
+- LoRA cards show the old-to-new strip and the spread word again (browse cards leave them out:
+  every tool-made group read "very consistent"); a chip shows a filter in force, with ✕; artist
+  map points carry the artist's name (hover, details, the saved file); the measures layout does not
+  default to time in a library; group copies go to `copies/<group name>`; the export says how many
+  pictures train and how many went to the `_` folders.
 - **Two ways to use the web app**, from the same four Sonnet tests (every tester said the screen
   offered everything at once): the first visit asks "what do you want to do?" (remembered,
   switchable at the top right). *Browse styles* hides the LoRA tools (steps, check, duplicates,

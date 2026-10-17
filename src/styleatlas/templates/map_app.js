@@ -112,6 +112,7 @@ function copyList(files, copies) {  // dropped images that the folder already ho
 }
 
 function showSearch(files, hits, fit, folders, copies, folded) {
+  $("tip").style.display = "none";  // the hover card of the last picture under the cursor
   selected = null; focusCluster = null; searchHits = new Set(hits.map((h) => h.i)); recolor();
   if (hits.length) focusOn(hits.slice(0, 8).map((h) => h.i));
   const pane = $("pane-selected"); pane.replaceChildren();
@@ -170,13 +171,15 @@ function scored(x) {  // a search result with its style similarity in the corner
   return cell;
 }
 
-function copyButton(hits) {  // gather the results into a folder, e.g. to grow a training set
+// gather the results into a folder, e.g. to grow a training set; name: a group's, for its folder
+function copyButton(hits, name = null) {
   const copy = document.createElement("button"); copy.textContent = t("copyHits").replace("{n}", hits.length);
-  copy.title = t("tipCopyHits"); copy.style.margin = "2px 0 6px";
+  copy.title = t(name ? "tipCopyGroup" : "tipCopyHits"); copy.style.margin = "2px 0 6px";
   copy.addEventListener("click", async () => {
     copy.disabled = true;
     try {
-      const r = await post("api/copy_hits", JSON.stringify({ items: hits.map((x) => x.i) }), "application/json");
+      const body = { items: hits.map((x) => x.i), ...(name ? { name } : {}) };
+      const r = await post("api/copy_hits", JSON.stringify(body), "application/json");
       setStatus(t("copiedHits").replace("{n}", r.placed).replace("{f}", r.folder)); addOpenFolder();
     } catch (e) { setStatus(String(e.message || e)); }
     copy.disabled = false;
@@ -190,7 +193,7 @@ async function showSimilar(group) {
   const body = group === "excluded" ? { excluded: true } : group.items ? group : { group };
   try {
     const { hits } = await post("api/similar", JSON.stringify(body), "application/json");
-    setStatus("");
+    setStatus(""); $("tip").style.display = "none";
     selected = null; searchHits = new Set(hits.map((h) => h.i)); recolor();
     if (hits.length) focusOn(hits.slice(0, 8).map((h) => h.i));
     const pane = $("pane-selected"); pane.replaceChildren();
@@ -409,7 +412,7 @@ async function editPost(url, body, note = "", anchor = null) {
   const label = undo ? log.pop() : editLabel(url, body);
   try {
     await post(url, JSON.stringify({ ...body, rev: DATA.live.revision }), "application/json");
-    if (!undo) log.push(label);
+    if (!undo) { log.push(label); markStep("groups"); }  // map_browse.js
     setEditLog(log);
     const said = undo ? (label ? t("undoneWhat").replace("{what}", label) : t("undoneAny")) : `${label}${t("undoHint")}`;
     reloadKeepingView(note || said, anchor);
@@ -651,6 +654,7 @@ function setupRegroup() {  // granularity, cut, periods, the regroup button and 
       const body = g === "period" ? { method: "kmeans", k: periods }
         : g === "timeline" ? { method: "timeline", k: periods }
         : g === "artists" ? { method: "artists" }
+        : g === "folders" ? { method: "folders" }
         : g === "one" ? { method: "agglomerative", k: 1 }  // one LoRA: every image in one group
         : { threshold: g === "auto" ? null : parseFloat($("thr").value) };
       const r = await post("api/regroup", JSON.stringify(body), "application/json");
@@ -673,7 +677,6 @@ const EXPORT_FIELDS = ["expLayout", "expName", "expMax", "expRep", "expStrip"];
 function saveExportOptions() {
   const options = Object.fromEntries(EXPORT_FIELDS.map((id) => [id, $(id).value]));
   options.expTrig = $("expTrig").checked; options.expSpell = $("expSpell").checked;
-  options.open = !$("exportPanel").hidden;
   try { sessionStorage.setItem(EXPORT_KEY, JSON.stringify(options)); } catch (e) { /* storage off */ }
 }
 
@@ -683,8 +686,9 @@ function restoreExportOptions() {  // an edit reloads the page: the bar comes ba
   if (!options) return;
   EXPORT_FIELDS.forEach((id) => { if (typeof options[id] === "string") $(id).value = options[id]; });
   $("expTrig").checked = Boolean(options.expTrig); $("expSpell").checked = Boolean(options.expSpell);
-  if (options.open && $("exportPanel").hidden) $("exportOpen").click();
 }
+
+function closeExport() { $("exportPanel").hidden = true; $("exportOpen").classList.remove("on"); }
 
 function exportBody() {  // the export bar's options, as the server reads them
   const cap = parseInt($("expMax").value, 10);
@@ -733,7 +737,8 @@ async function showExportPlan(done = null) {
 function exportDone(r) {  // the headline of a finished export, then its notes one per line
   const box = document.createElement("div"); box.className = "done";
   const head = document.createElement("b");
-  head.textContent = t("exportedHead").replace("{k}", r.training).replace("{n}", r.placed);
+  const aside = r.placed - r.training;  // duplicates, exclusions, unassigned: in the _ folders
+  head.textContent = t("exportedHead").replace("{k}", r.training) + (aside > 0 ? t("exportedAside").replace("{r}", aside) : "");
   const where = document.createElement("div"); where.className = "kv"; where.textContent = r.folder;
   const groups = (r.small_ids || []).map(clusterName).join(lang === "zh" ? "、" : ", ");
   const notes = [
@@ -761,11 +766,11 @@ function setupExport() {
   restoreExportOptions();
   syncRepeats(); $("expLayout").addEventListener("change", syncRepeats);
   $("exportPreview").addEventListener("click", () => showExportPlan());
-  $("exportClose").addEventListener("click", () => { $("exportPanel").hidden = true; $("exportOpen").classList.remove("on"); });
+  $("exportClose").addEventListener("click", closeExport);
   $("export").addEventListener("click", async () => {
     try {
       const r = await post("api/export", JSON.stringify(exportBody()), "application/json");
-      setStatus(t("exportedHead").replace("{k}", r.training).replace("{n}", r.placed));
+      setStatus(t("exportedHead").replace("{k}", r.training)); markStep("export");
       await showExportPlan(r);
       addOpenFolder();
     } catch (e) { setStatus(String(e.message || e)); }
@@ -828,7 +833,7 @@ function liveText() {
   $("export").textContent = t("exportGo"); $("exportPreview").textContent = t("exportPreview"); $("exportOpen").textContent = t("exportOpen");
   $("exportTitle").textContent = t("exportTitle"); $("moreOpen").textContent = t("moreOpen");
   $("drop").textContent = t("drop");
-  document.querySelectorAll("#steps button").forEach((b) => { b.textContent = t("step_" + b.dataset.step); });
+  stepsText();  // map_browse.js: with a tick on the steps done
   $("saveMap").textContent = t("saveMap"); $("saveReport").textContent = t("saveReport");
   $("artistMap").textContent = t("artistMap"); $("artistMap").title = t("tipArtistMap");
   $("undo").textContent = t("undo");
@@ -848,13 +853,15 @@ function liveText() {
   const option = (k) => { const o = document.createElement("option"); o.value = k; o.textContent = t(k); return o; };
   const more = document.createElement("optgroup"); more.label = t("granMore");  // less common ways
   more.append(...["period", ...Object.keys(DATA.live.granularity), "custom"].map(option));
-  $("gran").replaceChildren(...["auto", ...(HAS_TIME ? ["timeline"] : []), "artists", "one"].map(option), more);
+  const byFolder = folderNames().length >= 2 ? ["folders"] : [];  // map_browse.js
+  $("gran").replaceChildren(...["auto", ...byFolder, ...(HAS_TIME ? ["timeline"] : []), "artists", "one"].map(option), more);
   const thr = parseFloat($("thr").value);
   const match = Object.entries(DATA.live.granularity).find(([, v]) => Math.abs(v - thr) < 1e-6);
   const s = DATA.live.settings;
   const auto = s.threshold == null && !s.k;
   const initial = s.method === "agglomerative" && s.k === 1 ? "one"
     : s.method === "kmeans" ? "period" : s.method === "timeline" ? "timeline" : s.method === "artists" ? "artists"
+    : s.method === "folders" ? "folders"
     : (auto ? "auto" : (match ? match[0] : "custom"));
   $("gran").value = cur && cur !== "custom" ? cur : initial;
   $("periods").title = t("periods");
@@ -877,7 +884,7 @@ function showPeriods(on) {  // the number field: periods, or the cut (only when 
 const VIEW_KEY = "styleAtlasView";  // the camera, carried over the reload after an edit
 function reloadKeepingView(note = "", anchor = null) {
   const view = { cam: camera.position.toArray(), target: controls.target.toArray(), note,
-    anchor: anchor ?? anchorForReload() };
+    anchor: anchor ?? anchorForReload(), layout: layoutMode };
   try { sessionStorage.setItem(VIEW_KEY, JSON.stringify(view)); } catch (e) { /* storage off */ }
   location.reload();
 }
@@ -890,9 +897,10 @@ function restoreView() {
   } catch (e) { return false; }
   const point = (v) => Array.isArray(v) && v.length === 3 && v.every(Number.isFinite);
   if (!view || !point(view.cam) || !point(view.target)) return false;
-  camera.position.fromArray(view.cam); controls.target.fromArray(view.target); controls.update();
-  if (typeof view.note === "string" && view.note) setTimeout(() => setStatus(view.note), 0);
   viewAnchor = Number.isInteger(view.anchor) ? view.anchor : null;  // the group view reopens on it
+  if (typeof view.note === "string" && view.note) setTimeout(() => setStatus(view.note), 0);
+  if (view.layout !== layoutMode) return false;  // the groups changed the layout: frame the new one
+  camera.position.fromArray(view.cam); controls.target.fromArray(view.target); controls.update();
   return true;
 }
 

@@ -684,6 +684,55 @@ def test_export_takes_repeats_from_the_page(tmp_path):
             app.export_plan({"layout": "kohya", "name": "x", "repeats": bad})
 
 
+def _library(tmp_path, sizes=(6, 5, 4)):
+    x, _ = make_blobs(list(sizes))
+    names = [n for n, k in zip(("alpha", "beta", "gamma"), sizes, strict=False) for _ in range(k)]
+    paths = []
+    for i, name in enumerate(names):
+        path = tmp_path / name / f"img{i}.png"
+        path.parent.mkdir(exist_ok=True)
+        Image.new("RGB", (16, 16), (i, 0, 0)).save(path)
+        paths.append(path)
+    atlas = Atlas(tmp_path, paths, x, x, "sig")
+    return StyleAtlasApp(atlas, EncodeOptions(device="cpu"), "pca"), atlas
+
+
+def test_one_group_per_folder_named_after_it(tmp_path):
+    app, atlas = _library(tmp_path)
+    app.regroup({"method": "folders"})
+    assert [c.size for c in app.clustering.clusters] == [6, 5, 4]  # largest first, as always
+    assert app.names_by_group() == {0: "alpha", 1: "beta", 2: "gamma"}
+    for c in app.clustering.clusters:
+        assert {atlas.rel(i).split("/")[0] for i in c.members} == {app.names_by_group()[c.id]}
+
+
+def test_a_group_copy_goes_to_a_folder_named_after_the_group(tmp_path):
+    app, _ = _library(tmp_path)
+    done = app.copy_hits({"items": [0, 1, 2], "name": "畫風 1 · 水彩"})
+    folder = Path(done["folder"])
+    assert done["placed"] == 3 and folder.parent.name == "copies" and "水彩" in folder.name
+    assert Path(app.copy_hits({"items": [3]})["folder"]).name.startswith("search_matches")
+    for bad in ("", "x" * 500, 5):
+        with pytest.raises(ValueError):
+            app.copy_hits({"items": [0], "name": bad})
+
+
+def test_the_page_carries_the_timeline_verdict_for_the_lora_advice(tmp_path):
+    x, _ = make_blobs([10, 10, 10])
+    paths = []
+    for i in range(len(x)):  # ids that grow with the index, as Danbooru or Pixiv ids do
+        path = tmp_path / f"{100000 + i}.png"
+        Image.new("RGB", (16, 16), (i, 0, 0)).save(path)
+        paths.append(path)
+    atlas = Atlas(tmp_path, paths, x, x, "sig")
+    app = StyleAtlasApp(atlas, EncodeOptions(device="cpu"), "pca", time_source="name")
+    assert '"timeline":null' in app.page()  # no periods yet, no verdict
+    app.regroup({"method": "timeline", "k": 3})
+    reading = app._timeline_reading()
+    assert reading["verdict"] in {"none", "drift", "turns", "few"}
+    assert '"timeline":{"verdict"' in app.page()
+
+
 def test_the_check_tab_lists_problems_by_index(tmp_path):
     app, _ = _app(tmp_path, (8, 7))  # 16 px pictures, no captions
     (tmp_path / "img0.txt").write_text("1girl, solo", encoding="utf-8")

@@ -33,10 +33,12 @@ from styleatlas.atlas import (
 )
 from styleatlas.cluster import (
     ARTISTS,
+    FOLDERS,
     GRANULARITY,
     METHODS,
     PERIODS,
     cluster_by_artist,
+    cluster_by_folder,
     cluster_styles,
     fit_to_groups,
     folder_families,
@@ -103,7 +105,7 @@ from styleatlas.report import (
     write_payload,
 )
 from styleatlas.search import fold_hits, folder_verdict, rank_folders, search, style_path, warm
-from styleatlas.serve_edits import GroupEdits
+from styleatlas.serve_edits import MAX_NAME, GroupEdits
 from styleatlas.taste_session import TasteSession
 from styleatlas.timeline import TIMELINE, cluster_timeline, on_edge, verdict
 
@@ -256,6 +258,8 @@ class StyleAtlasApp(GroupEdits):
         atlas = atlas or self.atlas
         if method == ARTISTS:  # on the plain vectors, whatever the space (cluster_by_artist)
             return cluster_by_artist(self.raw.style)
+        if method == FOLDERS:
+            return cluster_by_folder(atlas.style, labels_from_folders(atlas.paths, atlas.root))
         if method == TIMELINE:  # contiguous periods in time order (timeline.py)
             if self.time_source == "none":
                 raise ValueError(
@@ -326,9 +330,21 @@ class StyleAtlasApp(GroupEdits):
                 "restored": self.restored,
                 "can_undo": bool(self._history),
                 "dup_keep": self._dup_keep(),
+                "timeline": self._timeline_reading(),
             }
             payload["notes"] = self.notes()
         return render_html(payload)
+
+    def _timeline_reading(self) -> dict | None:
+        """Periods along the timeline: their tests' verdict for the page's LoRA advice."""
+        params = self.clustering.params
+        if self.clustering.method != TIMELINE or "p_time" not in params:
+            return None
+        return {
+            "verdict": verdict(params),
+            "edge": on_edge(params),
+            "distinct": params.get("distinct"),
+        }
 
     def _dup_keep(self) -> list[int]:
         """The image each near-duplicate group keeps at export (call under the lock)."""
@@ -473,6 +489,9 @@ class StyleAtlasApp(GroupEdits):
         path.parent.mkdir(parents=True, exist_ok=True)
         payload = map_payload(folders, families, path, self.projection, title=title)
         payload["families"] = True
+        names = labels_from_folders(folders.paths, folders.root)
+        for point, name in zip(payload["points"], names, strict=True):
+            point["n"] = name  # each point is an artist: its name, not its typical file
         write_payload(payload, path)  # the shareable file: links relative to it
         index = {p: i for i, p in enumerate(self.raw.paths)}
         for k, point in enumerate(payload["points"]):  # the served copy: the app's own images
@@ -491,13 +510,22 @@ class StyleAtlasApp(GroupEdits):
 
     def copy_hits(self, body: dict) -> dict:
         """Copy images ("items", e.g. search results) with their captions into a new
-        `search_matches` folder in the output folder, as `search --copy-to` does."""
+        `search_matches` folder in the output folder, as `search --copy-to` does; with a "name"
+        (a group's), into copies/<name> instead."""
+        name = body.get("name")
+        if name is not None and (
+            not isinstance(name, str) or not name.strip() or len(name) > MAX_NAME
+        ):
+            raise ValueError(f"name must be text (at most {MAX_NAME} characters)")
+        folder = self.out_dir / ("copies" if name else "")
         with self._lock:
             items = [i for i in self._indices(body) if i not in self.excluded]
             subset = self.raw.subset(items)
         if not items:
             raise ValueError(tr("all of these images are excluded", "這些圖都已經排除了"))
-        result = copy_ranked(subset, self.out_dir / "search_matches")
+        result = copy_ranked(
+            subset, folder / (clean_group_name(name) if name else "search_matches")
+        )
         return {
             "placed": result.placed,
             "failed": len(result.failed),
@@ -544,8 +572,8 @@ class StyleAtlasApp(GroupEdits):
 
     def regroup(self, body: dict) -> dict:
         method = body.get("method", "agglomerative")
-        if method not in (*METHODS, ARTISTS, TIMELINE):
-            raise ValueError(f"method must be one of {(*METHODS, ARTISTS, TIMELINE)}")
+        if method not in (*METHODS, ARTISTS, FOLDERS, TIMELINE):
+            raise ValueError(f"method must be one of {(*METHODS, ARTISTS, FOLDERS, TIMELINE)}")
         threshold = body.get("threshold")  # None: chosen from the data
         k = body.get("k")
         is_number = isinstance(threshold, (int, float)) and not isinstance(threshold, bool)
@@ -562,6 +590,11 @@ class StyleAtlasApp(GroupEdits):
                 )
             self._remember()
             self._swap(clustering)
+            if method == FOLDERS:  # each group is named after its folder (an artist, a style)
+                folders = labels_from_folders(atlas.paths, atlas.root)
+                self.group_names = {
+                    c.id: clean_group_name(folders[c.members[0]]) for c in clustering.clusters
+                }
             self.settings = {"method": method, "threshold": threshold, "k": k}
             self.revision += 1
             self._save_groups()

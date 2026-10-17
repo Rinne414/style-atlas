@@ -208,8 +208,19 @@ function recolor() {  // returns how many images are lit
   }
   pushAlpha();
   fadeNames();
+  filterChip();
   return lit;
 }
+
+function filterChip() {  // a filter in force, shown with a way out
+  const chip = $("filterChip");
+  const what = folderFilter !== null ? folderFilter + "/" : filter;
+  chip.hidden = !what;
+  if (what) chip.textContent = `${t("filterOn").replace("{f}", what)} ✕`;
+}
+$("filterChip").addEventListener("click", () => {
+  filter = ""; folderFilter = null; tagOnly = null; $("find").value = ""; recolor();
+});
 
 function centerOf(indices) {
   const c = new THREE.Vector3();
@@ -316,6 +327,7 @@ function clusterName(c) {
   if (c < 0) return t("unassigned");
   const named = ((DATA.live && DATA.live.names) || DATA.names || {})[String(c)];
   const word = t(DATA.method === "timeline" ? "periodName" : DATA.families ? "familyName" : "style");  // periods: earliest first
+  if (named && DATA.method === "folders") return named;  // one group per folder: its name says it
   return named ? `${word} ${c + 1} · ${named}` : `${word} ${c + 1}`;
 }
 
@@ -397,6 +409,7 @@ function buildClusters() {
   PTS.forEach((p, i) => (p.c >= 0 ? groups[p.c].members : un.members).push(i));
   un.size = un.members.length; if (un.size) un.medoid = un.members[0];
   GROUPS = [...groups, ...(un.size ? [un] : [])];
+  if (DATA.live && useMode === "lora") pane.append(loraAdvice());  // map_browse.js
   for (const c of GROUPS) {
     const row = document.createElement("div"); row.className = "cl"; row.dataset.id = String(c.id);
     row.tabIndex = 0; row.setAttribute("role", "button"); row.title = t("gvOpenTip");
@@ -414,12 +427,15 @@ function clusterCard(c) {  // the side list: name, size and spread in words, one
   const nm = document.createElement("div"); nm.className = "name"; nm.textContent = clusterName(c.id);
   const mt = document.createElement("div"); mt.className = "meta";
   const out = c.members.filter((i) => EXCLUDED.has(i)).length;
+  const lora = DATA.live && useMode === "lora";  // map_browse.js: a trainer asks how tight a group is
   mt.textContent = `${c.size} ${t(DATA.families ? "folderUnit" : "size")}` + (out ? t("excludedOf").replace("{n}", out) : "") +
-    (c.cohesion !== undefined && !DATA.families ? ` · ${t(spreadWord(c.cohesion))}` : "");
-  if (c.cohesion !== undefined && !DATA.families) mt.title = t("cohesionTip");
+    (lora && c.cohesion !== undefined ? ` · ${t(spreadWord(c.cohesion))}` : "");
+  if (lora && c.cohesion !== undefined) mt.title = t("cohesionTip");
   txt.append(nm, mt);
   const what = folderMix(c.members) || lookWords(c.members);  // which artists, or else the look
   if (what) { const w = document.createElement("div"); w.className = "meta"; w.textContent = what; txt.append(w); }
+  const strip = lora ? timeStrip(c.members, colorOf(c.id)) : null;  // old to new, for periods
+  if (strip) txt.append(strip);
   return txt;
 }
 
@@ -666,7 +682,7 @@ async function runCheck(minSide) {
   setStatus(t("checking"));
   try {
     CHECK = await post("api/check", JSON.stringify({ min_side: minSide }), "application/json");
-    setStatus("");
+    setStatus(""); markStep("check");  // map_browse.js
   } catch (e) { setStatus(String(e.message || e)); }
   buildOutliers();  // also brings the button back
 }
@@ -727,6 +743,7 @@ function dupTile(i, kept) {  // a near-duplicate with its file name; kept: true 
 function methodText() {
   const p = DATA.params || {};
   if (DATA.method === "kmeans") return t("periodsN").replace("{n}", p.n_clusters);
+  if (DATA.method === "folders") return t("byFolders");
   if (DATA.method === "timeline") return t("timelineN").replace("{n}", p.n_clusters);
   if (DATA.method === "hdbscan") return "HDBSCAN";
   if (p.n_clusters === 1) return t("oneGroupLabel");
@@ -739,8 +756,9 @@ let shownHint = "";  // the start-up hint on the status line, as last drawn
 function applyText() {
   document.documentElement.lang = lang === "zh" ? "zh-Hant" : "en";
   $("title").querySelector("h1").textContent = DATA.title;
-  $("title").querySelector(".sub").textContent =
-    `${N} ${t("images")} · ${DATA.clusters.length} ${t("clusters").toLowerCase()} · ${methodText()}` +
+  $("title").querySelector(".sub").textContent = (DATA.families  // the artist map: artists and families
+    ? `${N} ${t("folderUnit")} · ${DATA.clusters.length} ${t("familiesWord")}`
+    : `${N} ${t("images")} · ${DATA.clusters.length} ${t("clusters").toLowerCase()} · ${methodText()}`) +
     (DATA.params && DATA.params.edited ? ` · ${t("edited")}` : "") +
     (EXCLUDED.size ? ` · ${t("excludedN").replace("{n}", EXCLUDED.size)}` : "");
   $("find").placeholder = t(DATA.live ? "findLive" : "find");
@@ -758,10 +776,11 @@ function applyText() {
   tabs[0].textContent = t("clusters"); tabs[1].textContent = t("selected"); tabs[2].textContent = t(DATA.live ? "checkTab" : "outliers");
   tabs[3].textContent = `${t("dups")}${(DATA.duplicates || []).length ? " " + DATA.duplicates.length : ""}`;
   document.querySelector("footer").textContent = t("foot");
-  if (selected === null) {
+  const details = $("pane-selected");  // results shown there (search, compare) stay
+  if (selected === null && (!details.childElementCount || details.firstElementChild.className === "empty")) {
     const e = document.createElement("div"); e.className = "empty"; e.textContent = t("pick");
-    tabs[1].hidden = !$("pane-selected").classList.contains("on");  // nothing picked yet: no empty tab
-    $("pane-selected").replaceChildren(e);
+    tabs[1].hidden = !details.classList.contains("on");  // nothing picked yet: no empty tab
+    details.replaceChildren(e);
   }
   buildClusters(); buildOutliers(); buildDups(); liveText(); if (DATA.live) buildTaste();
   refreshGroupView();  // map_group.js: an open group view, rebuilt where it was
@@ -846,7 +865,8 @@ function showHelp(on) {
   close.title = t("close"); close.setAttribute("aria-label", t("close")); close.addEventListener("click", () => showHelp(false));
   const start = document.createElement("h4"); start.textContent = t("quickStart");
   const steps = document.createElement("ol"); steps.className = "quick";
-  ["quick1", "quick2", "quick3", ...(DATA.live ? ["quick4"] : [])].forEach((key) => {
+  const last = DATA.live ? [useMode === "lora" ? "quick4" : "quick4browse"] : [];  // map_browse.js
+  ["quick1", "quick2", "quick3", ...last].forEach((key) => {
     const li = document.createElement("li"); li.textContent = t(key); steps.append(li);
   });
   const about = ["helpWhat1", "helpWhat2", "helpWhat3", ...(DATA.live ? ["helpNotes"] : [])].map((key) => {
@@ -872,6 +892,8 @@ $("theme").addEventListener("click", () => {
 });
 addEventListener("keydown", (e) => {
   if (e.key === "Escape" && !$("help").hidden) { showHelp(false); return; }  // also from a text box
+  if (e.key === "Escape" && !$("exportPanel").hidden) { closeExport(); return; }  // map_app.js
+  if (e.key === "Escape" && !$("welcome").hidden) { setMode("browse"); return; }  // map_browse.js
   if (["INPUT", "SELECT", "TEXTAREA"].includes(e.target.tagName)) return;
   if (groupViewKey(e)) { e.preventDefault(); return; }  // map_group.js: arrows step, Esc closes
   if (e.repeat) return;  // holding a key must not vote on images never looked at

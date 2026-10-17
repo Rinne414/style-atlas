@@ -45,6 +45,7 @@ FIT_PERCENTILE = 70  # a new image fits a group when it is as close as this shar
 FIT_MIN = 3  # smallest group a new image can be placed in
 BATCH_MIN, BATCH_IN, BATCH_OUT = 8, 0.5, 0.25  # reading a batch's share that fits
 ARTISTS = "artists"  # the grouping that follows artists in a gallery of many
+FOLDERS = "folders"  # one group per first-level sub-folder (an artist, in a library)
 ARTISTS_CUT = 0.90  # its cut in the search whitening's space (docs/BENCHMARKS.md)
 ARTISTS_FEW = 10  # fewer groups than this: the folder is probably not a big gallery
 
@@ -281,6 +282,15 @@ def family_cut(x: np.ndarray) -> float:
 
 def folder_families(x: np.ndarray) -> Clustering:
     return cluster_styles(x, threshold=family_cut(x), min_size=2)
+
+
+def cluster_by_folder(x: np.ndarray, folders: list[str]) -> Clustering:
+    """One group per first-level sub-folder (labels_from_folders); images loose at the top level
+    are unassigned. Groups are numbered by size, as every grouping is."""
+    names = sorted(set(folders) - {""})
+    ids = {name: k for k, name in enumerate(names)}
+    raw = np.array([ids.get(f, UNASSIGNED) for f in folders], dtype=int)
+    return _finish(x, raw, FOLDERS, {"n_clusters": len(names)}, min_size=1)
 
 
 def cluster_by_artist(style: np.ndarray, min_size: int = 3) -> Clustering:

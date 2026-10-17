@@ -43,8 +43,10 @@ function openGroup(id) {
   const c = GROUPS.find((g) => g.id === id);
   if (!c) return;
   viewGroup = id; viewAll = false;
+  if (DATA.live && useMode === "lora") markStep("groups");  // map_browse.js: the groups were looked at
   focusCluster = id; selected = null; recolor();
   setSpin(false);
+  $("tip").style.display = "none";  // the map's hover card would float over the view
   const view = $("groupView");
   fillView(c);
   view.hidden = false; view.scrollTop = 0;
@@ -75,6 +77,7 @@ function closeGroup(showOnMap = true) {
   const id = viewGroup;
   viewGroup = null;
   $("groupView").hidden = true;
+  $("groupView").replaceChildren();  // nothing stale left in the page
   document.body.classList.remove("gv-open");
   const c = GROUPS.find((g) => g.id === id);
   if (showOnMap && c && c.members.length) focusOn(c.members);
@@ -129,7 +132,10 @@ function viewBody(c) {
   const bar = groupBar(c);
   if (bar) {
     bar.style.cssText = ""; bar.className = "gv-bar";
-    bar.append(copyButton(c.members.map((i) => ({ i }))));  // map_app.js: these pictures, to a folder
+    const box = bar.querySelector('input[name="groupName"]');  // a visible label for the name field
+    if (box) { const l = document.createElement("label"); l.className = "lbl"; l.textContent = t("groupNameLbl"); bar.insertBefore(l, box); }
+    // map_app.js: these pictures, most typical first, to a folder named after the group
+    bar.append(copyButton(typicalOrder(c.members).map((i) => ({ i })), clusterName(c.id)));
     body.append(bar);
   }
   const strays = straysOf(c);

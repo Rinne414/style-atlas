@@ -18,6 +18,8 @@
   #title h1 { margin: 0; font-size: 17px; font-weight: 650; letter-spacing: .01em; }
   #title .sub { color: var(--muted); font-size: 12px; max-width: min(440px, calc(100vw - 900px)); min-width: 220px; }
   .tools { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  @media (max-width: 1280px) { #app { grid-template-columns: minmax(0, 1fr) 300px; } }
+  @media (max-width: 1100px) { #app { grid-template-columns: minmax(0, 1fr) 270px; } }
   @media (max-width: 1400px) {  /* keep the tool row on one line next to the side panel */
     .tools { gap: 4px; }
     .tools button { padding: 6px 8px; }
@@ -164,6 +166,14 @@
   #exportPanel .actions { display: flex; gap: 8px; justify-content: flex-end; }
   #exportPanel .done b { display: block; font-size: 14px; margin-bottom: 2px; }
   #exportPanel ul.notes { margin: 6px 0 0; padding-left: 18px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+  /* the LoRA advice at the top of the groups list, the ticks on the steps, the filter chip */
+  .advice { border: 1px solid var(--accent); border-radius: 12px; padding: 10px 12px; margin: 0 0 10px;
+    background: color-mix(in srgb, var(--accent) 8%, var(--panel)); }
+  .advice p { margin: 0 0 8px; font-size: 13px; line-height: 1.5; }
+  #steps button.done { border-color: #6fcf97; color: #6fcf97; }
+  #filterChip { margin-top: 4px; border-color: var(--accent); color: var(--accent); font-size: 12px; padding: 3px 10px; }
+  #filterChip[hidden] { display: none; }
+  .gv-bar .lbl { color: var(--muted); font-size: 12px; }
   /* the artists tab */
   .artist-find { width: 100%; margin: 4px 0 8px; }
   #pane-artists .back { color: var(--accent); text-decoration: none; font-size: 12px; }
@@ -182,7 +192,7 @@
   .gv-keys { margin-left: auto; color: var(--muted); font-size: 12px; }
   .gv-head select { background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 999px;
     padding: 6px 8px; font: inherit; font-size: 12px; }
-  .gv-body { padding: 14px 20px 48px; }
+  .gv-body { padding: 14px 20px 96px; }  /* room to scroll past the status line */
   .gv-about .name { display: none; }
   .gv-about .meta { color: var(--muted); font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; max-width: 980px; }
   .gv-bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 12px 0 2px; }
