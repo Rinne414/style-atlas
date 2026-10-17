@@ -18,7 +18,11 @@
   #title h1 { margin: 0; font-size: 17px; font-weight: 650; letter-spacing: .01em; }
   #title .sub { color: var(--muted); font-size: 12px; max-width: min(440px, calc(100vw - 900px)); min-width: 220px; }
   .tools { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
-  @media (max-width: 1280px) { #app { grid-template-columns: minmax(0, 1fr) 300px; } }
+  @media (max-width: 1280px) {
+    #app { grid-template-columns: minmax(0, 1fr) 300px; }
+    #steps > span { display: none; }  /* the arrows: room for the labels */
+    #steps button { font-size: 11px; padding: 4px 4px; }
+  }
   @media (max-width: 1100px) { #app { grid-template-columns: minmax(0, 1fr) 270px; } }
   @media (max-width: 1400px) {  /* keep the tool row on one line next to the side panel */
     .tools { gap: 4px; }
@@ -170,6 +174,10 @@
   .advice { border: 1px solid var(--accent); border-radius: 12px; padding: 10px 12px; margin: 0 0 10px;
     background: color-mix(in srgb, var(--accent) 8%, var(--panel)); }
   .advice p { margin: 0 0 8px; font-size: 13px; line-height: 1.5; }
+  .advice button.close { float: right; margin: -4px -6px 0 6px; padding: 1px 7px; font-size: 11px; }
+  .gv-numbers summary, .gv-more-actions summary { cursor: pointer; color: var(--muted); font-size: 12px; margin: 6px 0; }
+  .gv-more-actions { margin-top: 2px; }
+  #steps button { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
   #steps button.done { border-color: #6fcf97; color: #6fcf97; }
   #filterChip { margin-top: 4px; border-color: var(--accent); color: var(--accent); font-size: 12px; padding: 3px 10px; }
   #filterChip[hidden] { display: none; }

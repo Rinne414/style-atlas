@@ -429,7 +429,7 @@ function clusterCard(c) {  // the side list: name, size and spread in words, one
   const out = c.members.filter((i) => EXCLUDED.has(i)).length;
   const lora = DATA.live && useMode === "lora";  // map_browse.js: a trainer asks how tight a group is
   mt.textContent = `${c.size} ${t(DATA.families ? "folderUnit" : "size")}` + (out ? t("excludedOf").replace("{n}", out) : "") +
-    (lora && c.cohesion !== undefined ? ` · ${t(spreadWord(c.cohesion))}` : "");
+    (lora && c.cohesion !== undefined && c.cohesion >= SPREAD_TIGHT ? ` · ${t(spreadWord(c.cohesion))}` : "");
   if (lora && c.cohesion !== undefined) mt.title = t("cohesionTip");
   txt.append(nm, mt);
   const what = folderMix(c.members) || lookWords(c.members);  // which artists, or else the look
@@ -481,7 +481,8 @@ function clusterText(c, pane) {  // the group view: size, tags, folders, closest
 
 // one artist's whole works spread 0.15-0.29 (10th-90th percentile, median 0.20) on 393 Danbooru
 // artists (docs/BENCHMARKS.md, "How spread is one artist?")
-function spreadWord(s) { return s < 0.15 ? "spreadTight" : s > 0.29 ? "spreadLoose" : "spreadArtist"; }
+const SPREAD_TIGHT = 0.15, SPREAD_LOOSE = 0.29;  // most tool-made groups are tight: said only when not
+function spreadWord(s) { return s < SPREAD_TIGHT ? "spreadTight" : s > SPREAD_LOOSE ? "spreadLoose" : "spreadArtist"; }
 function paren(text) { return lang === "zh" ? `（${text}）` : ` (${text})`; }  // hoisted: used while the page builds
 
 function outlierRank(o) {  // share of this folder's images less of an outlier than o (the scale depends on the folder)
@@ -501,7 +502,10 @@ function copiesIn(members) {  // images of the group that have a near-duplicate 
   return n;
 }
 
-const folderOf = (i) => { const n = PTS[i].n; const k = n.indexOf("/"); return k < 0 ? "." : n.slice(0, k); };
+const folderOf = (i) => {  // an artist map's points are named after their folders
+  const n = PTS[i].n; const k = n.indexOf("/");
+  return DATA.families ? n : k < 0 ? "." : n.slice(0, k);
+};
 const SEVERAL_FOLDERS = new Set(PTS.map((_, i) => folderOf(i))).size > 1;
 const LIBRARY_FOLDERS = 20;  // from 20 artists "by artist" follows them better (README, BENCHMARKS)
 
@@ -545,7 +549,8 @@ function folderMix(members) {  // which sub-folders a group's images come from, 
   const counts = new Map();
   members.forEach((i) => counts.set(folderOf(i), (counts.get(folderOf(i)) || 0) + 1));
   const top = [...counts].sort((a, b) => b[1] - a[1]);
-  return `${t("fromFolders")}${top.slice(0, 3).map(([f, n]) => `${f} ${n}`).join(" · ")}${top.length > 3 ? " …" : ""}`;
+  const shown = top.slice(0, 3).map(([f, n]) => (DATA.families ? f : `${f} ${n}`));  // an artist map: one point each
+  return `${t("fromFolders")}${shown.join(" · ")}${top.length > 3 ? " …" : ""}`;
 }
 
 function nearLinks(c, pane) {  // the closest groups, each a link that opens it
@@ -575,27 +580,37 @@ function groupBar(c) {  // live app only: the edits for a group, or placing the 
   };
   if (c.id < 0) {
     const place = button(t("placeUnassigned"), placeUnassigned);
-    place.style.marginLeft = ""; place.title = t("placeUnassignedTip");
+    place.style.marginLeft = ""; place.title = t("placeUnassignedTip"); place.dataset.role = "place";
     bar.append(place);
     return bar;
   }
-  const confirmMerge = document.createElement("span");  // a merge waits for its own button
-  bar.append(groupSelect(t("mergeInto"), c.id, false, (into) => {
+  const confirmMerge = document.createElement("span"); confirmMerge.dataset.role = "merge-ok";  // its own button
+  const merge = groupSelect(t("mergeInto"), c.id, false, (into) => {
     const go = button(t("mergeConfirm").replace("{a}", clusterName(c.id)).replace("{b}", clusterName(into)),
       () => editPost("api/merge", { from: c.id, into }));
     go.classList.add("on"); confirmMerge.replaceChildren(go);
-  }), confirmMerge);
-  if (DATA.clusters.length >= 2) bar.append(groupSelect(t("compareWith"), c.id, false, (other) => showCompare(c.id, other)));
+  });
+  merge.dataset.role = "merge";
+  bar.append(merge, confirmMerge);
+  if (DATA.clusters.length >= 2) {
+    const compare = groupSelect(t("compareWith"), c.id, false, (other) => showCompare(c.id, other));
+    compare.dataset.role = "compare"; bar.append(compare);
+  }
   const nameBox = document.createElement("input"); nameBox.name = "groupName"; nameBox.setAttribute("aria-label", t("nameGroup"));
   nameBox.placeholder = t("nameGroup"); nameBox.title = t("nameGroupTip"); nameBox.value = (DATA.live.names || {})[String(c.id)] || "";
+  nameBox.dataset.role = "name";
   nameBox.style.cssText = "margin-left:6px;width:120px;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:5px 8px;font:inherit;font-size:12px";
   nameBox.addEventListener("click", (e) => e.stopPropagation());
   nameBox.addEventListener("keydown", (e) => {
     e.stopPropagation();
     if (e.key === "Enter" && !e.isComposing && e.keyCode !== 229) editPost("api/rename", { group: c.id, name: nameBox.value });
   });
-  bar.append(nameBox, button(t("moreLike"), () => showSimilar(c.id)));
-  if (c.size >= 2) bar.append(button(t("splitGroup"), () => editPost("api/split", { group: c.id })));
+  const like = button(t("moreLike"), () => showSimilar(c.id)); like.dataset.role = "more-like";
+  bar.append(nameBox, like);
+  if (c.size >= 2) {
+    const split = button(t("splitGroup"), () => editPost("api/split", { group: c.id }));
+    split.dataset.role = "split"; bar.append(split);
+  }
   return bar;
 }
 

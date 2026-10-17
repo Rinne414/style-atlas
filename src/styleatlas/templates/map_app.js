@@ -2,8 +2,14 @@
 // one module script by report.render_html, so it shares map.js's scope; the start-up lines
 // run last, once every declaration in both files exists.
 
+const STATUS_FADE_MS = 8000;  // over the group view a message clears itself (it covers pictures)
+let statusTimer = null;
 function setStatus(msg) {
   $("status").textContent = msg || "";
+  clearTimeout(statusTimer);
+  if (msg && document.body.classList.contains("gv-open")) {
+    statusTimer = setTimeout(() => { if ($("status").textContent === msg) $("status").textContent = ""; }, STATUS_FADE_MS);
+  }
   if (!DATA.live) toast(msg);  // a shared map has no bottom bar: show the message for a moment
 }
 
@@ -599,7 +605,10 @@ function setupPanels() {  // export options and the advanced switches open above
 function setupSteps() {  // the LoRA workflow at a glance: check, sort the groups, export
   const box = $("steps"); box.hidden = false;
   const go = {
-    check: () => showPane("outliers"),
+    check: () => {  // the check runs at once the first time (the side it measures can be changed after)
+      showPane("outliers");
+      if (!CHECK) runCheck(parseInt(document.querySelector('#pane-outliers select[name="minSide"]')?.value, 10) || 512);
+    },
     groups: () => showPane("clusters"),
     export: () => { if ($("exportPanel").hidden) $("exportOpen").click(); $("expName").focus(); },
   };
@@ -730,7 +739,7 @@ async function showExportPlan(done = null) {
     }
     if (r.triggers.length) lines.push(t("triggersNote").replace("{w}", r.triggers.join(", ")));
     kv.textContent = lines.join(" ");
-    pane.append(h, kv, table);
+    pane.append(h, ...(done ? [] : [kv]), table);  // after an export its notes are above already
   } catch (e) { setStatus(String(e.message || e)); }
 }
 

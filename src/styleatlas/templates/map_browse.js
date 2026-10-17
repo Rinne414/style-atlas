@@ -32,14 +32,20 @@ function markStep(step) {
 function stepsText() {
   const done = stepsDone();
   document.querySelectorAll("#steps button").forEach((b) => {
-    b.textContent = (done[b.dataset.step] ? "✓ " : "") + t("step_" + b.dataset.step);
+    const label = t("step_" + b.dataset.step);  // done: the tick takes the number's place (same width)
+    b.textContent = done[b.dataset.step] ? label.replace(/^[①②③]\s*/, "✓ ") : label;
+    b.title = label;  // in full, where a narrow panel cuts it
     b.classList.toggle("done", Boolean(done[b.dataset.step]));
   });
 }
 
 /* ---------- the LoRA advice: one or several, in words, with the step that settles it ---------- */
+const ADVICE_KEY = "styleAtlasAdviceHidden";  // the advice put away (this tab), until it changes
 function loraAdvice() {
   const box = document.createElement("div"); box.className = "advice";
+  const close = document.createElement("button"); close.className = "close"; close.textContent = "✕";
+  close.title = t("close"); close.setAttribute("aria-label", t("close"));
+  box.append(close);
   const say = (key, extra = "") => { const p = document.createElement("p"); p.textContent = t(key) + extra; box.append(p); };
   const act = (key, fn) => { const b = document.createElement("button"); b.className = "primary"; b.textContent = t(key); b.addEventListener("click", fn); box.append(b); };
   const regroupTo = (g) => { $("gran").value = g; showPeriods(g === "timeline"); $("regroup").click(); };  // map_app.js
@@ -59,6 +65,14 @@ function loraAdvice() {
   } else {
     say("adviceAskCheck"); act("adviceCheck", () => document.querySelector('#steps button[data-step="check"]').click());
   }
+  const said = box.querySelector("p").textContent;
+  let hidden = null;
+  try { hidden = sessionStorage.getItem(ADVICE_KEY); } catch (e) { /* storage off */ }
+  if (hidden === said) return document.createComment("advice put away");
+  close.addEventListener("click", () => {
+    try { sessionStorage.setItem(ADVICE_KEY, said); } catch (e) { /* storage off */ }
+    box.remove();
+  });
   return box;
 }
 

@@ -6,6 +6,14 @@ Fixed, from four Sonnet usability tests of the web app (a newcomer with a downlo
 LoRA trainer with one artist's 60 works, a collector with 3,800 images of 108 artists, a UI
 designer on the demo):
 
+- Group view, after a third round of Sonnet retests (scores 6.5-8 out of 10): a short summary
+  first and the numbers folded under "The numbers"; two or three actions for the mode in a row
+  (browse: name, copy; LoRA: name, merge, split) and the rest under "More..."; closing it goes
+  back to the whole map; the heading counts the pictures listed apart. Status messages over it
+  clear themselves after 8 s. Step 1 runs the check the first time; a done step shows a tick in
+  place of its number; the LoRA advice can be put away. The artist map's family cards list their
+  artists again (broken by naming the points). "by artist" in the grouping menu is now "by artist
+  style (folders not sorted by artist)", next to "by folder".
 - The export dialog closes with Esc and no longer reopens itself after an edit reloads the page;
   switching the language no longer wipes search or compare results from the details pane; the
   quick start's last step matches the mode; the hover card no longer stays over search results.
@@ -72,8 +80,9 @@ Changed output (scripts that parse the text should use `--json`):
 New:
 
 - **Groups apart** (Layout menu, the default for 2-60 groups): each group drawn as its own island
-  around its centre, the islands pushed apart until none overlap, so every name sits on its own
-  group. A gallery of hundreds of groups keeps the similarity layout; the choice is remembered.
+  around its centre, the islands pushed apart across the screen (centres kept nearly flat towards
+  the home view: islands apart only in depth covered each other) until none overlap, so every name
+  sits on its own group. A gallery of hundreds of groups keeps the similarity layout; the choice is remembered.
 - **One group per folder** in the grouping menu (folders with sub-folders): each group named after
   its folder, so in a library every group is one artist, by name.
 - **LoRA mode says what to do**: a box above the groups gives a plain recommendation ("train one

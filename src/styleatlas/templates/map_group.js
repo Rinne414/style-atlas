@@ -74,13 +74,14 @@ function fillView(c) {
 
 function closeGroup(showOnMap = true) {
   if (viewGroup === null) return;
-  const id = viewGroup;
   viewGroup = null;
   $("groupView").hidden = true;
   $("groupView").replaceChildren();  // nothing stale left in the page
   document.body.classList.remove("gv-open");
-  const c = GROUPS.find((g) => g.id === id);
-  if (showOnMap && c && c.members.length) focusOn(c.members);
+  if (!showOnMap) return;
+  focusCluster = null; recolor();  // back to the whole map, every group in view
+  document.querySelectorAll("#pane-clusters .cl").forEach((r) => r.classList.remove("on"));
+  flyTo = { target: new THREE.Vector3(), cam: homeView(), k: 0 };
 }
 
 function stepGroup(by) {
@@ -126,22 +127,21 @@ function viewHead(c) {
 
 function viewBody(c) {
   const body = document.createElement("div"); body.className = "gv-body";
-  const about = clusterText(c, $("pane-clusters"));  // the side list's lines, the name aside
+  const summary = clusterCard(c);  // the side list's lines: size, who or what it is
+  summary.classList.add("gv-about");
+  const numbers = document.createElement("details"); numbers.className = "gv-numbers";
+  const label = document.createElement("summary"); label.textContent = t("numbersTitle");
+  const about = clusterText(c, $("pane-clusters"));  // spread, closest groups, tags, look, time
   about.classList.add("gv-about");
-  body.append(about);
+  numbers.append(label, about);
+  body.append(summary, numbers);
   const bar = groupBar(c);
-  if (bar) {
-    bar.style.cssText = ""; bar.className = "gv-bar";
-    const box = bar.querySelector('input[name="groupName"]');  // a visible label for the name field
-    if (box) { const l = document.createElement("label"); l.className = "lbl"; l.textContent = t("groupNameLbl"); bar.insertBefore(l, box); }
-    // map_app.js: these pictures, most typical first, to a folder named after the group
-    bar.append(copyButton(typicalOrder(c.members).map((i) => ({ i })), clusterName(c.id)));
-    body.append(bar);
-  }
+  if (bar) body.append(...actionRows(c, bar));
   const strays = straysOf(c);
   const stray = new Set(strays);
   const typical = typicalOrder(c.members).filter((i) => !stray.has(i));
-  const typicalTitle = t(c.id < 0 ? "gvUnassigned" : "gvTypical").replace("{n}", typical.length);
+  const typicalTitle = t(c.id < 0 ? "gvUnassigned" : "gvTypical").replace("{n}", typical.length) +
+    (strays.length ? t("gvTypicalRest").replace("{s}", strays.length) : "");
   body.append(section(typicalTitle, typical, viewAll ? Infinity : VIEW_FIRST, () => { viewAll = true; }));
   if (c.id >= 0) {
     const s = section(strays.length ? t("gvStrays").replace("{n}", strays.length) : t("gvNoStrays"), strays, Infinity);
@@ -155,6 +155,31 @@ function viewBody(c) {
   }
   if (c.near && c.near.length) body.append(nearSection(c));
   return body;
+}
+
+// the group's actions: the two or three this mode needs most in a row, the rest under "More..."
+const MAIN_ACTIONS = { browse: ["name", "copy"], lora: ["name", "merge", "merge-ok", "split"] };
+function actionRows(c, bar) {
+  const parts = {};
+  [...bar.children].forEach((el) => { parts[el.dataset.role] = el; el.style.marginLeft = ""; });
+  const copy = copyButton(typicalOrder(c.members).map((i) => ({ i })), clusterName(c.id));  // map_app.js
+  copy.style.margin = ""; parts.copy = copy;
+  const main = document.createElement("div"); main.className = "gv-bar";
+  const roles = c.id < 0 ? ["place", "copy"] : MAIN_ACTIONS[DATA.live && useMode === "lora" ? "lora" : "browse"];
+  roles.filter((r) => parts[r]).forEach((r) => {
+    if (r === "name") {  // a visible label for the name field
+      const l = document.createElement("label"); l.className = "lbl"; l.textContent = t("groupNameLbl"); main.append(l);
+    }
+    main.append(parts[r]); delete parts[r];
+  });
+  const rest = ["merge", "merge-ok", "compare", "more-like", "split", "copy"].filter((r) => parts[r]);
+  if (!rest.length) return [main];
+  const more = document.createElement("details"); more.className = "gv-more-actions";
+  const sum = document.createElement("summary"); sum.textContent = t("moreActions");
+  const row = document.createElement("div"); row.className = "gv-bar";
+  rest.forEach((r) => row.append(parts[r]));
+  more.append(sum, row);
+  return [main, more];
 }
 
 function section(title, indices, first, onAll = null) {

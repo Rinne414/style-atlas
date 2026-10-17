@@ -6,11 +6,12 @@
 // pulled in), the centres pushed out, so names sit on their groups. The default for 2 to
 // GROUPS_APART_MAX groups; a gallery of hundreds keeps the similarity layout.
 const GROUPS_APART_MAX = 60;
-const ISLAND_SHRINK = 0.35;  // a group's spread around its centre
+const ISLAND_SHRINK = 0.55;  // a group's spread around its centre (0.35 piled the pictures up)
 const ISLAND_SPREAD = 1.6;  // the centres' distance from the middle, before they are pushed apart
 const ISLAND_GAP = 0.15;  // room between two islands
 const ISLAND_REACH = 0.9;  // an island's radius: this share of its members lie within it
 const ISLAND_ROUNDS = 300;  // pushing apart (60 groups: a few ms)
+const ISLAND_DEPTH = 0.15;  // the centres' depth kept: apart in depth still overlap as the map faces you
 const LAYOUT_PICK_KEY = "styleAtlasLayout";  // the layout picked last (not the measures)
 let layoutMode = ["style", "groups"].includes(stored(LAYOUT_PICK_KEY)) ? stored(LAYOUT_PICK_KEY)
   : DATA.clusters.length >= 2 && DATA.clusters.length <= GROUPS_APART_MAX ? "groups" : "style";
@@ -90,12 +91,14 @@ function islandPositions() {
     const d = members.get(c).map((i) => Math.hypot(...at(i).map((v, k) => v - centre[g][k]))).sort((a, b) => a - b);
     return d[Math.min(d.length - 1, Math.floor(ISLAND_REACH * d.length))] * ISLAND_SHRINK + pointSize / 2;
   });
-  const place = centre.map((c) => c.map((v) => v * ISLAND_SPREAD));
+  // centres spread out, nearly flat towards the camera's home direction (along z), then pushed
+  // apart across the screen: islands apart only in depth would cover each other from the front
+  const place = centre.map((c) => [c[0] * ISLAND_SPREAD, c[1] * ISLAND_SPREAD, c[2] * ISLAND_DEPTH]);
   for (let round = 0; round < ISLAND_ROUNDS; round++) {
     let moved = false;
     for (let a = 0; a < ids.length; a++) {
       for (let b = a + 1; b < ids.length; b++) {
-        const gap = place[b].map((v, k) => v - place[a][k]);
+        const gap = [place[b][0] - place[a][0], place[b][1] - place[a][1], 0];  // across the screen
         let dist = Math.hypot(...gap);
         const need = radius[a] + radius[b] + ISLAND_GAP;
         if (dist >= need) continue;
