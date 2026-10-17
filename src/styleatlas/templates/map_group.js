@@ -47,6 +47,7 @@ function openGroup(id) {
   focusCluster = id; selected = null; recolor();
   setSpin(false);
   $("tip").style.display = "none";  // the map's hover card would float over the view
+  if (shownHint && $("status").textContent === shownHint) setStatus("");  // it would cover pictures
   const view = $("groupView");
   fillView(c);
   view.hidden = false; view.scrollTop = 0;
@@ -134,6 +135,7 @@ function viewBody(c) {
   const about = clusterText(c, $("pane-clusters"));  // spread, closest groups, tags, look, time
   about.classList.add("gv-about");
   numbers.append(label, about);
+  if (c.near && c.near.length) summary.append(nearLinks(c, $("pane-clusters"), false));  // the next look
   body.append(summary, numbers);
   const bar = groupBar(c);
   if (bar) body.append(...actionRows(c, bar));
@@ -158,7 +160,8 @@ function viewBody(c) {
 }
 
 // the group's actions: the two or three this mode needs most in a row, the rest under "More..."
-const MAIN_ACTIONS = { browse: ["name", "copy"], lora: ["name", "merge", "merge-ok", "split"] };
+const MAIN_ACTIONS = { browse: ["name", "copy", "compare"], lora: ["name", "merge", "merge-ok", "split"] };
+const ACTION_WORDS = { merge: "mergeInto", compare: "compareWith", "more-like": "moreLike", split: "splitGroup", copy: "copyShort" };
 function actionRows(c, bar) {
   const parts = {};
   [...bar.children].forEach((el) => { parts[el.dataset.role] = el; el.style.marginLeft = ""; });
@@ -175,7 +178,9 @@ function actionRows(c, bar) {
   const rest = ["merge", "merge-ok", "compare", "more-like", "split", "copy"].filter((r) => parts[r]);
   if (!rest.length) return [main];
   const more = document.createElement("details"); more.className = "gv-more-actions";
-  const sum = document.createElement("summary"); sum.textContent = t("moreActions");
+  const sum = document.createElement("summary");  // says what is inside
+  const inside = rest.filter((r) => ACTION_WORDS[r]).map((r) => t(ACTION_WORDS[r]).replace(/…$/, ""));
+  sum.textContent = `${t("moreActions")}${lang === "zh" ? "（" : " ("}${inside.join(lang === "zh" ? "、" : ", ")}${lang === "zh" ? "）" : ")"}`;
   const row = document.createElement("div"); row.className = "gv-bar";
   rest.forEach((r) => row.append(parts[r]));
   more.append(sum, row);

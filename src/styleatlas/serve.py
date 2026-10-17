@@ -566,9 +566,28 @@ class StyleAtlasApp(GroupEdits):
         pool = ThreadPoolExecutor(max_workers=workers, thread_name_prefix="thumbs")
         pool.submit(self._read_tags)
         pool.submit(warm, self.atlas.style)  # the first search of a large folder is instant too
+        pool.submit(self._warm_model)
         for i in range(len(self.atlas)):
             pool.submit(self.thumb, i)
         pool.shutdown(wait=False)
+
+    def _warm_model(self) -> None:
+        """Load the style model now, so the first image search does not wait 10-30 s for it.
+        Only when the model is on disk already: a first download waits for a search."""
+        from styleatlas.encoder import slim_path
+
+        if not slim_path().exists():
+            return
+        try:
+            with self._model_lock:
+                get_encoder(self.opts)
+        except Exception as e:  # noqa: BLE001 - the search will load it, and report, if this failed
+            self.progress(
+                tr(
+                    f"the style model will load at the first search ({e})",
+                    f"畫風模型會在第一次搜尋時再載入（{e}）",
+                )
+            )
 
     def regroup(self, body: dict) -> dict:
         method = body.get("method", "agglomerative")

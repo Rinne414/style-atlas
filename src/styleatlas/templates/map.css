@@ -23,7 +23,10 @@
     #steps > span { display: none; }  /* the arrows: room for the labels */
     #steps button { font-size: 11px; padding: 4px 4px; }
   }
-  @media (max-width: 1100px) { #app { grid-template-columns: minmax(0, 1fr) 270px; } }
+  @media (max-width: 1100px) {
+    #app { grid-template-columns: minmax(0, 1fr) 270px; }
+    .tools { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; }  /* one row, not two */
+  }
   @media (max-width: 1400px) {  /* keep the tool row on one line next to the side panel */
     .tools { gap: 4px; }
     .tools button { padding: 6px 8px; }
@@ -231,6 +234,8 @@
     font-size: 10px; line-height: 15px; background: rgba(0, 0, 0, .62); color: #fff; pointer-events: none; }
   .grid figure.hit figcaption.close { background: var(--accent); color: #000; }
   .grid figure.hit.far img { opacity: .5; }
+  .grid figure.hit .who { font-size: 10px; line-height: 1.3; color: var(--muted); overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
   .grid figure.dup { margin: 0; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
   .grid figure.dup figcaption { font-size: 10px; line-height: 1.3; color: var(--muted); overflow-wrap: anywhere; }
   .grid figure.dup.kept img { border-color: #6fcf97; }

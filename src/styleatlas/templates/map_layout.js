@@ -9,7 +9,9 @@ const GROUPS_APART_MAX = 60;
 const ISLAND_SHRINK = 0.55;  // a group's spread around its centre (0.35 piled the pictures up)
 const ISLAND_SPREAD = 1.6;  // the centres' distance from the middle, before they are pushed apart
 const ISLAND_GAP = 0.15;  // room between two islands
-const ISLAND_REACH = 0.9;  // an island's radius: this share of its members lie within it
+const ISLAND_REACH = 0.75;  // an island's radius: this share of its members lie within it (0.9 of 18
+// pictures is the second farthest: a stray pair set the radius and nothing was pulled in)
+const ISLAND_FLAT = 0.5;  // depth inside an island: deep pictures drift towards the screen's middle
 const ISLAND_ROUNDS = 300;  // pushing apart (60 groups: a few ms)
 const ISLAND_DEPTH = 0.15;  // the centres' depth kept: apart in depth still overlap as the map faces you
 const LAYOUT_PICK_KEY = "styleAtlasLayout";  // the layout picked last (not the measures)
@@ -110,9 +112,15 @@ function islandPositions() {
     }
     if (!moved) break;
   }
-  ids.forEach((c, g) => members.get(c).forEach((i) => {
-    for (let d = 0; d < 3; d++) target[i * 3 + d] = place[g][d] + (basePos[i * 3 + d] - centre[g][d]) * ISLAND_SHRINK;
-  }));
+  ids.forEach((c, g) => {  // strays drawn at the island's edge, not floating across the map
+    const edge = radius[g] - pointSize / 2;
+    members.get(c).forEach((i) => {
+      const off = [0, 1, 2].map((d) => (basePos[i * 3 + d] - centre[g][d]) * ISLAND_SHRINK * (d === 2 ? ISLAND_FLAT : 1));
+      const len = Math.hypot(...off);
+      const k = len > edge && len > 0 ? edge / len : 1;
+      for (let d = 0; d < 3; d++) target[i * 3 + d] = place[g][d] + off[d] * k;
+    });
+  });
   return target;
 }
 
@@ -166,6 +174,8 @@ let showNames = true;
 
 const NAME_CHARS = 28;  // longer names are cut, or one label would cover the map
 
+const NAME_HEIGHT = 0.11, NAME_ISLAND = 0.17;  // group names, in world units
+
 function nameSprite(full, color) {
   const text = full.length > NAME_CHARS ? full.slice(0, NAME_CHARS - 1) + "…" : full;
   const cv = document.createElement("canvas"); const g = cv.getContext("2d");
@@ -174,7 +184,8 @@ function nameSprite(full, color) {
   g.font = font; g.fillStyle = "rgba(12,14,18,0.86)"; g.fillRect(0, 0, cv.width, cv.height);
   g.fillStyle = color; g.fillText(text, 12, 33);
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: srgbTexture(cv), depthTest: false, transparent: true }));
-  const h = 0.11; sp.scale.set(h * cv.width / cv.height, h, 1); sp.renderOrder = 10;
+  const h = layoutMode === "groups" ? NAME_ISLAND : NAME_HEIGHT;  // islands: room for bigger names
+  sp.scale.set(h * cv.width / cv.height, h, 1); sp.renderOrder = 10;
   return sp;
 }
 

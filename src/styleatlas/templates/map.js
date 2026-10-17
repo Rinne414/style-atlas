@@ -327,7 +327,7 @@ function clusterName(c) {
   if (c < 0) return t("unassigned");
   const named = ((DATA.live && DATA.live.names) || DATA.names || {})[String(c)];
   const word = t(DATA.method === "timeline" ? "periodName" : DATA.families ? "familyName" : "style");  // periods: earliest first
-  if (named && DATA.method === "folders") return named;  // one group per folder: its name says it
+  if (named && DATA.method !== "timeline") return named;  // a name given (or a folder's) says it
   return named ? `${word} ${c + 1} · ${named}` : `${word} ${c + 1}`;
 }
 
@@ -432,7 +432,8 @@ function clusterCard(c) {  // the side list: name, size and spread in words, one
     (lora && c.cohesion !== undefined && c.cohesion >= SPREAD_TIGHT ? ` · ${t(spreadWord(c.cohesion))}` : "");
   if (lora && c.cohesion !== undefined) mt.title = t("cohesionTip");
   txt.append(nm, mt);
-  const what = folderMix(c.members) || lookWords(c.members);  // which artists, or else the look
+  // which artists, or else the look (one group per folder: its name says the artist already)
+  const what = (DATA.method === "folders" ? "" : folderMix(c.members)) || lookWords(c.members);
   if (what) { const w = document.createElement("div"); w.className = "meta"; w.textContent = what; txt.append(w); }
   const strip = lora ? timeStrip(c.members, colorOf(c.id)) : null;  // old to new, for periods
   if (strip) txt.append(strip);
@@ -553,11 +554,11 @@ function folderMix(members) {  // which sub-folders a group's images come from, 
   return `${t("fromFolders")}${shown.join(" · ")}${top.length > 3 ? " …" : ""}`;
 }
 
-function nearLinks(c, pane) {  // the closest groups, each a link that opens it
+function nearLinks(c, pane, numbers = true) {  // the closest groups, each a link that opens it
   const nr = document.createElement("div"); nr.className = "meta near";
   nr.append(`${t("nearGroups")} `);
   c.near.forEach(([id, d], k) => {
-    const a = document.createElement("a"); a.href = "#"; a.textContent = `${clusterName(id)} (${d.toFixed(2)})`;
+    const a = document.createElement("a"); a.href = "#"; a.textContent = numbers ? `${clusterName(id)} (${d.toFixed(2)})` : clusterName(id);
     a.title = t("nearTip");
     a.addEventListener("click", (e) => {
       e.preventDefault(); e.stopPropagation();

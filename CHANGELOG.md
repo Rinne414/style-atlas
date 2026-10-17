@@ -6,6 +6,15 @@ Fixed, from four Sonnet usability tests of the web app (a newcomer with a downlo
 LoRA trainer with one artist's 60 works, a collector with 3,800 images of 108 artists, a UI
 designer on the demo):
 
+- **The first image search no longer waits for the model** (17-29 s in the tests): the web app
+  loads it in the background once the page is ready, when it is on disk already (3,800 images:
+  the first search 2.4 s). Search results in a library show each picture's artist. A name given to
+  a group is its name ("水彩", not "畫風 1 · 水彩"; periods keep their number). The group view lists
+  the closest groups at the top, browse mode has Compare among its main actions, and "More..." says
+  what it holds. Groups apart: strays drawn at their island's edge (the island's radius from the
+  75th percentile: from the 90th, 2 strays among 18 set it), islands flatter, names larger. Status
+  messages over the group view clear themselves even with a button added; saved files are named
+  without their whole path; the top toolbar keeps one row in narrow windows.
 - Group view, after a third round of Sonnet retests (scores 6.5-8 out of 10): a short summary
   first and the numbers folded under "The numbers"; two or three actions for the mode in a row
   (browse: name, copy; LoRA: name, merge, split) and the rest under "More..."; closing it goes

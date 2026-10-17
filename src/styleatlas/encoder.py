@@ -140,10 +140,15 @@ def _extract_weights() -> dict[str, torch.Tensor]:
     return keep
 
 
+def slim_path() -> Path:
+    """The 1.2 GB copy of the model kept after the first download."""
+    return cache_dir() / f"csd_vit_l_{CSD_REVISION[:8]}.safetensors"
+
+
 def load_weights() -> dict[str, torch.Tensor]:
     from safetensors.torch import load_file, save_file
 
-    slim = cache_dir() / f"csd_vit_l_{CSD_REVISION[:8]}.safetensors"
+    slim = slim_path()
     ours = download_dir()
     if slim.exists():
         if ours is not None and ours.exists():  # left by a run stopped before it removed it

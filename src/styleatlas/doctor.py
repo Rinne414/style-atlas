@@ -68,10 +68,10 @@ def _torch_lines() -> list[tuple[str, str, str]]:
 
 
 def _model_lines() -> list[tuple[str, str, str]]:
-    from styleatlas.encoder import CSD_REVISION, MODEL_GB, NEED_GB
+    from styleatlas.encoder import MODEL_GB, NEED_GB, slim_path
 
     root = cache_dir()
-    slim = root / f"csd_vit_l_{CSD_REVISION[:8]}.safetensors"
+    slim = slim_path()
     rows = [(OK, tr("cache", "快取資料夾"), str(root))]
     if slim.exists():
         size = f"{slim.stat().st_size / 1e9:.1f} GB"

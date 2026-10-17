@@ -3,12 +3,13 @@
 // run last, once every declaration in both files exists.
 
 const STATUS_FADE_MS = 8000;  // over the group view a message clears itself (it covers pictures)
-let statusTimer = null;
+let statusTimer = null, statusCount = 0;
 function setStatus(msg) {
   $("status").textContent = msg || "";
   clearTimeout(statusTimer);
+  const mine = ++statusCount;  // a later message (or an "open folder" button added to this one) keeps its own
   if (msg && document.body.classList.contains("gv-open")) {
-    statusTimer = setTimeout(() => { if ($("status").textContent === msg) $("status").textContent = ""; }, STATUS_FADE_MS);
+    statusTimer = setTimeout(() => { if (statusCount === mine) $("status").replaceChildren(); }, STATUS_FADE_MS);
   }
   if (!DATA.live) toast(msg);  // a shared map has no bottom bar: show the message for a moment
 }
@@ -27,6 +28,8 @@ function toast(msg) {
 }
 
 // A button after a status message that names a file or folder in the output folder.
+function fileName(path) { return String(path).split(/[\\/]/).pop(); }  // the folder: "open folder"
+
 function addOpenFolder() {
   const b = document.createElement("button");
   b.textContent = t("openFolder"); b.style.marginLeft = "8px";
@@ -174,6 +177,9 @@ function scored(x) {  // a search result with its style similarity in the corner
     cell.append(cap);
   }
   if (x.cos < FAR_COS) cell.classList.add("far");
+  if (SEVERAL_FOLDERS) {  // a library: whose picture it is, without hovering
+    const who = document.createElement("div"); who.className = "who"; who.textContent = folderOf(x.i); cell.append(who);
+  }
   return cell;
 }
 
@@ -675,7 +681,8 @@ function setupRegroup() {  // granularity, cut, periods, the regroup button and 
           + " " + t("timelineSizes")
         : "";
       logEdit(t("logRegroup"));
-      reloadKeepingView(verdict || t("logRegroup") + t("undoHint"));
+      const advised = verdict && useMode === "lora";  // map_browse.js: the advice box reads the verdict
+      reloadKeepingView(advised ? t("logRegroup") + t("seeAdvice") : verdict || t("logRegroup") + t("undoHint"));
     } catch (e) { setStatus(String(e.message || e)); }
   });
 }
@@ -793,7 +800,7 @@ function setupSaves() {  // the report and the shareable map
     setStatus(t("savingMap"));
     try {
       const r = await post("api/save_report", JSON.stringify({ lang }), "application/json");
-      setStatus(t("savedReport").replace("{f}", r.file));
+      setStatus(t("savedReport").replace("{f}", fileName(r.file)));
       addOpenFolder();
     } catch (e) { setStatus(String(e.message || e)); }
   });
@@ -816,7 +823,7 @@ function setupSaves() {  // the report and the shareable map
     try {
       const r = await post("api/save_map", "{}", "application/json");
       const big = r.mb > LARGE_SHARE_MB ? " " + t("bigMap").replace("{m}", LARGE_SHARE_MB) : "";
-      setStatus(t("savedMap").replace("{f}", r.file).replace("{mb}", r.mb) + big);
+      setStatus(t("savedMap").replace("{f}", fileName(r.file)).replace("{mb}", r.mb) + big);
       addOpenFolder();
     } catch (e) { setStatus(String(e.message || e)); }
   });
