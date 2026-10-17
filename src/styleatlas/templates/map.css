@@ -25,7 +25,7 @@
   }
   @media (max-width: 1100px) {
     #app { grid-template-columns: minmax(0, 1fr) 270px; }
-    .tools { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; }  /* one row, not two */
+    .tools > * { flex: none; }  /* two rows if need be, but no button squeezed letter by letter */
   }
   @media (max-width: 1400px) {  /* keep the tool row on one line next to the side panel */
     .tools { gap: 4px; }

@@ -82,6 +82,8 @@ def test_cluster_exports_kohya_folders_with_triggers(lib, tmp_path, capsys):
     assert sorted(Path(s["image_dir"]).name for s in subsets) == folders
     assert all(s["num_repeats"] == int(Path(s["image_dir"]).name.split("_")[0]) for s in subsets)
     assert config["general"]["keep_tokens"] == 1  # the trigger stays first
+    # images without a caption file are trained on their folder's trigger word
+    assert all(s["class_tokens"] == Path(s["image_dir"]).name.split("_", 1)[1] for s in subsets)
     assert [p.name for p in (out / "folders" / "_excluded").glob("*.png")] == ["red__100003.png"]
     assert "1 image(s) you excluded in the web app" in capsys.readouterr().err
 

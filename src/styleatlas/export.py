@@ -466,9 +466,12 @@ def _write_kohya(root: Path, styles: list[tuple[str, Path, int]], trigger: bool)
         "enable_bucket = true",
         "",
     ]
+    # class_tokens: the caption of an image without a caption file (the folder's trigger word);
+    # without it kohya trains such images on an empty caption
     lines += [
         f"  [[datasets.subsets]]\n  image_dir = {_quoted(path)}\n  num_repeats = {repeats}\n"
-        for _, path, repeats in styles
+        f"  class_tokens = {_quoted(name.partition('_')[2])}\n"
+        for name, path, repeats in styles
     ]
     path = root / KOHYA_CONFIG
     path.write_text("\n".join(lines), encoding="utf-8")

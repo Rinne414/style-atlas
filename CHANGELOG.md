@@ -2,10 +2,18 @@
 
 ## Unreleased
 
+- **kohya: images without a caption file train on their folder's trigger word.** The dataset
+  config now sets `class_tokens` on every subset; an export without "trigger in captions" gave
+  them an empty caption (from the fourth Sonnet retest).
+
 Fixed, from four Sonnet usability tests of the web app (a newcomer with a downloads folder, a
 LoRA trainer with one artist's 60 works, a collector with 3,800 images of 108 artists, a UI
 designer on the demo):
 
+- The merge and compare lists put the closest groups first; an unnamed group's name field
+  suggests its look ("e.g. paler, more line work"); browse mode keeps "More like this group"
+  among its main actions; the narrow-window toolbar wraps instead of squeezing its buttons; the
+  compare note no longer reads as contradicting its headline.
 - **The first image search no longer waits for the model** (17-29 s in the tests): the web app
   loads it in the background once the page is ready, when it is on disk already (3,800 images:
   the first search 2.4 s). Search results in a library show each picture's artist. A name given to

@@ -386,11 +386,12 @@ async function toggleExclude(i) {
   } catch (e) { setStatus(String(e.message || e)); }
 }
 
-function groupSelect(title, current, withUnassigned, onPick) {
+function groupSelect(title, current, withUnassigned, onPick, first = []) {  // first: listed on top
   const sel = document.createElement("select"); sel.name = "group"; sel.setAttribute("aria-label", title);
   sel.style.cssText = "background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:5px 8px;font:inherit;font-size:12px;max-width:170px";
   const head = document.createElement("option"); head.value = ""; head.textContent = title; sel.append(head);
-  const ids = DATA.clusters.map((c) => c.id).concat(withUnassigned ? [-1] : []);
+  const all = DATA.clusters.map((c) => c.id).concat(withUnassigned ? [-1] : []);
+  const ids = [...first.filter((id) => all.includes(id)), ...all.filter((id) => !first.includes(id))];
   ids.filter((id) => id !== current).forEach((id) => {
     const o = document.createElement("option"); o.value = String(id); o.textContent = clusterName(id); sel.append(o);
   });

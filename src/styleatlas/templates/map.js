@@ -586,20 +586,23 @@ function groupBar(c) {  // live app only: the edits for a group, or placing the 
     return bar;
   }
   const confirmMerge = document.createElement("span"); confirmMerge.dataset.role = "merge-ok";  // its own button
+  const closest = (c.near || []).map(([id]) => id);  // the likeliest picks first
   const merge = groupSelect(t("mergeInto"), c.id, false, (into) => {
     const go = button(t("mergeConfirm").replace("{a}", clusterName(c.id)).replace("{b}", clusterName(into)),
       () => editPost("api/merge", { from: c.id, into }));
     go.classList.add("on"); confirmMerge.replaceChildren(go);
-  });
+  }, closest);
   merge.dataset.role = "merge";
   bar.append(merge, confirmMerge);
   if (DATA.clusters.length >= 2) {
-    const compare = groupSelect(t("compareWith"), c.id, false, (other) => showCompare(c.id, other));
+    const compare = groupSelect(t("compareWith"), c.id, false, (other) => showCompare(c.id, other), closest);
     compare.dataset.role = "compare"; bar.append(compare);
   }
   const nameBox = document.createElement("input"); nameBox.name = "groupName"; nameBox.setAttribute("aria-label", t("nameGroup"));
   nameBox.placeholder = t("nameGroup"); nameBox.title = t("nameGroupTip"); nameBox.value = (DATA.live.names || {})[String(c.id)] || "";
   nameBox.dataset.role = "name";
+  const look = lookWords(c.members);  // a name to start from when there is none yet
+  if (!nameBox.value && look && look !== t("lookAverage")) nameBox.placeholder = t("nameGroupHint").replace("{w}", look);
   nameBox.style.cssText = "margin-left:6px;width:120px;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:5px 8px;font:inherit;font-size:12px";
   nameBox.addEventListener("click", (e) => e.stopPropagation());
   nameBox.addEventListener("keydown", (e) => {

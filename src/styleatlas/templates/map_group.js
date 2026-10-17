@@ -160,7 +160,7 @@ function viewBody(c) {
 }
 
 // the group's actions: the two or three this mode needs most in a row, the rest under "More..."
-const MAIN_ACTIONS = { browse: ["name", "copy", "compare"], lora: ["name", "merge", "merge-ok", "split"] };
+const MAIN_ACTIONS = { browse: ["name", "copy", "more-like", "compare"], lora: ["name", "merge", "merge-ok", "split"] };
 const ACTION_WORDS = { merge: "mergeInto", compare: "compareWith", "more-like": "moreLike", split: "splitGroup", copy: "copyShort" };
 function actionRows(c, bar) {
   const parts = {};
