@@ -17,7 +17,7 @@ style-atlas 會看每張圖「怎麼畫」（不是畫了什麼），自動把�
 | **找畫風相近的圖**：一張或同畫風的幾張圖當範例，也能把結果直接複製成資料夾（實測：同一位畫師的其他作品，第一名猜中約 47%，前 10 名內約 71%） | 網頁介面拖圖進去，或用 `search`（`--combine`、`--copy-to`） |
 | **整理很多位畫師的圖庫**：依畫師分群（20 位以上的圖庫比預設的自動分群更貼近畫師） | `cluster --granularity artists`，或網頁分群選單的「依畫師」 |
 | **這張圖像哪位畫師？**：圖庫按畫師（或畫風）分資料夾時，列出最像的資料夾，並說第一名有多可信（依第一名領先多少，實測正確率 35%～99%；同一位畫師早期或後期的作品可能更像別人） | `search --by-folder` |
-| **3D 畫風地圖**：縮圖浮在 3D 空間，可轉動，點一下就看最接近的畫風；也可以每位畫師一個點，看誰和誰畫風相近 | `map`（畫師地圖加 `--by-folder`；網頁介面的「畫師地圖」按鈕也可以），或網頁介面的「存成分享用地圖」（單一 HTML 檔，可直接傳給朋友）；上方的「存圖」或 P 鍵存成圖片 |
+| **3D 畫風地圖**：縮圖浮在 3D 空間，可轉動，點一下就看最接近的畫風；也可以每位畫師一個點，看誰和誰畫風相近 | `map`（畫師地圖加 `--by-folder`；網頁介面的「畫師地圖」按鈕也可以），或網頁介面的「存成分享用地圖」（單一 HTML 檔，可直接傳給朋友）；「檢視」選單的「存成圖片」或 P 鍵存成圖片 |
 | **檢查資料集**：解析度、小圖放大、壓縮太重、極端比例、缺標註、近重複，以及整個資料夾的畫風一致性（像一位畫師，還是可能混了好幾種；兩位畫師混在一起約一半抓得到） | `audit`、`duplicates` |
 | **量化畫風與口味**：兩組圖是否同一畫風、差在哪裡（亮度、鮮豔度、線條量等）、用你自己的喜歡／不喜歡訓練的個人口味模型（不是通用美學分數；一個人實測 AUC 約 0.77；遇到沒評過的畫師、換了生成來源都會明顯變差，適合粗篩） | `compare`、`taste`、網頁介面的外觀描述與「喜歡／不喜歡」 |
 | **補新圖進已分好的資料集**：一批新圖各自該放哪一群、哪些和資料集裡的圖重複、哪些哪群都不像（放進 `_unsure` 讓你看） | `sort` |
@@ -35,7 +35,8 @@ style-atlas 會看每張圖「怎麼畫」（不是畫了什麼），自動把�
 
 1. 安裝 [Python 3.10 以上](https://www.python.org/downloads/)（3.10～3.14 都有自動測試），安裝時勾選「Add python.exe to PATH」。也可以在命令提示字元執行 `winget install -e --id Python.Python.3.12`。
 2. 下載本專案：登入 GitHub 後，在專案頁面按 **Code → Download ZIP** 再解壓縮（本專案目前是私人專案，要先請作者給你存取權），會用 git 的話也可以 `git clone`。然後雙擊 `scripts\setup.bat`。它會在專案資料夾裡建立 `.venv`，偵測到 NVIDIA 顯卡就裝 CUDA 版的 torch（下載約 2.5 GB），沒有就裝 CPU 版（約 200 MB），再安裝本工具。
-3. 把圖片資料夾**拖到 `scripts\StyleAtlas.bat` 上**（或直接雙擊它，再從跳出的視窗選資料夾），瀏覽器會馬上打開網頁，先顯示準備進度（第一次會先下載 2.4 GB 的模型，接著計算每張圖的畫風），算好後自動變成地圖。
+3. 雙擊桌面上的 **Style Atlas**（`setup.bat` 最後會建立這個捷徑），在程式裡按「開啟圖片資料夾…」，或直接把資料夾拖進視窗。程式會先顯示準備進度（第一次會先下載 2.4 GB 的模型，接著計算每張圖的畫風），算好後自動變成地圖。開過的資料夾會列在開始畫面，下次點一下就好；地圖左上方的「換資料夾…」回到開始畫面。
+   想用瀏覽器開也可以：照舊把圖片資料夾拖到 `scripts\StyleAtlas.bat` 上（或雙擊它再選資料夾）。
 
 Windows 跳出「Windows 已保護您的電腦」時，按「其他資訊」→「仍要執行」。
 
@@ -251,12 +252,13 @@ style-atlas taste score "D:\new_batch" --model "D:\my_taste.npz" --copy-to "D:\�
 
 ### 網頁介面與 3D 地圖
 
-- 右側最上方有「① 檢查資料 → ② 整理畫風群 → ③ 匯出」三個步驟，照順序點就能完成訓 LoRA 前的整理。
-- 縮圖浮在 3D 空間中，外框顏色代表畫風群，群名浮在每群中央（右上角「群名」可關掉；最多顯示最大的 16 群）。可以拖曳旋轉、滾輪縮放，`+` / `-` 調整縮圖大小。按 `?`（或右上角的 ? 按鈕）會列出所有快捷鍵。
-- 右上角「錄一圈」會把地圖轉一圈錄成 8 秒的影片（Chrome／Edge 是 MP4，Firefox 是 WebM），可以直接分享。
+- 右側「LoRA 資料集」分頁有「① 檢查資料 → ② 整理畫風群 → ③ 匯出」三個步驟、檢查和重複的圖，照順序點就能完成訓 LoRA 前的整理。
+- 縮圖浮在 3D 空間中，外框顏色代表畫風群，群名浮在每群中央（右上角「群名」可關掉；最多顯示最大的 16 群）。左鍵拖曳移動地圖、右鍵拖曳轉動，滾輪朝滑鼠指的地方縮放；拉近時縮圖長得比間距慢，擠在一起的圖會散開。雙擊圖片看大圖（← → 換下一張、Esc 關），雙擊空白處放大那裡。`+` / `-` 調整縮圖大小。按 `?`（或右上角的 ? 按鈕）會列出所有快捷鍵。
+- 上方可以切換**群分開**（每群排成一個島，看得清哪張屬於哪群；島和島的距離不代表相似度）和**真實分布**（遠近照畫風，壓成 3D 只是大概）。
+- 「檢視」選單：介面大小（也可以按 Ctrl + / Ctrl −；寬螢幕會預設大一點）、圓點或縮圖、自動旋轉、存成圖片、「錄一圈」（把地圖轉一圈錄成 8 秒的影片，Chrome／Edge 是 MP4，Firefox 是 WebM）、深淺色、語言。
 - 點右側的畫風群，鏡頭會飛過去並列出成員。點地圖上任一張圖，會列出最接近的 12 張。
 - 「檢查」分頁：按「開始檢查」會列出太小的圖、小圖放大或很模糊的圖、壓縮很重的 JPEG、標註提到浮水印或簽名的圖、極端長寬比、混在彩色圖裡的黑白圖、黑白標籤和圖不一致的標註、同一標籤有底線和空格兩種寫法的標註、沒有標註或標註是空的圖、動圖、只靠 EXIF 標記轉正的照片（和 `audit` 指令相同，不用打指令）；下面是最不合群的圖。「重複」分頁列出近重複圖組。
-- 右上角可以把「版面」從「畫風相似」切到「量化軸」。切換後，三個軸可以各自選一種指標，縮圖會移動到對應位置。可選的指標有：
+- 「檢視」選單裡的「量化軸版面」：切換後，三個軸可以各自選一種指標，縮圖會移動到對應位置。可選的指標有：
   - 口味分數：用網頁介面評過分之後才有。
   - 離參考集距離（原創度）：要先指定已知畫風的資料夾（例如畫師作品或論壇配方）。在網頁的「進階…」填路徑、按「載入參考」即可（第一次會嵌入裡面的圖），或啟動時加 `--reference 資料夾`。
   - 時間。
@@ -414,8 +416,10 @@ artwork. Run it to get a folder you can try the tool on.)
    the repository is private, so ask the author for access). Double-click `scripts\setup.bat`. It creates `.venv`,
    installs CUDA torch when an NVIDIA GPU is present (about a 2.5 GB download; otherwise CPU
    torch, about 200 MB), then installs style-atlas.
-3. Drag an image folder onto `scripts\StyleAtlas.bat` (or double-click it and pick the folder).
-   The browser opens the web app.
+3. Double-click **Style Atlas** on the desktop (`setup.bat` makes the shortcut), then press
+   "Open an image folder…" or drop a folder onto the window. Folders opened before are listed
+   on the start page; "Open another folder…" on the map goes back to it. To use the browser
+   instead, drag an image folder onto `scripts\StyleAtlas.bat` as before.
 
 **Updating**: extract the new ZIP over the old folder (keep its `.venv`) and run
 `scripts\setup.bat` again; torch is already installed, so it takes seconds. With git: `git pull`,

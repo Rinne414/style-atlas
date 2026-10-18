@@ -10,6 +10,16 @@ TEMPLATES = resources.files("styleatlas").joinpath("templates")
 STRING = re.compile(r'(\w+):\s*"((?:[^"\\]|\\.)*)"')
 ARRAY = re.compile(r"(\w+):\s*\[")
 PLACEHOLDER = re.compile(r"\{(\w+)\}")
+SCRIPTS = (
+    "map_sharp.js",
+    "map.js",
+    "map_layout.js",
+    "map_group.js",
+    "map_browse.js",
+    "map_viewer.js",
+    "map_shell.js",
+    "map_app.js",
+)
 
 
 def _tables() -> dict[str, dict[str, str]]:
@@ -35,7 +45,7 @@ def test_both_languages_have_the_same_keys_and_placeholders():
 def test_every_text_the_scripts_name_exists():
     tables = _tables()
     used = set()
-    for name in ("map.js", "map_layout.js", "map_group.js", "map_browse.js", "map_app.js"):
+    for name in SCRIPTS:
         used |= set(re.findall(r'\bt\("(\w+)"\)', TEMPLATES.joinpath(name).read_text("utf-8")))
     assert used and not used - set(tables["en"]), sorted(used - set(tables["en"]))
 
@@ -45,7 +55,7 @@ def test_a_line_that_fills_placeholders_fills_all_of_them():
     replaces none keeps the template for later and is skipped)."""
     en = _tables()["en"]
     missing = []
-    for name in ("map.js", "map_layout.js", "map_group.js", "map_browse.js", "map_app.js"):
+    for name in SCRIPTS:
         lines = TEMPLATES.joinpath(name).read_text("utf-8").splitlines()
         for number, line in enumerate(lines, 1):
             follow = []  # a chain may go on in the next lines: ".replace(...)"

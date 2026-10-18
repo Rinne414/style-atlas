@@ -26,12 +26,17 @@ function straysOf(c) {  // members far past the group's spread: beyond Tukey's u
   return c.members.filter((i) => PTS[i].g > fence).sort((a, b) => PTS[b].g - PTS[a].g);
 }
 
-function tile(i) {  // the live app sends a sharper picture for these larger tiles
-  const img = thumb(i);
+function tile(i) {  // the live app sends a sharper picture for these larger tiles; a click shows it large
+  const img = thumb(i, (e) => (e.shiftKey && DATA.live ? toggleMark(i) : openViewer(i, viewOrder(img))));
   img.dataset.i = String(i);
   img.classList.toggle("marked", MARKED.has(i));
   if (DATA.live) { img.onerror = () => { img.onerror = null; img.src = PTS[i].t; }; img.src = `view/${i}`; }
   return img;
+}
+
+function viewOrder(img) {  // a group's pictures as the view lists them: typical, then the strays
+  if (!img.closest(".gv-grid")) return gridOrder(img);  // map_viewer.js: a closest group's strip
+  return [...document.querySelectorAll("#groupView .gv-grid img[data-i]")].map((el) => Number(el.dataset.i));
 }
 
 function storedSize() {
@@ -43,7 +48,7 @@ function openGroup(id) {
   const c = GROUPS.find((g) => g.id === id);
   if (!c) return;
   viewGroup = id; viewAll = false;
-  if (DATA.live && useMode === "lora") markStep("groups");  // map_browse.js: the groups were looked at
+  if (DATA.live && stepsDone().check) markStep("groups");  // map_browse.js: looked at after step 1
   focusCluster = id; selected = null; recolor();
   setSpin(false);
   $("tip").style.display = "none";  // the map's hover card would float over the view
@@ -159,8 +164,8 @@ function viewBody(c) {
   return body;
 }
 
-// the group's actions: the two or three this mode needs most in a row, the rest under "More..."
-const MAIN_ACTIONS = { browse: ["name", "copy", "more-like", "compare"], lora: ["name", "merge", "merge-ok", "split"] };
+// the group's actions: the ones most used in a row, the rest under "More..."
+const MAIN_ACTIONS = ["name", "merge", "merge-ok", "copy", "more-like"];
 const ACTION_WORDS = { merge: "mergeInto", compare: "compareWith", "more-like": "moreLike", split: "splitGroup", copy: "copyShort" };
 function actionRows(c, bar) {
   const parts = {};
@@ -168,7 +173,7 @@ function actionRows(c, bar) {
   const copy = copyButton(typicalOrder(c.members).map((i) => ({ i })), clusterName(c.id));  // map_app.js
   copy.style.margin = ""; parts.copy = copy;
   const main = document.createElement("div"); main.className = "gv-bar";
-  const roles = c.id < 0 ? ["place", "copy"] : MAIN_ACTIONS[DATA.live && useMode === "lora" ? "lora" : "browse"];
+  const roles = c.id < 0 ? ["place", "copy"] : MAIN_ACTIONS;
   roles.filter((r) => parts[r]).forEach((r) => {
     if (r === "name") {  // a visible label for the name field
       const l = document.createElement("label"); l.className = "lbl"; l.textContent = t("groupNameLbl"); main.append(l);

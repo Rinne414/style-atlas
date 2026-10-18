@@ -1,23 +1,9 @@
-// Two ways to use the live app: browsing styles (groups, pictures alike, artists) or preparing a
-// LoRA dataset (check, sort, export); each hides the other's tools. Also "find similar" on one
-// picture and the artists tab (a library's sub-folders, each with the closest ones). Joined after
-// map_group.js, before map_app.js.
+// The live app's LoRA tab (steps with ticks, the advice in words), "find similar" on one picture
+// and the artists tab (a library's sub-folders, each with the closest ones). There is one way to use
+// the app: browsing and LoRA tools sit side by side (two modes hid too little to be worth a choice).
+// Joined after map_group.js, before map_app.js.
 
-const MODE_KEY = "styleAtlasMode";
-const MODES = ["browse", "lora"];
-let useMode = "browse";  // a shared map file always browses
 const MIN_ARTISTS = 3;  // sub-folders before the artists tab shows (atlas.MIN_FOLDERS)
-
-function setMode(next) {
-  useMode = next; document.body.dataset.mode = next;
-  store(MODE_KEY, next);
-  document.querySelectorAll("#modes button").forEach((b) => b.classList.toggle("on", b.dataset.mode === next));
-  $("welcome").hidden = true;
-  const open = document.querySelector(".tabs button.on");
-  if (open && getComputedStyle(open).display === "none") showPane("clusters");  // a tab this mode hides
-  if (shownHint && $("status").textContent === shownHint) { shownHint = t(firstHintKey()); setStatus(shownHint); }
-  if (GROUPS.length) buildClusters();  // cards and the LoRA advice differ by mode
-}
 
 /* ---------- the LoRA steps: a tick on each one done (this tab) ---------- */
 const STEPS_KEY = "styleAtlasSteps";
@@ -76,29 +62,15 @@ function loraAdvice() {
   return box;
 }
 
-function firstHintKey() { return useMode === "lora" ? "firstHint" : "firstHintBrowse"; }
-
-function setupModes() {  // live app only
-  document.querySelectorAll("#modes button, #welcome button[data-mode]").forEach((b) =>
-    b.addEventListener("click", () => setMode(b.dataset.mode)));
-  const saved = stored(MODE_KEY);
-  if (MODES.includes(saved)) setMode(saved);
-  else { document.body.dataset.mode = "browse"; $("welcome").hidden = false; }  // first visit: ask
-  $("modes").hidden = false;
+function setupTabs() {  // live app only: the LoRA tab's intro and steps, the artists tab when there are artists
+  document.querySelector("#pane-lora .lora-intro").hidden = false;
   if (folderNames().length >= MIN_ARTISTS) {
     const tab = document.querySelector('.tabs button[data-pane="artists"]');
     tab.hidden = false; tab.addEventListener("click", buildArtists);
   }
 }
 
-function modesText() {
-  document.querySelectorAll("#modes button").forEach((b) => { b.textContent = t("mode_" + b.dataset.mode); });
-  $("welcome").querySelector("h2").textContent = t("welcomeTitle");
-  $("welcome").querySelectorAll("button[data-mode]").forEach((b) => {
-    b.querySelector("b").textContent = t("mode_" + b.dataset.mode);
-    b.querySelector("span").textContent = t("modeWhat_" + b.dataset.mode);
-  });
-  $("welcome").querySelector("p").textContent = t("welcomeLater");
+function tabsText() {
   const tab = document.querySelector('.tabs button[data-pane="artists"]');
   if (tab) tab.textContent = t("artistsTab");
   if (ARTISTS && document.querySelector('.tabs button[data-pane="artists"].on')) showArtistList();

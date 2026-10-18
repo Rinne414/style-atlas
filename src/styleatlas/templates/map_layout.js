@@ -174,7 +174,9 @@ let showNames = true;
 
 const NAME_CHARS = 28;  // longer names are cut, or one label would cover the map
 
-const NAME_HEIGHT = 0.11, NAME_ISLAND = 0.17;  // group names, in world units
+// group names keep one size on screen (a share of the view's height, as notes do): grown with the
+// zoom they covered the very pictures one came closer to see
+const NAME_HEIGHT = 0.03, NAME_ISLAND = 0.04;
 
 function nameSprite(full, color) {
   const text = full.length > NAME_CHARS ? full.slice(0, NAME_CHARS - 1) + "…" : full;
@@ -183,7 +185,8 @@ function nameSprite(full, color) {
   cv.width = Math.ceil(g.measureText(text).width) + 24; cv.height = 46;
   g.font = font; g.fillStyle = "rgba(12,14,18,0.86)"; g.fillRect(0, 0, cv.width, cv.height);
   g.fillStyle = color; g.fillText(text, 12, 33);
-  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: srgbTexture(cv), depthTest: false, transparent: true }));
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: srgbTexture(cv), depthTest: false, transparent: true,
+    sizeAttenuation: false }));
   const h = layoutMode === "groups" ? NAME_ISLAND : NAME_HEIGHT;  // islands: room for bigger names
   sp.scale.set(h * cv.width / cv.height, h, 1); sp.renderOrder = 10;
   return sp;
@@ -208,7 +211,6 @@ function drawNames() {
     const i = Number(k);
     if (!(i >= 0 && i < N) || !text) return;
     const sp = nameSprite(text, NOTE_COLOR);
-    sp.material.sizeAttenuation = false;  // the same size however close the camera is
     sp.scale.set(NOTE_HEIGHT * sp.scale.x / sp.scale.y, NOTE_HEIGHT, 1);
     sp.center.set(0, 0);  // starts at the image and reaches up and right, off its group's name
     sp.position.set(pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2]); sp.userData.note = i;
@@ -224,22 +226,28 @@ function declutterNames(now) {  // where group names overlap on screen, the larg
   if (!nameSprites || now - lastDeclutter < DECLUTTER_MS) return;
   lastDeclutter = now;
   const w = canvas.clientWidth, h = canvas.clientHeight;
-  const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
-  const up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+  const px = h / (4 * Math.tan((camera.fov * Math.PI) / 360));  // a fixed-size sprite's half size in pixels, per unit
   const toPx = (v) => { const p = v.clone().project(camera); return [(p.x + 1) / 2 * w, (1 - p.y) / 2 * h, p.z]; };
   const names = nameSprites.children.filter((sp) => sp.userData.note === undefined);  // notes always stay
   names.sort((a, b) => (b.userData.c === focusCluster) - (a.userData.c === focusCluster));  // stable: larger first
   const kept = [];
   names.forEach((sp) => {
     const [x, y, z] = toPx(sp.position);
-    const [xr] = toPx(sp.position.clone().addScaledVector(right, sp.scale.x / 2));
-    const [, yu] = toPx(sp.position.clone().addScaledVector(up, sp.scale.y / 2));
-    const hw = Math.abs(xr - x), hh = Math.abs(y - yu);
+    const hw = sp.scale.x * px, hh = sp.scale.y * px;
     const box = [x - hw, y - hh, x + hw, y + hh];
     const clash = z > 1 || kept.some((b) => box[0] < b[2] && box[2] > b[0] && box[1] < b[3] && box[3] > b[1]);
     sp.visible = !clash;
     if (!clash) kept.push(box);
+    sp.material.opacity = (sp.userData.base ?? 1) * nameZoomFade();
   });
+}
+
+// close in, the pictures matter more than their group's name: names step back (not notes)
+const NAME_FADE_FROM = 0.6, NAME_FADE_TO = 0.3, NAME_FADE_MIN = 0.25;  // shares of the home distance
+function nameZoomFade() {
+  const k = camera.position.distanceTo(controls.target) / SIZE_REF.value;
+  const t = Math.min(1, Math.max(0, (k - NAME_FADE_TO) / (NAME_FADE_FROM - NAME_FADE_TO)));
+  return NAME_FADE_MIN + (1 - NAME_FADE_MIN) * t;
 }
 
 function fadeNames() {  // names step back with the points: a focused group keeps its own
@@ -248,7 +256,8 @@ function fadeNames() {  // names step back with the points: a focused group keep
   nameSprites.children.forEach((sp) => {
     const own = sp.userData.note !== undefined ? PTS[sp.userData.note].c : sp.userData.c;
     const on = focusCluster !== null ? own === focusCluster : !dimmed;
-    sp.material.opacity = on ? 1 : 0.15;
+    sp.userData.base = on ? 1 : 0.15;
+    sp.material.opacity = sp.userData.base * (sp.userData.note === undefined ? nameZoomFade() : 1);
   });
 }
 
@@ -345,22 +354,31 @@ function drawAxes() {
   scene.add(axisLines);
 }
 
+// the true layout frames 95% of the points with room to spare; farther strays may lie outside
+const FRAME_SHARE = 0.95, FRAME_ROOM = 1.35, FRAME_MIN_N = 50;
 function homeView() {  // looking at the centre from HOME's direction, every point in view
-  if (layoutMode === "measures") return HOME_MEASURES.clone();
+  if (layoutMode === "measures") { SIZE_REF.value = HOME_MEASURES.length(); return HOME_MEASURES.clone(); }
   const back = HOME.clone().normalize();  // from the centre towards the camera
   const right = new THREE.Vector3(0, 1, 0).cross(back).normalize();
   const up = back.clone().cross(right);
   const tanV = Math.tan((camera.fov * Math.PI) / 360);
   const tanH = tanV * camera.aspect;
   const q = new THREE.Vector3();
-  let need = 0;  // the distance at which the last point still fits (a thumbnail's room around it)
+  const needs = new Float64Array(N);  // the distance at which each point still fits (a thumbnail's room around it)
   for (let i = 0; i < N; i++) {
     q.set(pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2]);
     const x = Math.abs(q.dot(right)) + pointSize / 2, y = Math.abs(q.dot(up)) + pointSize / 2;
-    need = Math.max(need, q.dot(back) + x / tanH, q.dot(back) + y / tanV);
+    needs[i] = Math.max(q.dot(back) + x / tanH, q.dot(back) + y / tanV);
   }
-  const distance = Math.min(HOME_MAX, Math.max(1, need * HOME_MARGIN));
-  return back.multiplyScalar(Number.isFinite(distance) ? distance : HOME.length());  // a 0x0 canvas
+  needs.sort();
+  // islands: every one in view. The true layout: the bulk fills the view, one far stray (zoom out
+  // to see it) no longer shrinks the rest to a ball in the middle
+  const all = N ? needs[N - 1] : 0;
+  const bulk = needs[Math.floor(FRAME_SHARE * (N - 1))] * FRAME_ROOM;
+  const need = layoutMode === "style" && N >= FRAME_MIN_N ? Math.min(all, bulk) : all;
+  const distance = Number.isFinite(need) ? Math.min(HOME_MAX, Math.max(1, need * HOME_MARGIN)) : HOME.length();  // a 0x0 canvas
+  SIZE_REF.value = distance;  // map.js: pictures drawn at plain perspective size from here
+  return back.multiplyScalar(distance);
 }
 
 function setupAxes() {
@@ -372,17 +390,27 @@ function setupAxes() {
     sel.replaceChildren(...opts.map((k) => { const o = document.createElement("option"); o.value = k; o.textContent = t("m_" + k); return o; }));
     sel.value = cur && opts.includes(cur) ? cur : (defaults[d] || "map");
   });
-  const ls = $("layoutSel");
-  ls.replaceChildren(...["groups", "style", "measures"].map((k) => {
-    const o = document.createElement("option"); o.value = k;
-    o.textContent = t({ style: "layoutStyle", groups: "layoutGroups", measures: "layoutMeasures" }[k]); return o;
-  }));
-  ls.value = layoutMode;
+  layoutShown();
 }
 
-$("layoutSel").addEventListener("change", (e) => {
-  layoutMode = e.target.value; $("axes").hidden = layoutMode !== "measures"; applyLayout();
+// groups apart / true layout: the switch at the top; the measure axes from the View menu
+function setLayout(next) {
+  if (!["groups", "style", "measures"].includes(next) || next === layoutMode) return;
+  layoutMode = next; applyLayout();
   if (layoutMode !== "measures") store(LAYOUT_PICK_KEY, layoutMode);
   flyTo = { target: new THREE.Vector3(), cam: homeView(), k: 0 };
-});
+  layoutShown();
+}
+
+function layoutShown() {  // the switch, the axis menus and the line under the title follow the layout
+  document.querySelectorAll("#layoutSeg button").forEach((b) => b.classList.toggle("on", b.dataset.layout === layoutMode));
+  $("layoutMeasures").classList.toggle("on", layoutMode === "measures");
+  $("axes").hidden = layoutMode !== "measures";
+  const note = document.querySelector("#title .layout-note");
+  note.hidden = layoutMode === "measures";
+  note.textContent = t(layoutMode === "groups" ? "layoutNoteGroups" : "layoutNoteStyle");
+}
+
+document.querySelectorAll("#layoutSeg button").forEach((b) => b.addEventListener("click", () => setLayout(b.dataset.layout)));
+$("layoutMeasures").addEventListener("click", () => { closeViewMenu(); setLayout(layoutMode === "measures" ? "groups" : "measures"); });
 ["axX", "axY", "axZ"].forEach((id) => $(id).addEventListener("change", applyLayout));

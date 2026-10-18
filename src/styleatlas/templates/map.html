@@ -5,6 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Style Atlas</title>
 <meta name="description" content="Style Atlas: an interactive 3D map of image styles, with style groups, search and dataset checks.">
+<script>
+// the interface size before anything is drawn (map_shell.js changes it): the last one picked, else
+// a little larger in a wide window (a 1440p screen at 100% scaling), where 15 px text reads small
+(() => {
+  let v = NaN;
+  try { v = parseFloat(localStorage.getItem("styleAtlasUi")); } catch (e) { /* storage off */ }
+  if (!(v >= 0.8 && v <= 1.6)) v = innerWidth >= 2200 ? 1.15 : 1;
+  document.documentElement.style.setProperty("--ui", String(v));
+})();
+</script>
 <style>
 /*__MAP_CSS__*/
 </style>
@@ -14,19 +24,28 @@
   <main id="stage">
     <canvas id="gl"></canvas>
     <div id="hud">
-      <div id="title"><h1></h1><div class="sub"></div><button id="filterChip" hidden></button></div>
+      <div id="title"><h1></h1><div class="sub"></div><div class="layout-note" hidden></div><button id="filterChip" hidden></button></div>
       <div class="tools">
+        <button id="openOther" hidden></button>
         <input id="find" type="search">
-        <select id="layoutSel"></select>
+        <div id="layoutSeg" class="seg" role="group"><button data-layout="groups"></button><button data-layout="style"></button></div>
         <span id="axes" hidden><select id="axX"></select><select id="axY"></select><select id="axZ"></select></span>
-        <button id="mode"></button>
         <button id="names" class="on"></button>
-        <button id="rec"></button>
-        <button id="savePng"></button>
-        <button id="spin"></button>
         <button id="home"></button>
-        <button id="theme">◐</button>
-        <button id="lang">中</button>
+        <div class="menu-wrap">
+          <button id="viewMenuBtn" aria-haspopup="true" aria-expanded="false"></button>
+          <div id="viewMenu" class="menu" role="menu" hidden>
+            <button id="layoutMeasures" role="menuitem"></button>
+            <button id="mode" role="menuitem"></button>
+            <button id="spin" role="menuitem"></button>
+            <button id="savePng" role="menuitem"></button>
+            <button id="rec" role="menuitem"></button>
+            <hr>
+            <div class="menu-row" id="uiSize"><span class="lbl"></span></div>
+            <button id="theme" role="menuitem"></button>
+            <button id="lang" role="menuitem"></button>
+          </div>
+        </div>
         <button id="helpBtn">?</button>
       </div>
     </div>
@@ -76,33 +95,34 @@
       <div id="expPlan"></div>
       <div class="actions"><button id="exportPreview"></button><button id="export" class="primary"></button></div>
     </div>
-    <div id="welcome" hidden>
-      <h2></h2>
-      <button data-mode="browse"><b></b><span></span></button>
-      <button data-mode="lora"><b></b><span></span></button>
-      <p></p>
-    </div>
     <section id="groupView" tabindex="-1" hidden></section>
   </main>
   <aside>
-    <div id="modes" hidden><button data-mode="browse"></button><button data-mode="lora"></button></div>
-    <div id="steps" hidden><button data-step="check"></button><span>→</span><button data-step="groups"></button><span>→</span><button data-step="export"></button></div>
     <div class="tabs">
       <button data-pane="clusters" class="on"></button>
       <button data-pane="selected"></button>
-      <button data-pane="outliers"></button>
-      <button data-pane="dups"></button>
       <button data-pane="artists" hidden></button>
       <button data-pane="taste" hidden></button>
+      <button data-pane="lora"></button>
     </div>
     <div class="pane on" id="pane-clusters"></div>
     <div class="pane" id="pane-selected"></div>
-    <div class="pane" id="pane-outliers"></div>
-    <div class="pane" id="pane-dups"></div>
     <div class="pane" id="pane-artists"></div>
     <div class="pane" id="pane-taste"></div>
+    <div class="pane" id="pane-lora">
+      <p class="lora-intro" hidden></p>
+      <div id="steps" hidden><button data-step="check"></button><span>→</span><button data-step="groups"></button><span>→</span><button data-step="export"></button></div>
+      <div id="loraAdvice"></div>
+      <div class="subtabs"><button data-sub="outliers" class="on"></button><button data-sub="dups"></button></div>
+      <div class="subpane on" id="pane-outliers"></div>
+      <div class="subpane" id="pane-dups"></div>
+    </div>
     <footer></footer>
   </aside>
+</div>
+<div id="viewer" role="dialog" aria-modal="true" hidden>
+  <div class="stage"><button class="nav prev">‹</button><img alt=""><button class="nav next">›</button></div>
+  <div class="bar"><div class="what"><b></b><span></span></div></div>
 </div>
 <script id="atlas-data" type="application/json">/*__STYLE_ATLAS_DATA__*/null</script>
 <!-- three.js r160 (MIT, see LICENSE notice inside) is inlined so the map works offline -->

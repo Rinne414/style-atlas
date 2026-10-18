@@ -37,8 +37,14 @@ controls.enableDamping = true;
 // points; the widest home view is HOME_MAX away
 controls.minDistance = 0.15;
 controls.maxDistance = HOME_MAX * 2;
-controls.autoRotate = true;
+controls.autoRotate = false;
 controls.autoRotateSpeed = 0.6;
+// like a map or a picture viewer: the wheel zooms where the cursor points, the left button moves
+// the map and the right one turns it (turning is seldom wanted while looking at pictures)
+controls.zoomToCursor = true;
+controls.zoomSpeed = 1.5;  // 7% a wheel step (1: 5%, which took eight steps to come 1.5x closer)
+controls.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE };
+controls.touches = { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_ROTATE };
 const SPREAD = 1.6;
 const pos = new Float32Array(N * 3);
 PTS.forEach((p, i) => { pos[i*3] = p.p[0]*SPREAD; pos[i*3+1] = p.p[1]*SPREAD; pos[i*3+2] = p.p[2]*SPREAD; });
@@ -50,22 +56,29 @@ function setBackground() {
 }
 setBackground();
 
-const CELL = N <= 2048 ? 128 : 64;   // atlas pages are 4096 px squares
+const CELL = N <= 4096 ? 128 : 64;   // atlas pages are 4096 px squares (up to 4 of them at 128 px)
 const PER_ROW = 4096 / CELL;
 const PER_PAGE = PER_ROW * PER_ROW;
 const pages = [];
 const alpha = new Float32Array(N).fill(1);
 let mode = N <= 6000 ? "thumbs" : "dots";
 let pointSize = Math.min(0.4, Math.max(0.05, 1.6 / Math.cbrt(Math.max(N, 1))));
+// Pictures grow slower than the gaps between them as the camera comes closer, so zooming in pulls
+// a crowded group apart (grown like the gaps, pictures that overlap overlap at every zoom). At the
+// home view's distance the size is as plain perspective would draw it.
+const SIZE_GROW = 0.5;  // 1 = plain perspective
+const SIZE_REF = { value: HOME.length() };  // shared by every page's material; set by homeView()
+function depthScale(depth) { return 1 / (SIZE_REF.value * Math.pow(Math.max(depth, 1e-3) / SIZE_REF.value, SIZE_GROW)); }
 
 const VERT = `
   attribute float aAlpha; attribute vec2 aCell; attribute vec3 aColor;
-  uniform float uSize; uniform float uScale;
+  uniform float uSize; uniform float uScale; uniform float uRef;
   varying float vAlpha; varying vec2 vCell; varying vec3 vColor;
   void main() {
     vAlpha = aAlpha; vCell = aCell; vColor = aColor;
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
-    gl_PointSize = uSize * uScale / -mv.z * (0.55 + 0.45 * aAlpha);
+    float depth = max(-mv.z, 0.001);  // as depthScale() in the page script
+    gl_PointSize = uSize * uScale / (uRef * pow(depth / uRef, ${SIZE_GROW.toFixed(2)})) * (0.55 + 0.45 * aAlpha);
     gl_Position = projectionMatrix * mv;
   }`;
 const FRAG = `
@@ -159,7 +172,7 @@ function makePage(start, count, cv) {
   const mat = new THREE.ShaderMaterial({
     vertexShader: VERT, fragmentShader: FRAG, transparent: true, depthWrite: true,
     uniforms: { uAtlas: { value: tex }, uCell: { value: 1 / PER_ROW }, uSize: { value: pointSize },
-      uScale: { value: 1 }, uMode: { value: mode === "dots" ? 1 : 0 } },
+      uScale: { value: 1 }, uRef: SIZE_REF, uMode: { value: mode === "dots" ? 1 : 0 } },
   });
   const obj = new THREE.Points(geo, mat);
   scene.add(obj);
@@ -251,14 +264,14 @@ function pick(ev) {
     const sx = (ray.x + 1) / 2 * r.width, sy = (1 - ray.y) / 2 * r.height;
     const d = Math.hypot(sx - mx, sy - my);
     const depth = camera.position.distanceTo(new THREE.Vector3(pos[i*3], pos[i*3+1], pos[i*3+2]));
-    const reach = Math.max(radius, pointSize * r.height * 0.45 / depth);
+    const reach = Math.max(radius, pointSize * r.height * 0.45 * depthScale(depth));
     if (d < reach && depth + d * 0.002 < bestD) { bestD = depth + d * 0.002; best = i; }
   }
   return best;
 }
 
 let downAt = null;
-canvas.addEventListener("pointerdown", (e) => { downAt = [e.clientX, e.clientY]; });
+canvas.addEventListener("pointerdown", (e) => { downAt = e.button === 0 ? [e.clientX, e.clientY] : null; });
 canvas.addEventListener("pointerup", (e) => {
   if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 5) return;
   const i = pick(e);
@@ -271,14 +284,33 @@ canvas.addEventListener("pointermove", (e) => {
   const i = pick(e);
   if (i < 0) { tip.style.display = "none"; canvas.style.cursor = "grab"; return; }
   canvas.style.cursor = "pointer";
-  tip.querySelector("img").src = PTS[i].t;
+  if (tipAt !== i) showTipPicture(tip, i);
   tip.querySelector(".cap").textContent = `${PTS[i].n} · ${clusterName(PTS[i].c)}`;
-  const r = canvas.getBoundingClientRect();
   tip.style.display = "block";
-  tip.style.left = Math.min(e.clientX - r.left + 14, r.width - 250) + "px";
-  tip.style.top = Math.min(e.clientY - r.top + 14, r.height - 290) + "px";
+  placeTip(tip, e.clientX, e.clientY);
 });
-canvas.addEventListener("pointerleave", () => { $("tip").style.display = "none"; });
+let tipAt = -1, tipXY = [0, 0];
+function placeTip(tip, x, y) {  // beside the cursor, kept inside the map
+  const r = canvas.getBoundingClientRect();
+  tipXY = [x, y];
+  tip.style.left = Math.max(0, Math.min(x - r.left + 14, r.width - tip.offsetWidth - 8)) + "px";
+  tip.style.top = Math.max(0, Math.min(y - r.top + 14, r.height - tip.offsetHeight - 8)) + "px";
+}
+function showTipPicture(tip, i) {  // the small thumbnail at once, then a sharp one in its place
+  tipAt = i;
+  const img = tip.querySelector("img");
+  img.src = PTS[i].t;
+  const url = DATA.live ? `view/${i}` : null;  // the shared map file has its thumbnails only
+  if (!url) return;
+  const sharp = new Image();
+  sharp.onload = () => {
+    if (tipAt !== i) return;
+    img.src = url;
+    if (tip.style.display === "block") placeTip(tip, ...tipXY);  // it grew: stay inside the map
+  };
+  sharp.src = url;
+}
+canvas.addEventListener("pointerleave", () => { $("tip").style.display = "none"; tipAt = -1; });
 
 const TIMES = PTS.map((p) => p.ts).filter((v) => v !== null && v !== undefined);
 const TMIN = TIMES.reduce((a, b) => Math.min(a, b), Infinity);
@@ -336,6 +368,7 @@ function thumb(i, onClick) {
   img.src = PTS[i].t; img.alt = PTS[i].n; img.title = PTS[i].n; img.loading = "lazy";
   if (EXCLUDED.has(i)) { img.classList.add("excluded"); img.title += ` · ${t("excludedMark")}`; }
   img.addEventListener("click", onClick || ((e) => (e.shiftKey && DATA.live ? toggleMark(i) : select(i))));
+  img.addEventListener("dblclick", () => openViewer(i, gridOrder(img)));  // map_viewer.js
   return img;
 }
 
@@ -370,6 +403,8 @@ function select(i) {
   const big = document.createElement("img");
   big.className = "big"; big.src = PTS[i].f; big.alt = PTS[i].n;
   big.onerror = () => { big.onerror = null; big.src = PTS[i].t; };
+  big.title = t("keyViewer");
+  big.addEventListener("click", () => openViewer(i, [i, ...PTS[i].k]));  // map_viewer.js
   pane.append(big);
   if (DATA.live) pane.append(findSimilarButton(i));  // map_browse.js: the one thing people want here
   const kv = document.createElement("div"); kv.className = "kv";
@@ -381,6 +416,7 @@ function select(i) {
       (DATA.reference && PTS[i].r !== null ? `${t("m_ref")} ${PTS[i].r.toFixed(3)} (${PTS[i].rn}) · ` : "")));
   const a = document.createElement("a"); a.href = PTS[i].f; a.target = "_blank"; a.rel = "noopener";
   a.textContent = t(DATA.live ? "open" : "openShared"); a.style.color = "var(--accent)"; kv.append(a);
+  if (DATA.live) a.addEventListener("click", (e) => { e.preventDefault(); openOriginal(i, false); });  // map_viewer.js
   if (!DATA.live) a.title = t("openSharedTip");  // a shared file links to the sender's folder
   pane.append(kv);
   if (DATA.live) pane.append(voteButtons(i), captionLine(i), noteBox(i));
@@ -393,12 +429,19 @@ function select(i) {
   showPane("selected");
 }
 
+const LORA_SUBS = ["outliers", "dups"];  // the check and the duplicates sit inside the LoRA tab
 function showPane(name) {  // the details tab shows once something is in it
   if (name === "selected") document.querySelector('.tabs button[data-pane="selected"]').hidden = false;
-  document.querySelectorAll(".tabs button").forEach((b) => b.classList.toggle("on", b.dataset.pane === name));
-  document.querySelectorAll(".pane").forEach((p) => p.classList.toggle("on", p.id === "pane-" + name));
+  const sub = LORA_SUBS.includes(name) ? name : null;
+  const pane = sub ? "lora" : name;
+  document.querySelectorAll(".tabs button").forEach((b) => b.classList.toggle("on", b.dataset.pane === pane));
+  document.querySelectorAll(".pane").forEach((p) => p.classList.toggle("on", p.id === "pane-" + pane));
+  if (!sub) return;
+  document.querySelectorAll(".subtabs button").forEach((b) => b.classList.toggle("on", b.dataset.sub === sub));
+  document.querySelectorAll(".subpane").forEach((p) => p.classList.toggle("on", p.id === "pane-" + sub));
 }
 document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => showPane(b.dataset.pane)));
+document.querySelectorAll(".subtabs button").forEach((b) => b.addEventListener("click", () => showPane(b.dataset.sub)));
 
 function buildClusters() {
   const pane = $("pane-clusters");
@@ -409,7 +452,7 @@ function buildClusters() {
   PTS.forEach((p, i) => (p.c >= 0 ? groups[p.c].members : un.members).push(i));
   un.size = un.members.length; if (un.size) un.medoid = un.members[0];
   GROUPS = [...groups, ...(un.size ? [un] : [])];
-  if (DATA.live && useMode === "lora") pane.append(loraAdvice());  // map_browse.js
+  if (DATA.live) $("loraAdvice").replaceChildren(loraAdvice());  // map_browse.js: in the LoRA tab
   for (const c of GROUPS) {
     const row = document.createElement("div"); row.className = "cl"; row.dataset.id = String(c.id);
     row.tabIndex = 0; row.setAttribute("role", "button"); row.title = t("gvOpenTip");
@@ -427,7 +470,7 @@ function clusterCard(c) {  // the side list: name, size and spread in words, one
   const nm = document.createElement("div"); nm.className = "name"; nm.textContent = clusterName(c.id);
   const mt = document.createElement("div"); mt.className = "meta";
   const out = c.members.filter((i) => EXCLUDED.has(i)).length;
-  const lora = DATA.live && useMode === "lora";  // map_browse.js: a trainer asks how tight a group is
+  const lora = Boolean(DATA.live);  // how tight a group is and its time strip: the live app's cards
   mt.textContent = `${c.size} ${t(DATA.families ? "folderUnit" : "size")}` + (out ? t("excludedOf").replace("{n}", out) : "") +
     (lora && c.cohesion !== undefined && c.cohesion >= SPREAD_TIGHT ? ` · ${t(spreadWord(c.cohesion))}` : "");
   if (lora && c.cohesion !== undefined) mt.title = t("cohesionTip");
@@ -435,7 +478,8 @@ function clusterCard(c) {  // the side list: name, size and spread in words, one
   // which artists, or else the look (one group per folder: its name says the artist already)
   const what = (DATA.method === "folders" ? "" : folderMix(c.members)) || lookWords(c.members);
   if (what) { const w = document.createElement("div"); w.className = "meta"; w.textContent = what; txt.append(w); }
-  const strip = lora ? timeStrip(c.members, colorOf(c.id)) : null;  // old to new, for periods
+  // old to new, for one artist's periods (across several artists' folders the order says little)
+  const strip = lora && folderNames().length < 2 ? timeStrip(c.members, colorOf(c.id)) : null;
   if (strip) txt.append(strip);
   return txt;
 }
@@ -603,7 +647,7 @@ function groupBar(c) {  // live app only: the edits for a group, or placing the 
   nameBox.dataset.role = "name";
   const look = lookWords(c.members);  // a name to start from when there is none yet
   if (!nameBox.value && look && look !== t("lookAverage")) nameBox.placeholder = t("nameGroupHint").replace("{w}", look);
-  nameBox.style.cssText = "margin-left:6px;width:120px;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:5px 8px;font:inherit;font-size:12px";
+  nameBox.style.cssText = "margin-left:6px;width:10rem;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:.35em .6em;font:inherit;font-size:.95rem";
   nameBox.addEventListener("click", (e) => e.stopPropagation());
   nameBox.addEventListener("keydown", (e) => {
     e.stopPropagation();
@@ -781,24 +825,25 @@ function applyText() {
     (DATA.params && DATA.params.edited ? ` · ${t("edited")}` : "") +
     (EXCLUDED.size ? ` · ${t("excludedN").replace("{n}", EXCLUDED.size)}` : "");
   $("find").placeholder = t(DATA.live ? "findLive" : "find");
-  $("mode").textContent = mode === "thumbs" ? t("dots") : t("thumbs");
-  $("spin").textContent = t("spin"); $("home").textContent = t("home"); $("names").textContent = t("names");
-  $("theme").title = t("tipTheme"); $("mode").title = t("tipMode"); $("names").title = t("tipNames"); $("home").title = t("tipHome");
+  $("home").textContent = t("home"); $("names").textContent = t("names");
+  $("names").title = t("tipNames"); $("home").title = t("tipHome");
   if (!recordingNow) $("rec").textContent = t("rec");
   $("rec").title = t("tipRec");
-  $("savePng").textContent = t("savePngShort"); $("savePng").title = t("tipSavePng");
-  $("layoutSel").title = t("tipLayoutSel");
-  $("lang").textContent = lang === "zh" ? "EN" : "中";
+  shellText();  // map_shell.js: the layout switch, the View menu, the desktop button
   $("helpBtn").title = t("keys");
   if (!$("help").hidden) showHelp(true);
-  const tabs = document.querySelectorAll(".tabs button");
-  tabs[0].textContent = t("clusters"); tabs[1].textContent = t("selected"); tabs[2].textContent = t(DATA.live ? "checkTab" : "outliers");
-  tabs[3].textContent = `${t("dups")}${(DATA.duplicates || []).length ? " " + DATA.duplicates.length : ""}`;
+  const tab = (name) => document.querySelector(`.tabs button[data-pane="${name}"]`);
+  tab("clusters").textContent = t("clusters"); tab("selected").textContent = t("selected");
+  tab("lora").textContent = t(DATA.live ? "loraTab" : "loraTabShared");
+  const sub = (name) => document.querySelector(`.subtabs button[data-sub="${name}"]`);
+  sub("outliers").textContent = t(DATA.live ? "checkTab" : "outliers");
+  sub("dups").textContent = `${t("dups")}${(DATA.duplicates || []).length ? " " + DATA.duplicates.length : ""}`;
+  document.querySelector("#pane-lora .lora-intro").textContent = t("loraIntro");
   document.querySelector("footer").textContent = t("foot");
   const details = $("pane-selected");  // results shown there (search, compare) stay
   if (selected === null && (!details.childElementCount || details.firstElementChild.className === "empty")) {
     const e = document.createElement("div"); e.className = "empty"; e.textContent = t("pick");
-    tabs[1].hidden = !details.classList.contains("on");  // nothing picked yet: no empty tab
+    tab("selected").hidden = !details.classList.contains("on");  // nothing picked yet: no empty tab
     details.replaceChildren(e);
   }
   buildClusters(); buildOutliers(); buildDups(); liveText(); if (DATA.live) buildTaste();
@@ -810,7 +855,7 @@ function applyText() {
   let hint = "";
   if (DATA.live && DATA.clusters.length <= 1 && N > 10 && !chosen) hint = t("oneGroup");
   else if (DATA.live && many && !DATA.live.restored && !(DATA.params || {}).edited) hint = manyGroupsHint();
-  else if (DATA.live && free) hint = t(DATA.live.restored ? "restored" : firstHintKey());
+  else if (DATA.live && free) hint = t(DATA.live.restored ? "restored" : "firstHint");
   if (hint) { shownHint = hint; setStatus(hint); }
   setupAxes(); if (layoutMode === "measures") drawAxes();
   drawNames();
@@ -878,13 +923,15 @@ function showHelp(on) {
   const box = $("help");
   box.hidden = !on;
   if (!on) return;
-  const rows = [["drag", "keyRotate"], ["wheel", "keyZoom"], ["sizeKeys", "keySize"],
-    ["Esc", "keyHome"], ["P", "keySnap"], ...(DATA.live ? [["shiftKeys", "keyMark"], ["L / D", "keyVote"], ["X", "keyExclude"], ["Ctrl + Z", "keyUndo"]] : [])];
+  const rows = [["leftDrag", "keyPan"], ["rightDrag", "keyRotate"], ["wheel", "keyZoom"], ["dblPic", "keyViewer"],
+    ["dblEmpty", "keyZoomHere"], ["sizeKeys", "keySize"], ["uiKeys", "keyUi"], ["Esc", "keyHome"], ["P", "keySnap"],
+    ...(DATA.live ? [["shiftKeys", "keyMark"], ["L / D", "keyVote"], ["X", "keyExclude"], ["Ctrl + Z", "keyUndo"]] : [])];
+  const named = ["leftDrag", "rightDrag", "wheel", "dblPic", "dblEmpty", "sizeKeys", "uiKeys", "shiftKeys"];
   const close = document.createElement("button"); close.className = "close"; close.textContent = "✕";
   close.title = t("close"); close.setAttribute("aria-label", t("close")); close.addEventListener("click", () => showHelp(false));
   const start = document.createElement("h4"); start.textContent = t("quickStart");
   const steps = document.createElement("ol"); steps.className = "quick";
-  const last = DATA.live ? [useMode === "lora" ? "quick4" : "quick4browse"] : [];  // map_browse.js
+  const last = DATA.live ? ["quick4"] : [];
   ["quick1", "quick2", "quick3", ...last].forEach((key) => {
     const li = document.createElement("li"); li.textContent = t(key); steps.append(li);
   });
@@ -894,7 +941,7 @@ function showHelp(on) {
   const keys = document.createElement("h4"); keys.textContent = t("keysTitle");
   box.replaceChildren(close, start, steps, ...about, keys, ...rows.map(([key, what]) => {
     const line = document.createElement("div");
-    const b = document.createElement("b"); b.textContent = ["drag", "wheel", "sizeKeys", "shiftKeys"].includes(key) ? t(key) : key;
+    const b = document.createElement("b"); b.textContent = named.includes(key) ? t(key) : key;
     line.append(b, document.createTextNode(t(what)));
     return line;
   }));
@@ -910,9 +957,9 @@ $("theme").addEventListener("click", () => {
   setBackground();
 });
 addEventListener("keydown", (e) => {
+  if (viewerKey(e)) { e.preventDefault(); return; }  // map_viewer.js: the big picture takes the keys first
   if (e.key === "Escape" && !$("help").hidden) { showHelp(false); return; }  // also from a text box
   if (e.key === "Escape" && !$("exportPanel").hidden) { closeExport(); return; }  // map_app.js
-  if (e.key === "Escape" && !$("welcome").hidden) { setMode("browse"); return; }  // map_browse.js
   if (["INPUT", "SELECT", "TEXTAREA"].includes(e.target.tagName)) return;
   if (groupViewKey(e)) { e.preventDefault(); return; }  // map_group.js: arrows step, Esc closes
   if (e.repeat) return;  // holding a key must not vote on images never looked at
@@ -938,7 +985,7 @@ function setSize(s) { pointSize = Math.min(0.6, Math.max(0.02, s)); pages.forEac
 
 // P, or the button in Advanced: draw a frame now and save it, so it works in a background tab too
 // (no animation frames run there); toBlob reads the canvas right after the render
-function snapNow() { lastDeclutter = 0; declutterNames(performance.now()); renderer.render(scene, camera); saveSnapshot(); }
+function snapNow() { lastDeclutter = 0; declutterNames(performance.now()); updateSharp(performance.now()); renderer.render(scene, camera); saveSnapshot(); }
 function saveSnapshot() {  // right after render(), while the frame is still in the canvas
   canvas.toBlob((blob) => {
     if (!blob) return;
@@ -964,5 +1011,6 @@ function animate() {
   controls.update(Math.min(clock.getDelta(), 0.1));  // real time: same turn speed at any frame rate
   if (viewGroup !== null) return;  // the group view covers the map: no need to draw it
   declutterNames(performance.now());
+  updateSharp(performance.now());  // map_sharp.js: close-up pictures from sharper files
   renderer.render(scene, camera);
 }

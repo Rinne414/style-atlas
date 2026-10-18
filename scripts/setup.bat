@@ -46,13 +46,18 @@ if errorlevel 1 (
   )
 )
 if errorlevel 1 ( echo torch 安裝失敗 / torch install failed. & pause & exit /b 1 )
-"%VPY%" -m pip install -e .
+"%VPY%" -m pip install -e .[app]
 if errorlevel 1 ( echo style-atlas 安裝失敗 / style-atlas install failed. & pause & exit /b 1 )
 echo.
 ".venv\Scripts\style-atlas.exe" doctor
 echo.
-echo 完成。把圖片資料夾拖到 scripts\StyleAtlas.bat 上，就會打開它的畫風地圖。
-echo Done. Drag an image folder onto scripts\StyleAtlas.bat to open its style map.
+"%VPY%" -m styleatlas.desktop --shortcut
+if errorlevel 1 echo 沒能在桌面建立捷徑；可以直接執行 .venv\Scripts\style-atlas-app.exe / Could not make the desktop shortcut; run .venv\Scripts\style-atlas-app.exe instead.
+echo.
+echo 完成。雙擊桌面上的「Style Atlas」就會打開程式，在裡面選資料夾。
+echo Done. Double-click "Style Atlas" on the desktop to open the program, then pick a folder.
+echo 也可以照舊把圖片資料夾拖到 scripts\StyleAtlas.bat 上，在瀏覽器打開。
+echo Or drag an image folder onto scripts\StyleAtlas.bat to open it in the browser, as before.
 echo 要用 audit、cluster 等指令，請開 scripts\StyleAtlas-console.bat。
 echo For commands such as audit or cluster, open scripts\StyleAtlas-console.bat.
 echo 第一次分析會下載一次 CSD 模型（2.4 GB）/ The first run downloads the CSD model ^(2.4 GB^) once.

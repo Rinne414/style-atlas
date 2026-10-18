@@ -59,6 +59,7 @@ JSON_ROUTES = {  # POST route -> StyleAtlasApp method taking the JSON body
     "api/artists": "artists",
     "api/save_report": "save_report",
     "api/open_output": "open_output",
+    "api/open_file": "open_file",
     "api/copy_hits": "copy_hits",
     "api/export": "export",
     "api/export_plan": "export_plan",
@@ -67,10 +68,17 @@ REQUEST_ERRORS = (ValueError, OSError, KeyError, TypeError, OverflowError, Model
 PREPARING_LINES = 12  # progress lines the waiting page shows
 
 
-class Preparing:
-    """Stands in for StyleAtlasApp while it is built: the waiting page and its progress."""
+class StandIn:
+    """Answers in place of a StyleAtlasApp: a page, no images, no requests (503)."""
 
-    atlas = ()  # no images yet
+    atlas = ()  # no images
+
+    def page(self) -> str:
+        raise NotImplementedError
+
+
+class Preparing(StandIn):
+    """Stands in for StyleAtlasApp while it is built: the waiting page and its progress."""
 
     def __init__(self, title: str):
         self.title = title
@@ -128,10 +136,16 @@ class Preparing:
 
 
 class StyleAtlasHandler(BaseHTTPRequestHandler):
-    """Request handler; `make_handler` binds `app` and `allowed_hosts` on a subclass."""
+    """Request handler; `make_handler` binds `app` and `allowed_hosts` on a subclass.
 
-    app: StyleAtlasApp
+    With a `token` set (the desktop program, which shows one folder after another on one server)
+    the pages live under /s/<token>/: each folder's thumbnails get their own addresses, so none
+    is taken from the browser cache of the folder opened before, and a page left from that folder
+    gets no answers from this one."""
+
+    app: StyleAtlasApp | StandIn
     allowed_hosts: frozenset[str] = frozenset()
+    token: str = ""
 
     def log_message(self, fmt: str, *args: object) -> None:  # keep the console quiet
         return
@@ -156,6 +170,17 @@ class StyleAtlasHandler(BaseHTTPRequestHandler):
         body = json.dumps(obj, ensure_ascii=False).encode("utf-8")
         self._send(status, body, "application/json")
 
+    def _parts(self) -> list[str] | None:
+        """The request path in parts, without the /s/<token> prefix; None after a 404 for a
+        prefix that is not the current one, or for no prefix while there is a token."""
+        parts = self.path.split("?")[0].strip("/").split("/")
+        if parts[0] != "s" and not self.token:  # `serve`: plain paths
+            return parts
+        if len(parts) < 2 or parts[0] != "s" or not self.token or parts[1] != self.token:
+            self.send_error(HTTPStatus.NOT_FOUND)
+            return None
+        return parts[2:] or [""]
+
     def _image_index(self, part: str) -> int | None:
         try:
             i = int(part)
@@ -166,7 +191,9 @@ class StyleAtlasHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         if not self._host_ok():
             return
-        parts = self.path.split("?")[0].strip("/").split("/")
+        parts = self._parts()
+        if parts is None:
+            return
         if parts == [""]:
             try:
                 page = self.app.page().encode("utf-8")
@@ -180,7 +207,7 @@ class StyleAtlasHandler(BaseHTTPRequestHandler):
             app = self.app
             self._json(200, app.status() if isinstance(app, Preparing) else {"ready": True})
             return
-        if parts == ["artist_map"] and not isinstance(self.app, Preparing):  # written on request
+        if parts == ["artist_map"] and not isinstance(self.app, StandIn):  # written on request
             page = self.app.artist_map_html()
             if page is None:
                 self.send_error(HTTPStatus.NOT_FOUND)
@@ -234,8 +261,11 @@ class StyleAtlasHandler(BaseHTTPRequestHandler):
         body = self._read_body()
         if body is None:
             return
-        route = self.path.split("?")[0].strip("/")
-        if isinstance(self.app, Preparing):
+        parts = self._parts()
+        if parts is None:
+            return
+        route = "/".join(parts)
+        if isinstance(self.app, StandIn):
             self._json(503, {"error": tr("still preparing", "還在準備中")})
             return
         try:
@@ -256,7 +286,7 @@ class StyleAtlasHandler(BaseHTTPRequestHandler):
 
 
 def make_handler(
-    app: StyleAtlasApp | Preparing, allowed_hosts: set[str]
+    app: StyleAtlasApp | StandIn, allowed_hosts: set[str]
 ) -> type[BaseHTTPRequestHandler]:
     attrs = {"app": app, "allowed_hosts": frozenset(allowed_hosts)}
     return type("BoundStyleAtlasHandler", (StyleAtlasHandler,), attrs)
@@ -276,7 +306,7 @@ class _Server(ThreadingHTTPServer):
         super().handle_error(request, client_address)
 
 
-def bind(app: StyleAtlasApp | Preparing, port: int = 8770) -> ThreadingHTTPServer:
+def bind(app: StyleAtlasApp | StandIn, port: int = 8770) -> ThreadingHTTPServer:
     """Server on the first free port from `port`, wired to `app` (not yet serving)."""
     server = None
     for candidate in range(port, port + 20):

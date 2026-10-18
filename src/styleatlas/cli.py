@@ -458,8 +458,17 @@ def cmd_demo(a: argparse.Namespace) -> int:
 
 
 def cmd_serve(a: argparse.Namespace) -> int:
-    from styleatlas.serve import StyleAtlasApp
     from styleatlas.webserver import serve_when_ready
+
+    build, title = serve_build(a)
+    ok = serve_when_ready(build, title, port=a.port, open_browser=not a.no_browser)
+    return 0 if ok else 1
+
+
+def serve_build(a: argparse.Namespace):
+    """`serve`'s app builder, run in the background while the page shows its progress (also
+    the desktop program's), and the folder's title."""
+    from styleatlas.serve import StyleAtlasApp
 
     space = _space(a)
     a.neutralize, a.ignore_characters = 0, False  # the app applies the space itself
@@ -477,9 +486,7 @@ def cmd_serve(a: argparse.Namespace) -> int:
             reference=_reference(a, progress),
         )
 
-    title = a.title or Path(a.folder).resolve().name
-    ok = serve_when_ready(build, title, port=a.port, open_browser=not a.no_browser)
-    return 0 if ok else 1
+    return build, a.title or Path(a.folder).resolve().name
 
 
 def _common(p: argparse.ArgumentParser) -> None:

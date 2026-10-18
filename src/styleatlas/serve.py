@@ -123,7 +123,8 @@ MAX_PATH_TEXT = 1000  # longest folder path accepted from the page
 MAX_TAG_TEXT = 200
 MAX_REPEATS = 100  # kohya repeats set by hand on the export bar
 NEAR_ARTISTS = 8  # closest folders listed for each in the artists tab
-VIEW_PX = 320  # the group view's tiles go up to 240 px wide, sharp on 1.25x screens
+VIEW_PX = 512  # the group view's tiles, the map's close-ups and its hover preview (up to ~450 px)
+THUMB_SHARP_MAX = 4096  # up to this many images the map's thumbnails are 128 px (above: 72)
 
 
 DRIVE_REMOTE = 4  # GetDriveTypeW: a mapped network drive
@@ -199,7 +200,9 @@ class StyleAtlasApp(GroupEdits):
         self.progress = progress
         self.settings: dict = {"method": "agglomerative", "threshold": None}  # None: auto
         self.revision = 0  # bumped on every regroup / hand edit; edits must name the one they saw
-        self.thumb_px = default_thumb_px(len(atlas))
+        # the live map draws its atlas cells at 128 px up to THUMB_SHARP_MAX images (map.js CELL);
+        # a saved map file keeps the smaller default so it stays small enough to send
+        self.thumb_px = 128 if len(atlas) <= THUMB_SHARP_MAX else default_thumb_px(len(atlas))
         self._thumbs: dict[int, bytes] = {}
         self._tag_sets: list[set[str]] | None = None
         self.folders = labels_from_folders(atlas.paths, atlas.root)  # first sub-folder
@@ -544,6 +547,31 @@ class StyleAtlasApp(GroupEdits):
             subprocess.Popen([opener, str(folder)])  # noqa: S603
         return {"folder": str(folder)}
 
+    def open_file(self, body: dict) -> dict:
+        """Open one of the folder's images in the computer's picture program, or with `reveal`
+        show it selected in its folder. Only images of this folder, by index."""
+        path = self.atlas.paths[self._index(body)]
+        if not path.is_file():
+            raise ValueError(
+                tr("the file is gone (moved or deleted)", "找不到這個檔案（被移走或刪掉了）")
+            )
+        reveal = body.get("reveal") is True
+        if sys.platform == "win32":
+            if reveal:  # explorer wants "/select," and the path as one argument
+                subprocess.Popen(["explorer", f"/select,{path}"])  # noqa: S603, S607
+            else:
+                os.startfile(path)  # noqa: S606 - an image of this folder, chosen by index
+        else:
+            opener = "open" if sys.platform == "darwin" else "xdg-open"
+            target = path.parent if reveal and opener == "xdg-open" else path
+            args = (
+                [opener, "-R", str(target)]
+                if reveal and opener == "open"
+                else [opener, str(target)]
+            )
+            subprocess.Popen(args)  # noqa: S603
+        return {"file": path.name}
+
     def thumb(self, i: int) -> bytes:  # the map's and the lists' small tiles, kept in memory
         if i not in self._thumbs:
             try:
@@ -569,6 +597,8 @@ class StyleAtlasApp(GroupEdits):
         pool.submit(self._warm_model)
         for i in range(len(self.atlas)):
             pool.submit(self.thumb, i)
+        for i in range(len(self.atlas)):  # then the sharp ones (hover, close-ups, group view)
+            pool.submit(self.view_thumb, i)
         pool.shutdown(wait=False)
 
     def _warm_model(self) -> None:

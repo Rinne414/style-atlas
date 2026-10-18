@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Style Atlas</title>
+<script>
+// the same interface size and colours as the map (map.html, map_shell.js): one origin, one storage
+(() => {
+  const root = document.documentElement;
+  let v = NaN, theme = null;
+  try { v = parseFloat(localStorage.getItem("styleAtlasUi")); theme = localStorage.getItem("styleAtlasTheme"); } catch (e) { /* storage off */ }
+  if (!(v >= 0.8 && v <= 1.6)) v = innerWidth >= 2200 ? 1.15 : 1;
+  root.style.setProperty("--ui", String(v));
+  if (theme === "light" || theme === "dark") root.dataset.theme = theme;
+})();
+</script>
+<style>
+  :root { --bg: #0d0f12; --panel: #15181d; --panel2: #1c2027; --ink: #e9e6e1; --muted: #9aa0a8;
+    --line: #2a2f37; --accent: #f2c38b; --focus: #ffffff; --ui: 1; }
+  :root[data-theme="light"] { --bg: #f4f2ee; --panel: #ffffff; --panel2: #f0ede8; --ink: #1d1f23;
+    --muted: #62676f; --line: #dcd8d1; --accent: #95501c; --focus: #000000; }
+  * { box-sizing: border-box; }
+  html { font-size: calc(15px * var(--ui)); }
+  body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--ink); line-height: 1.5;
+    font-family: system-ui, "Segoe UI", "Microsoft JhengHei UI", "Noto Sans TC", "PingFang TC", sans-serif;
+    display: grid; place-items: start center; }
+  main { width: min(48rem, calc(100% - 2rem)); padding: 9vh 0 3rem; }
+  h1 { font-size: 2.2rem; margin: 0; letter-spacing: .01em; font-weight: 650; }
+  .lead { color: var(--muted); margin: .3rem 0 1.8rem; font-size: 1.05rem; }
+  .drop { border: 2px dashed var(--line); border-radius: 18px; padding: 2.4rem 1.5rem; text-align: center;
+    background: var(--panel); transition: border-color .15s, background .15s; }
+  .drop.over { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--panel)); }
+  .drop p { color: var(--muted); margin: .9rem 0 0; }
+  button { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line);
+    border-radius: 999px; padding: .45em .95em; cursor: pointer; }
+  button:focus-visible, .row:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  button.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 650;
+    font-size: 1.15rem; padding: .7em 1.8em; }
+  button:disabled { opacity: .55; cursor: default; }
+  .status { min-height: 1.5em; color: var(--accent); margin: 1rem 0 0; text-align: center; overflow-wrap: anywhere; }
+  h2 { font-size: 1rem; color: var(--muted); font-weight: 600; margin: 2rem 0 .5rem; }
+  .row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .8rem; align-items: center;
+    padding: .65rem .9rem; border-radius: 12px; cursor: pointer; border: 1px solid transparent; }
+  .row:hover { background: var(--panel); border-color: var(--line); }
+  .row b { display: block; font-size: 1.05rem; }
+  .row span { color: var(--muted); font-size: .9rem; overflow-wrap: anywhere; }
+  .row.gone { cursor: default; opacity: .55; }
+  .row.gone:hover { background: transparent; border-color: transparent; }
+  .row button { padding: .2em .65em; color: var(--muted); }
+  .empty { color: var(--muted); }
+  .note { color: var(--muted); font-size: .9rem; margin-top: 2.4rem; border-top: 1px solid var(--line); padding-top: 1rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Style Atlas</h1>
+  <p class="lead" id="lead"></p>
+  <div class="drop" id="drop">
+    <button class="primary" id="pick" disabled></button>
+    <p id="dropHint"></p>
+  </div>
+  <p class="status" id="status" role="status"></p>
+  <section id="recent"><h2 id="recentTitle"></h2><div id="rows"></div></section>
+  <p class="note" id="note"></p>
+</main>
+<script id="start-data" type="application/json">/*__START_DATA__*/null</script>
+<script>
+(() => {
+  const D = JSON.parse(document.getElementById("start-data").textContent);
+  const $ = (id) => document.getElementById(id);
+  let lang = null;
+  try { lang = localStorage.getItem("styleAtlasLang"); } catch (e) { /* storage off */ }
+  if (lang !== "zh" && lang !== "en") lang = (navigator.language || "en").toLowerCase().startsWith("zh") ? "zh" : "en";
+  document.documentElement.lang = lang === "zh" ? "zh-Hant" : "en";
+  const t = (k) => D.texts[lang][k];
+  const api = () => window.pywebview && window.pywebview.api;
+  const say = (msg) => { $("status").textContent = msg; };
+
+  $("lead").textContent = t("lead"); $("pick").textContent = t("pick"); $("dropHint").textContent = t("dropHint");
+  $("recentTitle").textContent = t("recentTitle"); $("note").textContent = `${t("note")} · v${D.version}`;
+
+  async function call(name, ...args) {  // the program's side (desktop.py Api); null when it refused
+    if (!api()) { say(t("notReady")); return null; }
+    try {
+      const r = await api()[name](...args);
+      if (r && r.error) { say(r.error); return null; }
+      return r;
+    } catch (e) { say(String((e && e.message) || e)); return null; }
+  }
+
+  function open(path) { say(t("opening").replace("{f}", path)); call("open_folder", path); }
+
+  function rows(list) {
+    const box = $("rows");
+    box.replaceChildren();
+    if (!list.length) { const p = document.createElement("p"); p.className = "empty"; p.textContent = t("none"); box.append(p); return; }
+    list.forEach((r) => {
+      const row = document.createElement("div"); row.className = "row" + (r.exists ? "" : " gone");
+      const text = document.createElement("div");
+      const name = document.createElement("b"); name.textContent = r.name;
+      const where = document.createElement("span"); where.textContent = r.exists ? r.path : `${r.path} · ${t("gone")}`;
+      text.append(name, where);
+      const x = document.createElement("button"); x.textContent = "✕"; x.title = t("remove"); x.setAttribute("aria-label", t("remove"));
+      x.addEventListener("click", async (e) => { e.stopPropagation(); const r2 = await call("forget", r.path); if (r2) rows(r2.recent); });
+      row.append(text, x);
+      if (r.exists) {
+        row.tabIndex = 0; row.setAttribute("role", "button");
+        row.addEventListener("click", () => open(r.path));
+        row.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target === row) open(r.path); });
+      }
+      box.append(row);
+    });
+  }
+  rows(D.recent);
+
+  $("pick").addEventListener("click", async () => {
+    const r = await call("pick_folder");
+    if (r && r.path) say(t("opening").replace("{f}", r.path));
+  });
+  const ready = () => { $("pick").disabled = false; };
+  if (api()) ready();
+  window.addEventListener("pywebviewready", ready);
+
+  // a folder dropped on the window: the program reads its path (pages cannot), then opens it
+  const drop = $("drop");
+  let dropTimer = null;
+  addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("over"); });
+  addEventListener("dragleave", (e) => { if (!e.relatedTarget) drop.classList.remove("over"); });
+  addEventListener("drop", (e) => {
+    e.preventDefault(); drop.classList.remove("over");
+    say(t("dropping"));
+    clearTimeout(dropTimer);
+    dropTimer = setTimeout(() => { if ($("status").textContent === t("dropping")) say(t("dropFailed")); }, 4000);
+  });
+  window.styleAtlasOpening = (path) => { clearTimeout(dropTimer); say(t("opening").replace("{f}", path)); };
+  window.styleAtlasSay = (msg) => { clearTimeout(dropTimer); say(msg); };
+})();
+</script>
+</body>
+</html>

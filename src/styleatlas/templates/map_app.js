@@ -388,7 +388,7 @@ async function toggleExclude(i) {
 
 function groupSelect(title, current, withUnassigned, onPick, first = []) {  // first: listed on top
   const sel = document.createElement("select"); sel.name = "group"; sel.setAttribute("aria-label", title);
-  sel.style.cssText = "background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:5px 8px;font:inherit;font-size:12px;max-width:170px";
+  sel.style.cssText = "background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:.35em .6em;font:inherit;font-size:.95rem;max-width:14rem";
   const head = document.createElement("option"); head.value = ""; head.textContent = title; sel.append(head);
   const all = DATA.clusters.map((c) => c.id).concat(withUnassigned ? [-1] : []);
   const ids = [...first.filter((id) => all.includes(id)), ...all.filter((id) => !first.includes(id))];
@@ -589,7 +589,7 @@ function setupReference() {
   try { saved = sessionStorage.getItem(LAYOUT_KEY); sessionStorage.removeItem(LAYOUT_KEY); } catch (e) { /* storage off */ }
   if (saved === "measures:ref" && DATA.reference) {
     setTimeout(() => {  // after applyText has filled the axis menus
-      const sel = $("layoutSel"); sel.value = "measures"; sel.dispatchEvent(new Event("change"));
+      setLayout("measures");  // map_layout.js
       $("axX").value = "ref"; $("axX").dispatchEvent(new Event("change"));
     }, 0);
   }
@@ -624,7 +624,7 @@ function setupSteps() {  // the LoRA workflow at a glance: check, sort the group
 }
 
 function setupLive() {
-  setupModes();  // map_browse.js
+  setupTabs();  // map_browse.js
   setupUndo();
   setupPanels();
   setupSteps();
@@ -682,8 +682,9 @@ function setupRegroup() {  // granularity, cut, periods, the regroup button and 
           + " " + t("timelineSizes")
         : "";
       logEdit(t("logRegroup"));
-      const advised = verdict && useMode === "lora";  // map_browse.js: the advice box reads the verdict
-      reloadKeepingView(advised ? t("logRegroup") + t("seeAdvice") : verdict || t("logRegroup") + t("undoHint"));
+      const advised = verdict;  // map_browse.js: the advice box in the LoRA tab reads the verdict
+      reloadKeepingView(advised ? t("logRegroup") + t("seeAdvice") : verdict || t("logRegroup") + t("undoHint"),
+        null, advised ? "lora" : null);
     } catch (e) { setStatus(String(e.message || e)); }
   });
 }
@@ -807,12 +808,14 @@ function setupSaves() {  // the report and the shareable map
   });
   $("artistMap").hidden = folderCount() < 3;  // one point per sub-folder (artist)
   $("artistMap").addEventListener("click", async () => {
-    const tab = window.open("", "_blank");  // opened now, while the click still counts
+    // a browser tab is opened now, while the click still counts; the desktop program opens a window after
+    const tab = desktopApi() ? null : window.open("", "_blank");  // map_shell.js
     setStatus(t("savingMap"));
     try {
       const r = await post("api/artist_map", "{}", "application/json");
       setStatus(t(r.families ? "artistMapDone" : "artistMapNone").replace("{n}", r.folders).replace("{k}", r.families).replace("{f}", r.file));
       if (tab) tab.location = r.url;
+      else if (desktopApi()) desktopApi().open_window(new URL(r.url, location.href).href, t("artistMap"));
       else {  // the browser blocked the new tab: a link instead
         const a = document.createElement("a"); a.href = r.url; a.target = "_blank"; a.textContent = t("openArtistMap");
         a.style.marginLeft = "8px"; $("status").append(a);
@@ -843,7 +846,7 @@ function setupDrop() {  // images dropped anywhere on the page are searched
 
 function liveText() {
   if (!DATA.live) return;
-  modesText();  // map_browse.js
+  tabsText();  // map_browse.js
   $("expLayoutLbl").textContent = t("lblLayout"); $("expMoreLbl").textContent = t("moreOptions");
   $("exportWhere").textContent = t("exportWhere");
   $("pickBtn").textContent = t("searchImg"); $("regroup").textContent = t("regroup");
@@ -899,9 +902,15 @@ function showPeriods(on) {  // the number field: periods, or the cut (only when 
 }
 
 const VIEW_KEY = "styleAtlasView";  // the camera, carried over the reload after an edit
-function reloadKeepingView(note = "", anchor = null) {
+function openPaneName() {  // the side tab open now (in the LoRA tab: its part); details do not survive a reload
+  const tab = document.querySelector(".tabs button.on")?.dataset.pane || "clusters";
+  if (tab === "lora") return document.querySelector(".subtabs button.on")?.dataset.sub || "outliers";
+  return tab === "selected" ? "clusters" : tab;
+}
+
+function reloadKeepingView(note = "", anchor = null, pane = null) {
   const view = { cam: camera.position.toArray(), target: controls.target.toArray(), note,
-    anchor: anchor ?? anchorForReload(), layout: layoutMode };
+    anchor: anchor ?? anchorForReload(), layout: layoutMode, pane: pane || openPaneName() };
   try { sessionStorage.setItem(VIEW_KEY, JSON.stringify(view)); } catch (e) { /* storage off */ }
   location.reload();
 }
@@ -916,9 +925,16 @@ function restoreView() {
   if (!view || !point(view.cam) || !point(view.target)) return false;
   viewAnchor = Number.isInteger(view.anchor) ? view.anchor : null;  // the group view reopens on it
   if (typeof view.note === "string" && view.note) setTimeout(() => setStatus(view.note), 0);
+  if (typeof view.pane === "string") setTimeout(() => reopenPane(view.pane), 0);  // after start-up built the tabs
   if (view.layout !== layoutMode) return false;  // the groups changed the layout: frame the new one
   camera.position.fromArray(view.cam); controls.target.fromArray(view.target); controls.update();
   return true;
+}
+
+function reopenPane(name) {
+  if (LORA_SUBS.includes(name)) { showPane(name); return; }
+  const tab = document.querySelector(`.tabs button[data-pane="${CSS.escape(name)}"]`);
+  if (tab && !tab.hidden && name !== "clusters") tab.click();  // a click builds the artists tab
 }
 
 // start-up

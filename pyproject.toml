@@ -24,10 +24,14 @@ dependencies = [
 
 [project.optional-dependencies]
 umap = ["umap-learn>=0.5.6"]
+app = ["pywebview>=5.3"]  # the desktop window (Edge WebView2 on Windows)
 dev = ["pytest>=8.0", "ruff>=0.5"]
 
 [project.scripts]
 style-atlas = "styleatlas.cli:main"
+
+[project.gui-scripts]
+style-atlas-app = "styleatlas.desktop:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/styleatlas"]

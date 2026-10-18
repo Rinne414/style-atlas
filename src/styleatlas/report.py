@@ -246,8 +246,11 @@ def page_script() -> str:
         "map_i18n.js",
         "map.js",
         "map_layout.js",
+        "map_sharp.js",
         "map_group.js",
         "map_browse.js",
+        "map_viewer.js",
+        "map_shell.js",
         "map_app.js",
     )
     return "\n".join(files.joinpath(f).read_text("utf-8") for f in parts)

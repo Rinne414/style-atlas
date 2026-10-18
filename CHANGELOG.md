@@ -2,6 +2,47 @@
 
 ## Unreleased
 
+From the owner's review of the web app (2026-10-18): text far too small on a 2560x1440 screen,
+starting it through a .bat, no way back to the true 3D layout, two modes that differed too little,
+and pictures hard to look at in the 3D map.
+
+- **Desktop program.** `setup.bat` installs pywebview and puts a "Style Atlas" shortcut on the
+  desktop: the app opens in its own window (Edge WebView2, no console, no browser tab) with a
+  start page to open a folder, drop one on the window, or pick one opened before. "Open another
+  folder…" on the map goes back to it without restarting. Each folder is served under its own
+  address prefix on one local server, so no thumbnail of the folder before is taken from the
+  cache. The artist map opens in a second window. `style-atlas-app` / `python -m
+  styleatlas.desktop [folder]`; `--shortcut` makes the shortcut. `StyleAtlas.bat` still opens the
+  browser.
+- **Larger text and buttons, and an interface size.** Body text 15 px instead of 13, nothing
+  under 12 px; every size follows one setting (View menu: Small / Normal / Large / Larger, or
+  Ctrl + / Ctrl -), kept for the next visit. A window 2200 px or wider starts at Large.
+- **Layout switch** "Groups apart / True layout" at the top, with a line under the title saying
+  what the positions mean (islands are placed apart; their distances mean nothing). The measure
+  axes moved to the View menu, with the less used map tools (dots, turning, save picture, record,
+  colours, language).
+- **One screen instead of two modes.** The LoRA steps, the advice, the check and the duplicates
+  sit in a "LoRA dataset" tab; browsing keeps its tabs. Nothing was removed.
+- **Moving around the map**: the wheel zooms where the cursor points; the left button moves the
+  map and the right one turns it. Pictures grow slower than the gaps between them as the camera
+  comes closer (size by the square root of the distance, not the distance), so a crowded group
+  comes apart when zoomed into; group names keep one size on screen instead of covering the
+  pictures. A double click on empty space zooms in there.
+- **Picture viewer**: a click in the group view, a double click on the map or in a list, or a click
+  on the details picture shows the original large (small pictures enlarged up to 2x), with ← → for
+  the next one in the same list, L / D / X for votes and exclusion, "Find pictures in this style",
+  "Open the file" and "Show in its folder" (new `api/open_file`, by index only).
+- Group cards show the time strip only for a single artist's folder.
+- **Sharp pictures on the map** (the owner: "everything in it is blurry or tiny"). A folder of
+  2,049+ images had 56 px atlas cells from 72 px thumbnails, so zooming in only enlarged a blur and
+  the hover card showed the 72 px file at about 290 px. Now: pictures drawn well past their cell
+  get a sprite of their own from a sharper file (512 px, the original above 700 px on screen),
+  matched to the atlas picture's size and frame (map_sharp.js; up to 60 at once, texture memory
+  capped); the hover card shows the 512 px picture at up to 26 rem; the live map's thumbnails and
+  atlas cells are 128 px up to 4,096 images (saved map files keep the smaller default); the
+  sharp versions are prepared in the background after the thumbnails. 3,800 images: frames under
+  4 ms while zooming.
+
 - **kohya: images without a caption file train on their folder's trigger word.** The dataset
   config now sets `class_tokens` on every subset; an export without "trigger in captions" gave
   them an empty caption (from the fourth Sonnet retest).
