@@ -79,6 +79,7 @@
   #live .lbl { color: var(--muted); font-size: .95rem; margin-left: 4px; }
   #live .panel input[type=number] { width: 8rem; }
   button.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 600; }
+  button:disabled { opacity: .45; cursor: default; }
   button.wide { display: block; width: 100%; margin: .55rem 0; padding: .6em .9em; font-size: 1rem; }
   #exportOpen.on, #moreOpen.on { border-color: var(--accent); }
   #title { background: color-mix(in srgb, var(--bg) 72%, transparent); border-radius: 10px;
@@ -106,18 +107,13 @@
   .grid img.excluded { opacity: .35; }
   input.note { width: 100%; box-sizing: border-box; margin: .4rem 0; background: var(--panel); color: var(--ink);
     border: 1px solid var(--line); border-radius: 8px; padding: .35em .55em; font: inherit; font-size: .95rem; }
-  table.plan { border-collapse: collapse; font-size: .95rem; margin-top: .4rem; width: 100%; }
-  table.plan th, table.plan td { text-align: left; padding: 2px 6px; border-bottom: 1px solid var(--line); }
-  table.plan td:nth-child(n+2), table.plan th:nth-child(n+2) { text-align: right; }
-  table.plan tr.aside td { color: var(--muted); }
   .kv .verdict { font-size: 1.05rem; margin-bottom: 4px; }
   #help p.about:last-of-type { padding-bottom: .55rem; border-bottom: 1px solid var(--line); }
   #tip { position: absolute; pointer-events: none; display: none; background: var(--panel);
-    border: 1px solid var(--line); border-radius: 10px; padding: 6px; max-width: 27rem; z-index: 5;
-    box-shadow: 0 8px 30px rgba(0,0,0,.35); }
-  #tip img { display: block; width: auto; height: auto; max-width: 26rem; max-height: 26rem;
-    min-width: 12rem; min-height: 12rem; object-fit: contain; border-radius: 6px; }
-  #tip .cap { color: var(--muted); font-size: .85rem; margin-top: 4px; word-break: break-all; }
+    border: 1px solid var(--line); border-radius: 12px; padding: 8px; z-index: 5;
+    box-shadow: 0 12px 40px rgba(0,0,0,.45); }
+  #tip img { display: block; border-radius: 6px; background: var(--panel2); }  /* sized by fitTip (map.js) */
+  #tip .cap { color: var(--muted); font-size: .95rem; margin-top: 6px; word-break: break-all; max-width: 40rem; }
   #loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted);
     background: var(--bg); z-index: 9; font-size: 1.05rem; }
   #loading.badge { inset: auto .8rem .8rem auto; padding: .3em .85em; border-radius: 999px;
@@ -157,26 +153,62 @@
   .near a:hover, .near a:focus-visible { text-decoration: underline; }
   .cl .when, .gv-about .when { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: .85rem; margin-top: 3px; }
   .cl canvas, .gv-about canvas { display: block; flex: none; }
-  /* the export dialog */
-  #exportPanel { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 9;
-    width: min(40rem, calc(100% - 2rem)); max-height: calc(100% - 2rem); overflow: auto;
-    background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 1rem 1.2rem;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, .45); display: flex; flex-direction: column; gap: .7rem; }
+  /* the export dialog (map_export.js): the groups to tick on the left, the choices and the plan on the right */
+  #exportPanel { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center;
+    background: rgba(0, 0, 0, .55); }
   #exportPanel[hidden] { display: none; }
-  #exportPanel .dlg-head { display: flex; align-items: center; justify-content: space-between; font-size: 1.15rem; }
+  #exportPanel .dlg { width: min(100rem, calc(100% - 3rem)); height: min(56rem, calc(100% - 3rem));
+    background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 1.1rem 1.3rem;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, .45); display: flex; flex-direction: column; gap: .5rem; min-height: 0; }
+  #exportPanel .dlg-head { display: flex; align-items: center; justify-content: space-between; font-size: 1.3rem; }
   #exportPanel .sub { margin: 0; color: var(--muted); font-size: .95rem; overflow-wrap: anywhere; }
-  #exportPanel .form { display: grid; grid-template-columns: 9rem minmax(0, 1fr); gap: .55rem .7rem; align-items: center;
-    margin: .4rem 0; }
+  .exp-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(22rem, 1fr);
+    gap: 1.3rem; margin-top: .4rem; }
+  .exp-groups, .exp-side { min-height: 0; display: flex; flex-direction: column; gap: .55rem; }
+  .exp-side { overflow: auto; padding-right: .2rem; }
+  .exp-groups-head { display: flex; align-items: center; gap: .55rem; }
+  .exp-groups-head span { margin-right: auto; color: var(--muted); }
+  #expList { flex: 1; min-height: 0; overflow: auto; border: 1px solid var(--line); border-radius: 10px; }
+  .exp-row { display: flex; align-items: center; gap: .8rem; padding: .5rem .7rem; cursor: pointer;
+    border-bottom: 1px solid var(--line); }
+  .exp-row:last-child { border-bottom: 0; }
+  .exp-row:hover { background: var(--panel2); }
+  .exp-row input { width: 1.2rem; height: 1.2rem; flex: none; accent-color: var(--accent); }
+  .exp-pics { display: flex; gap: 3px; flex: none; }
+  .exp-pics img { width: 3.6rem; height: 3.6rem; object-fit: cover; border-radius: 5px; background: var(--panel2); }
+  .exp-row:not(.on) .exp-pics { opacity: .45; }
+  .exp-who { display: flex; flex-direction: column; gap: .15rem; min-width: 0; }
+  .exp-who b { border-left: 4px solid; padding-left: .5rem; font-weight: 600; }
+  .exp-meta { color: var(--muted); font-size: .92rem; overflow-wrap: anywhere; }
+  .exp-row.on .exp-meta { color: var(--ink); }
+  #expHow { align-self: flex-start; }
+  #exportPanel .form { display: grid; grid-template-columns: 8rem minmax(0, 1fr); gap: .55rem .7rem; align-items: center;
+    margin: .3rem 0; }
   #exportPanel .form label { color: var(--muted); font-size: .95rem; }
   #exportPanel .form [hidden] { display: none; }
+  #exportPanel .dest { display: flex; gap: .45rem; min-width: 0; }
+  #exportPanel .dest input { flex: 1; min-width: 0; }
+  #exportPanel .dest button[hidden] { display: none; }
   #exportPanel input[type=text], #exportPanel input[type=number], #exportPanel select { width: 100%;
-    background: var(--panel2); color: var(--ink); border: 1px solid var(--line); border-radius: 8px;
-    padding: .45em .7em; font: inherit; }
+    box-sizing: border-box; background: var(--panel2); color: var(--ink); border: 1px solid var(--line);
+    border-radius: 8px; padding: .45em .7em; font: inherit; }
   #exportPanel details summary { cursor: pointer; color: var(--muted); font-size: .95rem; margin: 4px 0; }
   #exportPanel .chip { display: inline-block; margin: 4px 6px 0 0; }
+  #expPlan { border-top: 1px solid var(--line); padding-top: .7rem; margin-top: auto; }
+  #expPlan.busy { opacity: .5; transition: opacity .2s .25s; }  /* a slow answer shows, a quick one does not flicker */
+  .exp-sum b { display: block; font-size: 1.15rem; margin-bottom: .3rem; }
+  .exp-sets { font-size: .95rem; overflow-wrap: anywhere; margin-bottom: .2rem; }
+  .exp-sum .kv { color: var(--muted); font-size: .92rem; overflow-wrap: anywhere; }
+  .exp-sum.done b { color: #6fcf97; }
+  .exp-sum.done button { margin-top: .55rem; }
+  .exp-error { color: #ff8a80; margin: 0; }
   #exportPanel .actions { display: flex; gap: .55rem; justify-content: flex-end; }
-  #exportPanel .done b { display: block; font-size: 1.05rem; margin-bottom: 2px; }
-  #exportPanel ul.notes { margin: .4rem 0 0; padding-left: 1.2rem; color: var(--muted); font-size: .95rem; line-height: 1.6; }
+  #exportPanel .actions button { font-size: 1.1rem; padding: .55em 1.4em; }
+  #exportPanel ul.notes { margin: .4rem 0 0; padding-left: 1.2rem; color: var(--muted); font-size: .92rem; line-height: 1.55; }
+  @media (max-width: 900px) {
+    .exp-body { grid-template-columns: minmax(0, 1fr); overflow: auto; }
+    #expList { max-height: 40vh; }
+  }
   /* the LoRA advice, the ticks on the steps, the filter chip */
   .advice { border: 1px solid var(--accent); border-radius: 12px; padding: .7rem .8rem; margin: 0 0 .7rem;
     background: color-mix(in srgb, var(--accent) 8%, var(--panel)); }
@@ -213,11 +245,12 @@
   .gv-bar { display: flex; flex-wrap: wrap; gap: .45rem; align-items: center; margin: .8rem 0 2px; }
   .gv-bar > * { margin-left: 0 !important; }
   .gv-body h3 { margin-top: 1.4rem; }
-  .grid.gv-grid { grid-template-columns: repeat(auto-fill, minmax(var(--gv-size), 1fr)); gap: 8px; }
+  .grid.gv-grid { display: flex; flex-wrap: wrap; gap: 8px; }  /* rows of whole pictures, each its own shape */
+  .grid.gv-grid img { height: var(--gv-size); width: calc(var(--gv-size) * var(--ar, .75)); aspect-ratio: auto;
+    object-fit: contain; max-width: 100%; }
   section.strays h3 { color: var(--accent); }
   .grid img.marked { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
   .gv-note { color: var(--muted); font-size: .95rem; margin: -2px 0 .7rem; max-width: 52rem; }
-  .gv-more { margin-top: .8rem; }
   .gv-near { display: grid; grid-template-columns: 15rem minmax(0, 1fr); gap: 1rem; align-items: start;
     padding: .8rem 0; border-top: 1px solid var(--line); }
   .gv-near-label { display: flex; flex-direction: column; gap: .4rem; align-items: flex-start; }
@@ -265,9 +298,9 @@
   #viewer[hidden] { display: none; }
   #viewer .stage { position: relative; display: grid; place-items: center; overflow: hidden; min-height: 0; }
   #viewer .stage img { max-width: calc(100% - 7rem); max-height: calc(100% - 2rem); object-fit: contain;
-    border-radius: 4px; box-shadow: 0 10px 50px rgba(0, 0, 0, .6); cursor: zoom-in; user-select: none; }
-  #viewer .stage.actual { overflow: auto; place-items: start center; }
-  #viewer .stage.actual img { max-width: none; max-height: none; cursor: zoom-out; margin: 1rem; }
+    border-radius: 4px; box-shadow: 0 10px 50px rgba(0, 0, 0, .6); cursor: zoom-in; user-select: none;
+    transform-origin: 0 0; touch-action: none; }  /* zoomed by map_viewer.js */
+  #viewer .stage img.zoomed { cursor: grab; }
   #viewer .nav { position: absolute; top: 50%; transform: translateY(-50%); width: 3rem; height: 5rem;
     border-radius: 12px; font-size: 1.8rem; background: rgba(255, 255, 255, .08); color: #fff; border: 0; }
   #viewer .nav:hover { background: rgba(255, 255, 255, .18); }

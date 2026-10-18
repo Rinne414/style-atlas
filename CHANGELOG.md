@@ -43,6 +43,41 @@ and pictures hard to look at in the 3D map.
   sharp versions are prepared in the background after the thumbnails. 3,800 images: frames under
   4 ms while zooming.
 
+
+From the owner's second review (2026-10-19, on their 2,206-image folder): pictures still blurry and
+small, and the export "stupid". Measured on that folder at 2560x1300: about 12 px per picture on
+the whole map, piled in islands; a hover card 450 px tall from the 512 px file; an export that
+copied all 2,206 images (duplicates and exclusions too) into 29 style_NN folders with no choice.
+
+- **Groups apart is a wall of pictures.** Each group is a block under its name, its pictures side
+  by side in rows (those close on the map next to each other), the blocks packed largest first to
+  the shape of the window (skyline packing, the width that shows the wall largest). Nothing
+  overlaps, so every picture is whole at every zoom; pictures grow with the zoom like the gaps
+  between them; the wall faces the camera and does not turn (either button moves it). The whole
+  map shows that folder at about 20 px a picture; zoomed in, the 512 px file from about 150 px on
+  screen and the original from 400 px (a 2048 px texture above 1000 px), up to 100 pictures at
+  once. True layout stays 3D.
+- **The hover preview is the picture, large**: on the half of the map away from the cursor, as
+  tall as the map allows, the original once the cursor rests 140 ms (the thumbnail and the 512 px
+  file first). Space opens the viewer on the picture under the cursor.
+- **Viewer**: the wheel zooms where it points (up to 4 screen pixels per picture pixel), a drag
+  moves the zoomed picture, a click switches between the whole picture and its own pixels.
+- **Group view**: rows of whole pictures in their own shape (no square crops), 240 px tall on a
+  wide screen (120-420), all of them loading as they scroll in (no "Show all").
+- **Export dialog, redesigned**: the groups to tick on the left (six pictures, the name, how many
+  train and where each goes), one LoRA per group (the default) or one LoRA for all, the name, the
+  destination (a folder dialog in the desktop program), the format; what it will write updates as
+  you tick, and "Open folder" opens what was written. Unticked groups are not copied; a ticked
+  group trains however small; a near-duplicate keeps a copy among the ticked groups. The group
+  view has "Export this group…". API: `groups`, `separate`, `dest` on `api/export(_plan)`
+  (without `groups`, every image as before; the set's folder is now named after it instead of
+  `folders`), `api/open_export`.
+- The export plan took 1.8 s on that folder (a PNG's EXIF orientation decodes the whole file, for
+  every near-duplicate, on every plan): image info is kept per file while unchanged and the
+  duplicates are read in the background, 0.03 s now.
+- The preparing page follows the interface size (it was 13 px text).
+- The map's thumbnails load 96 at a time: all 2,206 at once ran out of sockets (`ERR_NO_BUFFER_SPACE`), and only the retry filled the gaps.
+
 - **kohya: images without a caption file train on their folder's trigger word.** The dataset
   config now sets `class_tokens` on every subset; an export without "trigger in captions" gave
   them an empty caption (from the fourth Sonnet retest).

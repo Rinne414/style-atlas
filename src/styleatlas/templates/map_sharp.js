@@ -1,15 +1,17 @@
 // Sharp pictures close up. The map's pictures come from small atlas cells (CELL px), so a picture
 // drawn larger than its cell is a blur. Every few frames the pictures that are large on screen get
-// a sprite of their own from a sharper file (the live app's view/N, the original when very large),
+// a sprite of their own from a sharper file (the live app's view/N, the original once larger),
 // drawn exactly over the atlas picture (same size, frame and colour) and a hair in front of it.
 // Joined after map_layout.js, before map_group.js.
 
-const SHARP_MAX = 60;  // sprites at once: the largest pictures on screen first
+const SHARP_MAX = 100;  // sprites at once: the largest pictures on screen first (a wall zoomed in shows ~80)
 const SHARP_FROM = 1.25;  // a picture drawn this many times its cell's size gets a sharp sprite
-const SHARP_ORIGINAL_PX = 700;  // drawn larger than this (device px): the original file
-const SHARP_CANVAS = { view: 512, original: 1024 };  // sprite canvas sizes
-const SHARP_WEIGHT = { view: 1, original: 4 };  // texture memory, in 512-px canvases (about 1.3 MB)
-const SHARP_CACHE = 160;  // that much kept, with pictures that left the screen (a step back and forth)
+// drawn larger than these (device px): the original file, on a 1024 px and then a 2048 px canvas
+// (the 512 px view enlarged past ~400 px loses the line work)
+const SHARP_ORIGINAL_PX = 400, SHARP_LARGE_PX = 1000;
+const SHARP_CANVAS = { view: 512, original: 1024, large: 2048 };  // sprite canvas sizes
+const SHARP_WEIGHT = { view: 1, original: 4, large: 16 };  // texture memory, in 512-px canvases (about 1.3 MB)
+const SHARP_CACHE = 200;  // that much kept, with pictures that left the screen (a step back and forth)
 const SHARP_EVERY_MS = 120;  // how often the candidates are chosen again
 const sharpGroup = new THREE.Group();
 scene.add(sharpGroup);
@@ -73,7 +75,7 @@ function sharpCandidates() {  // [i, size px, tier] of the pictures drawn well p
     v.project(camera);
     const mx = px / Math.max(1, renderer.domElement.width), my = px / Math.max(1, renderer.domElement.height);
     if (Math.abs(v.x) > 1 + mx || Math.abs(v.y) > 1 + my) continue;  // off screen
-    out.push([i, px, px > SHARP_ORIGINAL_PX ? "original" : "view"]);
+    out.push([i, px, px > SHARP_LARGE_PX ? "large" : px > SHARP_ORIGINAL_PX ? "original" : "view"]);
   }
   return out.sort((a, b) => b[1] - a[1]).slice(0, SHARP_MAX);
 }

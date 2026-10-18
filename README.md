@@ -97,7 +97,7 @@ style-atlas serve "D:\lora\artistX" --time name
 
 **3. 匯出成 kohya 資料夾**。程式會先排除重複圖（每組留解析度最高、有標註的那張），再分群，另外放出最不合群的 5 張，最後依每群張數自動算 repeats。
 
-> **在網頁上移動、合併、拆過群或取過名的話，請直接在網頁按「匯出資料夾…」，不要用下面的指令**：指令會重新分群，只沿用你按 X 排除的圖。
+> **在網頁上移動、合併、拆過群或取過名的話，請直接在網頁按「匯出訓練資料集…」，不要用下面的指令**：指令會重新分群，只沿用你按 X 排除的圖。
 
 ```bat
 style-atlas cluster "D:\lora\artistX" --layout kohya --name artistX --dedupe --drop-outliers 5 --export copy
@@ -122,12 +122,12 @@ ai_toolkit_datasets.yaml    ← ai-toolkit 的 datasets 段落（貼進訓練設
 ```
 
 - 每群的 repeats 會讓「張數 × repeats」接近 100。也可以用 `--repeats 10` 固定。
-- 某群圖太多時，加 `--max-per-group 40`（網頁：「匯出資料夾…」裡的「每群最多幾張」）只保留 40 張，會挑能涵蓋整群變化的那些（從最典型的一張開始，每次挑和已選的最不像的一張），其餘放到 `_trimmed\`。repeats 會依保留的張數重算。
+- 某群圖太多時，加 `--max-per-group 40`（網頁：「匯出訓練資料集…」裡的「每群最多幾張」）只保留 40 張，會挑能涵蓋整群變化的那些（從最典型的一張開始，每次挑和已選的最不像的一張），其餘放到 `_trimmed\`。repeats 會依保留的張數重算。
 - 想在同一個 LoRA 裡用不同觸發詞叫出不同畫風，可以加 `--trigger-captions`：
   - 匯出的標註開頭會自動加上該群名稱，例如 `artistX_style01, `；
   - 原始標註不會被改。
   - 完整流程見 [docs/LORA_GUIDE.md](docs/LORA_GUIDE.md)。
-- 想把描述畫風本身的標籤（例如 `sketch`、`monochrome`）從匯出的標註拿掉，讓觸發詞去學這個畫風：加 `--strip-tags "sketch, monochrome"`（網頁：「匯出資料夾…」裡的「要移除的標籤」）。只比對完整標籤，原本的標註不會被改。
+- 想把描述畫風本身的標籤（例如 `sketch`、`monochrome`）從匯出的標註拿掉，讓觸發詞去學這個畫風：加 `--strip-tags "sketch, monochrome"`（網頁：「匯出訓練資料集…」裡的「要移除的標籤」）。只比對完整標籤，原本的標註不會被改。
 
   ```bat
   style-atlas cluster "D:\lora\artistX" --layout kohya --name artistX --dedupe --drop-outliers 5 --export copy --trigger-captions
@@ -272,7 +272,7 @@ style-atlas taste score "D:\new_batch" --model "D:\my_taste.npz" --copy-to "D:\�
   - 拖一張圖進畫面就能以圖搜尋。一次拖多張同一種畫風的圖，會當成同一種畫風一起搜尋（用它們的平均畫風；10 張以上時改用它們訓練的小模型排序）。
   - 一次拖多張時，還會告訴你這批圖有幾張「和這個資料夾裡某一群的畫風夠接近」，例如拿 LoRA 算出來的圖檢查像不像訓練集，或新找到的圖該不該加進來。請看整批的比例：實測同一畫師沒用到的作品約 61% 落在範圍內，其他畫師約 1%。
   - 畫風漸變：選一張圖按「畫風漸變：從這張開始」，再選另一張按「畫風漸變：到這張」，會列出在畫風上從前一張漸變到後一張的一串圖。適合找兩種畫風之間的過渡風格。
-  - 調門檻後重新分群。按「匯出資料夾…」會在下方打開匯出選項：一般資料夾或 kohya 格式、LoRA 名稱、每群最多幾張、要移除的標籤、「標註加觸發詞」、「統一標籤寫法」；按「預覽」先看會寫出哪些資料夾、各幾張、repeats 多少（不寫入任何檔案），確認後按「開始匯出」。「忽略角色軸」和參考資料夾放在「進階…」裡。
+  - 調門檻後重新分群。按「匯出訓練資料集…」會打開匯出對話框：左邊勾要匯出的群，右邊選每群各一個 LoRA 或合成一個、名稱、存放位置、一般資料夾或 kohya 格式（更多選項裡有每群最多幾張、要移除的標籤、「標註加觸發詞」、「統一標籤寫法」）；會寫出哪些資料夾、各幾張隨勾選即時顯示，按「匯出 N 張」開始。「忽略角色軸」和參考資料夾放在「進階…」裡。
   - 按「匯出時排除」（鍵盤 X）手動剔除不要的圖，清單會存檔，匯出時放到 `_excluded\`。
   - 一次處理很多張：按住 Shift 點圖（地圖或清單裡都可以），或按住 Shift 在地圖上拖一個框，選好後用上方的「排除這 N 張」或「移到其他群…」一次完成；移動算一步，可以復原。Esc 清除選取。
   - 資料夾裡混了別的畫師的圖時：先把看到的兩三張按 X 排除，再到「檢查」分頁的排除清單按「找更多像這些的」，其餘的通常都會排在最前面（實測：3 張當範例時，前 30 名找回 98%）。
@@ -494,7 +494,7 @@ The output goes to `DIR_style_atlas/folders/`, next to the dataset and never ins
   entries under `datasets:`), with the same folders and repeats.
 - `_duplicates/`, `_outliers/`, `_unassigned/` and `_excluded/` (images you excluded with X in
   the web app). Kohya skips these because they lack a number prefix.
-- With `--max-per-group N` (web: "Export folders…", "max per style"), a larger style keeps N images that cover
+- With `--max-per-group N` (web: "Export training set…", "max per style"), a larger style keeps N images that cover
   it (farthest-point sampling from its most central image); the rest go to `_trimmed/`, and
   repeats follow the kept count.
 - `clusters.json`, which lists each group's characteristic caption tags.

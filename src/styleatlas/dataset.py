@@ -8,6 +8,7 @@ trainers skip.
 
 from __future__ import annotations
 
+import functools
 import math
 from collections import Counter
 from dataclasses import dataclass
@@ -121,13 +122,25 @@ def _looks_truncated(path: Path, fmt: str | None) -> bool:
         return marker not in f.read()
 
 
+INFO_CACHE = 65536  # images whose info is kept (a PNG's EXIF can mean decoding the whole file)
+
+
 def image_info(path: Path) -> ImageInfo | None:
-    """Size without decoding pixels; None when the file cannot be opened."""
+    """Size without decoding pixels (kept while the file is unchanged); None when the file cannot
+    be opened."""
+    try:
+        st = Path(path).stat()
+    except OSError:
+        return None
+    return _image_info(str(path), st.st_mtime_ns, st.st_size)
+
+
+@functools.lru_cache(maxsize=INFO_CACHE)
+def _image_info(path: str, mtime_ns: int, size: int) -> ImageInfo | None:  # time and size: the key
     try:
         with Image.open(path) as im:
             frames = 2 if getattr(im, "is_animated", False) else 1
             cut = _looks_truncated(Path(path), im.format)
-            size = Path(path).stat().st_size
             turn = _orientation(im)
             return ImageInfo(im.width, im.height, frames, size, cut, jpeg_quality(im), turn)
     except (OSError, ValueError, SyntaxError, Image.DecompressionBombError):

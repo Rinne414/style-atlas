@@ -292,6 +292,21 @@ class Api:
         result = self.open_folder(path)
         return {**result, "path": str(path)}
 
+    def choose_folder(self, start: str = "") -> dict:
+        """A folder picked in the system's dialog, only handed back (an export's destination)."""
+        import webview
+
+        window = self._desktop.window
+        begin = start if isinstance(start, str) and start and Path(start).is_dir() else ""
+        chosen = (
+            window.create_file_dialog(webview.FileDialog.FOLDER, directory=begin)
+            if window
+            else None
+        )
+        if not chosen:
+            return {"cancelled": True}
+        return {"path": str(chosen[0] if isinstance(chosen, (list, tuple)) else chosen)}
+
     def forget(self, path: str) -> dict:
         if not isinstance(path, str):
             return {"error": "path must be text"}

@@ -6,13 +6,12 @@
 let GROUPS = [];  // as the side list shows them: the groups, then the unassigned
 let viewGroup = null;  // the group in the view, or null when the map shows
 let viewAnchor = null;  // set by an edit's reload: an image whose group the view opens on
-let viewAll = false;  // "show all" pressed: kept while the open view is rebuilt
-const VIEW_FIRST = 80;  // typical images shown before "show all"
 const NEAR_SHOWN = 3;  // closest groups compared side by side
 const NEAR_THUMBS = 8;  // images of each of them
 const MIN_FOR_STRAYS = 8;  // smaller groups have no quartiles worth reading
-const SIZE_KEY = "styleAtlasViewSize";
-const SIZES = [72, 96, 128, 176, 240];
+const SIZE_KEY = "styleAtlasViewRow";
+const SIZES = [120, 180, 240, 320, 420];  // row heights: whole pictures side by side, their own shape
+const WIDE_SCREEN = 1800;  // px: from here the rows start at 240 px, below at 180
 
 function typicalOrder(members) {  // closest to the group's centre first (unassigned: as listed)
   return [...members].sort((a, b) => (PTS[a].g ?? 0) - (PTS[b].g ?? 0));
@@ -30,6 +29,8 @@ function tile(i) {  // the live app sends a sharper picture for these larger til
   const img = thumb(i, (e) => (e.shiftKey && DATA.live ? toggleMark(i) : openViewer(i, viewOrder(img))));
   img.dataset.i = String(i);
   img.classList.toggle("marked", MARKED.has(i));
+  img.style.setProperty("--ar", (ASPECT[i] || 0.75).toFixed(3));  // map.js: known from its thumbnail
+  img.addEventListener("load", () => { if (img.naturalHeight) img.style.setProperty("--ar", (img.naturalWidth / img.naturalHeight).toFixed(3)); });
   if (DATA.live) { img.onerror = () => { img.onerror = null; img.src = PTS[i].t; }; img.src = `view/${i}`; }
   return img;
 }
@@ -40,14 +41,15 @@ function viewOrder(img) {  // a group's pictures as the view lists them: typical
 }
 
 function storedSize() {
-  try { const v = parseInt(localStorage.getItem(SIZE_KEY), 10); return SIZES.includes(v) ? v : 128; }
-  catch (e) { return 128; }
+  const start = innerWidth >= WIDE_SCREEN ? 240 : 180;
+  try { const v = parseInt(localStorage.getItem(SIZE_KEY), 10); return SIZES.includes(v) ? v : start; }
+  catch (e) { return start; }
 }
 
 function openGroup(id) {
   const c = GROUPS.find((g) => g.id === id);
   if (!c) return;
-  viewGroup = id; viewAll = false;
+  viewGroup = id;
   if (DATA.live && stepsDone().check) markStep("groups");  // map_browse.js: looked at after step 1
   focusCluster = id; selected = null; recolor();
   setSpin(false);
@@ -87,7 +89,7 @@ function closeGroup(showOnMap = true) {
   if (!showOnMap) return;
   focusCluster = null; recolor();  // back to the whole map, every group in view
   document.querySelectorAll("#pane-clusters .cl").forEach((r) => r.classList.remove("on"));
-  flyTo = { target: new THREE.Vector3(), cam: homeView(), k: 0 };
+  flyHome();  // map_layout.js
 }
 
 function stepGroup(by) {
@@ -149,9 +151,9 @@ function viewBody(c) {
   const typical = typicalOrder(c.members).filter((i) => !stray.has(i));
   const typicalTitle = t(c.id < 0 ? "gvUnassigned" : "gvTypical").replace("{n}", typical.length) +
     (strays.length ? t("gvTypicalRest").replace("{s}", strays.length) : "");
-  body.append(section(typicalTitle, typical, viewAll ? Infinity : VIEW_FIRST, () => { viewAll = true; }));
+  body.append(section(typicalTitle, typical));
   if (c.id >= 0) {
-    const s = section(strays.length ? t("gvStrays").replace("{n}", strays.length) : t("gvNoStrays"), strays, Infinity);
+    const s = section(strays.length ? t("gvStrays").replace("{n}", strays.length) : t("gvNoStrays"), strays);
     if (strays.length) {
       s.classList.add("strays");
       const why = document.createElement("p"); why.className = "gv-note";
@@ -165,13 +167,17 @@ function viewBody(c) {
 }
 
 // the group's actions: the ones most used in a row, the rest under "More..."
-const MAIN_ACTIONS = ["name", "merge", "merge-ok", "copy", "more-like"];
+const MAIN_ACTIONS = ["name", "merge", "merge-ok", "export", "copy", "more-like"];
 const ACTION_WORDS = { merge: "mergeInto", compare: "compareWith", "more-like": "moreLike", split: "splitGroup", copy: "copyShort" };
 function actionRows(c, bar) {
   const parts = {};
   [...bar.children].forEach((el) => { parts[el.dataset.role] = el; el.style.marginLeft = ""; });
   const copy = copyButton(typicalOrder(c.members).map((i) => ({ i })), clusterName(c.id));  // map_app.js
   copy.style.margin = ""; parts.copy = copy;
+  if (DATA.live && c.id >= 0) {  // the export dialog with only this group ticked (map_export.js)
+    const out = document.createElement("button"); out.textContent = t("gvExport");
+    out.addEventListener("click", () => openExport([c.id])); parts.export = out;
+  }
   const main = document.createElement("div"); main.className = "gv-bar";
   const roles = c.id < 0 ? ["place", "copy"] : MAIN_ACTIONS;
   roles.filter((r) => parts[r]).forEach((r) => {
@@ -192,22 +198,12 @@ function actionRows(c, bar) {
   return [main, more];
 }
 
-function section(title, indices, first, onAll = null) {
+function section(title, indices) {  // every picture at once: the tiles load as they scroll into view
   const box = document.createElement("section");
   const h = document.createElement("h3"); h.textContent = title;
   const grid = document.createElement("div"); grid.className = "grid gv-grid";
-  indices.slice(0, first).forEach((i) => grid.append(tile(i)));
+  indices.forEach((i) => grid.append(tile(i)));
   box.append(h, grid);
-  if (indices.length > first) {
-    const more = document.createElement("button"); more.className = "gv-more";
-    more.textContent = t("gvShowAll").replace("{n}", indices.length);
-    more.addEventListener("click", () => {
-      indices.slice(first).forEach((i) => grid.append(tile(i)));
-      more.remove();
-      if (onAll) onAll();
-    });
-    box.append(more);
-  }
   return box;
 }
 

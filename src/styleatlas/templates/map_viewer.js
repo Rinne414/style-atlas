@@ -5,6 +5,10 @@
 
 let VIEWER = null;  // { list, at }: the pictures stepped through and the one shown
 const VIEWER_UPSCALE = 2;  // small pictures are enlarged to fit the window, at most this much (more blurs)
+const VIEWER_ZOOM_MAX = 4;  // the wheel zooms in up to this many screen pixels per picture pixel
+const VIEWER_WHEEL = 1.25;  // per wheel step
+const VIEWER_DRAG = 4;  // px: a press that moves less is a click
+let VZ = { k: 1, x: 0, y: 0 };  // the zoom over the fitted picture: its scale and shift (px)
 
 function gridOrder(img) {  // the pictures of the grid a tile sits in, in their order
   const grid = img.closest(".grid");
@@ -40,7 +44,7 @@ function stepViewer(by) {
 function showViewerPicture() {
   const box = $("viewer"), i = VIEWER.list[VIEWER.at], many = VIEWER.list.length > 1;
   const stage = box.querySelector(".stage"), img = stage.querySelector("img");
-  stage.classList.remove("actual");
+  VZ = { k: 1, x: 0, y: 0 }; applyViewerZoom(img);
   img.onerror = () => { img.onerror = null; img.src = PTS[i].t; };  // a shared map without the folder
   img.onload = () => fitViewerPicture(img, stage);
   img.style.width = ""; img.src = PTS[i].f; img.alt = PTS[i].n; img.title = t("viewerFit");
@@ -56,7 +60,8 @@ function showViewerPicture() {
 function fitViewerPicture(img, stage) {  // fit the window; a small picture grows, up to VIEWER_UPSCALE
   const room = stage.getBoundingClientRect();
   const w = img.naturalWidth, h = img.naturalHeight;
-  if (!w || !h || stage.classList.contains("actual")) { img.style.width = ""; return; }
+  VZ = { k: 1, x: 0, y: 0 }; applyViewerZoom(img);
+  if (!w || !h) { img.style.width = ""; return; }
   const k = Math.min(VIEWER_UPSCALE, (room.width - 112) / w, (room.height - 32) / h);
   img.style.width = `${Math.max(1, Math.round(w * k))}px`;
 }
@@ -100,12 +105,62 @@ function viewerKey(e) {
   return true;
 }
 
+function applyViewerZoom(img) {  // transform-origin is the top left (map.css)
+  img.style.transform = VZ.k === 1 ? "" : `translate(${VZ.x}px, ${VZ.y}px) scale(${VZ.k})`;
+  img.classList.toggle("zoomed", VZ.k > 1);
+}
+
+// zoom to k times the fitted size, the picture's point under (cx, cy) staying there; 1 = fitted
+function zoomViewer(img, k, cx, cy) {
+  const r = img.getBoundingClientRect();  // as drawn now, zoom included
+  const fitW = r.width / VZ.k;
+  const most = Math.max(1, (img.naturalWidth * VIEWER_ZOOM_MAX) / Math.max(1, fitW * devicePixelRatio));
+  const next = Math.min(most, Math.max(1, k));
+  const px = (cx - r.left) / VZ.k, py = (cy - r.top) / VZ.k;  // that point on the fitted picture
+  const left = r.left - VZ.x, top = r.top - VZ.y;  // the fitted picture's corner
+  VZ = next === 1 ? { k: 1, x: 0, y: 0 } : { k: next, x: cx - left - px * next, y: cy - top - py * next };
+  applyViewerZoom(img);
+}
+
+function actualSize(img) {  // the zoom that shows the picture's own pixels one to one
+  const fitW = img.getBoundingClientRect().width / VZ.k;
+  return img.naturalWidth / Math.max(1, fitW * devicePixelRatio);
+}
+
+// the wheel zooms where it points; a drag moves a zoomed picture; a click switches between the
+// fitted picture and its own pixels at the point clicked
+function setupViewerZoom(stage, img) {
+  stage.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    zoomViewer(img, VZ.k * (e.deltaY < 0 ? VIEWER_WHEEL : 1 / VIEWER_WHEEL), e.clientX, e.clientY);
+  }, { passive: false });
+  let press = null;
+  img.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return;
+    e.preventDefault(); img.setPointerCapture(e.pointerId);
+    press = { x: e.clientX, y: e.clientY, vx: VZ.x, vy: VZ.y, moved: false };
+  });
+  img.addEventListener("pointermove", (e) => {
+    if (!press) return;
+    const dx = e.clientX - press.x, dy = e.clientY - press.y;
+    if (Math.hypot(dx, dy) > VIEWER_DRAG) press.moved = true;
+    if (press.moved && VZ.k > 1) { VZ.x = press.vx + dx; VZ.y = press.vy + dy; applyViewerZoom(img); }
+  });
+  img.addEventListener("pointerup", (e) => {
+    if (!press) return;
+    const click = !press.moved; press = null;
+    if (click) zoomViewer(img, VZ.k > 1 ? 1 : Math.max(2, actualSize(img)), e.clientX, e.clientY);
+  });
+  img.addEventListener("pointercancel", () => { press = null; });
+}
+
 function setupViewer() {
   const box = $("viewer"), stage = box.querySelector(".stage");
   box.querySelector(".nav.prev").addEventListener("click", () => stepViewer(-1));
   box.querySelector(".nav.next").addEventListener("click", () => stepViewer(1));
   const img = stage.querySelector("img");
-  img.addEventListener("click", () => { stage.classList.toggle("actual"); fitViewerPicture(img, stage); });
+  img.draggable = false;
+  setupViewerZoom(stage, img);
   addEventListener("resize", () => { if (VIEWER) fitViewerPicture(img, stage); });
   stage.addEventListener("click", (e) => { if (e.target === stage) closeViewer(); });  // the dark around it
 }

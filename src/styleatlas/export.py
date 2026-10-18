@@ -127,7 +127,7 @@ def _look_summary(atlas: Atlas, members: list[int]) -> dict:
 def fresh_dir(base: Path) -> Path:
     """`base` if it is missing or empty, else the first free base_2, base_3, ..."""
     candidate, n = base, 2
-    while candidate.exists() and any(candidate.iterdir()):
+    while candidate.exists() and (not candidate.is_dir() or any(candidate.iterdir())):
         candidate = base.with_name(f"{base.name}_{n}")
         n += 1
     return candidate
@@ -354,9 +354,11 @@ def export_paths(
     respell: dict[str, str] | None = None,
     allow_top: bool = False,
     trainer_configs: bool = True,
+    top_trigger: str | None = None,
 ) -> ExportResult:
     """export_folders for a list of files. A folder may be nested ("10_x/sub": the trigger comes
-    from its first part); with allow_top, "" places an image at the top of the export."""
+    from its first part); with allow_top, "" places an image at the top of the export, with
+    `top_trigger` as its trigger word."""
     if mode not in EXPORT_MODES:
         raise ValueError(f"mode must be one of {EXPORT_MODES}")
     if len(folders) != len(paths):
@@ -378,7 +380,8 @@ def export_paths(
         try:
             folder.mkdir(parents=True, exist_ok=True)
             group = folders[i].partition("/")[0]
-            trigger = trigger_of(group, layout) if trigger_captions else None
+            word = trigger_of(group, layout) if group else top_trigger
+            trigger = word if trigger_captions else None
             _place_sidecars(src, folder, stem, mode, trigger, strip_tags, respell)
             result.upright += _place(src, folder / f"{stem}{src.suffix}", mode)
         except OSError as e:  # long path, permissions, full disk: report and keep going

@@ -61,24 +61,28 @@ const PER_ROW = 4096 / CELL;
 const PER_PAGE = PER_ROW * PER_ROW;
 const pages = [];
 const alpha = new Float32Array(N).fill(1);
+const ASPECT = new Float32Array(N);  // width / height of each picture, once its thumbnail is in (0 before)
 let mode = N <= 6000 ? "thumbs" : "dots";
 let pointSize = Math.min(0.4, Math.max(0.05, 1.6 / Math.cbrt(Math.max(N, 1))));
-// Pictures grow slower than the gaps between them as the camera comes closer, so zooming in pulls
-// a crowded group apart (grown like the gaps, pictures that overlap overlap at every zoom). At the
-// home view's distance the size is as plain perspective would draw it.
-const SIZE_GROW = 0.5;  // 1 = plain perspective
-const SIZE_REF = { value: HOME.length() };  // shared by every page's material; set by homeView()
-function depthScale(depth) { return 1 / (SIZE_REF.value * Math.pow(Math.max(depth, 1e-3) / SIZE_REF.value, SIZE_GROW)); }
+// In the 3D layouts pictures grow slower than the gaps between them as the camera comes closer, so
+// zooming in pulls a crowded group apart (grown like the gaps, pictures that overlap overlap at
+// every zoom). The wall of groups (map_layout.js) has no overlaps: its pictures grow like the gaps.
+// At the home view's distance the size is as plain perspective would draw it.
+const SIZE_GROW_3D = 0.5;  // 1 = plain perspective
+const SIZE_GROW = { value: SIZE_GROW_3D };  // shared by every page's material; set by layoutControls()
+const SIZE_REF = { value: HOME.length() };  // shared too; set by homeView()
+const POINT_SCALE = 0.9;  // a picture's drawn size: its size (world units) x this x the view's height / distance
+function depthScale(depth) { return 1 / (SIZE_REF.value * Math.pow(Math.max(depth, 1e-3) / SIZE_REF.value, SIZE_GROW.value)); }
 
 const VERT = `
   attribute float aAlpha; attribute vec2 aCell; attribute vec3 aColor;
-  uniform float uSize; uniform float uScale; uniform float uRef;
+  uniform float uSize; uniform float uScale; uniform float uRef; uniform float uGrow;
   varying float vAlpha; varying vec2 vCell; varying vec3 vColor;
   void main() {
     vAlpha = aAlpha; vCell = aCell; vColor = aColor;
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
     float depth = max(-mv.z, 0.001);  // as depthScale() in the page script
-    gl_PointSize = uSize * uScale / (uRef * pow(depth / uRef, ${SIZE_GROW.toFixed(2)})) * (0.55 + 0.45 * aAlpha);
+    gl_PointSize = uSize * uScale / (uRef * pow(depth / uRef, uGrow)) * (0.55 + 0.45 * aAlpha);
     gl_Position = projectionMatrix * mv;
   }`;
 const FRAG = `
@@ -124,15 +128,27 @@ function buildPages() {
   }
 }
 
+// thumbnails asked for together: all of a page at once (2,206) ran out of sockets
+// (ERR_NO_BUFFER_SPACE) and left the retry to fill the gaps
+const LOAD_AT_ONCE = 96;
+
 async function fillPages() {
   let done = 0;
   for (const pg of pages) {
     const g = pg.cv.getContext("2d");
-    const imgs = await Promise.all(PTS.slice(pg.start, pg.start + pg.count).map((p) => p.t ? loadImage(p.t) : null));
-    imgs.forEach((img, j) => { if (img) drawThumb(g, j, img, colorOf(PTS[pg.start + j].c)); });
+    for (let s = 0; s < pg.count; s += LOAD_AT_ONCE) {
+      const part = PTS.slice(pg.start + s, pg.start + Math.min(pg.count, s + LOAD_AT_ONCE));
+      const imgs = await Promise.all(part.map((p) => p.t ? loadImage(p.t) : null));
+      imgs.forEach((img, k) => {
+        if (!img) return;
+        const j = s + k;
+        ASPECT[pg.start + j] = img.width / Math.max(1, img.height);
+        drawThumb(g, j, img, colorOf(PTS[pg.start + j].c));
+      });
+      done += part.length;
+      $("loading").textContent = `${t("loading")} ${done} / ${N}`;
+    }
     pg.mat.uniforms.uAtlas.value.needsUpdate = true;
-    done += pg.count;
-    $("loading").textContent = `${t("loading")} ${done} / ${N}`;
   }
   $("loading").style.display = "none";
 }
@@ -172,7 +188,7 @@ function makePage(start, count, cv) {
   const mat = new THREE.ShaderMaterial({
     vertexShader: VERT, fragmentShader: FRAG, transparent: true, depthWrite: true,
     uniforms: { uAtlas: { value: tex }, uCell: { value: 1 / PER_ROW }, uSize: { value: pointSize },
-      uScale: { value: 1 }, uRef: SIZE_REF, uMode: { value: mode === "dots" ? 1 : 0 } },
+      uScale: { value: 1 }, uRef: SIZE_REF, uGrow: SIZE_GROW, uMode: { value: mode === "dots" ? 1 : 0 } },
   });
   const obj = new THREE.Points(geo, mat);
   scene.add(obj);
@@ -192,7 +208,7 @@ function resize() {
   renderer.setSize(r.width, r.height, false);
   camera.aspect = r.width / r.height;
   camera.updateProjectionMatrix();
-  const scale = r.height * renderer.getPixelRatio() * 0.9;
+  const scale = r.height * renderer.getPixelRatio() * POINT_SCALE;
   for (const pg of pages) pg.mat.uniforms.uScale.value = scale;
 }
 addEventListener("resize", resize);
@@ -264,7 +280,7 @@ function pick(ev) {
     const sx = (ray.x + 1) / 2 * r.width, sy = (1 - ray.y) / 2 * r.height;
     const d = Math.hypot(sx - mx, sy - my);
     const depth = camera.position.distanceTo(new THREE.Vector3(pos[i*3], pos[i*3+1], pos[i*3+2]));
-    const reach = Math.max(radius, pointSize * r.height * 0.45 * depthScale(depth));
+    const reach = Math.max(radius, pointSize * r.height * POINT_SCALE / 2 * depthScale(depth));
     if (d < reach && depth + d * 0.002 < bestD) { bestD = depth + d * 0.002; best = i; }
   }
   return best;
@@ -280,37 +296,73 @@ canvas.addEventListener("pointerup", (e) => {
 });
 canvas.addEventListener("pointermove", (e) => {
   const tip = $("tip");
-  if (e.buttons) { tip.style.display = "none"; return; }
+  if (e.buttons) { hideTip(); return; }
   const i = pick(e);
-  if (i < 0) { tip.style.display = "none"; canvas.style.cursor = "grab"; return; }
+  if (i < 0) { hideTip(); canvas.style.cursor = "grab"; return; }
   canvas.style.cursor = "pointer";
+  if (tip.style.display !== "block") {  // a fresh preview stands on the side away from the cursor
+    const r = canvas.getBoundingClientRect();
+    tipSide = e.clientX - r.left < r.width / 2 ? 1 : -1;
+  }
   if (tipAt !== i) showTipPicture(tip, i);
   tip.querySelector(".cap").textContent = `${PTS[i].n} · ${clusterName(PTS[i].c)}`;
   tip.style.display = "block";
   placeTip(tip, e.clientX, e.clientY);
 });
-let tipAt = -1, tipXY = [0, 0];
-function placeTip(tip, x, y) {  // beside the cursor, kept inside the map
-  const r = canvas.getBoundingClientRect();
+
+// The preview: as large as half the map allows, on the half away from the cursor (it moves across
+// when the cursor comes to it), so it never covers the picture pointed at. The small thumbnail
+// shows at once, the 512 px view next, and the original once the cursor rests on the picture.
+const PEEK_MARGIN = 16;  // px from the map's edges
+const PEEK_WIDTH = 0.46;  // of the map's width, at most
+const PEEK_REST_MS = 140;  // the cursor rests this long before the original is read
+let tipAt = -1, tipXY = [0, 0], tipSide = 1, peekTimer = 0, tipTier = -1;  // tier: 0 thumbnail, 1 view, 2 original
+
+function hideTip() { $("tip").style.display = "none"; tipAt = -1; clearTimeout(peekTimer); }
+
+function placeTip(tip, x, y) {
+  const r = canvas.getBoundingClientRect(), mx = x - r.left;
   tipXY = [x, y];
-  tip.style.left = Math.max(0, Math.min(x - r.left + 14, r.width - tip.offsetWidth - 8)) + "px";
-  tip.style.top = Math.max(0, Math.min(y - r.top + 14, r.height - tip.offsetHeight - 8)) + "px";
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  const at = (side) => (side > 0 ? r.width - w - PEEK_MARGIN : PEEK_MARGIN);
+  if (mx > at(tipSide) - PEEK_MARGIN && mx < at(tipSide) + w + PEEK_MARGIN) tipSide = -tipSide;
+  tip.style.left = Math.max(0, at(tipSide)) + "px";
+  tip.style.top = Math.max(PEEK_MARGIN, (r.height - h) / 2) + "px";
 }
-function showTipPicture(tip, i) {  // the small thumbnail at once, then a sharp one in its place
+
+function fitTip(tip, img) {  // the picture as large as the room allows, its own shape kept
+  const r = canvas.getBoundingClientRect(), cap = tip.querySelector(".cap");
+  const roomW = r.width * PEEK_WIDTH - 16, roomH = r.height - 2 * PEEK_MARGIN - 16 - (cap.offsetHeight || 24);
+  const w = img.naturalWidth || 1, h = img.naturalHeight || 1, k = Math.min(roomW / w, roomH / h);
+  img.style.width = `${Math.max(1, Math.round(w * k))}px`; img.style.height = `${Math.max(1, Math.round(h * k))}px`;
+  cap.style.maxWidth = img.style.width;  // a long file name wraps under the picture
+}
+
+function swapTipPicture(tip, i, url, tier, then = null) {  // shown once it is decoded: no blank between
+  const next = new Image();
+  next.alt = ""; next.src = url;
+  next.decode().then(() => {
+    if (tipAt !== i || tier < tipTier) return;  // a sharper one is in already
+    tipTier = tier;
+    tip.querySelector("img").replaceWith(next);
+    fitTip(tip, next);
+    if (tip.style.display === "block") placeTip(tip, ...tipXY);
+    if (then) then();
+  }).catch(() => {});  // a file gone or unreadable: the sharper one so far stays
+}
+
+function showTipPicture(tip, i) {
   tipAt = i;
-  const img = tip.querySelector("img");
-  img.src = PTS[i].t;
-  const url = DATA.live ? `view/${i}` : null;  // the shared map file has its thumbnails only
-  if (!url) return;
-  const sharp = new Image();
-  sharp.onload = () => {
-    if (tipAt !== i) return;
-    img.src = url;
-    if (tip.style.display === "block") placeTip(tip, ...tipXY);  // it grew: stay inside the map
-  };
-  sharp.src = url;
+  clearTimeout(peekTimer);
+  tip.querySelector("img").style.visibility = "hidden";  // not the last picture's while this one loads
+  tipTier = -1;
+  swapTipPicture(tip, i, PTS[i].t, 0);
+  if (!DATA.live) return;  // the shared map file has its thumbnails only
+  swapTipPicture(tip, i, `view/${i}`, 1, () => {
+    peekTimer = setTimeout(() => { if (tipAt === i) swapTipPicture(tip, i, PTS[i].f, 2); }, PEEK_REST_MS);
+  });
 }
-canvas.addEventListener("pointerleave", () => { $("tip").style.display = "none"; tipAt = -1; });
+canvas.addEventListener("pointerleave", hideTip);
 
 const TIMES = PTS.map((p) => p.ts).filter((v) => v !== null && v !== undefined);
 const TMIN = TIMES.reduce((a, b) => Math.min(a, b), Infinity);
@@ -913,7 +965,7 @@ canvas.addEventListener("pointerdown", () => { if (controls.autoRotate) setSpin(
 $("home").addEventListener("click", () => {
   focusCluster = null; selected = null; searchHits = null; filter = ""; folderFilter = null; tagOnly = null;
   $("find").value = ""; recolor();
-  flyTo = { target: new THREE.Vector3(), cam: homeView(), k: 0 };
+  flyHome();  // map_layout.js
   document.querySelectorAll(".cl").forEach((r) => r.classList.remove("on"));
 });
 $("lang").addEventListener("click", () => { lang = lang === "zh" ? "en" : "zh"; store(LANG_KEY, lang); applyText(); });
@@ -923,10 +975,10 @@ function showHelp(on) {
   const box = $("help");
   box.hidden = !on;
   if (!on) return;
-  const rows = [["leftDrag", "keyPan"], ["rightDrag", "keyRotate"], ["wheel", "keyZoom"], ["dblPic", "keyViewer"],
-    ["dblEmpty", "keyZoomHere"], ["sizeKeys", "keySize"], ["uiKeys", "keyUi"], ["Esc", "keyHome"], ["P", "keySnap"],
+  const rows = [["leftDrag", "keyPan"], ["rightDrag", layoutMode === "groups" ? "keyPan" : "keyRotate"], ["wheel", "keyZoom"],
+    ["dblPic", "keyViewer"], ["spaceKey", "keyViewer"], ["dblEmpty", "keyZoomHere"], ["sizeKeys", "keySize"], ["uiKeys", "keyUi"], ["Esc", "keyHome"], ["P", "keySnap"],
     ...(DATA.live ? [["shiftKeys", "keyMark"], ["L / D", "keyVote"], ["X", "keyExclude"], ["Ctrl + Z", "keyUndo"]] : [])];
-  const named = ["leftDrag", "rightDrag", "wheel", "dblPic", "dblEmpty", "sizeKeys", "uiKeys", "shiftKeys"];
+  const named = ["leftDrag", "rightDrag", "wheel", "dblPic", "spaceKey", "dblEmpty", "sizeKeys", "uiKeys", "shiftKeys"];
   const close = document.createElement("button"); close.className = "close"; close.textContent = "✕";
   close.title = t("close"); close.setAttribute("aria-label", t("close")); close.addEventListener("click", () => showHelp(false));
   const start = document.createElement("h4"); start.textContent = t("quickStart");
@@ -959,9 +1011,12 @@ $("theme").addEventListener("click", () => {
 addEventListener("keydown", (e) => {
   if (viewerKey(e)) { e.preventDefault(); return; }  // map_viewer.js: the big picture takes the keys first
   if (e.key === "Escape" && !$("help").hidden) { showHelp(false); return; }  // also from a text box
-  if (e.key === "Escape" && !$("exportPanel").hidden) { closeExport(); return; }  // map_app.js
+  if (e.key === "Escape" && !$("exportPanel").hidden) { closeExport(); return; }  // map_export.js
   if (["INPUT", "SELECT", "TEXTAREA"].includes(e.target.tagName)) return;
   if (groupViewKey(e)) { e.preventDefault(); return; }  // map_group.js: arrows step, Esc closes
+  if (e.key === " " && tipAt >= 0 && !e.repeat) {  // the picture under the cursor, large (map_viewer.js)
+    e.preventDefault(); const i = tipAt; hideTip(); openViewer(i, groupOrder(i)); return;
+  }
   if (e.repeat) return;  // holding a key must not vote on images never looked at
   if (DATA.live && DATA.live.can_undo && (e.ctrlKey || e.metaKey) && !e.altKey && (e.key === "z" || e.key === "Z")) {
     e.preventDefault(); editPost("api/undo", {}); return;

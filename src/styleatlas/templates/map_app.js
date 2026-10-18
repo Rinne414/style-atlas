@@ -595,14 +595,11 @@ function setupReference() {
   }
 }
 
-function setupPanels() {  // export options and the advanced switches open above the bar
-  const pairs = [["exportOpen", "exportPanel"], ["moreOpen", "morePanel"]];
-  pairs.forEach(([button, panel]) => {
-    $(button).addEventListener("click", () => {
-      const open = $(panel).hidden;
-      pairs.forEach(([b, p]) => { $(p).hidden = true; $(b).classList.remove("on"); });
-      $(panel).hidden = !open; $(button).classList.toggle("on", open);
-    });
+function setupPanels() {  // the advanced switches open above the bar (the export: map_export.js)
+  $("moreOpen").addEventListener("click", () => {
+    const open = $("morePanel").hidden;
+    closeExport();
+    $("morePanel").hidden = !open; $("moreOpen").classList.toggle("on", open);
   });
   if ((DATA.live.space || "plain") !== "plain" || DATA.reference) {  // a switch is on: show it
     $("morePanel").hidden = false; $("moreOpen").classList.add("on");
@@ -617,7 +614,7 @@ function setupSteps() {  // the LoRA workflow at a glance: check, sort the group
       if (!CHECK) runCheck(parseInt(document.querySelector('#pane-outliers select[name="minSide"]')?.value, 10) || 512);
     },
     groups: () => showPane("clusters"),
-    export: () => { if ($("exportPanel").hidden) $("exportOpen").click(); $("expName").focus(); },
+    export: () => { if ($("exportPanel").hidden) openExport(); $("expName").focus(); },  // map_export.js
   };
   // the group view covers the map and its bottom bar: each step goes back to the map first
   box.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => { closeGroup(false); go[b.dataset.step](); }));
@@ -689,112 +686,6 @@ function setupRegroup() {  // granularity, cut, periods, the regroup button and 
   });
 }
 
-const EXPORT_KEY = "styleAtlasExport";  // the export options, kept while the tab is open
-const EXPORT_FIELDS = ["expLayout", "expName", "expMax", "expRep", "expStrip"];
-
-function saveExportOptions() {
-  const options = Object.fromEntries(EXPORT_FIELDS.map((id) => [id, $(id).value]));
-  options.expTrig = $("expTrig").checked; options.expSpell = $("expSpell").checked;
-  try { sessionStorage.setItem(EXPORT_KEY, JSON.stringify(options)); } catch (e) { /* storage off */ }
-}
-
-function restoreExportOptions() {  // an edit reloads the page: the bar comes back as it was
-  let options = null;
-  try { options = JSON.parse(sessionStorage.getItem(EXPORT_KEY) || "null"); } catch (e) { return; }
-  if (!options) return;
-  EXPORT_FIELDS.forEach((id) => { if (typeof options[id] === "string") $(id).value = options[id]; });
-  $("expTrig").checked = Boolean(options.expTrig); $("expSpell").checked = Boolean(options.expSpell);
-}
-
-function closeExport() { $("exportPanel").hidden = true; $("exportOpen").classList.remove("on"); }
-
-function exportBody() {  // the export bar's options, as the server reads them
-  const cap = parseInt($("expMax").value, 10);
-  const rep = parseInt($("expRep").value, 10);
-  const kohya = $("expLayout").value === "kohya";
-  return { mode: "copy", layout: $("expLayout").value, name: $("expName").value.trim(),
-    trigger: $("expTrig").checked, fix_spelling: $("expSpell").checked, max_per_group: cap > 0 ? cap : null,
-    repeats: kohya && rep > 0 ? rep : null, strip_tags: $("expStrip").value.trim() };
-}
-
-function syncRepeats() {  // repeats are a kohya folder's prefix: no field for plain folders
-  const kohya = $("expLayout").value === "kohya";
-  $("expRep").hidden = !kohya; $("expRepLbl").hidden = !kohya;
-}
-
-// what the export would write, before it writes anything; after an export (done: its answer),
-// what it wrote, in the export dialog
-async function showExportPlan(done = null) {
-  try {
-    const r = await post("api/export_plan", JSON.stringify(exportBody()), "application/json");
-    const pane = $("expPlan"); pane.replaceChildren();
-    if (done) pane.append(exportDone(done));
-    const h = document.createElement("h3"); h.textContent = t(done ? "planWritten" : "planTitle");
-    const table = document.createElement("table"); table.className = "plan";
-    const head = document.createElement("tr");
-    [t("planFolder"), t("planImages"), t("planRepeats")].forEach((x) => { const th = document.createElement("th"); th.textContent = x; head.append(th); });
-    table.append(head);
-    r.rows.forEach((row) => {
-      const tr = document.createElement("tr"); if (!row.training) tr.className = "aside";
-      [row.folder, row.images, row.repeats ?? ""].forEach((x) => { const td = document.createElement("td"); td.textContent = String(x); tr.append(td); });
-      table.append(tr);
-    });
-    const kv = document.createElement("div"); kv.className = "kv";
-    const lines = [t("planTraining").replace("{k}", r.training)];
-    if (r.steps) lines.push(t("stepsNote").replace("{n}", r.steps) + (exportBody().repeats ? "" : " " + t("repeatsNote")));
-    if (r.small_groups) {
-      const groups = r.small_ids.map(clusterName).join(lang === "zh" ? "、" : ", ");
-      lines.push(t("smallGroups").replace("{n}", r.small_groups).replace("{g}", groups));
-    }
-    if (r.triggers.length) lines.push(t("triggersNote").replace("{w}", r.triggers.join(", ")));
-    kv.textContent = lines.join(" ");
-    pane.append(h, ...(done ? [] : [kv]), table);  // after an export its notes are above already
-  } catch (e) { setStatus(String(e.message || e)); }
-}
-
-function exportDone(r) {  // the headline of a finished export, then its notes one per line
-  const box = document.createElement("div"); box.className = "done";
-  const head = document.createElement("b");
-  const aside = r.placed - r.training;  // duplicates, exclusions, unassigned: in the _ folders
-  head.textContent = t("exportedHead").replace("{k}", r.training) + (aside > 0 ? t("exportedAside").replace("{r}", aside) : "");
-  const where = document.createElement("div"); where.className = "kv"; where.textContent = r.folder;
-  const groups = (r.small_ids || []).map(clusterName).join(lang === "zh" ? "、" : ", ");
-  const notes = [
-    r.small_groups && t("smallGroups").replace("{n}", r.small_groups).replace("{g}", groups),
-    r.trimmed && t("trimmedNote").replace("{n}", r.trimmed),
-    r.steps && t("stepsNote").replace("{n}", r.steps) + (exportBody().repeats ? "" : " " + t("repeatsNote")),
-    r.small_training && t("smallTraining").replace("{n}", r.small_training),
-    r.upright && t("uprightNote").replace("{n}", r.upright),
-    r.respelt && r.respelt.length && t("respeltNote").replace("{w}", r.respelt.join(", ")),
-    r.triggers && r.triggers.length && t("triggersNote").replace("{w}", r.triggers.join(", ")),
-    (r.triggers || []).some((w) => /[^\x00-\x7f]/.test(w)) && t("nonAsciiTrigger"),
-    r.config && t("configWritten"),
-  ].filter(Boolean);
-  const list = document.createElement("ul"); list.className = "notes";
-  notes.forEach((text) => { const li = document.createElement("li"); li.textContent = text; list.append(li); });
-  box.append(head, where, list);
-  return box;
-}
-
-function setupExport() {
-  [...EXPORT_FIELDS, "expTrig", "expSpell"].forEach((id) => {
-    $(id).addEventListener("change", saveExportOptions); $(id).addEventListener("input", saveExportOptions);
-  });
-  $("exportOpen").addEventListener("click", saveExportOptions);  // after setupPanels toggled it
-  restoreExportOptions();
-  syncRepeats(); $("expLayout").addEventListener("change", syncRepeats);
-  $("exportPreview").addEventListener("click", () => showExportPlan());
-  $("exportClose").addEventListener("click", closeExport);
-  $("export").addEventListener("click", async () => {
-    try {
-      const r = await post("api/export", JSON.stringify(exportBody()), "application/json");
-      setStatus(t("exportedHead").replace("{k}", r.training)); markStep("export");
-      await showExportPlan(r);
-      addOpenFolder();
-    } catch (e) { setStatus(String(e.message || e)); }
-  });
-}
-
 const LARGE_SHARE_MB = 10;  // Discord's upload limit without Nitro
 
 function setupSaves() {  // the report and the shareable map
@@ -847,25 +738,14 @@ function setupDrop() {  // images dropped anywhere on the page are searched
 function liveText() {
   if (!DATA.live) return;
   tabsText();  // map_browse.js
-  $("expLayoutLbl").textContent = t("lblLayout"); $("expMoreLbl").textContent = t("moreOptions");
-  $("exportWhere").textContent = t("exportWhere");
+  exportText();  // map_export.js
   $("pickBtn").textContent = t("searchImg"); $("regroup").textContent = t("regroup");
-  $("export").textContent = t("exportGo"); $("exportPreview").textContent = t("exportPreview"); $("exportOpen").textContent = t("exportOpen");
-  $("exportTitle").textContent = t("exportTitle"); $("moreOpen").textContent = t("moreOpen");
+  $("moreOpen").textContent = t("moreOpen");
   $("drop").textContent = t("drop");
   stepsText();  // map_browse.js: with a tick on the steps done
   $("saveMap").textContent = t("saveMap"); $("saveReport").textContent = t("saveReport");
   $("artistMap").textContent = t("artistMap"); $("artistMap").title = t("tipArtistMap");
   $("undo").textContent = t("undo");
-  $("expLayout").options[0].textContent = t("plainFolders");
-  $("expName").placeholder = t("conceptName");
-  $("expMax").placeholder = t("maxPerGroup");
-  $("expStrip").placeholder = t("stripTags");
-  $("expNameLbl").textContent = t("lblName"); $("expMaxLbl").textContent = t("lblMax");
-  $("expRepLbl").textContent = t("lblRepeats"); $("expRep").placeholder = t("repeatsAuto"); $("expRep").title = t("repeatsTip");
-  $("expStripLbl").textContent = t("lblStrip");
-  $("expTrigWrap").querySelector("span").textContent = t("triggerCaptions");
-  $("expSpellWrap").querySelector("span").textContent = t("fixSpelling");
   $("neutralWrap").querySelector("span").textContent = t("neutral");
   $("refPath").placeholder = DATA.reference ? DATA.reference : t("refPath");
   $("refLoad").textContent = DATA.reference && !$("refPath").value.trim() ? t("refClear") : t("refLoad");
@@ -886,8 +766,7 @@ function liveText() {
   $("gran").value = cur && cur !== "custom" ? cur : initial;
   $("periods").title = t("periods");
   showPeriods($("gran").value === "period" || $("gran").value === "timeline");
-  const tips = { exportOpen: "tipExport", moreOpen: "tipMore", expMax: "tipMax", expStrip: "tipStrip", pickBtn: "tipSearch", gran: "tipGran", thr: "tipThr", regroup: "tipRegroup", undo: "tipUndo",
-    expLayout: "tipLayout", expName: "tipName", expTrigWrap: "tipTrig", expSpellWrap: "tipSpell", exportPreview: "tipPreview", export: "tipExport",
+  const tips = { moreOpen: "tipMore", pickBtn: "tipSearch", gran: "tipGran", thr: "tipThr", regroup: "tipRegroup", undo: "tipUndo",
     saveMap: "tipSaveMap", neutralWrap: "tipNeutral", saveReport: "tipSaveReport" };
   Object.entries(tips).forEach(([id, key]) => { $(id).title = t(key); });
 }
@@ -943,7 +822,7 @@ if (DATA.live) setupLive();
 applyText();
 buildPages();
 resize();
-if (!restored) camera.position.copy(homeView());  // every point in view, whatever the window
+if (!restored) { camera.position.copy(homeView()); controls.target.copy(HOME_TARGET); }  // every point in view, whatever the window
 $("loading").classList.add("badge");  // thumbnails keep loading behind a small corner note
 if (viewAnchor !== null) { const a = viewAnchor; viewAnchor = null; reopenGroup(a); }
 animate();

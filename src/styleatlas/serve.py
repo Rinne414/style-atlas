@@ -45,31 +45,20 @@ from styleatlas.cluster import (
 )
 from styleatlas.consistency import consistency
 from styleatlas.dataset import (
-    LAYOUTS,
-    MAX_PER_GROUP_RANGE,
-    SET_ASIDE,
     audit,
     caption_of,
     clean_group_name,
     distinctive_tags,
-    is_unassigned,
+    image_info,
     kept_copy,
     norm_tag,
-    plan_folders,
     read_tags,
-    spelling_fixes,
     tag_summary,
 )
 from styleatlas.duplicates import copies_of
 from styleatlas.export import (
-    KOHYA_CONFIG,
     copy_ranked,
-    export_folders,
     output_dir,
-    parse_tags,
-    steps_per_epoch,
-    trigger_of,
-    write_table,
 )
 from styleatlas.groupfile import carry_names, load_groups
 from styleatlas.images import (
@@ -106,13 +95,13 @@ from styleatlas.report import (
 )
 from styleatlas.search import fold_hits, folder_verdict, rank_folders, search, style_path, warm
 from styleatlas.serve_edits import MAX_NAME, GroupEdits
+from styleatlas.serve_export import DatasetExport, show_folder
 from styleatlas.taste_session import TasteSession
 from styleatlas.timeline import TIMELINE, cluster_timeline, on_edge, verdict
 
 SEARCH_TOP = 48
 FOLDER_TOP = 5  # closest sub-folders listed with a search
 MAX_QUERY_IMAGES = 32
-EXPORT_MIN_GROUP = 3  # groups left smaller after set-asides go to _unassigned (as in the CLI)
 MAX_NOTE = 80  # characters of a note on an image (it is drawn on the map)
 COMPARE_ROUNDS = 199  # permutations for a group comparison's p-value (resolution 0.005)
 # a side whose largest sub-folder holds less than this share is several artists: the artist scale
@@ -121,7 +110,6 @@ MIXED_SHARE = 0.8
 MIN_SIDE_RANGE = (64, 8192)  # the check tab's smallest-side setting
 MAX_PATH_TEXT = 1000  # longest folder path accepted from the page
 MAX_TAG_TEXT = 200
-MAX_REPEATS = 100  # kohya repeats set by hand on the export bar
 NEAR_ARTISTS = 8  # closest folders listed for each in the artists tab
 VIEW_PX = 512  # the group view's tiles, the map's close-ups and its hover preview (up to ~450 px)
 THUMB_SHARP_MAX = 4096  # up to this many images the map's thumbnails are 128 px (above: 72)
@@ -176,7 +164,7 @@ def mixes_artists(folders: list[str], rows: list[int]) -> bool:
     return max(counts.values()) / len(rows) < MIXED_SHARE
 
 
-class StyleAtlasApp(GroupEdits):
+class StyleAtlasApp(GroupEdits, DatasetExport):
     """Holds one scanned folder in memory and answers the web page's requests."""
 
     def __init__(
@@ -540,11 +528,7 @@ class StyleAtlasApp(GroupEdits):
         folder can be opened."""
         folder = self.out_dir
         folder.mkdir(parents=True, exist_ok=True)
-        if hasattr(os, "startfile"):
-            os.startfile(folder)  # noqa: S606 - our own output folder, no user input
-        else:
-            opener = "open" if sys.platform == "darwin" else "xdg-open"
-            subprocess.Popen([opener, str(folder)])  # noqa: S603
+        show_folder(folder)
         return {"folder": str(folder)}
 
     def open_file(self, body: dict) -> dict:
@@ -595,6 +579,8 @@ class StyleAtlasApp(GroupEdits):
         pool.submit(self._read_tags)
         pool.submit(warm, self.atlas.style)  # the first search of a large folder is instant too
         pool.submit(self._warm_model)
+        for group in self.layout.duplicates:  # the copies an export keeps are picked from these
+            pool.submit(lambda g=group: [image_info(self.atlas.paths[i]) for i in g])
         for i in range(len(self.atlas)):
             pool.submit(self.thumb, i)
         for i in range(len(self.atlas)):  # then the sharp ones (hover, close-ups, group view)
@@ -954,115 +940,6 @@ class StyleAtlasApp(GroupEdits):
             raise ValueError("like must be true, false or null")
         with self._lock:
             return self.taste.vote(i, like)
-
-    def _export_options(self, body: dict) -> tuple[str, bool, str, str, int | None, str]:
-        """(layout, trigger, name, strip_tags, max_per_group, repeats) from the page, checked."""
-        layout = body.get("layout", "plain")
-        trigger = body.get("trigger", False)
-        if layout not in LAYOUTS or not isinstance(trigger, bool):
-            raise ValueError(f"layout must be one of {LAYOUTS}; trigger must be true or false")
-        name = clean_group_name(body.get("name") or self.atlas.root.name or "style")
-        strip = body.get("strip_tags") or ""
-        if not isinstance(strip, str) or len(strip) > MAX_TAG_TEXT * 10:
-            raise ValueError("strip_tags must be a comma-separated list of tags")
-        cap = body.get("max_per_group")
-        low, high = MAX_PER_GROUP_RANGE
-        if cap is not None and (type(cap) is not int or not low <= cap <= high):
-            raise ValueError(f"max_per_group must be empty or a whole number from {low} to {high}")
-        repeats = body.get("repeats")
-        if repeats is not None and (type(repeats) is not int or not 1 <= repeats <= MAX_REPEATS):
-            raise ValueError(f"repeats must be empty (automatic) or a whole number 1-{MAX_REPEATS}")
-        return layout, trigger, name, strip, cap, "auto" if repeats is None else str(repeats)
-
-    def _plan(self, layout: str, name: str, cap: int | None, repeats: str = "auto") -> list[str]:
-        """Each image's export folder, as the export would place it (call under the lock)."""
-        return plan_folders(
-            self.atlas.paths,
-            self.clustering,
-            layout=layout,
-            name=name,
-            repeats=repeats,
-            duplicate_groups=self.layout.duplicates,
-            excluded=sorted(self.excluded),
-            group_names=self.names_by_group(),
-            min_size=EXPORT_MIN_GROUP,
-            max_per_group=cap,
-            style=self.atlas.style,
-            prefer=self.kept_copies,
-        )
-
-    def _plan_summary(self, folders: list[str], layout: str, trigger: bool) -> dict:
-        """What an export of `folders` gives: groups too small to keep, how many images train,
-        the trigger words and the steps per epoch."""
-        labels = self.clustering.labels
-        small = {
-            int(labels[i]) for i, f in enumerate(folders) if labels[i] >= 0 and is_unassigned(f)
-        }
-        return {
-            "small_groups": len(small),  # left with < EXPORT_MIN_GROUP images: in unassigned
-            "small_ids": sorted(small),
-            # the rest go to the set-aside folders (_duplicates, _excluded, unassigned ...)
-            "training": sum(not (f.startswith("_") or is_unassigned(f)) for f in folders),
-            "triggers": sorted(
-                {t for f in folders if trigger and (t := trigger_of(f, layout)) is not None}
-            ),
-            "trimmed": sum(f == SET_ASIDE["trimmed"] for f in folders),
-            "steps": steps_per_epoch(folders) if layout == "kohya" else None,
-        }
-
-    def export_plan(self, body: dict) -> dict:
-        """The export's plan without writing anything: one row per folder (images, and the
-        repeats of a kohya folder), and the same summary as an export."""
-        layout, trigger, name, _, cap, repeats = self._export_options(body)
-        with self._lock:
-            folders = self._plan(layout, name, cap, repeats)
-        rows = []
-        for folder, n in sorted(Counter(folders).items()):
-            head, _, rest = folder.partition("_")
-            kohya = layout == "kohya" and head.isdigit() and bool(rest)
-            training = not (folder.startswith("_") or is_unassigned(folder))
-            rows.append(
-                {
-                    "folder": folder,
-                    "images": n,
-                    "repeats": int(head) if kohya else None,
-                    "training": training,
-                }
-            )
-        return {"rows": rows, **self._plan_summary(folders, layout, trigger)}
-
-    def export(self, body: dict) -> dict:
-        mode = body.get("mode", "copy")
-        layout, trigger, name, strip, cap, repeats = self._export_options(body)
-        fix = body.get("fix_spelling", False)
-        if not isinstance(fix, bool):
-            raise ValueError("fix_spelling must be true or false")
-        out = self.out_dir
-        respell = spelling_fixes(self.atlas.paths) if fix else None  # reads captions: no lock
-        with self._lock:
-            folders = self._plan(layout, name, cap, repeats)
-            write_table(self.atlas, self.clustering, out, folders)
-            result = export_folders(
-                self.atlas,
-                folders,
-                out / "folders",
-                mode=mode,
-                trigger_captions=trigger,
-                layout=layout,
-                strip_tags=parse_tags(strip),
-                respell=respell,
-            )
-            summary = self._plan_summary(folders, layout, trigger)
-        return {
-            "placed": result.placed,
-            "failed": len(result.failed),
-            "folder": str(result.folder),
-            "upright": result.upright,
-            "respelt": sorted(respell.values()) if respell else [],
-            "small_training": result.small_training,
-            "config": (result.folder / KOHYA_CONFIG).exists(),
-            **summary,
-        }
 
 
 def _tags_or_none(path: Path) -> set[str]:

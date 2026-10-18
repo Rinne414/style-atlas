@@ -75,25 +75,39 @@
     <div id="tip"><img alt=""><div class="cap"></div></div>
     <div id="loading">…</div>
     <div id="help" hidden></div>
-    <div id="exportPanel" role="dialog" aria-labelledby="exportTitle" hidden>
-      <div class="dlg-head"><b id="exportTitle"></b><button id="exportClose" class="close">✕</button></div>
-      <p id="exportWhere" class="sub"></p>
-      <div class="form">
-        <label for="expLayout" id="expLayoutLbl"></label>
-        <select id="expLayout"><option value="plain"></option><option value="kohya">kohya</option></select>
-        <label for="expName" id="expNameLbl"></label><input id="expName" type="text">
-        <label for="expRep" id="expRepLbl"></label><input id="expRep" type="number" min="1" max="100" step="1">
-      </div>
-      <details id="expMore"><summary id="expMoreLbl"></summary>
-        <div class="form">
-          <label for="expMax" id="expMaxLbl"></label><input id="expMax" type="number" min="1" step="1">
-          <label for="expStrip" id="expStripLbl"></label><input id="expStrip" type="text">
+    <div id="exportPanel" role="dialog" aria-modal="true" aria-labelledby="exportTitle" hidden>
+      <div class="dlg">
+        <div class="dlg-head"><b id="exportTitle"></b><button id="exportClose" class="close">✕</button></div>
+        <p id="exportWhere" class="sub"></p>
+        <div class="exp-body">
+          <section class="exp-groups">
+            <div class="exp-groups-head"><span id="expPicked"></span><button id="expAll"></button><button id="expNone"></button></div>
+            <div id="expList"></div>
+          </section>
+          <section class="exp-side">
+            <div class="seg" id="expHow"><button data-how="separate"></button><button data-how="one"></button></div>
+            <p id="expHowNote" class="sub"></p>
+            <div class="form">
+              <label for="expName" id="expNameLbl"></label><input id="expName" type="text">
+              <label for="expDest" id="expDestLbl"></label>
+              <div class="dest"><input id="expDest" type="text" spellcheck="false"><button id="expPick" hidden></button></div>
+              <label for="expLayout" id="expLayoutLbl"></label>
+              <select id="expLayout"><option value="plain"></option><option value="kohya"></option></select>
+            </div>
+            <details id="expMore"><summary id="expMoreLbl"></summary>
+              <div class="form">
+                <label for="expRep" id="expRepLbl"></label><input id="expRep" type="number" min="1" max="100" step="1">
+                <label for="expMax" id="expMaxLbl"></label><input id="expMax" type="number" min="1" step="1">
+                <label for="expStrip" id="expStripLbl"></label><input id="expStrip" type="text">
+              </div>
+              <label id="expTrigWrap" class="chip"><input id="expTrig" type="checkbox"> <span></span></label>
+              <label id="expSpellWrap" class="chip"><input id="expSpell" type="checkbox"> <span></span></label>
+            </details>
+            <div id="expPlan"></div>
+            <div class="actions"><button id="export" class="primary"></button></div>
+          </section>
         </div>
-        <label id="expTrigWrap" class="chip"><input id="expTrig" type="checkbox"> <span></span></label>
-        <label id="expSpellWrap" class="chip"><input id="expSpell" type="checkbox"> <span></span></label>
-      </details>
-      <div id="expPlan"></div>
-      <div class="actions"><button id="exportPreview"></button><button id="export" class="primary"></button></div>
+      </div>
     </div>
     <section id="groupView" tabindex="-1" hidden></section>
   </main>
