@@ -250,6 +250,7 @@ def page_script() -> str:
         "map_group.js",
         "map_browse.js",
         "map_viewer.js",
+        "map_walk.js",
         "map_shell.js",
         "map_export.js",
         "map_app.js",

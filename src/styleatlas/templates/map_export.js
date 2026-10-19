@@ -2,35 +2,40 @@
 // choose where; what it will write updates as you go, and the folder opens when it is done.
 // Joined after map_shell.js, before map_app.js (whose setupLive calls setupExport).
 
-const EXPORT_KEY = "styleAtlasExport";  // the dialog's choices, kept while the tab is open
+const EXPORT_KEY = "styleAtlasExport";  // the dialog's choices for this folder, kept for the next visit
 const EXPORT_FIELDS = ["expLayout", "expName", "expMax", "expRep", "expStrip", "expDest"];
 const EXPORT_MIN = 3;  // smaller groups start unticked (too few pictures for a LoRA of their own)
 const EXPORT_THUMBS = 6;  // pictures shown on each group's row
 const PLAN_DELAY_MS = 150;  // a change waits this long, so typing a name asks once
-const EXP = { ticked: new Set(), how: "separate", timer: 0, asked: 0, plan: null, busy: false, ready: false };
+const EXP = { ticked: new Set(), words: {}, how: "separate", timer: 0, asked: 0, plan: null, busy: false, ready: false };
 
 function exportGroups() { return GROUPS.filter((g) => g.id >= 0); }  // map_group.js; not the unassigned
 
 function groupsSeen() { return exportGroups().map((g) => `${g.id}:${g.size}`).join(","); }  // which groups the ticks mean
+function exportKey() { return `${EXPORT_KEY}:${DATA.title || ""}:${N}`; }  // this folder's (by name and size)
 
 function saveExportOptions() {
   const options = Object.fromEntries(EXPORT_FIELDS.map((id) => [id, $(id).value]));
   options.expTrig = $("expTrig").checked; options.expSpell = $("expSpell").checked;
-  options.ticked = [...EXP.ticked]; options.how = EXP.how; options.groups = groupsSeen();
-  try { sessionStorage.setItem(EXPORT_KEY, JSON.stringify(options)); } catch (e) { /* storage off */ }
+  options.ticked = [...EXP.ticked]; options.words = EXP.words; options.how = EXP.how; options.groups = groupsSeen();
+  try { localStorage.setItem(exportKey(), JSON.stringify(options)); } catch (e) { /* storage off */ }
 }
 
-// an edit reloads the page: the dialog comes back as it was. True when the ticks came back too:
-// after a regroup, merge or split the same numbers mean other groups, so they start afresh
+// the folder opened again (or the page reloaded by an edit): the dialog comes back as it was.
+// True when the ticks and trigger words came back too: after a regroup, merge or split the same
+// numbers mean other groups, so those start afresh
 function restoreExportOptions() {
   let options = null;
-  try { options = JSON.parse(sessionStorage.getItem(EXPORT_KEY) || "null"); } catch (e) { return false; }
+  try { options = JSON.parse(localStorage.getItem(exportKey()) || "null"); } catch (e) { return false; }
   if (!options) return false;
   EXPORT_FIELDS.forEach((id) => { if (typeof options[id] === "string") $(id).value = options[id]; });
-  $("expTrig").checked = Boolean(options.expTrig); $("expSpell").checked = Boolean(options.expSpell);
+  if (typeof options.expTrig === "boolean") $("expTrig").checked = options.expTrig;  // else the page's default (on)
+  $("expSpell").checked = Boolean(options.expSpell);
   if (options.how === "one" || options.how === "separate") EXP.how = options.how;
   if (!Array.isArray(options.ticked) || options.groups !== groupsSeen()) return false;
   EXP.ticked = new Set(options.ticked);
+  const words = options.words && typeof options.words === "object" ? options.words : {};
+  EXP.words = Object.fromEntries(Object.entries(words).filter(([, w]) => typeof w === "string" && w.trim()));
   return true;
 }
 
@@ -50,13 +55,29 @@ function openExport(only = null) {  // only: the groups to tick (the group view'
 
 function closeExport() { $("exportPanel").hidden = true; $("exportOpen").classList.remove("on"); }
 
+function wordField(g) {  // the group's trigger word (and folder name): empty = made from the name
+  const wrap = document.createElement("label"); wrap.className = "exp-word";
+  const cap = document.createElement("span"); cap.textContent = t("lblWord");
+  const field = document.createElement("input"); field.type = "text"; field.spellcheck = false; field.maxLength = 120;
+  field.value = EXP.words[g.id] || ""; field.title = t("tipWord");
+  field.addEventListener("input", () => {
+    if (field.value.trim()) EXP.words[g.id] = field.value; else delete EXP.words[g.id];
+    saveExportOptions(); replan();
+  });
+  wrap.append(cap, field);
+  return wrap;
+}
+
 function buildExportList() {
   const rows = exportGroups().map((g) => {
-    const row = document.createElement("label"); row.className = "exp-row"; row.dataset.id = String(g.id);
+    const row = document.createElement("div"); row.className = "exp-row"; row.dataset.id = String(g.id);
+    const pick = document.createElement("label"); pick.className = "exp-pick";
     const box = document.createElement("input"); box.type = "checkbox"; box.checked = EXP.ticked.has(g.id);
+    const word = wordField(g);
     box.addEventListener("change", () => {
       if (box.checked) EXP.ticked.add(g.id); else EXP.ticked.delete(g.id);
-      row.classList.toggle("on", box.checked); saveExportOptions(); replan();
+      row.classList.toggle("on", box.checked); word.querySelector("input").disabled = !box.checked;
+      saveExportOptions(); replan();
     });
     const pics = document.createElement("span"); pics.className = "exp-pics";
     typicalOrder(g.members).slice(0, EXPORT_THUMBS).forEach((i) => {  // map_group.js
@@ -66,7 +87,9 @@ function buildExportList() {
     const name = document.createElement("b"); name.textContent = clusterName(g.id); name.style.borderColor = colorOf(g.id);
     const meta = document.createElement("span"); meta.className = "exp-meta";
     who.append(name, meta);
-    row.append(box, pics, who);
+    pick.append(box, pics, who);
+    word.querySelector("input").disabled = !box.checked;
+    row.append(pick, word);
     row.classList.toggle("on", box.checked);
     return row;
   });
@@ -78,7 +101,8 @@ function rowsShown() {  // each row: what of it trains and where it goes (from t
   const byId = new Map(((EXP.plan && EXP.plan.groups) || []).map((r) => [r.id, r]));
   document.querySelectorAll("#expList .exp-row").forEach((row) => {
     const g = GROUPS.find((x) => x.id === Number(row.dataset.id));
-    const meta = row.querySelector(".exp-meta"), r = byId.get(g.id);
+    const meta = row.querySelector(".exp-meta"), r = byId.get(g.id), field = row.querySelector(".exp-word input");
+    field.placeholder = r ? r.word : "";  // the automatic word while nothing is typed
     if (!EXP.ticked.has(g.id)) {
       meta.textContent = `${g.size} ${t("size")} · ${t(g.size < EXPORT_MIN ? "expRowSmall" : "expRowOut")}`;
       return;
@@ -105,7 +129,8 @@ function exportBody() {  // the dialog's choices, as the server reads them
   return { mode: "copy", layout: $("expLayout").value, name: $("expName").value.trim(),
     trigger: $("expTrig").checked, fix_spelling: $("expSpell").checked, max_per_group: cap > 0 ? cap : null,
     repeats: kohya && rep > 0 ? rep : null, strip_tags: $("expStrip").value.trim(),
-    groups: [...EXP.ticked].sort((a, b) => a - b), separate: EXP.how === "separate", dest: $("expDest").value.trim() };
+    groups: [...EXP.ticked].sort((a, b) => a - b), separate: EXP.how === "separate", dest: $("expDest").value.trim(),
+    words: Object.fromEntries(Object.entries(EXP.words).filter(([id, w]) => EXP.ticked.has(Number(id)) && w.trim())) };
 }
 
 function replan(delay = PLAN_DELAY_MS) {  // what the export would write, asked again after a change
@@ -239,6 +264,9 @@ function exportText() {
   $("expMaxLbl").textContent = t("lblMax"); $("expStripLbl").textContent = t("lblStrip");
   $("expRepLbl").textContent = t("lblRepeats"); $("expRep").placeholder = t("repeatsAuto"); $("expRep").title = t("repeatsTip");
   $("expTrigWrap").querySelector("span").textContent = t("triggerCaptions");
+  document.querySelectorAll("#expList .exp-word").forEach((w) => {
+    w.querySelector("span").textContent = t("lblWord"); w.querySelector("input").title = t("tipWord");
+  });
   $("expSpellWrap").querySelector("span").textContent = t("fixSpelling");
   const tips = { exportOpen: "tipExport", expMax: "tipMax", expStrip: "tipStrip", expLayout: "tipLayout", expName: "tipName",
     expTrigWrap: "tipTrig", expSpellWrap: "tipSpell", export: "tipExport", expDest: "tipDest" };

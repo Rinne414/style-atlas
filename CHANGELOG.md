@@ -44,6 +44,26 @@ and pictures hard to look at in the 3D map.
   4 ms while zooming.
 
 
+From the owner's third review (2026-10-19): the mouse is no way to go through thousands of
+pictures without skipping some; "Whole map" seemed to do nothing; trigger words could not be set.
+
+- **One picture after another with the keyboard** (map_walk.js): → ← the next and the one before,
+  group by group in the side list's order (on the wall row by row, in the 3D layouts most typical
+  first), ↑ ↓ the row above and below on the wall. The current picture is framed on the map and
+  shown large on the other side with "Style 3 · 12 / 241 (all 1,000 / 2,206)"; the map moves
+  along when it leaves the view; a filter or search in force walks only what it lights. Enter or
+  Space shows it in the viewer, whose ← → now go on into the next group (also after a double
+  click); Esc stops. Where the walk stopped is kept for the next visit of the folder.
+- **"Whole map" is greyed out when the map already shows all of it** (it changed nothing there,
+  so it read as broken), and is named "回到全圖" in Chinese; it comes on after a zoom, a drag, a
+  group, a picture or a filter. Esc still clears filters either way.
+- **Trigger words per group in the export dialog**: each ticked group has a field with its
+  trigger word (also its folder's name), the automatic one shown until something is typed; two
+  groups with the same word are refused with a message (`words` on `api/export(_plan)`).
+  "Put the trigger word at the start of each caption" moved out of More options and is on by
+  default (off, a typed word only named the folder). The dialog's choices, ticks and words are
+  kept per folder for the next visit (they start afresh when the groups changed).
+
 From the owner's second review (2026-10-19, on their 2,206-image folder): pictures still blurry and
 small, and the export "stupid". Measured on that folder at 2560x1300: about 12 px per picture on
 the whole map, piled in islands; a hover card 450 px tall from the 512 px file; an export that

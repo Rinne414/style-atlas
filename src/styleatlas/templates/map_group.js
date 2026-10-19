@@ -50,6 +50,7 @@ function openGroup(id) {
   const c = GROUPS.find((g) => g.id === id);
   if (!c) return;
   viewGroup = id;
+  walkEnd();  // map_walk.js: the view covers the map
   if (DATA.live && stepsDone().check) markStep("groups");  // map_browse.js: looked at after step 1
   focusCluster = id; selected = null; recolor();
   setSpin(false);

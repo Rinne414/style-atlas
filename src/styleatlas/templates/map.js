@@ -238,6 +238,7 @@ function recolor() {  // returns how many images are lit
   pushAlpha();
   fadeNames();
   filterChip();
+  homeShown();
   return lit;
 }
 
@@ -265,6 +266,7 @@ function focusOn(indices) {
   const dist = Math.min(3.2, Math.max(0.9, radius * 2.4 + pointSize * 4));
   flyTo = { target, cam: target.clone().add(dir.multiplyScalar(dist)), k: 0 };
   setSpin(false);
+  markHome(true);
 }
 
 const ray = new THREE.Vector3();
@@ -296,16 +298,17 @@ canvas.addEventListener("pointerup", (e) => {
 });
 canvas.addEventListener("pointermove", (e) => {
   const tip = $("tip");
-  if (e.buttons) { hideTip(); return; }
+  if (e.buttons) { if (!WALK.on) hideTip(); return; }  // map_walk.js: a walk keeps its picture shown
   const i = pick(e);
-  if (i < 0) { hideTip(); canvas.style.cursor = "grab"; return; }
+  if (i < 0) { if (!WALK.on) hideTip(); canvas.style.cursor = "grab"; return; }
   canvas.style.cursor = "pointer";
   if (tip.style.display !== "block") {  // a fresh preview stands on the side away from the cursor
     const r = canvas.getBoundingClientRect();
     tipSide = e.clientX - r.left < r.width / 2 ? 1 : -1;
   }
+  if (WALK.on && i !== WALK.at) walkPause();  // map_walk.js: the mouse took over
   if (tipAt !== i) showTipPicture(tip, i);
-  tip.querySelector(".cap").textContent = `${PTS[i].n} · ${clusterName(PTS[i].c)}`;
+  if (!WALK.on) tip.querySelector(".cap").textContent = `${PTS[i].n} · ${clusterName(PTS[i].c)}`;
   tip.style.display = "block";
   placeTip(tip, e.clientX, e.clientY);
 });
@@ -331,11 +334,12 @@ function placeTip(tip, x, y) {
 }
 
 function fitTip(tip, img) {  // the picture as large as the room allows, its own shape kept
-  const r = canvas.getBoundingClientRect(), cap = tip.querySelector(".cap");
-  const roomW = r.width * PEEK_WIDTH - 16, roomH = r.height - 2 * PEEK_MARGIN - 16 - (cap.offsetHeight || 24);
+  const r = canvas.getBoundingClientRect(), cap = tip.querySelector(".cap"), keys = tip.querySelector(".keys");
+  const lines = (cap.offsetHeight || 24) + keys.offsetHeight;  // the keys line shows while walking (map_walk.js)
+  const roomW = r.width * PEEK_WIDTH - 16, roomH = r.height - 2 * PEEK_MARGIN - 16 - lines;
   const w = img.naturalWidth || 1, h = img.naturalHeight || 1, k = Math.min(roomW / w, roomH / h);
   img.style.width = `${Math.max(1, Math.round(w * k))}px`; img.style.height = `${Math.max(1, Math.round(h * k))}px`;
-  cap.style.maxWidth = img.style.width;  // a long file name wraps under the picture
+  cap.style.maxWidth = keys.style.maxWidth = img.style.width;  // a long file name wraps under the picture
 }
 
 function swapTipPicture(tip, i, url, tier, then = null) {  // shown once it is decoded: no blank between
@@ -362,7 +366,7 @@ function showTipPicture(tip, i) {
     peekTimer = setTimeout(() => { if (tipAt === i) swapTipPicture(tip, i, PTS[i].f, 2); }, PEEK_REST_MS);
   });
 }
-canvas.addEventListener("pointerleave", hideTip);
+canvas.addEventListener("pointerleave", () => { if (!WALK.on) hideTip(); });
 
 const TIMES = PTS.map((p) => p.ts).filter((v) => v !== null && v !== undefined);
 const TMIN = TIMES.reduce((a, b) => Math.min(a, b), Infinity);
@@ -878,7 +882,7 @@ function applyText() {
     (EXCLUDED.size ? ` · ${t("excludedN").replace("{n}", EXCLUDED.size)}` : "");
   $("find").placeholder = t(DATA.live ? "findLive" : "find");
   $("home").textContent = t("home"); $("names").textContent = t("names");
-  $("names").title = t("tipNames"); $("home").title = t("tipHome");
+  $("names").title = t("tipNames"); homeShown();
   if (!recordingNow) $("rec").textContent = t("rec");
   $("rec").title = t("tipRec");
   shellText();  // map_shell.js: the layout switch, the View menu, the desktop button
@@ -962,12 +966,24 @@ setSpin(spinPref === "1");  // still by default: a turning map moves pictures un
 $("spin").addEventListener("click", () => setSpin(!controls.autoRotate));
 $("savePng").addEventListener("click", snapNow);
 canvas.addEventListener("pointerdown", () => { if (controls.autoRotate) setSpin(false); });
-$("home").addEventListener("click", () => {
+// "Whole map": back from a zoom, a drag, a group or a picture, with the filters cleared. Greyed
+// out when the map already shows all of it (pressing it then changed nothing and read as broken)
+let AWAY = false;  // the camera left the whole-map view
+function markHome(away) { AWAY = away; homeShown(); }
+function homeShown() {
+  const filtered = focusCluster !== null || selected !== null || searchHits !== null || filter !== ""
+    || folderFilter !== null || tagOnly !== null;
+  const on = AWAY || filtered;
+  $("home").disabled = !on; $("home").title = t(on ? "tipHome" : "tipHomeHere");
+}
+function goHome() {
   focusCluster = null; selected = null; searchHits = null; filter = ""; folderFilter = null; tagOnly = null;
   $("find").value = ""; recolor();
   flyHome();  // map_layout.js
   document.querySelectorAll(".cl").forEach((r) => r.classList.remove("on"));
-});
+}
+$("home").addEventListener("click", goHome);
+controls.addEventListener("start", () => markHome(true));  // a drag or the wheel
 $("lang").addEventListener("click", () => { lang = lang === "zh" ? "en" : "zh"; store(LANG_KEY, lang); applyText(); });
 
 // The keyboard and mouse shortcuts, toggled by "?" (built with textContent, like the rest).
@@ -976,6 +992,7 @@ function showHelp(on) {
   box.hidden = !on;
   if (!on) return;
   const rows = [["leftDrag", "keyPan"], ["rightDrag", layoutMode === "groups" ? "keyPan" : "keyRotate"], ["wheel", "keyZoom"],
+    ["← →", "keyWalk"], ...(layoutMode === "groups" ? [["↑ ↓", "keyWalkRow"]] : []),
     ["dblPic", "keyViewer"], ["spaceKey", "keyViewer"], ["dblEmpty", "keyZoomHere"], ["sizeKeys", "keySize"], ["uiKeys", "keyUi"], ["Esc", "keyHome"], ["P", "keySnap"],
     ...(DATA.live ? [["shiftKeys", "keyMark"], ["L / D", "keyVote"], ["X", "keyExclude"], ["Ctrl + Z", "keyUndo"]] : [])];
   const named = ["leftDrag", "rightDrag", "wheel", "dblPic", "spaceKey", "dblEmpty", "sizeKeys", "uiKeys", "shiftKeys"];
@@ -1014,9 +1031,7 @@ addEventListener("keydown", (e) => {
   if (e.key === "Escape" && !$("exportPanel").hidden) { closeExport(); return; }  // map_export.js
   if (["INPUT", "SELECT", "TEXTAREA"].includes(e.target.tagName)) return;
   if (groupViewKey(e)) { e.preventDefault(); return; }  // map_group.js: arrows step, Esc closes
-  if (e.key === " " && tipAt >= 0 && !e.repeat) {  // the picture under the cursor, large (map_viewer.js)
-    e.preventDefault(); const i = tipAt; hideTip(); openViewer(i, groupOrder(i)); return;
-  }
+  if (walkKeyDown(e)) { e.preventDefault(); return; }  // map_walk.js: arrows, Enter, Space, Esc
   if (e.repeat) return;  // holding a key must not vote on images never looked at
   if (DATA.live && DATA.live.can_undo && (e.ctrlKey || e.metaKey) && !e.altKey && (e.key === "z" || e.key === "Z")) {
     e.preventDefault(); editPost("api/undo", {}); return;
@@ -1026,7 +1041,7 @@ addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
     RATING = false; PATH_FROM = null; setStatus(""); showHelp(false);
     if (MARKED.size) { MARKED = new Set(); showMarks(); }
-    $("home").click();
+    goHome();
   }
   if (DATA.live && selected !== null && (e.key === "l" || e.key === "L")) castVote(selected, true);
   if (DATA.live && selected !== null && (e.key === "d" || e.key === "D")) castVote(selected, false);
@@ -1067,5 +1082,6 @@ function animate() {
   if (viewGroup !== null) return;  // the group view covers the map: no need to draw it
   declutterNames(performance.now());
   updateSharp(performance.now());  // map_sharp.js: close-up pictures from sharper files
+  placeWalkMarker();  // map_walk.js
   renderer.render(scene, camera);
 }

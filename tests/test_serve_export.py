@@ -156,3 +156,49 @@ def test_a_file_where_a_set_would_go_takes_the_next_name(tmp_path):
         {"groups": [app.clustering.clusters[0].id], "dest": str(out), "name": "art"}
     )
     assert plan["datasets"][0]["name"] == "art_2"
+
+
+def test_typed_trigger_words_name_the_sets_and_the_folders(tmp_path):
+    app = _app(tmp_path)
+    a, b = app.clustering.clusters[0].id, app.clustering.clusters[1].id
+    body = {
+        "groups": [a, b],
+        "separate": True,
+        "layout": "kohya",
+        "trigger": True,
+        "words": {str(a): "artistx early", str(b): ""},
+    }
+    plan = app.export_plan(body)
+    assert [d["name"] for d in plan["datasets"]] == ["artistx early", "pics_style_02"]
+    assert [r["word"] for r in plan["groups"]] == ["artistx early", "pics_style_02"]
+    done = app.export(body)
+    inner = next(p for p in Path(done["datasets"][0]["folder"]).iterdir() if p.is_dir())
+    assert inner.name.endswith("_artistx early")
+    one = app.export_plan({**body, "separate": False})
+    folders = {r["word"] for r in one["groups"]}
+    assert "artistx early" in folders and len(folders) == 2
+
+
+def test_two_groups_cannot_share_a_typed_trigger_word(tmp_path):
+    app = _app(tmp_path)
+    a, b, c = (g.id for g in app.clustering.clusters)
+    for separate in (True, False):
+        with pytest.raises(ValueError):
+            app.export_plan(
+                {"groups": [a, b], "separate": separate, "words": {str(a): "x", str(b): "X"}}
+            )
+    clash = app.export_plan(
+        {"groups": [a, b], "separate": True, "words": {str(a): "pics_style_02"}}
+    )
+    assert [d["name"] for d in clash["datasets"]] == ["pics_style_02", "pics_style_02_2"]
+    with pytest.raises(ValueError):
+        app.export_plan({"groups": [a], "words": {str(c): "y"}})  # not a ticked group
+    with pytest.raises(ValueError):
+        app.export_plan({"words": {str(a): "y"}})  # words need the ticked groups
+
+
+def test_the_unassigned_folder_name_is_not_a_trigger_word(tmp_path):
+    app = _app(tmp_path)
+    g = app.clustering.clusters[0].id
+    with pytest.raises(ValueError):
+        app.export_plan({"groups": [g], "words": {str(g): "Unassigned"}})

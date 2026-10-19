@@ -72,7 +72,8 @@
       </div>
     </div>
     <div id="drop"></div>
-    <div id="tip"><img alt=""><div class="cap"></div></div>
+    <div id="tip"><img alt=""><div class="cap"></div><div class="keys"></div></div>
+    <div id="walkFrame" hidden></div>
     <div id="loading">…</div>
     <div id="help" hidden></div>
     <div id="exportPanel" role="dialog" aria-modal="true" aria-labelledby="exportTitle" hidden>
@@ -94,13 +95,13 @@
               <label for="expLayout" id="expLayoutLbl"></label>
               <select id="expLayout"><option value="plain"></option><option value="kohya"></option></select>
             </div>
+            <label id="expTrigWrap" class="chip"><input id="expTrig" type="checkbox" checked> <span></span></label>
             <details id="expMore"><summary id="expMoreLbl"></summary>
               <div class="form">
                 <label for="expRep" id="expRepLbl"></label><input id="expRep" type="number" min="1" max="100" step="1">
                 <label for="expMax" id="expMaxLbl"></label><input id="expMax" type="number" min="1" step="1">
                 <label for="expStrip" id="expStripLbl"></label><input id="expStrip" type="text">
               </div>
-              <label id="expTrigWrap" class="chip"><input id="expTrig" type="checkbox"> <span></span></label>
               <label id="expSpellWrap" class="chip"><input id="expSpell" type="checkbox"> <span></span></label>
             </details>
             <div id="expPlan"></div>

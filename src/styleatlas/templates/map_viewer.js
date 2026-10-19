@@ -30,9 +30,17 @@ function openViewer(i, list) {
 
 function closeViewer() {
   if (!VIEWER) return;
+  const last = VIEWER.list[VIEWER.at];
   VIEWER = null;
   $("viewer").hidden = true;
   $("viewer").querySelector("img").removeAttribute("src");
+  walkAfterViewer(last);  // map_walk.js: a keyboard walk goes on from here
+}
+
+function viewerWhere(i) {  // "12 / 241" in its group; over several groups also the place in all
+  const list = VIEWER.list, same = list.filter((j) => PTS[j].c === PTS[i].c);
+  const here = `${same.indexOf(i) + 1} / ${same.length}`;
+  return same.length === list.length ? here : here + t("walkAll").replace("{k}", VIEWER.at + 1).replace("{n}", list.length);
 }
 
 function stepViewer(by) {
@@ -52,7 +60,7 @@ function showViewerPicture() {
   box.querySelector(".nav.prev").title = t("viewerPrev"); box.querySelector(".nav.next").title = t("viewerNext");
   box.querySelector(".what b").textContent = PTS[i].n;
   box.querySelector(".what span").textContent = `${clusterName(PTS[i].c)}` +
-    (many ? ` · ${VIEWER.at + 1} / ${VIEWER.list.length}` : "") + (EXCLUDED.has(i) ? ` · ${t("excludedMark")}` : "");
+    (many ? ` · ${viewerWhere(i)}` : "") + (EXCLUDED.has(i) ? ` · ${t("excludedMark")}` : "");
   box.querySelector(".bar").replaceChildren(box.querySelector(".what"), ...viewerButtons(i));
   if (many) new Image().src = PTS[VIEWER.list[(VIEWER.at + 1) % VIEWER.list.length]].f;  // the next one, ahead
 }
@@ -187,12 +195,13 @@ function closestOnScreen(e) {
 
 canvas.addEventListener("dblclick", (e) => {
   const i = pick(e);
-  if (i >= 0) { openViewer(i, groupOrder(i)); return; }
+  if (i >= 0) { openViewer(i, walkList().includes(i) ? walkList() : walkOrder()); return; }  // map_walk.js: every group in turn
   const near = closestOnScreen(e);
   if (near < 0) return;
   const point = new THREE.Vector3(pos[near * 3], pos[near * 3 + 1], pos[near * 3 + 2]);
   const back = camera.position.clone().sub(controls.target).multiplyScalar(0.5);  // half as far as now
   if (back.length() < controls.minDistance) back.setLength(controls.minDistance);
   flyTo = { target: point, cam: point.clone().add(back), k: 0 };
+  markHome(true);  // map.js
   setSpin(false);
 });

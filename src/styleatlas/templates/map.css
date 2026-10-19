@@ -114,6 +114,11 @@
     box-shadow: 0 12px 40px rgba(0,0,0,.45); }
   #tip img { display: block; border-radius: 6px; background: var(--panel2); }  /* sized by fitTip (map.js) */
   #tip .cap { color: var(--muted); font-size: .95rem; margin-top: 6px; word-break: break-all; max-width: 40rem; }
+  #tip .keys { display: none; color: var(--ink); font-size: .9rem; margin-top: 4px; }
+  #tip.walking .keys { display: block; }  /* the keyboard walk (map_walk.js) says its keys */
+  #walkFrame { position: absolute; pointer-events: none; z-index: 4; border: 3px solid #f2c38b; border-radius: 4px;
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, .75), 0 0 18px rgba(242, 195, 139, .55); box-sizing: border-box; }
+  #walkFrame[hidden] { display: none; }
   #loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted);
     background: var(--bg); z-index: 9; font-size: 1.05rem; }
   #loading.badge { inset: auto .8rem .8rem auto; padding: .3em .85em; border-radius: 999px;
@@ -169,8 +174,11 @@
   .exp-groups-head { display: flex; align-items: center; gap: .55rem; }
   .exp-groups-head span { margin-right: auto; color: var(--muted); }
   #expList { flex: 1; min-height: 0; overflow: auto; border: 1px solid var(--line); border-radius: 10px; }
-  .exp-row { display: flex; align-items: center; gap: .8rem; padding: .5rem .7rem; cursor: pointer;
-    border-bottom: 1px solid var(--line); }
+  .exp-row { display: flex; align-items: center; gap: .8rem; padding: .5rem .7rem; border-bottom: 1px solid var(--line); }
+  .exp-pick { display: flex; align-items: center; gap: .8rem; flex: 1; min-width: 0; cursor: pointer; }
+  .exp-word { flex: none; width: 15rem; display: flex; flex-direction: column; gap: .15rem; }
+  .exp-word span { color: var(--muted); font-size: .85rem; }
+  .exp-row:not(.on) .exp-word { visibility: hidden; }  /* a group not exported has no trigger word to set */
   .exp-row:last-child { border-bottom: 0; }
   .exp-row:hover { background: var(--panel2); }
   .exp-row input { width: 1.2rem; height: 1.2rem; flex: none; accent-color: var(--accent); }

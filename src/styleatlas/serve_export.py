@@ -46,6 +46,7 @@ EXPORT_MIN_GROUP = 3  # without a choice of groups: smaller ones go to _unassign
 MAX_DEST_TEXT = 1000  # longest destination path accepted from the page
 MAX_STRIP_TEXT = 2000
 MAX_REPEATS = 100  # kohya repeats set by hand in the export dialog
+MAX_WORD_TEXT = 200
 
 
 @dataclass
@@ -119,6 +120,32 @@ class DatasetExport:
             raise ValueError("groups must be a list of this map's group numbers")
         return sorted(set(groups)), separate
 
+    def _export_words(self, body: dict, groups: list[int] | None) -> dict[int, str]:
+        """Trigger words typed for ticked groups ({"3": "artistx_early"}), as folder names."""
+        words = body.get("words") or {}
+        if not isinstance(words, dict) or (words and groups is None):
+            raise ValueError("words must map ticked group numbers to trigger words")
+        out = {}
+        for key, text in words.items():
+            if not (isinstance(key, str) and key.lstrip("-").isdigit() and int(key) in groups):
+                raise ValueError("words must map ticked group numbers to trigger words")
+            if not isinstance(text, str) or len(text) > MAX_WORD_TEXT:
+                raise ValueError("a trigger word must be text")
+            if not text.strip():
+                continue
+            word = clean_group_name(text)
+            if is_unassigned(
+                word.casefold()
+            ):  # the folder of pictures in no group (Windows: any case)
+                raise ValueError(
+                    tr(
+                        f"{word} names the folder of pictures in no group.",
+                        f"{word} 是未歸類資料夾的名字，請換一個。",
+                    )
+                )
+            out[int(key)] = word
+        return out
+
     def _export_dest(self, body: dict) -> Path:
         """Where the training sets go: the page's folder, else next to the folder shown."""
         raw = body.get("dest")
@@ -187,19 +214,30 @@ class DatasetExport:
         repeats: str,
         groups: list[int] | None,
         separate: bool,
+        words: dict[int, str] | None = None,
     ) -> list[ExportJob]:
-        """The training sets an export writes (call under the lock)."""
+        """The training sets an export writes (call under the lock). `words`: trigger words typed
+        for some groups, used as they are (two the same is refused: it would merge them)."""
         folders = self._plan(layout, name, cap, repeats, groups)
         if groups is None:
             return [ExportJob(name, list(range(len(folders))), folders)]
-        labels = self.clustering.labels
+        labels, words = self.clustering.labels, words or {}
         if not separate:
             chosen = [i for i in range(len(folders)) if int(labels[i]) in groups]
-            return [ExportJob(name, chosen, [folders[i] for i in chosen])]
+            mine = [_with_word(folders[i], words.get(int(labels[i])), layout) for i in chosen]
+            _refuse_repeats(chosen, mine, labels, layout)
+            return [ExportJob(name, chosen, mine)]
         own = group_labels(self.clustering, "plain", self.names_by_group())
-        jobs, taken = [], set()
+        taken: set[str] = set()
+        for w in words.values():  # typed words first: the automatic ones make way for them
+            if w.casefold() in taken:
+                raise ValueError(_same_word(w))
+            taken.add(w.casefold())
+        jobs = []
         for g in groups:  # one LoRA each, named <name>_<group>: its folder and trigger word
-            word = _unique(clean_group_name(f"{name[: MAX_NAME // 2]}_{own[g]}"), taken)
+            word = words.get(g) or _unique(
+                clean_group_name(f"{name[: MAX_NAME // 2]}_{own[g]}"), taken
+            )
             chosen = [i for i in range(len(folders)) if labels[i] == g]
             inner = [
                 f
@@ -229,9 +267,9 @@ class DatasetExport:
             "steps": steps_per_epoch(job.folders) if layout == "kohya" else None,
         }
 
-    def _group_rows(self, jobs: list[ExportJob], named: dict[str, str]) -> list[dict]:
-        """Per ticked group: the training set and folder it goes to, how many images train and
-        how many are set aside (duplicates, excluded, trimmed)."""
+    def _group_rows(self, jobs: list[ExportJob], named: dict[str, str], layout: str) -> list[dict]:
+        """Per ticked group: the training set and folder it goes to, its trigger word, how many
+        images train and how many are set aside (duplicates, excluded, trimmed)."""
         labels, rows = self.clustering.labels, {}
         for job in jobs:
             for i, f in zip(job.images, job.folders, strict=True):
@@ -240,13 +278,21 @@ class DatasetExport:
                     continue
                 row = rows.setdefault(
                     g,
-                    {"id": g, "dataset": named[job.name], "folder": "", "training": 0, "aside": 0},
+                    {
+                        "id": g,
+                        "dataset": named[job.name],
+                        "folder": "",
+                        "word": "",
+                        "training": 0,
+                        "aside": 0,
+                    },
                 )
                 if set_aside(f):
                     row["aside"] += 1
                 else:
                     row["training"] += 1
                     row["folder"] = f
+                    row["word"] = (trigger_of(f, layout) if f else job.top) or ""
         return [rows[g] for g in sorted(rows)]
 
     def export_plan(self, body: dict) -> dict:
@@ -254,12 +300,13 @@ class DatasetExport:
         repeats of a kohya folder), one per ticked group, and the same summary as an export."""
         layout, trigger, name, _, cap, repeats = self._export_options(body)
         groups, separate = self._export_groups(body)
+        words = self._export_words(body, groups)
         dest = self._export_dest(body)
         with self._lock:
-            jobs = self._jobs(layout, name, cap, repeats, groups, separate)
+            jobs = self._jobs(layout, name, cap, repeats, groups, separate, words)
             summaries = [self._plan_summary(job, layout, trigger) for job in jobs]
             named = {job.name: fresh_dir(dest / job.name).name for job in jobs}  # name_2 when taken
-            group_rows = self._group_rows(jobs, named)
+            group_rows = self._group_rows(jobs, named, layout)
         rows, datasets = [], []
         for job, summary in zip(jobs, summaries, strict=True):
             datasets.append(
@@ -295,13 +342,14 @@ class DatasetExport:
         groups, separate = self._export_groups(body)
         if groups == []:
             raise ValueError(tr("Tick at least one group to export.", "請至少勾一群再匯出。"))
+        words = self._export_words(body, groups)
         dest = self._export_dest(body)
         fix = body.get("fix_spelling", False)
         if not isinstance(fix, bool):
             raise ValueError("fix_spelling must be true or false")
         respell = spelling_fixes(self.atlas.paths) if fix else None  # reads captions: no lock
         with self._lock:
-            jobs = self._jobs(layout, name, cap, repeats, groups, separate)
+            jobs = self._jobs(layout, name, cap, repeats, groups, separate, words)
             table = [""] * len(self.atlas)  # the folder table: where each image went, if anywhere
             for job in jobs:
                 for i, f in zip(job.images, job.folders, strict=True):
@@ -346,6 +394,31 @@ class DatasetExport:
             raise ValueError(tr("Nothing was exported yet.", "還沒有匯出過。"))
         show_folder(folder)
         return {"folder": str(folder)}
+
+
+def _with_word(folder: str, word: str | None, layout: str) -> str:
+    """A group's training folder under the trigger word typed for it (kohya keeps the repeats)."""
+    if word is None or set_aside(folder):
+        return folder
+    return f"{folder.partition('_')[0]}_{word}" if layout == "kohya" else word
+
+
+def _same_word(word: str) -> str:
+    return tr(
+        f"Two groups have the trigger word {word}: give each its own, or they train as one.",
+        f"有兩群的觸發詞都是 {word}：請各取不同的名字，不然會被當成同一群訓練。",
+    )
+
+
+def _refuse_repeats(chosen: list[int], folders: list[str], labels: np.ndarray, layout: str) -> None:
+    """One training set: two groups whose folders would share a trigger word are refused."""
+    owner: dict[str, int] = {}
+    for i, f in zip(chosen, folders, strict=True):
+        if set_aside(f):
+            continue
+        word = (trigger_of(f, layout) or f).casefold()
+        if owner.setdefault(word, int(labels[i])) != int(labels[i]):
+            raise ValueError(_same_word(trigger_of(f, layout) or f))
 
 
 def _unique(word: str, taken: set[str]) -> str:

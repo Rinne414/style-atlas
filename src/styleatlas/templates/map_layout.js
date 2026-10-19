@@ -122,16 +122,18 @@ function mosaicPositions() {
   });
   packBlocks(blocks, BLOCK_GAP * pitch);
   const target = new Float32Array(N * 3);  // z stays 0: the wall is flat
-  const labels = new Map();
+  const labels = new Map(), rowsOf = new Map();
   blocks.forEach((b) => {
     const left = b.x - b.w / 2, top = b.y + b.h / 2;
-    blockRows(b.m, b.cols).forEach((row, r) => row.forEach((i, k) => {
+    const rows = blockRows(b.m, b.cols);
+    rowsOf.set(b.c, rows);  // map_walk.js walks them in this order
+    rows.forEach((row, r) => row.forEach((i, k) => {
       target[i * 3] = left + (k + 0.5) * pitch;
       target[i * 3 + 1] = top - room - (r + 0.5) * pitch;
     }));
     labels.set(b.c, { x: left, y: top - room + (room - nameH) / 3, h: nameH });
   });
-  MOSAIC = { pitch, labels };
+  MOSAIC = { pitch, labels, rows: rowsOf };
   return target;
 }
 
@@ -468,6 +470,7 @@ function freeBand() {
 function flyHome() {  // back to the home view, smoothly
   const cam = homeView();
   flyTo = { target: HOME_TARGET.clone(), cam, k: 0 };
+  markHome(false);  // map.js: nothing to go back from
 }
 
 function homeView() {  // looking at the centre from HOME's direction, every point in view
@@ -518,7 +521,7 @@ function setupAxes() {
 // groups apart / true layout: the switch at the top; the measure axes from the View menu
 function setLayout(next) {
   if (!["groups", "style", "measures"].includes(next) || next === layoutMode) return;
-  layoutMode = next; applyLayout(); layoutControls();
+  layoutMode = next; applyLayout(); layoutControls(); walkLayoutChanged();  // map_walk.js
   if (layoutMode !== "measures") store(LAYOUT_PICK_KEY, layoutMode);
   flyHome();
   layoutShown();
