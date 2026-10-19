@@ -191,7 +191,7 @@ def main() -> None:
         made.append(build_app_zip(out, files, version))
     info = out / "update.json"
     python = ".".join(PYTHON_VERSION.split(".")[:2])
-    info.write_text(json.dumps({"version": version, "python": python}), "utf-8")
+    info.write_text(json.dumps({"version": version, "python": python}), "utf-8", newline="\n")
     made.append(info)
     present = sorted(  # the release's own files only
         p
@@ -199,7 +199,7 @@ def main() -> None:
         if p.is_file() and (p.name.startswith(RELEASE_PREFIXES) or p.name == "update.json")
     )
     sums = "".join(f"{sha256(p)}  {p.name}\n" for p in present)
-    (out / "SHA256SUMS.txt").write_text(sums, "utf-8")
+    (out / "SHA256SUMS.txt").write_text(sums, "utf-8", newline="\n")  # for sha256sum -c
     for path in made:
         print(f"{path.stat().st_size / 1e6:8.1f} MB  {path}")
 
