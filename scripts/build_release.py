@@ -37,6 +37,7 @@ PBS = {
 TOP = "StyleAtlas"  # the folder inside the zip and the tar.gz
 APP_FILES = ("requirements.txt", "requirements-torch.txt", "constraints.txt")
 SKIP_PARTS = {"__pycache__"}
+TEXT_SUFFIXES = {".py", ".js", ".html", ".css", ".json", ".txt", ".md"}
 RELEASE_PREFIXES = ("StyleAtlas-", "style-atlas-app-")  # the files a release carries
 
 
@@ -83,6 +84,8 @@ def app_files(version: str | None) -> list[tuple[str, bytes, int]]:
         if path.is_dir() or SKIP_PARTS & set(path.parts) or path.suffix == ".pyc":
             continue
         data = path.read_bytes()
+        if path.suffix in TEXT_SUFFIXES:  # as git stores it, whatever the checkout wrote
+            data = data.replace(b"\r\n", b"\n")
         if version and path.name == "__init__.py" and path.parent == src:
             data = re.sub(rb'__version__ = "[^"]+"', f'__version__ = "{version}"'.encode(), data)
         files.append((f"app/styleatlas/{path.relative_to(src).as_posix()}", data, 0o644))
