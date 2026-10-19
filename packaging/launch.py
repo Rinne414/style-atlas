@@ -42,6 +42,37 @@ TORCH_INDEX = {
 TORCH_ENV = "STYLE_ATLAS_TORCH"  # "cpu" or "cuda": overrides the automatic choice
 EXIT_WAIT = 60  # seconds to wait for the program being restarted to close
 MAX_ROOT = 110  # torch's longest file (119) + python\Lib\site-packages\ must fit in 260 characters
+# a library Qt WebEngine or its window plugins load -> the Debian/Ubuntu package with it
+DEBIAN_PACKAGES = {
+    "libxkbfile.so.1": "libxkbfile1",
+    "libxcb-cursor.so.0": "libxcb-cursor0",
+    "libxcb-icccm.so.4": "libxcb-icccm4",
+    "libxcb-image.so.0": "libxcb-image0",
+    "libxcb-keysyms.so.1": "libxcb-keysyms1",
+    "libxcb-render-util.so.0": "libxcb-render-util0",
+    "libxcb-shape.so.0": "libxcb-shape0",
+    "libxcb-util.so.1": "libxcb-util1",
+    "libxcb-xkb.so.1": "libxcb-xkb1",
+    "libxcb-xinerama.so.0": "libxcb-xinerama0",
+    "libxcb-randr.so.0": "libxcb-randr0",
+    "libxkbcommon-x11.so.0": "libxkbcommon-x11-0",
+    "libxkbcommon.so.0": "libxkbcommon0",
+    "libxcomposite.so.1": "libxcomposite1",
+    "libxdamage.so.1": "libxdamage1",
+    "libxrandr.so.2": "libxrandr2",
+    "libxtst.so.6": "libxtst6",
+    "libxshmfence.so.1": "libxshmfence1",
+    "libnss3.so": "libnss3",
+    "libnspr4.so": "libnspr4",
+    "libgbm.so.1": "libgbm1",
+    "libEGL.so.1": "libegl1",
+    "libGL.so.1": "libgl1",
+    "libfontconfig.so.1": "libfontconfig1",
+    "libdbus-1.so.3": "libdbus-1-3",
+    "libwayland-client.so.0": "libwayland-client0",
+    "libwayland-cursor.so.0": "libwayland-cursor0",
+    "libwayland-egl.so.1": "libwayland-egl1",
+}
 CREATE_NEW_CONSOLE = 0x00000010
 DETACHED = 0x00000008 | 0x00000200  # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
 
@@ -211,15 +242,15 @@ def open_console(args: list[str]) -> None:
 def start_detached(args: list[str]) -> None:
     """Start the program on its own, so the console can close (it writes into the log)."""
     command = [str(GUI_PYTHON), str(ROOT / "launch.py"), "--run", *args]
-    quiet = {
-        "stdin": subprocess.DEVNULL,
-        "stdout": subprocess.DEVNULL,
-        "stderr": subprocess.DEVNULL,
-    }
+    null = subprocess.DEVNULL
     if WINDOWS:
-        subprocess.Popen(command, creationflags=DETACHED, cwd=Path.home(), **quiet)
+        subprocess.Popen(
+            command, creationflags=DETACHED, cwd=Path.home(), stdin=null, stdout=null, stderr=null
+        )
     else:
-        subprocess.Popen(command, cwd=Path.home(), start_new_session=True, **quiet)
+        subprocess.Popen(
+            command, start_new_session=True, cwd=Path.home(), stdin=null, stdout=null, stderr=null
+        )
 
 
 def log_to_file() -> None:
@@ -252,10 +283,58 @@ def make_shortcut() -> None:
 def run(folder: list[str]) -> int:
     if not has_console():
         log_to_file()
+    if not WINDOWS:  # Linux: Chromium refuses WebGL on software rendering (VMs, no GPU driver)
+        flags = os.environ.get("QTWEBENGINE_CHROMIUM_FLAGS", "")
+        if "--ignore-gpu-blocklist" not in flags:
+            os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = f"{flags} --ignore-gpu-blocklist".strip()
     use_app()
     from styleatlas.desktop import main as desktop_main
 
     return desktop_main(folder)
+
+
+def missing_qt_libraries() -> list[str]:
+    """Linux: the system libraries the window (Qt WebEngine) needs and this system lacks. Uses
+    Wayland when the session has it (Qt is told to try it first), else X11."""
+    if WINDOWS:
+        return []
+    found = sorted(PY_DIR.glob("lib/python3*/site-packages/PyQt6/Qt6"))
+    if not found:
+        return []
+    qt = found[0]
+    display = os.environ.get("WAYLAND_DISPLAY", "")
+    runtime = os.environ.get("XDG_RUNTIME_DIR", "")
+    wayland = bool(display) and Path(runtime, display).exists()  # the socket, not just the name
+    plugins = ["libqwayland.so"] if wayland else ["libqxcb.so", "../../lib/libQt6XcbQpa.so.6"]
+    files = [qt / "lib" / "libQt6WebEngineCore.so.6"]
+    files += [qt / "plugins" / "platforms" / p for p in plugins]
+    missing: set[str] = set()
+    for path in files:
+        if path.exists():
+            out = subprocess.run(["ldd", str(path)], capture_output=True, text=True).stdout
+            missing |= {line.split()[0] for line in out.splitlines() if "not found" in line}
+    if wayland and not missing:
+        os.environ.setdefault("QT_QPA_PLATFORM", "wayland;xcb")
+    return sorted(missing)
+
+
+def tell_missing(libraries: list[str]) -> None:
+    packages = sorted({DEBIAN_PACKAGES.get(lib, lib) for lib in libraries})
+    say(
+        "窗口需要的系统库缺了这些：" + " ".join(libraries),
+        "The window needs system libraries this computer does not have: " + " ".join(libraries),
+    )
+    say(
+        "Ubuntu / Debian 请运行：sudo apt install " + " ".join(packages),
+        "On Ubuntu / Debian run: sudo apt install " + " ".join(packages),
+    )
+    say(
+        "其他发行版请安装提供这些文件的软件包，装好后再运行 ./style-atlas.sh。",
+        "On other distributions, install the packages that provide these files, then run "
+        "./style-atlas.sh again.",
+    )
+    if has_console():  # no terminal (opened from the menu without one): the message is in the log
+        input("按 Enter 关闭 / Press Enter to close ")
 
 
 def main(argv: list[str]) -> int:
@@ -288,6 +367,13 @@ def main(argv: list[str]) -> int:
             )
             input("按 Enter 关闭 / Press Enter to close ")
             return 1
+    missing = missing_qt_libraries()
+    if missing:  # Linux: the window cannot open; say what to install instead of failing silently
+        if not console:
+            open_console(args)
+            return 0
+        tell_missing(missing)
+        return 1
     if console and not run_now:
         make_shortcut()
         start_detached(args)

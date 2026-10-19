@@ -22,7 +22,20 @@ const colorOf = (c) => c < 0 ? "#6b7078" : PALETTE[c % PALETTE.length];
 
 /* ---------- three.js scene ---------- */
 const canvas = $("gl");
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+function makeRenderer() {  // the map needs WebGL: without it, say so instead of a blank page
+  try {
+    return new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+  } catch (e) {
+    const box = document.createElement("div");
+    box.className = "no-webgl";
+    box.textContent = "这个窗口无法使用 WebGL（显卡的 3D 绘图），所以地图显示不出来。请更新显卡驱动，或换一台电脑再试。\n\n"
+      + "This window cannot use WebGL (the graphics card's 3D drawing), so the map cannot be shown. "
+      + "Update the graphics driver, or try another computer.";
+    document.body.append(box);
+    throw e;
+  }
+}
+const renderer = makeRenderer();
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(50, 1, 0.01, 100);

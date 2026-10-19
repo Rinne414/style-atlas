@@ -54,6 +54,8 @@
   .menu .menu-row .lbl { color: var(--muted); font-size: .9rem; flex-basis: 100%; }
   .menu .menu-row button { padding: .25em .7em; font-size: .9rem; }
   .menu hr { border: 0; border-top: 1px solid var(--line); margin: .25rem .3rem; width: auto; }
+  .no-webgl { position: fixed; inset: 0; display: grid; place-items: center; padding: 2rem; z-index: 100;
+    background: var(--bg); color: var(--ink); white-space: pre-wrap; font-size: 1.1rem; text-align: center; }
   #deskNav { display: flex; gap: .4rem; margin: .1rem 0 .45rem; }
   #deskNav[hidden] { display: none; }
   #deskNav button { font-size: .9rem; padding: .3em .85em; }

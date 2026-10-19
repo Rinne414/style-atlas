@@ -86,7 +86,7 @@ def _look_line(liked: Atlas, disliked: Atlas) -> str:
     return tr(
         f"the pictures you like, next to those you dislike: {words} (look measures of your two "
         "folders; the model itself goes by style vectors)",
-        f"你喜欢的图和不喜欢的比：{words}（两个文件夹的外观量测；模型本身看的是画风向量）",
+        f"你喜欢的图和不喜欢的比：{words}（两个文件夹的外观测量；模型本身看的是画风向量）",
     )
 
 
