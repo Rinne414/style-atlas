@@ -89,7 +89,12 @@
     } catch (e) { say(String((e && e.message) || e)); return null; }
   }
 
-  function open(path) { say(t("opening").replace("{f}", path)); call("open_folder", path); }
+  const elsewhere = (path) => say(t("elsewhere").replace("{f}", path.split(/[\\/]/).filter(Boolean).pop() || path));
+  async function open(path) {
+    say(t("opening").replace("{f}", path));
+    const r = await call("open_folder", path);
+    if (r && r.elsewhere) elsewhere(r.elsewhere);
+  }
 
   function rows(list) {
     const box = $("rows");
@@ -116,7 +121,8 @@
 
   $("pick").addEventListener("click", async () => {
     const r = await call("pick_folder");
-    if (r && r.path) say(t("opening").replace("{f}", r.path));
+    if (r && r.elsewhere) elsewhere(r.elsewhere);
+    else if (r && r.path) say(t("opening").replace("{f}", r.path));
   });
   const ready = () => { $("pick").disabled = false; };
   if (api()) ready();
@@ -135,6 +141,7 @@
   });
   window.styleAtlasOpening = (path) => { clearTimeout(dropTimer); say(t("opening").replace("{f}", path)); };
   window.styleAtlasSay = (msg) => { clearTimeout(dropTimer); say(msg); };
+  window.styleAtlasElsewhere = (path) => { clearTimeout(dropTimer); elsewhere(path); };
 })();
 </script>
 </body>

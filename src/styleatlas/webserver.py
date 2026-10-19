@@ -14,6 +14,7 @@ import html
 import json
 import os
 import re
+import socket
 import sys
 import threading
 import time
@@ -28,9 +29,9 @@ from styleatlas.encoder import ModelDownloadError
 from styleatlas.images import IMAGE_TYPES
 from styleatlas.lang import tr
 from styleatlas.serve import StyleAtlasApp
+from styleatlas.webbase import CONTROL_PATH, POST_HEADER, StandIn
 
 MAX_UPLOAD = 40 * 1024 * 1024
-POST_HEADER = "X-Style-Atlas"
 
 JSON_ROUTES = {  # POST route -> StyleAtlasApp method taking the JSON body
     "api/regroup": "regroup",
@@ -60,6 +61,7 @@ JSON_ROUTES = {  # POST route -> StyleAtlasApp method taking the JSON body
     "api/save_report": "save_report",
     "api/open_output": "open_output",
     "api/open_export": "open_export",
+    "api/share_sizes": "share_sizes",
     "api/open_file": "open_file",
     "api/copy_hits": "copy_hits",
     "api/export": "export",
@@ -67,15 +69,6 @@ JSON_ROUTES = {  # POST route -> StyleAtlasApp method taking the JSON body
 }
 REQUEST_ERRORS = (ValueError, OSError, KeyError, TypeError, OverflowError, ModelDownloadError)
 PREPARING_LINES = 12  # progress lines the waiting page shows
-
-
-class StandIn:
-    """Answers in place of a StyleAtlasApp: a page, no images, no requests (503)."""
-
-    atlas = ()  # no images
-
-    def page(self) -> str:
-        raise NotImplementedError
 
 
 class Preparing(StandIn):
@@ -139,14 +132,16 @@ class Preparing(StandIn):
 class StyleAtlasHandler(BaseHTTPRequestHandler):
     """Request handler; `make_handler` binds `app` and `allowed_hosts` on a subclass.
 
-    With a `token` set (the desktop program, which shows one folder after another on one server)
-    the pages live under /s/<token>/: each folder's thumbnails get their own addresses, so none
-    is taken from the browser cache of the folder opened before, and a page left from that folder
-    gets no answers from this one."""
+    With `sites` set (the desktop program: several windows, each showing one folder after
+    another, on one server) each page lives under /s/<token>/ and is answered by sites[token]:
+    each folder's thumbnails get their own addresses, so none is taken from the browser cache of
+    the folder opened before, and a page left from that folder gets no answers. `control` takes
+    a later start's request for a window (desktop.Desktop.remote)."""
 
     app: StyleAtlasApp | StandIn
     allowed_hosts: frozenset[str] = frozenset()
-    token: str = ""
+    sites: dict[str, StyleAtlasApp | StandIn] | None = None
+    control: Callable[[dict], bool] | None = None
 
     def log_message(self, fmt: str, *args: object) -> None:  # keep the console quiet
         return
@@ -172,14 +167,17 @@ class StyleAtlasHandler(BaseHTTPRequestHandler):
         self._send(status, body, "application/json")
 
     def _parts(self) -> list[str] | None:
-        """The request path in parts, without the /s/<token> prefix; None after a 404 for a
-        prefix that is not the current one, or for no prefix while there is a token."""
+        """The request path in parts, without the /s/<token> prefix, with `self.app` the one
+        that answers it; None after a 404 for a prefix no window shows, or for no prefix in the
+        desktop program."""
         parts = self.path.split("?")[0].strip("/").split("/")
-        if parts[0] != "s" and not self.token:  # `serve`: plain paths
+        if parts[0] != "s" and self.sites is None:  # `serve`: plain paths
             return parts
-        if len(parts) < 2 or parts[0] != "s" or not self.token or parts[1] != self.token:
+        site = self.sites.get(parts[1]) if len(parts) > 1 and self.sites else None
+        if parts[0] != "s" or site is None:
             self.send_error(HTTPStatus.NOT_FOUND)
             return None
+        self.app = site
         return parts[2:] or [""]
 
     def _image_index(self, part: str) -> int | None:
@@ -262,6 +260,9 @@ class StyleAtlasHandler(BaseHTTPRequestHandler):
         body = self._read_body()
         if body is None:
             return
+        if self.path == CONTROL_PATH and self.control is not None:
+            self._control(body)
+            return
         parts = self._parts()
         if parts is None:
             return
@@ -285,6 +286,18 @@ class StyleAtlasHandler(BaseHTTPRequestHandler):
             self.log_error("%s failed:\n%s", route, traceback.format_exc())
             self._json(500, {"error": f"internal error ({type(e).__name__}); see the console"})
 
+    def _control(self, body: bytes) -> None:
+        """A later start of the desktop program asking this one for a window."""
+        try:
+            payload = json.loads(body)
+            done = isinstance(payload, dict) and self.control(payload)
+        except ValueError:
+            done = False
+        if done:
+            self._json(200, {"ok": True})
+        else:
+            self.send_error(HTTPStatus.FORBIDDEN)
+
 
 def make_handler(
     app: StyleAtlasApp | StandIn, allowed_hosts: set[str]
@@ -298,6 +311,15 @@ class _Server(ThreadingHTTPServer):
     # backlog (5 by default) while the server is busy, e.g. making thumbnails right after start.
     request_queue_size = 64
     daemon_threads = True
+    # HTTPServer sets SO_REUSEADDR, and on Windows that lets a second server bind a port already
+    # in use: a second copy of the program then shared this one's port and its window was answered
+    # by the first copy (404). An exclusive port makes bind() move on to the next one.
+    allow_reuse_address = sys.platform != "win32"
+
+    def server_bind(self) -> None:
+        if sys.platform == "win32":
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
 
     def handle_error(self, request, client_address) -> None:
         # The browser drops thumbnail requests it no longer needs (a scrolled-past list, a closed

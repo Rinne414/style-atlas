@@ -63,14 +63,18 @@ function setupViewMenu() {
 /* ---------- inside the desktop program (desktop.py) ---------- */
 function desktopApi() { return window.pywebview && window.pywebview.api; }
 
-function setupDesktop() {
-  const show = () => { if (desktopApi() && desktopApi().home) $("openOther").hidden = false; };
+function setupDesktop() {  // each window shows one folder: back to its start page, or another window
+  const show = () => { if (desktopApi() && desktopApi().home) $("deskNav").hidden = false; };
   show();
   window.addEventListener("pywebviewready", show);
-  $("openOther").addEventListener("click", () => {
-    $("openOther").disabled = true;
-    Promise.resolve(desktopApi()?.home()).catch((e) => { $("openOther").disabled = false; setStatus(String(e.message || e)); });
+  const ask = (button, name) => button.addEventListener("click", () => {
+    button.disabled = true;
+    Promise.resolve(desktopApi()?.[name]())
+      .catch((e) => setStatus(String(e.message || e)))
+      .finally(() => { if (name !== "home") button.disabled = false; });
   });
+  ask($("toStart"), "home");
+  ask($("newWindow"), "new_window");
 }
 
 function shellText() {  // called by applyText (map.js)
@@ -88,7 +92,8 @@ function shellText() {  // called by applyText (map.js)
   $("uiSize").querySelector(".lbl").textContent = t("uiSize"); $("uiSize").title = t("tipUiSize");
   document.querySelectorAll("#uiSize button").forEach((b) => { b.textContent = t(b.dataset.key); });
   uiSizeButtons();
-  $("openOther").textContent = t("openOther"); $("openOther").title = t("tipOpenOther");
+  $("toStart").textContent = t("toStart"); $("toStart").title = t("tipToStart");
+  $("newWindow").textContent = t("newWindow"); $("newWindow").title = t("tipNewWindow");
   layoutShown();  // map_layout.js: the switch and the line under the title
 }
 

@@ -8,6 +8,7 @@
 
 const WALK = { at: -1, on: false, order: null, marker: null };
 const WALK_KEY = "styleAtlasWalk";
+const WALK_NOTE_MS = 5000;  // "going on from where you stopped" stays this long
 const WALK_EDGE = 0.8;  // the map moves when the picture is this far out from the middle (1 = the edge)
 const WALK_PAD = 3;  // px between the picture and its frame
 const WALK_MIN_PX = 10;  // the frame is never smaller than this, however far out the map is
@@ -19,8 +20,10 @@ function walkOrder() {  // every picture once, in the order the walk takes
   return WALK.order;
 }
 
-function walkList() {  // the walk's pictures: those lit by a filter or search, else all
-  const order = walkOrder(), lit = order.filter((i) => alpha[i] >= 0.5);
+function walkList() {  // the walk's pictures: those a filter or a search shows, else all (map.js)
+  const order = walkOrder();
+  if (!filterOn()) return order;  // a picture picked on the map dims the rest, but does not narrow the walk
+  const lit = order.filter(shownByFilter);
   return lit.length ? lit : order;
 }
 
@@ -32,7 +35,12 @@ function walkStart() {  // the picture under the cursor, else where the last wal
   let name = null;
   try { name = localStorage.getItem(walkKey()); } catch (e) { /* storage off */ }
   const i = name ? PTS.findIndex((p) => p.n === name) : -1;
-  if (i >= 0 && list.includes(i)) { setStatus(t("walkResume").replace("{f}", name)); return i; }
+  if (i >= 0 && list.includes(i)) {
+    const note = t("walkResume").replace("{f}", name);
+    setStatus(note);
+    setTimeout(() => { if ($("status").textContent === note) setStatus(""); }, WALK_NOTE_MS);
+    return i;
+  }
   return list[0];
 }
 

@@ -14,6 +14,7 @@ import os
 import subprocess
 import sys
 import threading
+import time
 from collections import Counter
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
@@ -62,12 +63,14 @@ from styleatlas.export import (
 )
 from styleatlas.groupfile import carry_names, load_groups
 from styleatlas.images import (
+    PREVIEW_BASE,
     cached_thumbnail,
     file_times,
     labels_from_folders,
     load_rgb,
     mixed_names_error,
     mixed_numbering,
+    thumbnail_files,
 )
 from styleatlas.lang import tr
 from styleatlas.look import LOOK_NAMES, difference
@@ -111,7 +114,14 @@ MIN_SIDE_RANGE = (64, 8192)  # the check tab's smallest-side setting
 MAX_PATH_TEXT = 1000  # longest folder path accepted from the page
 MAX_TAG_TEXT = 200
 NEAR_ARTISTS = 8  # closest folders listed for each in the artists tab
-VIEW_PX = 512  # the group view's tiles, the map's close-ups and its hover preview (up to ~450 px)
+VIEW_PX = PREVIEW_BASE  # the group view's tiles, the map's close-ups and its hover preview
+SHARE_PREVIEWS = (0, 320, 512)  # picture sizes offered for a shared map (0: thumbnails only)
+SHARE_LAYOUTS = ("groups", "style", "measures")  # map_layout.js layoutMode
+# a preview's bytes over the 512 px view's: 320 px 0.50 on 120 of a 2,206-picture library
+PREVIEW_SHARE = {0: 0.0, 320: 0.5, 512: 1.0}
+BASE64 = 4 / 3  # pictures are written into the file as base64
+SHARE_GUESS_BYTES = 30_000  # a 512 px view before any is made
+SHARE_SIZES_KEPT_S = 600  # the size estimates are worked out again after this long
 THUMB_SHARP_MAX = 4096  # up to this many images the map's thumbnails are 128 px (above: 72)
 
 
@@ -438,18 +448,53 @@ class StyleAtlasApp(GroupEdits, DatasetExport):
         )
         return {"file": str(out)}
 
+    def share_sizes(self, body: dict) -> dict:
+        """About how large the shared map file comes out with each picture size (MB), from the
+        cached thumbnails and 512 px views; views not made yet count as the average. Worked out
+        once in the background after the views (3,800 pictures: about 2 s), then kept a while."""
+        kept = getattr(self, "_share_sizes", None)
+        if kept and time.monotonic() - kept[0] < SHARE_SIZES_KEPT_S:
+            return kept[1]
+        pairs = [
+            thumbnail_files(p, [default_thumb_px(len(self.atlas)), PREVIEW_BASE])
+            for p in self.atlas.paths
+        ]
+        thumbs, views = _sizes([a for a, _ in pairs]), _sizes([b for _, b in pairs])
+        page = len(self.page().encode("utf-8"))  # the scripts and the data, without pictures
+        mb = {
+            px: round((page + (thumbs + views * PREVIEW_SHARE[px]) * BASE64) / 1e6, 1)
+            for px in SHARE_PREVIEWS
+        }
+        answer = {"sizes": {str(px): v for px, v in mb.items()}}
+        self._share_sizes = (time.monotonic(), answer)
+        return answer
+
     def save_map(self, body: dict) -> dict:
         """Write the map as it is now (groups, hand edits, names) as one shareable HTML file with
-        the thumbnails inside, next to the exports."""
+        the thumbnails inside, next to the exports; with `preview` (px), also a sharper picture
+        of each image for the recipient's close-ups and viewer."""
+        preview = body.get("preview", 0)
+        if preview not in SHARE_PREVIEWS or type(preview) is not int:
+            raise ValueError(f"preview must be one of {SHARE_PREVIEWS}")
+        layout_name = body.get("layout", "groups")  # the recipient starts on the sender's layout
+        if layout_name not in SHARE_LAYOUTS:
+            raise ValueError(f"layout must be one of {SHARE_LAYOUTS}")
         with self._lock:
             atlas, clustering, layout = self.atlas, self.clustering, self.layout
             names = {str(k): v for k, v in self.names_by_group().items()}
         out = self.out_dir / "map.html"
         out.parent.mkdir(parents=True, exist_ok=True)
         payload = map_payload(
-            atlas, clustering, out, title=self.title, time_source=self.time_source, layout=layout
+            atlas,
+            clustering,
+            out,
+            title=self.title,
+            time_source=self.time_source,
+            layout=layout,
+            preview_px=preview,
         )
         payload["names"] = names
+        payload["start_layout"] = layout_name
         with self._lock:
             payload["notes"] = self.notes()
         path = write_payload(payload, out)
@@ -585,6 +630,7 @@ class StyleAtlasApp(GroupEdits, DatasetExport):
             pool.submit(self.thumb, i)
         for i in range(len(self.atlas)):  # then the sharp ones (hover, close-ups, group view)
             pool.submit(self.view_thumb, i)
+        pool.submit(self.share_sizes, {})  # the shared map's sizes, ready when its panel opens
         pool.shutdown(wait=False)
 
     def _warm_model(self) -> None:
@@ -940,6 +986,15 @@ class StyleAtlasApp(GroupEdits, DatasetExport):
             raise ValueError("like must be true, false or null")
         with self._lock:
             return self.taste.vote(i, like)
+
+
+def _sizes(files: list[Path]) -> float:
+    """Bytes of the files that exist, the missing ones counted at the others' average."""
+    sizes = [f.stat().st_size for f in files if f.exists()]
+    if not files:
+        return 0.0
+    mean = sum(sizes) / len(sizes) if sizes else SHARE_GUESS_BYTES
+    return sum(sizes) + mean * (len(files) - len(sizes))
 
 
 def _tags_or_none(path: Path) -> set[str]:

@@ -115,23 +115,51 @@ def thumbnail_bytes(path: Path, size: int = 96, quality: int = 70) -> bytes:
     return buf.getvalue()
 
 
+def thumbnail_files(path: Path, sizes: list[int]) -> list[Path]:
+    """Where cached_thumbnail keeps `path` at each of `sizes` (made or not yet)."""
+    st, full, root = Path(path).stat(), Path(path).resolve(), cache_dir() / "thumbs"
+    keys = (
+        hashlib.sha1(f"{full}|{st.st_size}|{st.st_mtime_ns}|{s}".encode()).hexdigest()
+        for s in sizes
+    )
+    return [root / key[:2] / f"{key}.webp" for key in keys]
+
+
+def thumbnail_file(path: Path, size: int) -> Path:
+    return thumbnail_files(path, [size])[0]
+
+
 def cached_thumbnail(path: Path, size: int = 96) -> bytes:
     """thumbnail_bytes, kept on disk (keyed by path, size and modification time) so a folder
     opens instantly the second time."""
-    st = Path(path).stat()
-    key = hashlib.sha1(
-        f"{Path(path).resolve()}|{st.st_size}|{st.st_mtime_ns}|{size}".encode()
-    ).hexdigest()
-    folder = cache_dir() / "thumbs" / key[:2]
-    file = folder / f"{key}.webp"
+    file = thumbnail_file(path, size)
     if file.exists():
         return file.read_bytes()
     data = thumbnail_bytes(path, size)
+    folder = file.parent
     folder.mkdir(parents=True, exist_ok=True)
     tmp = file.with_name(f"{file.name}.{os.getpid()}.{threading.get_ident()}.tmp")
     tmp.write_bytes(data)
     os.replace(tmp, file)
     return data
+
+
+PREVIEW_BASE = 512  # the web app's view size (serve.VIEW_PX): shared-map previews start from it
+PREVIEW_QUALITY = 72
+
+
+def preview_bytes(path: Path, size: int) -> bytes:
+    """A picture for a shared map's close-ups and viewer (longest side `size`), made from the
+    cached 512 px view, so a 3 MB original is not decoded again."""
+    base = cached_thumbnail(path, PREVIEW_BASE)
+    if size >= PREVIEW_BASE:
+        return base
+    with Image.open(io.BytesIO(base)) as im:
+        im.load()
+        im.thumbnail((size, size), Image.Resampling.LANCZOS)
+        buf = io.BytesIO()
+        im.save(buf, format="WEBP", quality=PREVIEW_QUALITY)
+    return buf.getvalue()
 
 
 def thumbnail_data_url(path: Path, size: int = 96, quality: int = 70) -> str:

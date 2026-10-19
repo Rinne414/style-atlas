@@ -55,14 +55,16 @@ function showViewerPicture() {
   VZ = { k: 1, x: 0, y: 0 }; applyViewerZoom(img);
   img.onerror = () => { img.onerror = null; img.src = PTS[i].t; };  // a shared map without the folder
   img.onload = () => fitViewerPicture(img, stage);
-  img.style.width = ""; img.src = PTS[i].f; img.alt = PTS[i].n; img.title = t("viewerFit");
+  img.style.width = ""; img.src = !DATA.live && PTS[i].v ? PTS[i].v : PTS[i].f;  // a shared file: its own preview
+  img.alt = PTS[i].n; img.title = t("viewerFit");
   box.querySelectorAll(".nav").forEach((b) => { b.hidden = !many; });
   box.querySelector(".nav.prev").title = t("viewerPrev"); box.querySelector(".nav.next").title = t("viewerNext");
   box.querySelector(".what b").textContent = PTS[i].n;
+  box.querySelector(".what em").textContent = t("viewerKeys");
   box.querySelector(".what span").textContent = `${clusterName(PTS[i].c)}` +
     (many ? ` · ${viewerWhere(i)}` : "") + (EXCLUDED.has(i) ? ` · ${t("excludedMark")}` : "");
   box.querySelector(".bar").replaceChildren(box.querySelector(".what"), ...viewerButtons(i));
-  if (many) new Image().src = PTS[VIEWER.list[(VIEWER.at + 1) % VIEWER.list.length]].f;  // the next one, ahead
+  if (many && DATA.live) new Image().src = PTS[VIEWER.list[(VIEWER.at + 1) % VIEWER.list.length]].f;  // the next one, ahead
 }
 
 function fitViewerPicture(img, stage) {  // fit the window; a small picture grows, up to VIEWER_UPSCALE

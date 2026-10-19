@@ -32,6 +32,7 @@ function tile(i) {  // the live app sends a sharper picture for these larger til
   img.style.setProperty("--ar", (ASPECT[i] || 0.75).toFixed(3));  // map.js: known from its thumbnail
   img.addEventListener("load", () => { if (img.naturalHeight) img.style.setProperty("--ar", (img.naturalWidth / img.naturalHeight).toFixed(3)); });
   if (DATA.live) { img.onerror = () => { img.onerror = null; img.src = PTS[i].t; }; img.src = `view/${i}`; }
+  else if (PTS[i].v) img.src = PTS[i].v;  // a shared file saved with sharper pictures
   return img;
 }
 

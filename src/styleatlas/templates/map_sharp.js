@@ -18,8 +18,9 @@ scene.add(sharpGroup);
 const SHARP = new Map();  // "i:tier" -> { i, tier, sprite (when ready), used, failed }
 let lastSharp = 0;
 
-function sharpUrl(i, tier) {  // the shared map file has only the originals (from the sender's folder)
+function sharpUrl(i, tier) {  // a shared map file: its previews, else the originals (in the sender's folder)
   if (DATA.live) return tier === "view" ? `view/${i}` : PTS[i].f;
+  if (PTS[i].v) return PTS[i].v;
   // a map file opened from disk: its pictures would taint the canvas, and WebGL refuses those
   return location.protocol === "file:" ? null : PTS[i].f;
 }
@@ -56,7 +57,7 @@ function loadSharp(entry) {
 }
 
 function screenSize(i, depth) {  // the picture's size on screen in device px, as the point shader draws it
-  return pointSize * pages[0].mat.uniforms.uScale.value * depthScale(depth) * (0.55 + 0.45 * alpha[i]);
+  return pointSize * SCALE[i] * pages[0].mat.uniforms.uScale.value * depthScale(depth) * (0.55 + 0.45 * alpha[i]);
 }
 
 function depthOf(v, scratch) {  // distance in front of the camera
@@ -75,7 +76,8 @@ function sharpCandidates() {  // [i, size px, tier] of the pictures drawn well p
     v.project(camera);
     const mx = px / Math.max(1, renderer.domElement.width), my = px / Math.max(1, renderer.domElement.height);
     if (Math.abs(v.x) > 1 + mx || Math.abs(v.y) > 1 + my) continue;  // off screen
-    out.push([i, px, px > SHARP_LARGE_PX ? "large" : px > SHARP_ORIGINAL_PX ? "original" : "view"]);
+    const tier = px > SHARP_LARGE_PX ? "large" : px > SHARP_ORIGINAL_PX ? "original" : "view";
+    out.push([i, px, !DATA.live && PTS[i].v ? "view" : tier]);  // a shared file's preview is its sharpest
   }
   return out.sort((a, b) => b[1] - a[1]).slice(0, SHARP_MAX);
 }

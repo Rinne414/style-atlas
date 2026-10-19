@@ -4,6 +4,7 @@ where to; the plan the page shows before anything is written, and opening what w
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 import sys
 import threading
@@ -47,6 +48,7 @@ MAX_DEST_TEXT = 1000  # longest destination path accepted from the page
 MAX_STRIP_TEXT = 2000
 MAX_REPEATS = 100  # kohya repeats set by hand in the export dialog
 MAX_WORD_TEXT = 200
+DEFAULT_WORD = "lora"  # an automatic trigger word's start when the name is not plain ASCII
 
 
 @dataclass
@@ -221,23 +223,25 @@ class DatasetExport:
         folders = self._plan(layout, name, cap, repeats, groups)
         if groups is None:
             return [ExportJob(name, list(range(len(folders))), folders)]
-        labels, words = self.clustering.labels, words or {}
-        if not separate:
-            chosen = [i for i in range(len(folders)) if int(labels[i]) in groups]
-            mine = [_with_word(folders[i], words.get(int(labels[i])), layout) for i in chosen]
-            _refuse_repeats(chosen, mine, labels, layout)
-            return [ExportJob(name, chosen, mine)]
-        own = group_labels(self.clustering, "plain", self.names_by_group())
+        labels, typed = self.clustering.labels, words or {}
         taken: set[str] = set()
-        for w in words.values():  # typed words first: the automatic ones make way for them
+        for w in typed.values():  # typed words first: the automatic ones make way for them
             if w.casefold() in taken:
                 raise ValueError(_same_word(w))
             taken.add(w.casefold())
+        rest = [g for g in groups if g not in typed]
+        word_of = {
+            **self._default_words(name, rest, taken, not separate and len(groups) == 1),
+            **typed,
+        }
+        if not separate:
+            chosen = [i for i in range(len(folders)) if int(labels[i]) in groups]
+            mine = [_with_word(folders[i], word_of.get(int(labels[i])), layout) for i in chosen]
+            _refuse_repeats(chosen, mine, labels, layout)
+            return [ExportJob(name, chosen, mine)]
         jobs = []
         for g in groups:  # one LoRA each, named <name>_<group>: its folder and trigger word
-            word = words.get(g) or _unique(
-                clean_group_name(f"{name[: MAX_NAME // 2]}_{own[g]}"), taken
-            )
+            word = word_of[g]
             chosen = [i for i in range(len(folders)) if labels[i] == g]
             inner = [
                 f
@@ -249,6 +253,23 @@ class DatasetExport:
             ]
             jobs.append(ExportJob(word, chosen, inner, word if layout == "plain" else None))
         return jobs
+
+    def _default_words(
+        self, name: str, groups: list[int], taken: set[str], alone: bool
+    ) -> dict[int, str]:
+        """The automatic trigger word of each group: <name>_<group name>, in plain ASCII with
+        underscores (a space splits a trigger in two, and SD 1.5 / SDXL text encoders break
+        Chinese into many pieces); a group named in another script gets its number (style_03).
+        One group trained alone is the name itself."""
+        base = _ascii_word(name)[: MAX_NAME // 2] or DEFAULT_WORD
+        if alone and groups:
+            return {groups[0]: _unique(base, taken)}
+        own = group_labels(self.clustering, "plain", self.names_by_group())
+        numbered = group_labels(self.clustering, "plain")
+        return {
+            g: _unique(clean_group_name(f"{base}_{_ascii_word(own[g]) or numbered[g]}"), taken)
+            for g in groups
+        }
 
     def _plan_summary(self, job: ExportJob, layout: str, trigger: bool) -> dict:
         """What writing `job` gives: groups too small to keep, how many images train, the
@@ -394,6 +415,13 @@ class DatasetExport:
             raise ValueError(tr("Nothing was exported yet.", "還沒有匯出過。"))
         show_folder(folder)
         return {"folder": str(folder)}
+
+
+def _ascii_word(text: str) -> str:
+    """`text` as a trigger word: spaces to underscores; "" when it is not plain ASCII."""
+    if not text.isascii():
+        return ""
+    return re.sub(r"\s+", "_", text.strip()).strip("._")
 
 
 def _with_word(folder: str, word: str | None, layout: str) -> str:

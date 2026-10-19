@@ -7,7 +7,7 @@
 // largest first (packBlocks). Nothing overlaps, so every picture is seen whole at every zoom; the wall
 // faces the camera and does not turn. The default for 2 to GROUPS_APART_MAX groups; a gallery of
 // hundreds keeps the similarity layout.
-const GROUPS_APART_MAX = 60;
+const GROUPS_APART_MAX = 500;  // the wall holds hundreds of blocks; beyond, the names crowd it
 const MOSAIC_POINT = pointSize;  // the picture size the wall is laid out for (+ and - only resize)
 const MOSAIC_GAP = 0.06;  // between two neighbouring pictures, a share of one
 const BLOCK_GAP = 1.4;  // between two groups' blocks, in pictures
@@ -19,10 +19,17 @@ const WALL_CLOSEST = 0.7;  // the camera comes no closer than this many pictures
 const NAME_CHARS = 28;  // longer names are cut, or one label would cover the map
 const NAME_FONT = "600 30px system-ui, sans-serif", NAME_PAD = 24, NAME_BOX = 46;  // a name's canvas
 const LAYOUT_PICK_KEY = "styleAtlasLayout";  // the layout picked last (not the measures)
-let layoutMode = ["style", "groups"].includes(stored(LAYOUT_PICK_KEY)) ? stored(LAYOUT_PICK_KEY)
+// the layout picked last; a shared file starts on the one it was saved from
+const LAYOUT_START = !DATA.live && ["style", "groups"].includes(DATA.start_layout) ? DATA.start_layout : stored(LAYOUT_PICK_KEY);
+let layoutMode = ["style", "groups"].includes(LAYOUT_START) ? LAYOUT_START
   : DATA.clusters.length >= 2 && DATA.clusters.length <= GROUPS_APART_MAX ? "groups" : "style";
 let axisLines = null;
 let MOSAIC = null;  // the wall's picture pitch and where each group's name goes (mosaicPositions)
+// the wall's cells: "square" lines pictures up in a grid; "shape" gives each picture its own width
+// (tall ones packed closer, wide ones wider), once the thumbnails have told their shapes
+const CELLS_KEY = "styleAtlasCells";
+let cellShape = stored(CELLS_KEY) === "shape" ? "shape" : "square";
+const SCALE = new Float32Array(N).fill(1);  // each picture's drawn size over a square cell's (map.js: aScale)
 if (layoutMode === "groups") pos.set(mosaicPositions());  // drawn that way from the first frame
 layoutControls();
 
@@ -46,6 +53,11 @@ function lookWords(members) {
     return st.sd[j] > 1e-9 ? (m - st.mean[j]) / st.sd[j] : 0;
   });
   return wordsFor(z) || t("lookAverage");
+}
+
+function lookLine(members) {  // a card's look line: in English it says what it is compared with
+  const words = lookWords(members);
+  return words === t("lookAverage") ? words : t("lookVs") + words;
 }
 
 function wordsFor(z) {  // z in LOOKS order -> "cooler, more line work" (strongest first; "" if none)
@@ -111,31 +123,99 @@ function blockRows(members, cols) {  // top to bottom, then left to right, as th
 
 function mosaicPositions() {
   const pitch = mosaicPitch(), room = LABEL_ROOM * pitch, nameH = room * NAME_FILL;
+  const shaped = cellShape === "shape" && ASPECT.some((a) => a > 0);  // map.js: known once the thumbnails are in
+  const room1 = (i) => (shaped ? cellAdvance(i, pitch) : pitch);
+  for (let i = 0; i < N; i++) SCALE[i] = shaped ? Math.max(1, ASPECT[i] || 1) : 1;
   const members = new Map();
   PTS.forEach((p, i) => (members.get(p.c) || members.set(p.c, []).get(p.c)).push(i));
   const blocks = [...members.entries()].map(([c, m]) => {
-    const cols = Math.ceil(Math.sqrt(m.length * BLOCK_ASPECT));
-    const rows = Math.ceil(m.length / cols);
+    const rows = shaped ? shapeRows(m, pitch) : blockRows(m, Math.ceil(Math.sqrt(m.length * BLOCK_ASPECT)));
+    const widest = Math.max(...rows.map((row) => row.reduce((s, i) => s + room1(i), 0)));
     // the name always fits above its block: a small group's block is as wide as its name
-    const w = Math.max(cols * pitch, nameH * nameAspect(clusterName(c)));
-    return { c, m, cols, x: 0, y: 0, w, h: rows * pitch + room };
+    const w = Math.max(widest, nameH * nameAspect(clusterName(c)));
+    return { c, m, rows, x: 0, y: 0, w, h: rows.length * pitch + room };
   });
   packBlocks(blocks, BLOCK_GAP * pitch);
   const target = new Float32Array(N * 3);  // z stays 0: the wall is flat
   const labels = new Map(), rowsOf = new Map();
   blocks.forEach((b) => {
     const left = b.x - b.w / 2, top = b.y + b.h / 2;
-    const rows = blockRows(b.m, b.cols);
-    rowsOf.set(b.c, rows);  // map_walk.js walks them in this order
-    rows.forEach((row, r) => row.forEach((i, k) => {
-      target[i * 3] = left + (k + 0.5) * pitch;
-      target[i * 3 + 1] = top - room - (r + 0.5) * pitch;
-    }));
+    rowsOf.set(b.c, b.rows);  // map_walk.js walks them in this order
+    b.rows.forEach((row, r) => {
+      let x = left;
+      row.forEach((i) => {
+        const w = room1(i);
+        target[i * 3] = x + w / 2;
+        target[i * 3 + 1] = top - room - (r + 0.5) * pitch;
+        x += w;
+      });
+    });
     labels.set(b.c, { x: left, y: top - room + (room - nameH) / 3, h: nameH });
   });
+  pushScale();  // map.js
   MOSAIC = { pitch, labels, rows: rowsOf };
   return target;
 }
+
+function cellAdvance(i, pitch) {  // the room a picture takes in its row: its framed width and the gap
+  const ar = ASPECT[i] || 1, size = pitch / (1 + MOSAIC_GAP);  // a square cell's drawn size
+  const framed = ar >= 1 ? size * ar : (size * ((CELL - 8) * ar + 8)) / CELL;  // map.js drawThumb: 4 px frame
+  return framed + size * MOSAIC_GAP;
+}
+
+function shapeRows(members, pitch) {  // rows about as wide as a square block's, in the map's top-to-bottom order
+  const total = members.reduce((s, i) => s + cellAdvance(i, pitch), 0);
+  const width = Math.max(Math.sqrt(total * pitch * BLOCK_ASPECT), ...members.map((i) => cellAdvance(i, pitch)));
+  const top = [...members].sort((a, b) => basePos[b * 3 + 1] - basePos[a * 3 + 1]);
+  const rows = [];
+  let row = [], used = 0;
+  top.forEach((i) => {
+    const w = cellAdvance(i, pitch);
+    if (row.length && used + w > width) { rows.push(row); row = []; used = 0; }
+    row.push(i); used += w;
+  });
+  if (row.length) rows.push(row);
+  return rows.map((r) => r.sort((a, b) => basePos[a * 3] - basePos[b * 3]));
+}
+
+function relayWall() {  // the wall again (its cells changed): the home view follows if it was there
+  if (layoutMode !== "groups") return;
+  const home = !AWAY;  // map.js
+  applyLayout(); walkLayoutChanged();  // map_walk.js
+  if (home) flyHome();
+}
+
+function aspectsKnown() { if (cellShape === "shape") relayWall(); }  // map.js: all thumbnails are in
+
+function setCellShape(value) {
+  if (value === cellShape) return;
+  cellShape = value; store(CELLS_KEY, value);
+  cellShapeShown(); relayWall();
+}
+
+function cellShapeShown() {
+  const row = $("cellShape");
+  row.querySelector(".lbl").textContent = t("cellsLbl"); row.title = t("tipCells");
+  row.querySelectorAll("button").forEach((b) => { b.textContent = t(b.dataset.key); b.classList.toggle("on", b.dataset.cells === cellShape); });
+}
+
+// the title, the tools or the bottom bar change height (another language, a wrapped bar): a map
+// still at its home view is framed again in the room they leave
+if (typeof ResizeObserver !== "undefined") {
+  let frameLater = 0;
+  const reframe = () => { if (!AWAY && !flyTo && layoutMode === "groups") flyHome(); };  // map.js
+  const watch = new ResizeObserver(() => { clearTimeout(frameLater); frameLater = setTimeout(reframe, 150); });
+  ["hud", "live"].forEach((id) => { if ($(id)) watch.observe($(id)); });
+}
+
+(() => {  // the View menu's row: square cells or each picture's shape
+  const row = $("cellShape");
+  [["square", "cellsSquare"], ["shape", "cellsShape"]].forEach(([value, key]) => {
+    const b = document.createElement("button"); b.dataset.cells = value; b.dataset.key = key;
+    b.addEventListener("click", () => setCellShape(value));
+    row.append(b);
+  });
+})();
 
 // The blocks packed into rows of a set width, largest first (the order of the side list): each one
 // goes where it ends highest, so small blocks fill the room beside large ones (a skyline packing).
@@ -215,6 +295,7 @@ function targetPositions() {
 
 function applyLayout() {
   if (nameSprites) nameSprites.visible = false;  // redrawn where the groups land
+  if (layoutMode !== "groups") { SCALE.fill(1); pushScale(); }  // map.js: only the wall has shaped cells
   morph = { from: pos.slice(), to: targetPositions(), k: 0 };
   drawAxes();
 }
@@ -534,6 +615,7 @@ function layoutShown() {  // the switch, the axis menus and the line under the t
   const note = document.querySelector("#title .layout-note");
   note.hidden = layoutMode === "measures";
   note.textContent = t(layoutMode === "groups" ? "layoutNoteGroups" : "layoutNoteStyle");
+  cellShapeShown();
 }
 
 document.querySelectorAll("#layoutSeg button").forEach((b) => b.addEventListener("click", () => setLayout(b.dataset.layout)));

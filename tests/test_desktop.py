@@ -1,12 +1,14 @@
-"""The desktop program's parts that need no window: one server showing one folder after another
-under its own address prefix, the start page, the folders opened before, stopping a build that
-is no longer wanted, and opening an image in the computer's own program."""
+"""The desktop program's parts that need no window: one server for several windows, each
+showing one folder after another under its own address prefix, the start page, the folders
+opened before, builds that take turns and stop when no longer wanted, a later start handing over
+to the copy that is open, and opening an image in the computer's own program."""
 
 from __future__ import annotations
 
 import http.client
 import json
 import threading
+import time
 
 import pytest
 from PIL import Image
@@ -52,7 +54,7 @@ def served(tmp_path):
 
 def test_pages_under_the_current_prefix_are_answered_and_others_are_not(served):
     port = served.server_address[1]
-    served.RequestHandlerClass.token = "abc123"
+    served.RequestHandlerClass.sites = {"abc123": served.RequestHandlerClass.app}
     assert _get(port, "/s/abc123/thumb/0")[0] == 200
     assert _get(port, "/s/abc123/")[0] == 200
     assert _get(port, "/thumb/0")[0] == 404  # with a token, only its prefix is answered
@@ -66,9 +68,25 @@ def test_pages_under_the_current_prefix_are_answered_and_others_are_not(served):
 
 def test_without_a_token_the_prefix_is_refused_and_plain_paths_still_work(served):
     port = served.server_address[1]
-    assert served.RequestHandlerClass.token == ""
+    assert served.RequestHandlerClass.sites is None
     assert _get(port, "/s//thumb/0")[0] == 404
     assert _get(port, "/thumb/0")[0] == 200
+
+
+def test_a_second_copy_of_the_program_gets_its_own_port(tmp_path):
+    from styleatlas.desktop import RecentFolders, StartPage
+    from styleatlas.webserver import bind
+
+    # Windows let two servers share a port: the second copy's window was answered by the first
+    # one, which knows no such address (404)
+    page = StartPage(RecentFolders(tmp_path / "recent.json"))
+    first = bind(page, port=20480)
+    second = bind(page, port=first.server_address[1])
+    try:
+        assert second.server_address[1] != first.server_address[1]
+    finally:
+        first.server_close()
+        second.server_close()
 
 
 def test_a_stand_in_page_answers_no_requests(tmp_path):
@@ -135,65 +153,180 @@ def test_a_dropped_file_opens_its_folder_and_bad_paths_are_refused(tmp_path):
             folder_from(bad)
 
 
-def test_a_build_for_a_folder_no_longer_shown_stops_and_is_not_shown(tmp_path):
+def _desk(tmp_path):
     from styleatlas.desktop import Desktop, RecentFolders
+
+    return Desktop([], 0, RecentFolders(tmp_path / "recent.json"))
+
+
+def _path_of(url):
+    return "/s/" + url.split("/s/")[1]
+
+
+def test_a_build_for_a_folder_no_longer_shown_stops_and_is_not_shown(tmp_path):
     from styleatlas.webserver import Preparing
 
-    desk = Desktop([], 0, RecentFolders(tmp_path / "recent.json"))
+    desk = _desk(tmp_path)
     try:
+        pane = desk.add_pane()
         preparing = Preparing("one")
-        desk._switch(preparing)
-        first = desk._generation
+        desk._switch(pane, preparing, tmp_path)
+        first = pane.generation
         reached = []
 
         def build(progress):
             progress("started")
-            desk.show_home()  # another page shown meanwhile
+            desk.show_home(pane)  # the window went back to the start page meanwhile
             progress("embedded 8/100")  # stops here
             reached.append("after")
 
-        desk._build(build, preparing, first, None)
+        desk._build(pane, build, preparing, first)
         assert reached == [] and preparing.lines == ["started"] and preparing.error is None
-        assert desk.handler.app is desk.home_page
+        assert pane.app is desk.home_page and desk.handler.sites[pane.token] is desk.home_page
+        assert not desk._model.locked()  # the next folder may go ahead
     finally:
         desk.stop()
 
 
-def test_each_build_is_handed_the_one_before_it(tmp_path):
-    from styleatlas.desktop import Desktop, RecentFolders
+def test_two_windows_show_two_folders_at_once(tmp_path):
+    from styleatlas.serve import StyleAtlasApp
 
-    desk = Desktop([], 0, RecentFolders(tmp_path / "recent.json"))
+    desk = _desk(tmp_path)
     try:
-        seen, release = [], threading.Event()
+        port = desk.server.server_address[1]
+        one, two = desk.add_pane(), desk.add_pane()
+        app = StyleAtlasApp(_atlas(tmp_path), EncodeOptions(device="cpu"), "pca")
+        first = desk._switch(one, app, tmp_path / "lib")
+        second = desk.show_home(two)
+        assert first != second
+        assert _get(port, _path_of(first) + "thumb/0")[0] == 200
+        assert _get(port, _path_of(second) + "thumb/0")[0] == 404  # a start page has no images
+        assert b"Style Atlas" in _get(port, _path_of(second))[1]
+        assert desk.showing(tmp_path / "lib") is one and desk.showing(tmp_path) is None
+        desk.close(one)  # its window was closed: the folder is let go
+        assert _get(port, _path_of(first) + "thumb/0")[0] == 404
+        assert desk.showing(tmp_path / "lib") is None and desk.panes == [two]
+        assert _get(port, _path_of(second))[0] == 200
+    finally:
+        desk.stop()
 
-        def work(generation, previous):
-            seen.append((generation, previous))
+
+def test_a_folder_opens_in_one_window_and_a_closed_window_stays_closed(tmp_path, monkeypatch):
+    desk = _desk(tmp_path)
+    shown = lambda pane, folder: desk._switch(pane, desk.home_page, folder)  # noqa: E731 - no build
+    monkeypatch.setattr(desk, "open_folder", shown)
+    monkeypatch.setattr(desk, "open_window", lambda folder=None, **_: None)  # no real window
+    try:
+        one, two = desk.add_pane(), desk.add_pane()
+        assert desk.claim(tmp_path, one)[0] is one
+        other, url = desk.claim(tmp_path, two)
+        assert other is one and url is None and two.folder is None
+        assert desk.claim(tmp_path, one)[1]  # the window that has it may open it again
+        desk.show_home(two)
+        old = two.token
+        desk.close(two)
+        assert desk.show_home(two) == "" and two.token == old and old not in desk.handler.sites
+        assert desk.remote({"key": desk.key}) is True
+        desk.close(one)
+        assert desk.remote({"key": desk.key}) is False  # the last window is closing
+    finally:
+        desk.stop()
+
+
+def test_folders_take_turns_on_the_model_and_a_closed_window_stops_its_turn(tmp_path):
+    from styleatlas.webserver import Preparing
+
+    desk = _desk(tmp_path)
+    try:
+        one, two = desk.add_pane(), desk.add_pane()
+        started, release = threading.Event(), threading.Event()
+        order = []
+
+        def slow(progress):
+            order.append("one")
+            started.set()
             release.wait(5)
+            progress("done")
+            return _Ready()
 
-        desk._switch(desk.home_page, tmp_path, work)
-        first_thread = desk._builder
-        desk._switch(desk.home_page, tmp_path, work)
+        def quick(progress):
+            order.append("two")
+            return _Ready()
+
+        waiting = Preparing("two")
+        desk._switch(
+            one,
+            Preparing("one"),
+            tmp_path / "a",
+            lambda g: desk._build(one, slow, Preparing("one"), g),
+        )
+        assert started.wait(5)
+        desk._switch(two, waiting, tmp_path / "b", lambda g: desk._build(two, quick, waiting, g))
+        _wait_for(lambda: waiting.lines)
+        assert order == ["one"]  # the second folder waits for the first
+        assert any(word in waiting.lines[0] for word in ("another window", "另一個視窗"))
         release.set()
-        desk._builder.join(5)
-        assert sorted(g for g, _ in seen) == [1, 2]
-        assert dict(seen)[2] is first_thread and dict(seen)[1] is None
-        assert desk.folder == tmp_path
+        _wait_for(lambda: isinstance(two.app, _Ready))
+        assert order == ["one", "two"] and isinstance(one.app, _Ready)
+
+        three = desk.add_pane()
+        hold = threading.Event()
+        desk._switch(
+            three,
+            Preparing("three"),
+            tmp_path / "c",
+            lambda g: desk._build(three, lambda p: hold.wait(5) and p("x"), Preparing("three"), g),
+        )
+        _wait_for(desk._model.locked)
+        desk.close(three)  # closed while preparing
+        hold.set()
+        _wait_for(lambda: not desk._model.locked())
+        assert three.app is None
     finally:
         desk.stop()
 
 
-def test_each_switch_gets_a_new_address(tmp_path):
-    from styleatlas.desktop import Desktop, RecentFolders
+class _Ready:
+    def prewarm(self):
+        return None
 
-    desk = Desktop([], 0, RecentFolders(tmp_path / "recent.json"))
+
+def _wait_for(cond, seconds=5):
+    end = time.monotonic() + seconds
+    while time.monotonic() < end:
+        if cond():
+            return
+        time.sleep(0.02)
+    raise AssertionError("timed out")
+
+
+def test_a_later_start_hands_over_to_the_open_copy(tmp_path, monkeypatch):
+    from styleatlas import desktop
+
+    monkeypatch.setenv("STYLE_ATLAS_CACHE", str(tmp_path / "cache"))
+    assert desktop._hand_over(None) is False  # nothing open
+    desk = _desk(tmp_path)
+    desk.add_pane()  # a window is open
+    asked = []
+    monkeypatch.setattr(desk, "open_window", lambda folder=None, **_: asked.append(folder))
+    marker = tmp_path / "cache" / desktop.OPEN_FILE
     try:
-        first = desk.url
-        second = desk.show_home()
-        assert first != second and second.startswith("http://127.0.0.1:") and "/s/" in second
-        assert _get(desk.server.server_address[1], "/s/" + second.split("/s/")[1])[0] == 200
-        assert _get(desk.server.server_address[1], "/s/" + first.split("/s/")[1])[0] == 404
+        desk.announce(marker)
+        assert desktop._hand_over(None) is True  # answered before the window is made
+        _wait_for(lambda: asked == [None])
+        assert desktop._hand_over(str(tmp_path)) is True
+        _wait_for(lambda: len(asked) == 2)
+        assert asked[-1] == tmp_path.resolve()
+        info = json.loads(marker.read_text("utf-8"))
+        marker.write_text(json.dumps({**info, "key": "guessed"}), "utf-8")
+        assert desktop._hand_over(None) is False and len(asked) == 2  # a wrong key opens nothing
+        marker.write_text(json.dumps(info), "utf-8")
+        desk.retire(marker)
+        assert not marker.exists()
     finally:
         desk.stop()
+    marker.write_text(json.dumps(info), "utf-8")  # left by a copy that ended without tidying up
+    assert desktop._hand_over(None) is False
 
 
 def test_open_file_takes_an_index_of_this_folder_only(tmp_path, monkeypatch):

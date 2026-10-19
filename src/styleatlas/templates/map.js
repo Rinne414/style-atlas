@@ -75,14 +75,14 @@ const POINT_SCALE = 0.9;  // a picture's drawn size: its size (world units) x th
 function depthScale(depth) { return 1 / (SIZE_REF.value * Math.pow(Math.max(depth, 1e-3) / SIZE_REF.value, SIZE_GROW.value)); }
 
 const VERT = `
-  attribute float aAlpha; attribute vec2 aCell; attribute vec3 aColor;
+  attribute float aAlpha; attribute vec2 aCell; attribute vec3 aColor; attribute float aScale;
   uniform float uSize; uniform float uScale; uniform float uRef; uniform float uGrow;
   varying float vAlpha; varying vec2 vCell; varying vec3 vColor;
   void main() {
     vAlpha = aAlpha; vCell = aCell; vColor = aColor;
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
     float depth = max(-mv.z, 0.001);  // as depthScale() in the page script
-    gl_PointSize = uSize * uScale / (uRef * pow(depth / uRef, uGrow)) * (0.55 + 0.45 * aAlpha);
+    gl_PointSize = uSize * uScale * aScale / (uRef * pow(depth / uRef, uGrow)) * (0.55 + 0.45 * aAlpha);
     gl_Position = projectionMatrix * mv;
   }`;
 const FRAG = `
@@ -151,6 +151,7 @@ async function fillPages() {
     pg.mat.uniforms.uAtlas.value.needsUpdate = true;
   }
   $("loading").style.display = "none";
+  aspectsKnown();  // map_layout.js: the wall can take each picture's shape now
 }
 
 function drawDot(g, j, col) {
@@ -185,6 +186,7 @@ function makePage(start, count, cv) {
   geo.setAttribute("aCell", new THREE.BufferAttribute(cell, 2));
   geo.setAttribute("aColor", new THREE.BufferAttribute(color, 3));
   geo.setAttribute("aAlpha", new THREE.BufferAttribute(alpha.slice(start, start + count), 1));
+  geo.setAttribute("aScale", new THREE.BufferAttribute(SCALE.slice(start, start + count), 1));  // map_layout.js
   const mat = new THREE.ShaderMaterial({
     vertexShader: VERT, fragmentShader: FRAG, transparent: true, depthWrite: true,
     uniforms: { uAtlas: { value: tex }, uCell: { value: 1 / PER_ROW }, uSize: { value: pointSize },
@@ -193,6 +195,14 @@ function makePage(start, count, cv) {
   const obj = new THREE.Points(geo, mat);
   scene.add(obj);
   return { start, count, obj, mat, geo };
+}
+
+function pushScale() {  // map_layout.js: the wall's shaped cells
+  for (const pg of pages) {
+    const a = pg.geo.getAttribute("aScale");
+    a.array.set(SCALE.subarray(pg.start, pg.start + pg.count));
+    a.needsUpdate = true;
+  }
 }
 
 function pushAlpha() {
@@ -218,6 +228,13 @@ let focusCluster = null, selected = null, filter = "", searchHits = null;
 let folderFilter = null;  // a sub-folder picked from a search's closest folders
 let tagOnly = null;  // {tag, hits}: the images a #tag filter found; searches stay inside them
 let flyTo = null;
+
+function filterOn() { return searchHits !== null || filter !== "" || folderFilter !== null; }
+function shownByFilter(i) {  // in what a filter, a sub-folder or a search shows (not a picked picture's neighbours)
+  const q = filter.toLowerCase();
+  return (!q || PTS[i].n.toLowerCase().includes(q)) && (folderFilter === null || PTS[i].n.startsWith(folderFilter + "/"))
+    && (!searchHits || searchHits.has(i));
+}
 
 function recolor() {  // returns how many images are lit
   const q = filter.toLowerCase();
@@ -282,7 +299,7 @@ function pick(ev) {
     const sx = (ray.x + 1) / 2 * r.width, sy = (1 - ray.y) / 2 * r.height;
     const d = Math.hypot(sx - mx, sy - my);
     const depth = camera.position.distanceTo(new THREE.Vector3(pos[i*3], pos[i*3+1], pos[i*3+2]));
-    const reach = Math.max(radius, pointSize * r.height * POINT_SCALE / 2 * depthScale(depth));
+    const reach = Math.max(radius, pointSize * SCALE[i] * r.height * POINT_SCALE / 2 * depthScale(depth));
     if (d < reach && depth + d * 0.002 < bestD) { bestD = depth + d * 0.002; best = i; }
   }
   return best;
@@ -319,6 +336,7 @@ canvas.addEventListener("pointermove", (e) => {
 const PEEK_MARGIN = 16;  // px from the map's edges
 const PEEK_WIDTH = 0.46;  // of the map's width, at most
 const PEEK_REST_MS = 140;  // the cursor rests this long before the original is read
+const PEEK_UPSCALE = 2;  // a shared map file's picture is shown at most this much enlarged (more blurs)
 let tipAt = -1, tipXY = [0, 0], tipSide = 1, peekTimer = 0, tipTier = -1;  // tier: 0 thumbnail, 1 view, 2 original
 
 function hideTip() { $("tip").style.display = "none"; tipAt = -1; clearTimeout(peekTimer); }
@@ -337,7 +355,8 @@ function fitTip(tip, img) {  // the picture as large as the room allows, its own
   const r = canvas.getBoundingClientRect(), cap = tip.querySelector(".cap"), keys = tip.querySelector(".keys");
   const lines = (cap.offsetHeight || 24) + keys.offsetHeight;  // the keys line shows while walking (map_walk.js)
   const roomW = r.width * PEEK_WIDTH - 16, roomH = r.height - 2 * PEEK_MARGIN - 16 - lines;
-  const w = img.naturalWidth || 1, h = img.naturalHeight || 1, k = Math.min(roomW / w, roomH / h);
+  const most = img.dataset.final ? PEEK_UPSCALE : Infinity;  // a shared file's own picture: not blown up
+  const w = img.naturalWidth || 1, h = img.naturalHeight || 1, k = Math.min(roomW / w, roomH / h, most);
   img.style.width = `${Math.max(1, Math.round(w * k))}px`; img.style.height = `${Math.max(1, Math.round(h * k))}px`;
   cap.style.maxWidth = keys.style.maxWidth = img.style.width;  // a long file name wraps under the picture
 }
@@ -345,6 +364,7 @@ function fitTip(tip, img) {  // the picture as large as the room allows, its own
 function swapTipPicture(tip, i, url, tier, then = null) {  // shown once it is decoded: no blank between
   const next = new Image();
   next.alt = ""; next.src = url;
+  if (tier === 1 && !DATA.live) next.dataset.final = "1";  // the sharpest a shared file has
   next.decode().then(() => {
     if (tipAt !== i || tier < tipTier) return;  // a sharper one is in already
     tipTier = tier;
@@ -361,7 +381,10 @@ function showTipPicture(tip, i) {
   tip.querySelector("img").style.visibility = "hidden";  // not the last picture's while this one loads
   tipTier = -1;
   swapTipPicture(tip, i, PTS[i].t, 0);
-  if (!DATA.live) return;  // the shared map file has its thumbnails only
+  if (!DATA.live) {  // a shared map file: its own sharper picture, if it was saved with them
+    if (PTS[i].v) swapTipPicture(tip, i, PTS[i].v, 1);
+    return;
+  }
   swapTipPicture(tip, i, `view/${i}`, 1, () => {
     peekTimer = setTimeout(() => { if (tipAt === i) swapTipPicture(tip, i, PTS[i].f, 2); }, PEEK_REST_MS);
   });
@@ -532,7 +555,7 @@ function clusterCard(c) {  // the side list: name, size and spread in words, one
   if (lora && c.cohesion !== undefined) mt.title = t("cohesionTip");
   txt.append(nm, mt);
   // which artists, or else the look (one group per folder: its name says the artist already)
-  const what = (DATA.method === "folders" ? "" : folderMix(c.members)) || lookWords(c.members);
+  const what = (DATA.method === "folders" ? "" : folderMix(c.members)) || lookLine(c.members);
   if (what) { const w = document.createElement("div"); w.className = "meta"; w.textContent = what; txt.append(w); }
   // old to new, for one artist's periods (across several artists' folders the order says little)
   const strip = lora && folderNames().length < 2 ? timeStrip(c.members, colorOf(c.id)) : null;
@@ -737,15 +760,19 @@ function checkSection() {
   const what = document.createElement("div"); what.className = "kv"; what.textContent = t("checkFor");
   box.append(h, what, side, run);
   if (!CHECK) return box;
+  const found = CHECK_KEYS.filter((k) => (CHECK.issues[k] || []).length);
+  box.append(checkVerdict(found));
   if (CHECK.consistency) box.append(consistencyLine(CHECK.consistency));
-  if (CHECK.buckets && Object.keys(CHECK.buckets).length) box.append(bucketLine(CHECK.buckets));
+  const details = document.createElement("details"); details.className = "gv-numbers";  // trainer talk, folded
+  const label = document.createElement("summary"); label.textContent = t("checkDetails"); details.append(label);
+  if (CHECK.buckets && Object.keys(CHECK.buckets).length) details.append(bucketLine(CHECK.buckets));
   if (CHECK.frequent_tags && CHECK.frequent_tags.length) {  // content a style LoRA learns along
     const common = document.createElement("div"); common.className = "kv"; common.title = t("frequentTip");
     const list = CHECK.frequent_tags.map(([tag, share]) => `${tag} ${Math.round(share * 100)}%`).join(lang === "zh" ? "、" : ", ");
     common.textContent = t("frequentLine").replace("{t}", list);
-    box.append(common);
+    details.append(common);
   }
-  const found = CHECK_KEYS.filter((k) => (CHECK.issues[k] || []).length);
+  if (details.children.length > 1) box.append(details);
   if (found.length) {  // one line first: how much there is to look at
     const flagged = new Set(found.flatMap((k) => CHECK.issues[k]));
     const sum = document.createElement("div"); sum.className = "kv";
@@ -757,6 +784,18 @@ function checkSection() {
   }
   found.forEach((k) => box.append(...issueBlock(k, CHECK.issues[k])));
   return box;
+}
+
+// the check's answer in one line: ready, or how many pictures to fix first (problems that blur or
+// spoil training), the small things being listed below either way
+const CHECK_SERIOUS = ["unreadable", "truncated", "smaller_than_min_side", "soft_or_enlarged", "low_jpeg_quality",
+  "exif_rotated", "animated", "watermark_or_signature"];
+function checkVerdict(found) {
+  const serious = found.filter((k) => CHECK_SERIOUS.includes(k));
+  const line = document.createElement("div"); line.className = "kv verdict-line";
+  const n = new Set(serious.flatMap((k) => CHECK.issues[k])).size;
+  line.textContent = serious.length ? t("checkFixFirst").replace("{n}", n) : t(found.length ? "checkMinorOnly" : "checkReady");
+  return line;
 }
 
 function consistencyLine(c) {  // how spread the folder's style is, next to single artists
@@ -991,7 +1030,7 @@ function showHelp(on) {
   const box = $("help");
   box.hidden = !on;
   if (!on) return;
-  const rows = [["leftDrag", "keyPan"], ["rightDrag", layoutMode === "groups" ? "keyPan" : "keyRotate"], ["wheel", "keyZoom"],
+  const rows = [["leftDrag", "keyPan"], ["rightDrag", layoutMode === "groups" ? "keyPanWall" : "keyRotate"], ["wheel", "keyZoom"],
     ["← →", "keyWalk"], ...(layoutMode === "groups" ? [["↑ ↓", "keyWalkRow"]] : []),
     ["dblPic", "keyViewer"], ["spaceKey", "keyViewer"], ["dblEmpty", "keyZoomHere"], ["sizeKeys", "keySize"], ["uiKeys", "keyUi"], ["Esc", "keyHome"], ["P", "keySnap"],
     ...(DATA.live ? [["shiftKeys", "keyMark"], ["L / D", "keyVote"], ["X", "keyExclude"], ["Ctrl + Z", "keyUndo"]] : [])];
@@ -1001,7 +1040,7 @@ function showHelp(on) {
   const start = document.createElement("h4"); start.textContent = t("quickStart");
   const steps = document.createElement("ol"); steps.className = "quick";
   const last = DATA.live ? ["quick4"] : [];
-  ["quick1", "quick2", "quick3", ...last].forEach((key) => {
+  ["quick1", "quickWalk", "quick2", "quick3", ...last].forEach((key) => {
     const li = document.createElement("li"); li.textContent = t(key); steps.append(li);
   });
   const about = ["helpWhat1", "helpWhat2", "helpWhat3", ...(DATA.live ? ["helpNotes"] : [])].map((key) => {

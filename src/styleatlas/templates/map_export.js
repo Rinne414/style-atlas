@@ -59,7 +59,8 @@ function wordField(g) {  // the group's trigger word (and folder name): empty = 
   const wrap = document.createElement("label"); wrap.className = "exp-word";
   const cap = document.createElement("span"); cap.textContent = t("lblWord");
   const field = document.createElement("input"); field.type = "text"; field.spellcheck = false; field.maxLength = 120;
-  field.value = EXP.words[g.id] || ""; field.title = t("tipWord");
+  field.value = EXP.words[g.id] || ""; field.title = t("tipWord"); field.name = `word-${g.id}`;
+  field.setAttribute("aria-label", `${t("lblWord")} · ${clusterName(g.id)}`);
   field.addEventListener("input", () => {
     if (field.value.trim()) EXP.words[g.id] = field.value; else delete EXP.words[g.id];
     saveExportOptions(); replan();
@@ -108,9 +109,9 @@ function rowsShown() {  // each row: what of it trains and where it goes (from t
       return;
     }
     if (!r) { meta.textContent = `${g.size} ${t("size")}`; return; }
-    const where = [r.dataset, r.folder].filter(Boolean).join("\\");
+    const where = [r.dataset, r.folder].filter(Boolean).join("\\");  // shown when it says more than the word beside it
     meta.textContent = t("expRowIn").replace("{k}", r.training) + (r.aside ? t("expRowAside").replace("{r}", r.aside) : "")
-      + ` → ${where}`;
+      + (where && where !== r.word ? ` → ${where}` : "");
   });
   const n = exportGroups().length;
   $("expPicked").textContent = t("expPicked").replace("{g}", EXP.ticked.size).replace("{n}", n);
@@ -165,7 +166,7 @@ function planShown(r) {  // the summary beside the button: the sets, where, and 
   head.textContent = EXP.ticked.size ? t("expSumSets").replace("{s}", sets.length).replace("{k}", r.training) : t("expNoneTicked");
   box.append(head);
   if (sets.length) {
-    const shown = sets.slice(0, 6).map((d) => `${d.name}（${d.training}）`);
+    const shown = sets.slice(0, 6).map((d) => d.name + paren(d.training));  // map.js
     const names = document.createElement("div"); names.className = "exp-sets";
     names.textContent = listJoin(sets.length > 6 ? [...shown, "…"] : shown);
     const where = document.createElement("div"); where.className = "kv"; where.textContent = t("expWhere").replace("{f}", r.dest);

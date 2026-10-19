@@ -35,7 +35,7 @@ style-atlas 會看每張圖「怎麼畫」（不是畫了什麼），自動把�
 
 1. 安裝 [Python 3.10 以上](https://www.python.org/downloads/)（3.10～3.14 都有自動測試），安裝時勾選「Add python.exe to PATH」。也可以在命令提示字元執行 `winget install -e --id Python.Python.3.12`。
 2. 下載本專案：登入 GitHub 後，在專案頁面按 **Code → Download ZIP** 再解壓縮（本專案目前是私人專案，要先請作者給你存取權），會用 git 的話也可以 `git clone`。然後雙擊 `scripts\setup.bat`。它會在專案資料夾裡建立 `.venv`，偵測到 NVIDIA 顯卡就裝 CUDA 版的 torch（下載約 2.5 GB），沒有就裝 CPU 版（約 200 MB），再安裝本工具。
-3. 雙擊桌面上的 **Style Atlas**（`setup.bat` 最後會建立這個捷徑），在程式裡按「開啟圖片資料夾…」，或直接把資料夾拖進視窗。程式會先顯示準備進度（第一次會先下載 2.4 GB 的模型，接著計算每張圖的畫風），算好後自動變成地圖。開過的資料夾會列在開始畫面，下次點一下就好；地圖左上方的「換資料夾…」回到開始畫面。
+3. 雙擊桌面上的 **Style Atlas**（`setup.bat` 最後會建立這個捷徑），在程式裡按「開啟圖片資料夾…」，或直接把資料夾拖進視窗。程式會先顯示準備進度（第一次會先下載 2.4 GB 的模型，接著計算每張圖的畫風），算好後自動變成地圖。開過的資料夾會列在開始畫面，下次點一下就好。地圖左上角的「← 開始畫面」關掉這個資料夾、回到開始畫面；「新視窗」在另一個視窗開別的資料夾，兩個可以同時開著。程式開著時再按一次桌面捷徑，也會開一個新視窗。關掉視窗就是關掉那個資料夾，最後一個視窗關掉時程式就結束。
    想用瀏覽器開也可以：照舊把圖片資料夾拖到 `scripts\StyleAtlas.bat` 上（或雙擊它再選資料夾）。
 
 Windows 跳出「Windows 已保護您的電腦」時，按「其他資訊」→「仍要執行」。
@@ -418,8 +418,11 @@ artwork. Run it to get a folder you can try the tool on.)
    torch, about 200 MB), then installs style-atlas.
 3. Double-click **Style Atlas** on the desktop (`setup.bat` makes the shortcut), then press
    "Open an image folder…" or drop a folder onto the window. Folders opened before are listed
-   on the start page; "Open another folder…" on the map goes back to it. To use the browser
-   instead, drag an image folder onto `scripts\StyleAtlas.bat` as before.
+   on the start page. "← Start page" at the top left of the map closes the folder and goes back
+   to it; "New window" opens another folder in a second window, and so does the desktop shortcut
+   while the program is open. Closing a window closes its folder; closing the last one ends the
+   program. To use the browser instead, drag an image folder onto `scripts\StyleAtlas.bat` as
+   before.
 
 **Updating**: extract the new ZIP over the old folder (keep its `.venv`) and run
 `scripts\setup.bat` again; torch is already installed, so it takes seconds. With git: `git pull`,
@@ -629,4 +632,4 @@ whitening is refit with `scripts/fit_whitening.py`.
 
 - CSD: Somepalli et al. 2024. Code under MIT, weights under CC-BY-4.0, downloaded at runtime.
 - three.js r160 (MIT), vendored in `src/styleatlas/templates/vendor/`.
-- This repository is private; its license is undecided.
+- style-atlas itself: MIT, see [LICENSE](LICENSE).

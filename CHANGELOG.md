@@ -44,6 +44,68 @@ and pictures hard to look at in the 3D map.
   4 ms while zooming.
 
 
+Before the release (2026-10-19):
+
+- **A shared map file can carry sharp pictures.** "Save shareable map" first asks how sharp:
+  thumbnails only, clear (320 px) or sharpest (512 px), each with the file's size worked out
+  beforehand from the cached pictures (3,800 images: 7.9 / 60.1 / 112.3 MB estimated, 61.4 MB
+  written at 320 px). The recipient's hover preview, close-ups, viewer and group view use these
+  pictures (enlarged at most 2x) instead of links into the sender's folder, which a recipient
+  does not have. `map --pictures 320` does the same from the command line. The previews are made
+  from the cached 512 px views (about 18 ms each, four at a time; 320 px is half the bytes of
+  512 px on 120 of the owner's pictures).
+- **Wall cells: square or the picture's shape** (View menu). The picture's shape packs tall
+  pictures closer and gives wide ones their width; it takes over once the thumbnails are in.
+- English pass: one Chinese bracket left in the export summary; the help described islands; the
+  quick start now names the arrow keys. The export rows show the folder only when it differs
+  from the trigger word.
+- Light colours: the export's done and error lines (and the done steps) had dark-theme greens and
+  reds; they follow the theme now.
+
+From three Sonnet user tests on the new screens (a library of 3,800 pictures: 7.5/10; a LoRA trainer
+with a captioned 23-picture set: 8/10; an English newcomer on a 1366x768 laptop: 7/10):
+
+- Automatic trigger words are plain ASCII: <name>_<group name> with spaces as underscores, and a
+  group named in another script gets its number (`artistX_style_03`, not `artistX_城市風景`); a
+  name in another script starts from `lora`. Typed words stay as typed.
+- The export button and summary stay in view while the choices scroll (it went off the bottom at
+  1080p with kohya and More options open).
+- The keyboard walk is narrowed only by a filter or a search: a picture clicked on the map dimmed
+  the rest and the walk went round its 11 neighbours.
+- The check opens with a plain answer ("ready to train", or how many pictures to fix first); the
+  bucket and frequent-tag lines are folded under "Details for the trainer".
+- A shared map opens on the layout it was saved from, and the wall is the default up to 500
+  groups (it was 60, so a 108-artist library opened in the 3D layout); the saved message gives
+  the file's whole path.
+- A map still at its home view is framed again when the title or the bottom bar change height
+  (another language, a wrapped bar) instead of hiding the bottom rows.
+- After "Find similar pictures" the status line says only those are lit and how to see all again;
+  the viewer names its keys; the "going on from where you stopped" note clears itself.
+- English: search box, "see Duplicates in the LoRA dataset tab", "max per group", "remove tags",
+  "unify tag spelling", no "set(s)", the per-group limit named in the set-aside notes (the same
+  words before and after an export), the share panel's title, the quick start, right drag on the
+  wall, and look words that say they compare with the folder. The LoRA steps wrap instead of being
+  cut.
+
+From the owner (2026-10-19): the desktop shortcut opened a window that only said "Error response,
+404".
+
+- A second start of the desktop program, while one was open but minimised, took the same port
+  (Windows lets a socket share a port taken with SO_REUSEADDR, which Python's HTTP server sets),
+  and its window was answered by the first copy. Ports are exclusive now, so a second server moves
+  to the next one, `serve` included.
+- Several folders at once, one per window, in one program (the model is loaded once). "New
+  window" at the top left of the map opens a second window on the start page, and so does starting
+  the program again while it is open: the new start hands its window over to the open copy and
+  quits in about 0.3 s (the desktop module no longer imports torch before it knows it is needed;
+  it took 5 s). A folder is open in one window at a time: opening it again brings its window
+  forward (two copies would each keep their own group edits). Folders take turns on the model; one
+  waiting says so. Window titles start with the folder's name.
+- "← Start page" at the top left of the map, above the folder's name, closes the folder and goes
+  back to the start page. It replaces "Open another folder…" among the eight buttons at the top
+  right, where it was easy to miss. Closing a window closes its folder; closing the last one ends
+  the program.
+
 From the owner's third review (2026-10-19): the mouse is no way to go through thousands of
 pictures without skipping some; "Whole map" seemed to do nothing; trigger words could not be set.
 

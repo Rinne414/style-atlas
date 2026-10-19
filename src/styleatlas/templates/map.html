@@ -24,9 +24,8 @@
   <main id="stage">
     <canvas id="gl"></canvas>
     <div id="hud">
-      <div id="title"><h1></h1><div class="sub"></div><div class="layout-note" hidden></div><button id="filterChip" hidden></button></div>
+      <div id="title"><div id="deskNav" hidden><button id="toStart"></button><button id="newWindow"></button></div><h1></h1><div class="sub"></div><div class="layout-note" hidden></div><button id="filterChip" hidden></button></div>
       <div class="tools">
-        <button id="openOther" hidden></button>
         <input id="find" type="search">
         <div id="layoutSeg" class="seg" role="group"><button data-layout="groups"></button><button data-layout="style"></button></div>
         <span id="axes" hidden><select id="axX"></select><select id="axY"></select><select id="axZ"></select></span>
@@ -41,6 +40,7 @@
             <button id="savePng" role="menuitem"></button>
             <button id="rec" role="menuitem"></button>
             <hr>
+            <div class="menu-row" id="cellShape"><span class="lbl"></span></div>
             <div class="menu-row" id="uiSize"><span class="lbl"></span></div>
             <button id="theme" role="menuitem"></button>
             <button id="lang" role="menuitem"></button>
@@ -64,6 +64,13 @@
       <button id="artistMap" hidden></button>
       <button id="moreOpen"></button>
       <span id="status"></span>
+      <div id="sharePanel" class="panel" hidden>
+        <b id="shareTitle"></b>
+        <label class="chip"><input type="radio" name="share" value="0"> <span></span></label>
+        <label class="chip"><input type="radio" name="share" value="320" checked> <span></span></label>
+        <label class="chip"><input type="radio" name="share" value="512"> <span></span></label>
+        <button id="shareSave" class="primary"></button>
+      </div>
       <div id="morePanel" class="panel" hidden>
         <label id="neutralWrap" class="chip"><input id="neutral" type="checkbox"> <span></span></label>
         <input id="refPath" type="text">
@@ -86,6 +93,7 @@
             <div id="expList"></div>
           </section>
           <section class="exp-side">
+            <div class="exp-options">
             <div class="seg" id="expHow"><button data-how="separate"></button><button data-how="one"></button></div>
             <p id="expHowNote" class="sub"></p>
             <div class="form">
@@ -104,8 +112,11 @@
               </div>
               <label id="expSpellWrap" class="chip"><input id="expSpell" type="checkbox"> <span></span></label>
             </details>
-            <div id="expPlan"></div>
-            <div class="actions"><button id="export" class="primary"></button></div>
+            </div>
+            <div class="exp-foot">
+              <div id="expPlan"></div>
+              <div class="actions"><button id="export" class="primary"></button></div>
+            </div>
           </section>
         </div>
       </div>
@@ -137,7 +148,7 @@
 </div>
 <div id="viewer" role="dialog" aria-modal="true" hidden>
   <div class="stage"><button class="nav prev">‹</button><img alt=""><button class="nav next">›</button></div>
-  <div class="bar"><div class="what"><b></b><span></span></div></div>
+  <div class="bar"><div class="what"><b></b><span></span><em></em></div></div>
 </div>
 <script id="atlas-data" type="application/json">/*__STYLE_ATLAS_DATA__*/null</script>
 <!-- three.js r160 (MIT, see LICENSE notice inside) is inlined so the map works offline -->

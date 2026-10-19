@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import os
 import threading
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, replace
 from importlib import resources
 from pathlib import Path
@@ -17,7 +19,7 @@ from styleatlas.atlas import LOAD_ERRORS, Atlas
 from styleatlas.cluster import Clustering, outlier_scores
 from styleatlas.dataset import distinctive_tags, tag_summary
 from styleatlas.duplicates import near_duplicate_groups
-from styleatlas.images import thumbnail_data_url, usable_times
+from styleatlas.images import preview_bytes, thumbnail_data_url, usable_times
 from styleatlas.lang import tr
 from styleatlas.look import LOOK_NAMES
 from styleatlas.metrics import centroid
@@ -211,9 +213,12 @@ def map_payload(
     time_source: str = "none",
     reference: Atlas | None = None,
     layout: Layout | None = None,
+    preview_px: int = 0,
 ) -> dict:
     """Payload for a standalone file: thumbnails embedded, links relative to the HTML file.
-    Pass `layout` to reuse one already computed (the web app's)."""
+    Pass `layout` to reuse one already computed (the web app's). With `preview_px`, each point
+    also carries a picture that size ("v"), for the recipient's close-ups and viewer: the links
+    lead into the sender's folder, which the recipient does not have."""
     px = thumb_px or default_thumb_px(len(atlas))
     layout = layout or compute_layout(atlas, projection, progress, reference)
     out_dir = out_path.resolve().parent
@@ -230,7 +235,30 @@ def map_payload(
         return _rel_link(atlas.paths[i], out_dir)
 
     tags = distinctive_tags(tag_summary(atlas.paths, clustering))
-    return build_payload(atlas, clustering, layout, thumb_of, link_of, title, time_source, tags)
+    payload = build_payload(atlas, clustering, layout, thumb_of, link_of, title, time_source, tags)
+    if preview_px:
+        for i, data in enumerate(_previews(atlas.paths, preview_px)):
+            if data:
+                payload["points"][i]["v"] = (
+                    "data:image/webp;base64," + base64.b64encode(data).decode()
+                )
+    return payload
+
+
+PREVIEW_WORKERS = 4  # previews made at once (about 18 ms each from the cached 512 px views)
+
+
+def _previews(paths: list[Path], px: int) -> list[bytes]:
+    """Each picture's preview, b"" for one that cannot be read."""
+
+    def one(path: Path) -> bytes:
+        try:
+            return preview_bytes(path, px)
+        except LOAD_ERRORS:
+            return b""
+
+    with ThreadPoolExecutor(max_workers=PREVIEW_WORKERS) as pool:
+        return list(pool.map(one, paths))
 
 
 def _vendor(name: str) -> str:
@@ -282,13 +310,23 @@ def write_map(
     time_source: str = "none",
     reference: Atlas | None = None,
     families: bool = False,
+    preview_px: int = 0,
 ) -> Path:
     """With `families`, the points are sub-folders (folder_atlas) and the groups families of
     them: the page says so on the cards."""
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     payload = map_payload(
-        atlas, clustering, out_path, projection, thumb_px, title, progress, time_source, reference
+        atlas,
+        clustering,
+        out_path,
+        projection,
+        thumb_px,
+        title,
+        progress,
+        time_source,
+        reference,
+        preview_px=preview_px,
     )
     if families:
         payload["families"] = True

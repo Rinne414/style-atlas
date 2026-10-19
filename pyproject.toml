@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling>=1.24"]
+requires = ["hatchling>=1.27"]  # 1.27: the SPDX licence fields below
 build-backend = "hatchling.build"
 
 [project]
@@ -9,6 +9,8 @@ description = "Measure, cluster, search and map illustration art styles (CSD sty
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [{ name = "Rinne414" }]
+license = "MIT"
+license-files = ["LICENSE"]
 dependencies = [
   "numpy>=1.26",
   "pillow>=10.3",  # CVE-2024-28219 (buffer overflow) fixed in 10.3; images here are untrusted

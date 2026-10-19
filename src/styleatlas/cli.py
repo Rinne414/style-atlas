@@ -104,6 +104,7 @@ def cmd_map(a: argparse.Namespace) -> int:
         time_source=a.time,
         reference=_reference(a),
         families=getattr(a, "families", False),
+        preview_px=a.pictures,
     )
     log(
         tr(
@@ -695,6 +696,17 @@ def _add_folder_commands(add: Adder) -> None:
     )
     p.add_argument(
         "--title", help=tr("page title (default: the folder name)", "頁面標題（預設：資料夾名稱）")
+    )
+    p.add_argument(
+        "--pictures",
+        type=int,
+        choices=[0, 320, 512],
+        default=0,
+        help=tr(
+            "also put each picture in the file at this size, for sharp close-ups and the viewer "
+            "on another computer (0: thumbnails only, the smallest file)",
+            "每張圖另外以這個大小放進檔案，在別的電腦上拉近和看大圖也清楚（0：只有縮圖，檔案最小）",
+        ),
     )
     p.add_argument(
         "--by-folder",

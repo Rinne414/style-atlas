@@ -218,6 +218,7 @@ async function showSimilar(group) {
     if (group.items) pane.append(...group.items.map((i) => { const q = tile(i); q.className = "query"; return q; }));  // map_group.js: sharp
     pane.append(h, copyButton(hits), g, legend);
     showPane("selected");
+    setStatus(t("similarShown").replace("{n}", hits.length));  // the map shows only these now: the way back
   } catch (e) { setStatus(String(e.message || e)); }
 }
 
@@ -595,11 +596,16 @@ function setupReference() {
   }
 }
 
-function setupPanels() {  // the advanced switches open above the bar (the export: map_export.js)
-  $("moreOpen").addEventListener("click", () => {
-    const open = $("morePanel").hidden;
-    closeExport();
-    $("morePanel").hidden = !open; $("moreOpen").classList.toggle("on", open);
+function setupPanels() {  // the advanced switches and the shared map's choices open above the bar
+  const pairs = [["moreOpen", "morePanel"], ["saveMap", "sharePanel"]];
+  pairs.forEach(([button, panel]) => {
+    $(button).addEventListener("click", () => {
+      const open = $(panel).hidden;
+      closeExport();  // map_export.js
+      pairs.forEach(([b, p]) => { $(p).hidden = true; $(b).classList.remove("on"); });
+      $(panel).hidden = !open; $(button).classList.toggle("on", open);
+      if (open && panel === "sharePanel") shareSizes();
+    });
   });
   if ((DATA.live.space || "plain") !== "plain" || DATA.reference) {  // a switch is on: show it
     $("morePanel").hidden = false; $("moreOpen").classList.add("on");
@@ -713,15 +719,33 @@ function setupSaves() {  // the report and the shareable map
       }
     } catch (e) { if (tab) tab.close(); setStatus(String(e.message || e)); }
   });
-  $("saveMap").addEventListener("click", async () => {
+  $("shareSave").addEventListener("click", async () => {
+    const preview = Number(document.querySelector('#sharePanel input[name="share"]:checked').value);
+    $("sharePanel").hidden = true; $("saveMap").classList.remove("on");
     setStatus(t("savingMap"));
     try {
-      const r = await post("api/save_map", "{}", "application/json");
+      const r = await post("api/save_map", JSON.stringify({ preview, layout: layoutMode }), "application/json");
       const big = r.mb > LARGE_SHARE_MB ? " " + t("bigMap").replace("{m}", LARGE_SHARE_MB) : "";
-      setStatus(t("savedMap").replace("{f}", fileName(r.file)).replace("{mb}", r.mb) + big);
+      setStatus(t("savedMap").replace("{f}", r.file).replace("{mb}", r.mb) + big);  // the whole path: where to find it
       addOpenFolder();
     } catch (e) { setStatus(String(e.message || e)); }
   });
+}
+
+// the shared map's picture sizes, each with about how large the file comes out
+const SHARE_LABELS = { 0: "shareThumbs", 320: "shareClear", 512: "shareSharp" };
+let SHARE_MB = null;
+function shareText() {
+  $("shareTitle").textContent = t("shareTitle"); $("shareSave").textContent = t("shareSave");
+  document.querySelectorAll('#sharePanel input[name="share"]').forEach((box) => {
+    const mb = SHARE_MB ? SHARE_MB[box.value] : null;
+    box.parentElement.querySelector("span").textContent = t(SHARE_LABELS[box.value]).replace("{m}", mb ?? "…");
+  });
+}
+async function shareSizes() {
+  shareText();
+  try { SHARE_MB = (await post("api/share_sizes", "{}", "application/json")).sizes; } catch (e) { SHARE_MB = null; }
+  shareText();
 }
 
 function setupDrop() {  // images dropped anywhere on the page are searched
@@ -740,7 +764,7 @@ function liveText() {
   tabsText();  // map_browse.js
   exportText();  // map_export.js
   $("pickBtn").textContent = t("searchImg"); $("regroup").textContent = t("regroup");
-  $("moreOpen").textContent = t("moreOpen");
+  $("moreOpen").textContent = t("moreOpen"); shareText();
   $("drop").textContent = t("drop");
   stepsText();  // map_browse.js: with a tick on the steps done
   $("saveMap").textContent = t("saveMap"); $("saveReport").textContent = t("saveReport");
