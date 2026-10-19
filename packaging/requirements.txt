@@ -1,0 +1,12 @@
+# What the packaged program installs into its own Python at the first start (launch.py), with
+# constraints.txt pinning everything underneath. torch comes from requirements-torch.txt.
+numpy==2.5.2
+pillow==12.3.0
+scipy==1.18.1
+scikit-learn==1.9.1
+open_clip_torch==3.3.0
+huggingface_hub==2.2.0
+psutil==7.2.2
+safetensors==0.8.0
+pywebview==6.2.1; sys_platform == "win32"
+pywebview[qt]==6.2.1; sys_platform == "linux"

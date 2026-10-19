@@ -58,7 +58,9 @@ def _numpy_pickle_globals() -> list:
         from numpy._core.multiarray import scalar
     except ImportError:  # numpy < 2
         from numpy.core.multiarray import scalar
-    allowed = [argparse.Namespace, scalar, np.dtype]
+    # the checkpoint was saved under numpy 1, where scalar lived in numpy.core; under numpy 2 the
+    # name differs from the one in the file, which torch then refuses (every first download did)
+    allowed = [argparse.Namespace, scalar, (scalar, "numpy.core.multiarray.scalar"), np.dtype]
     for name in ("Float64DType", "Int64DType", "Float32DType"):
         if hasattr(np, "dtypes") and hasattr(np.dtypes, name):
             allowed.append(getattr(np.dtypes, name))

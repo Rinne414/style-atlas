@@ -49,13 +49,29 @@
   .row.gone:hover { background: transparent; border-color: transparent; }
   .row button { padding: .2em .65em; color: var(--muted); }
   .empty { color: var(--muted); }
-  .note { color: var(--muted); font-size: .9rem; margin-top: 2.4rem; border-top: 1px solid var(--line); padding-top: 1rem; }
+  .note { color: var(--muted); font-size: .9rem; margin: 2.4rem 0 .4rem; border-top: 1px solid var(--line); padding-top: 1rem; }
+  .ver { color: var(--muted); font-size: .9rem; display: flex; gap: .4rem 1.1rem; flex-wrap: wrap; align-items: center; margin: 0; }
+  .ver label { display: inline-flex; gap: .35rem; align-items: center; cursor: pointer; }
+  .update { border: 1px solid var(--accent); border-radius: 14px; padding: .9rem 1.1rem; margin: 0 0 1.4rem; background: var(--panel); }
+  .update[hidden], #updText[hidden], #updNotesBtn[hidden] { display: none; }
+  .update p { margin: 0; }
+  #updLine { font-weight: 650; }
+  .upd-actions { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .7rem; }
+  .update .go { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 650; }
+  #updText { white-space: pre-wrap; font: inherit; font-size: .92rem; color: var(--muted); max-height: 16rem; overflow: auto; margin: .8rem 0 0; }
+  #updStatus { color: var(--muted); font-size: .92rem; margin-top: .55rem; }
 </style>
 </head>
 <body>
 <main>
   <h1>Style Atlas</h1>
   <p class="lead" id="lead"></p>
+  <section class="update" id="update" hidden>
+    <p id="updLine"></p>
+    <div class="upd-actions"><button class="go" id="updGo"></button><button id="updNotesBtn"></button></div>
+    <pre id="updText" hidden></pre>
+    <p id="updStatus" role="status"></p>
+  </section>
   <div class="drop" id="drop">
     <button class="primary" id="pick" disabled></button>
     <p id="dropHint"></p>
@@ -63,6 +79,7 @@
   <p class="status" id="status" role="status"></p>
   <section id="recent"><h2 id="recentTitle"></h2><div id="rows"></div></section>
   <p class="note" id="note"></p>
+  <p class="ver"><span id="ver"></span><span id="verState"></span><label><input type="checkbox" id="updCheck"> <span id="updCheckLbl"></span></label></p>
 </main>
 <script id="start-data" type="application/json">/*__START_DATA__*/null</script>
 <script>
@@ -78,7 +95,9 @@
   const say = (msg) => { $("status").textContent = msg; };
 
   $("lead").textContent = t("lead"); $("pick").textContent = t("pick"); $("dropHint").textContent = t("dropHint");
-  $("recentTitle").textContent = t("recentTitle"); $("note").textContent = `${t("note")} · v${D.version}`;
+  $("recentTitle").textContent = t("recentTitle"); $("note").textContent = t("note");
+  $("ver").textContent = `Style Atlas ${D.version}`; $("updCheckLbl").textContent = t("updCheck");
+  $("updNotesBtn").textContent = t("updNotes");
 
   async function call(name, ...args) {  // the program's side (desktop.py Api); null when it refused
     if (!api()) { say(t("notReady")); return null; }
@@ -124,7 +143,48 @@
     if (r && r.elsewhere) elsewhere(r.elsewhere);
     else if (r && r.path) say(t("opening").replace("{f}", r.path));
   });
-  const ready = () => { $("pick").disabled = false; };
+  // ---------- a newer version (desktop.py Api: update_state, update, restart) ----------
+  let updTimer = null;
+  function updShow(s) {
+    const go = $("updGo");
+    $("updCheck").checked = !!s.check;
+    $("verState").textContent = s.checking ? "" : s.latest && !s.newer ? t("updLatest") : s.problem && !s.latest ? t("updOffline") : "";
+    $("update").hidden = !(s.newer || s.ready);
+    if ($("update").hidden) return;
+    $("updLine").textContent = t("updNew").replace("{v}", s.latest ? s.latest.version : "?").replace("{c}", s.current);
+    $("updText").textContent = (s.latest && s.latest.notes) || "";
+    $("updNotesBtn").hidden = !(s.latest && s.latest.notes);
+    let status = "";
+    go.dataset.act = "update";
+    if (s.ready) { go.textContent = t("updRestart"); go.dataset.act = "restart"; status = `${t("updReady")} ${t("updRestartNote")}`; }
+    else if (!s.packaged) { go.textContent = t("updPage"); status = t("updDev"); }
+    else if (s.full) { go.textContent = t("updPage"); status = t("updFull"); }
+    else go.textContent = t("updGo");
+    if (s.busy) status = t("updBusy").replace("{p}", s.total ? `${Math.round(100 * s.done / s.total)}%` : `${(s.done / 1048576).toFixed(1)} MB`);
+    else if (s.problem && s.latest) status = t("updFailed").replace("{e}", s.problem);
+    go.disabled = !!s.busy;
+    $("updStatus").textContent = status;
+  }
+  async function updPoll() {
+    clearTimeout(updTimer);
+    const s = await call("update_state");
+    if (!s) return;
+    updShow(s);
+    if (s.checking || s.busy) updTimer = setTimeout(updPoll, 700);
+  }
+  $("updNotesBtn").addEventListener("click", () => { $("updText").hidden = !$("updText").hidden; });
+  $("updGo").addEventListener("click", async () => {
+    const restart = $("updGo").dataset.act === "restart";
+    $("updGo").disabled = true;
+    await call(restart ? "restart" : "update");
+    if (!restart) updPoll();
+  });
+  $("updCheck").addEventListener("change", async () => {
+    const s = await call("set_update_check", $("updCheck").checked);
+    if (s) { updShow(s); updPoll(); }
+  });
+
+  const ready = () => { $("pick").disabled = false; updPoll(); };
   if (api()) ready();
   window.addEventListener("pywebviewready", ready);
 

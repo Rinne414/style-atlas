@@ -57,6 +57,8 @@
   #deskNav { display: flex; gap: .4rem; margin: .1rem 0 .45rem; }
   #deskNav[hidden] { display: none; }
   #deskNav button { font-size: .9rem; padding: .3em .85em; }
+  #deskNav #updChip { border-color: var(--accent); color: var(--accent); }
+  #deskNav #updChip[hidden] { display: none; }
   #toast { position: absolute; left: 1rem; bottom: 1rem; max-width: min(44rem, calc(100% - 2rem)); padding: .45em .9em;
     border-radius: 999px; background: var(--panel); color: var(--muted); font-size: .95rem; z-index: 5; }
   #live { position: absolute; left: 1rem; bottom: 1rem; right: 1rem; display: none; gap: .55rem;

@@ -75,6 +75,40 @@ function setupDesktop() {  // each window shows one folder: back to its start pa
   });
   ask($("toStart"), "home");
   ask($("newWindow"), "new_window");
+  $("updChip").addEventListener("click", updateChipClicked);
+  window.addEventListener("pywebviewready", () => updatePoll());
+  if (desktopApi()) updatePoll();
+}
+
+/* a newer version: the same steps as on the start page (start.html), in one button */
+let updateTimer = null, updateState = null;
+async function updatePoll() {
+  clearTimeout(updateTimer);
+  const api = desktopApi();
+  if (!api || !api.update_state) return;
+  try { updateState = await api.update_state(); } catch (e) { return; }
+  updateChip();
+  if (updateState.checking || updateState.busy) updateTimer = setTimeout(updatePoll, 700);
+}
+function updateChip() {
+  const s = updateState, chip = $("updChip");
+  chip.hidden = !s || !(s.newer || s.ready);
+  if (chip.hidden) return;
+  const v = s.latest ? s.latest.version : "";
+  const notes = (s.latest && s.latest.notes) || "";
+  chip.disabled = !!s.busy;
+  if (s.busy) chip.textContent = t("updChipBusy").replace("{p}", s.total ? `${Math.round(100 * s.done / s.total)}%` : "…");
+  else if (s.ready) chip.textContent = t("updChipReady");
+  else chip.textContent = t("updChip").replace("{v}", v);
+  chip.title = s.ready ? t("tipUpdRestart") : `${t("tipUpdChip").replace("{v}", v)}${notes ? "\n\n" + notes.slice(0, 800) : ""}`;
+}
+async function updateChipClicked() {
+  const api = desktopApi(), s = updateState;
+  if (!api || !s) return;
+  if (s.ready) { $("updChip").disabled = true; await api.restart(); return; }
+  updateState = await api.update();
+  if (updateState.problem) setStatus(t("updChipFailed").replace("{e}", updateState.problem));
+  updatePoll();
 }
 
 function shellText() {  // called by applyText (map.js)
@@ -94,6 +128,7 @@ function shellText() {  // called by applyText (map.js)
   uiSizeButtons();
   $("toStart").textContent = t("toStart"); $("toStart").title = t("tipToStart");
   $("newWindow").textContent = t("newWindow"); $("newWindow").title = t("tipNewWindow");
+  if (typeof updateChip === "function") updateChip();
   layoutShown();  // map_layout.js: the switch and the line under the title
 }
 

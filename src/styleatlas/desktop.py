@@ -29,19 +29,22 @@ from typing import Any
 from styleatlas import __version__
 from styleatlas.cachedir import cache_dir
 from styleatlas.lang import tr
+from styleatlas.shortcut import icon_path, make_shortcut
+from styleatlas.updates import Updater, package_root
 from styleatlas.webbase import CONTROL_PATH, POST_HEADER, StandIn
 
 RECENT_FILE = "recent_folders.json"
+LOG_ENV = "STYLE_ATLAS_LOG"  # where messages go when there is no console
 OPEN_FILE = "desktop_open.json"  # how a later start reaches the copy that is open
 RECENT_MAX = 12
 TITLE = "Style Atlas"
-ICON = "data/style-atlas.ico"
 START_MARK = "/*__START_DATA__*/null"
 LOAD_DELAY = 0.15  # seconds between answering a page and leaving it
 DARK_TITLE_BAR = 20  # DWMWA_USE_IMMERSIVE_DARK_MODE
 SW_RESTORE = 9
 NEW_WIDTH, NEW_HEIGHT = 1400, 900  # a window opened after the first one
 HAND_OVER_TIMEOUT = 5  # seconds a later start waits for the open copy's answer
+DETACHED = 0x00000008 | 0x00000200  # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
 
 START_TEXTS = {
     "en": {
@@ -58,6 +61,21 @@ START_TEXTS = {
         "dropFailed": "The drop did not work here; use Open an image folder instead.",
         "notReady": "Still starting up; try again in a moment.",
         "elsewhere": "{f} is already open in another window, now in front.",
+        "updNew": "Version {v} is available (you have {c}).",
+        "updNotes": "What's new",
+        "updGo": "Update",
+        "updPage": "Open the download page",
+        "updFull": "This version needs the full package: download it from the release page "
+        "(your pictures, results and settings stay).",
+        "updDev": "This copy runs from the source code: update it with git pull or a new download.",
+        "updBusy": "Downloading the update… {p}",
+        "updReady": "The update is downloaded and takes effect when the program restarts.",
+        "updRestart": "Restart now",
+        "updRestartNote": "All windows close; groups, names and settings are saved already.",
+        "updFailed": "The update did not work: {e}. Nothing was changed.",
+        "updLatest": "up to date",
+        "updOffline": "could not check for updates",
+        "updCheck": "Check for updates at start",
         "note": "The first time, the style model is downloaded once (about 2.4 GB); after that "
         "only new pictures are computed. Pictures and results stay on this computer.",
     },
@@ -74,6 +92,20 @@ START_TEXTS = {
         "dropFailed": "这里拖放没有成功，请改按“打开图片文件夹”。",
         "notReady": "程序还在启动，请稍等一下再按。",
         "elsewhere": "{f} 已经在另一个窗口打开，已切换到那个窗口。",
+        "updNew": "有新版本 {v}（当前是 {c}）。",
+        "updNotes": "查看更新内容",
+        "updGo": "更新",
+        "updPage": "打开下载页面",
+        "updFull": "这个版本需要下载完整安装包：请到发布页面下载（你的图片、结果和设置都会保留）。",
+        "updDev": "这一份是从源代码运行的：请用 git pull 或重新下载来更新。",
+        "updBusy": "正在下载更新… {p}",
+        "updReady": "更新已经下载好，程序重新启动后生效。",
+        "updRestart": "立即重启",
+        "updRestartNote": "会关闭所有窗口；分组、名称和设置都已经保存。",
+        "updFailed": "更新没有成功：{e}。没有改动任何东西。",
+        "updLatest": "已是最新版本",
+        "updOffline": "无法检查更新",
+        "updCheck": "启动时检查更新",
         "note": "第一次使用会先下载一次画风模型（约 2.4 GB），之后只会计算新加入的图。"
         "图片和结果都只留在这台电脑。",
     },
@@ -193,6 +225,7 @@ class Desktop:
         self.handler.sites = {}
         self.handler.control = self.remote
         self.key = secrets.token_hex(16)  # what a later start shows to be given a window
+        self.updater = Updater()
         self.panes: list[Pane] = []
         self._lock = threading.Lock()
         self._model = threading.Lock()  # held by the folder being prepared
@@ -406,6 +439,21 @@ class Desktop:
             if json.loads(path.read_text("utf-8")).get("pid") == os.getpid():
                 path.unlink()
 
+    def restart(self) -> bool:
+        """Close every window and start again through the packaged program's launcher, which
+        puts the downloaded update in place first. False when there is nothing to put in."""
+        root = package_root()
+        if root is None or not self.updater.state()["ready"]:
+            return False
+        command = [sys.executable, str(root / "launch.py"), "--run", "--after", str(os.getpid())]
+        if sys.platform == "win32":
+            subprocess.Popen(command, cwd=Path.home(), creationflags=DETACHED)
+        else:
+            subprocess.Popen(command, cwd=Path.home(), start_new_session=True)
+        windows = [pane.window for pane in list(self.panes) if pane.window is not None]
+        threading.Timer(LOAD_DELAY, lambda: [w.destroy() for w in windows]).start()
+        return True
+
     def stop(self) -> None:
         with self._lock:
             for pane in self.panes:
@@ -440,6 +488,29 @@ class Api:
     def new_window(self) -> dict:
         self._desktop.open_window()
         return {"ok": True}
+
+    def update_state(self) -> dict:
+        return self._desktop.updater.state()
+
+    def set_update_check(self, on: bool) -> dict:
+        self._desktop.updater.set_check(bool(on))
+        return self._desktop.updater.state()
+
+    def update(self) -> dict:
+        """Download the newer version (packaged program), or show its page (a source checkout,
+        or a version that needs the full package)."""
+        updater = self._desktop.updater
+        state = updater.state()
+        if state["packaged"] and not state["full"]:
+            updater.fetch()
+        elif state["latest"]:
+            import webbrowser
+
+            webbrowser.open(state["latest"]["page"])
+        return updater.state()
+
+    def restart(self) -> dict:
+        return {"ok": self._desktop.restart()}
 
     def open_folder(self, path: str) -> dict:
         try:
@@ -572,6 +643,7 @@ def _quiet_streams(log_file: Path) -> None:
         stream = open(os.devnull, "w", encoding="utf-8")  # noqa: SIM115
     sys.stdout = sys.stdout or stream
     sys.stderr = sys.stderr or stream
+    os.environ.setdefault(LOG_ENV, str(log_file))
 
 
 def _hwnd(window) -> int | None:
@@ -618,10 +690,6 @@ def _tell(message: str) -> None:
         import ctypes
 
         ctypes.windll.user32.MessageBoxW(None, message, TITLE, 0x10)
-
-
-def icon_path() -> Path:
-    return Path(str(resources.files("styleatlas").joinpath(ICON)))
 
 
 def _hand_over(folder: str | None) -> bool:
@@ -674,66 +742,12 @@ def run(folder: str | None, serve_args: list[str], port: int) -> int:
     webview.settings["ALLOW_DOWNLOADS"] = True  # saved pictures and recordings go to Downloads
     desktop.open_window(start, first=True)
     desktop.announce(root / OPEN_FILE)
+    desktop.updater.start_check()
     webview.start(private_mode=False, storage_path=str(root / "webview"), icon=str(icon_path()))
     desktop.retire(root / OPEN_FILE)
     desktop.stop()
     sys.stdout.flush()
     os._exit(0)  # a daemon thread inside torch can hang the normal interpreter exit
-
-
-# ---------- the desktop shortcut ----------
-
-
-def make_shortcut(desktop_dir: Path | None = None) -> Path:
-    """A "Style Atlas" shortcut on the desktop that starts this program without a console.
-    The paths reach PowerShell through the environment, never through the command text."""
-    if sys.platform != "win32":
-        raise OSError("shortcuts are made on Windows only")
-    scripts = Path(sys.executable).parent
-    target = scripts / "pythonw.exe"
-    if not target.exists():
-        target = Path(sys.executable)
-    folder = desktop_dir or _desktop_folder()
-    link = folder / f"{TITLE}.lnk"
-    env = {
-        **os.environ,
-        "SA_LINK": str(link),
-        "SA_TARGET": str(target),
-        "SA_ARGS": "-m styleatlas.desktop",
-        "SA_ICON": str(icon_path()),
-        "SA_DIR": str(Path.home()),
-    }
-    script = (
-        "$s = (New-Object -ComObject WScript.Shell).CreateShortcut($env:SA_LINK); "
-        "$s.TargetPath = $env:SA_TARGET; $s.Arguments = $env:SA_ARGS; "
-        "$s.IconLocation = $env:SA_ICON; $s.WorkingDirectory = $env:SA_DIR; "
-        "$s.Description = 'Style Atlas'; $s.Save()"
-    )
-    subprocess.run(
-        ["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
-        env=env,
-        check=True,
-        capture_output=True,
-    )
-    return link
-
-
-def _desktop_folder() -> Path:
-    """The user's desktop folder (it may have been moved, e.g. into OneDrive)."""
-    out = subprocess.run(
-        [
-            "powershell",
-            "-NoProfile",
-            "-NonInteractive",
-            "-Command",
-            "[Environment]::GetFolderPath('Desktop')",
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    text = out.stdout.strip()
-    return Path(text) if text and Path(text).is_dir() else Path.home() / "Desktop"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -742,7 +756,7 @@ def main(argv: list[str] | None = None) -> int:
         "folder", nargs="?", help=tr("a folder to open at once", "启动时直接打开的文件夹")
     )
     p.add_argument("--device", default="auto", help=tr("auto, cpu or cuda", "auto、cpu 或 cuda"))
-    p.add_argument("--port", type=int, default=8770, help=tr("first port to try", "先试的连接端口"))
+    p.add_argument("--port", type=int, default=8770, help=tr("first port to try", "先试的端口"))
     p.add_argument(
         "--shortcut",
         action="store_true",

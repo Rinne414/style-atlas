@@ -90,13 +90,13 @@ class Preparing(StandIn):
         known = isinstance(e, (*REQUEST_ERRORS, RuntimeError))
         if not known:
             traceback.print_exc()
+        log = os.environ.get("STYLE_ATLAS_LOG")  # no console: the details are in this file
+        where = tr(f"see {log}", f"详情见 {log}") if log else tr("see the console", "详情见控制台")
         message = (
             str(e)
             if known
-            else tr(
-                f"internal error ({type(e).__name__}); see the console",
-                f"内部错误（{type(e).__name__}）；详情见控制台",
-            )
+            else tr(f"internal error ({type(e).__name__}); ", f"内部错误（{type(e).__name__}）；")
+            + where
         )
         print(message, file=sys.stderr, flush=True)
         self.error = message
