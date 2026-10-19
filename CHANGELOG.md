@@ -1,6 +1,24 @@
 # Changelog
 
-## Unreleased
+## 0.44.0 - 2026-10-19
+
+The first release for people who do not program. In short:
+
+- **Packages that need nothing installed first**: a Windows zip and a Linux tar.gz, each with its
+  own Python. Unzip, double-click `Style Atlas.bat` (Linux: `./style-atlas.sh`); the first start
+  installs torch and the rest into the folder, makes the shortcut and opens the program.
+  `scripts/build_release.py` builds them; `packaging/launch.py` is the launcher.
+- **Updates on request**: the program checks GitHub for a newer version at start (a setting) and
+  shows it on the start page and the map; Update downloads the program code only, checks its
+  SHA256 and puts it in place on Restart. Pictures, results and settings are not touched.
+- **Simplified Chinese** with mainland wording throughout (it was Traditional).
+- **Several folders at once**, one per window; "← Start page" and "New window" on the map.
+- **A clean install found two bugs that every new user would have hit**: the style model could not
+  be converted under numpy 2 (fixed, with a regression test), and without a console the program's
+  messages went nowhere (now `style-atlas.log`).
+- README in English and Simplified Chinese, written for beginners first, with what goes online.
+
+Details below.
 
 From the owner's review of the web app (2026-10-18): text far too small on a 2560x1440 screen,
 starting it through a .bat, no way back to the true 3D layout, two modes that differed too little,

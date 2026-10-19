@@ -37,6 +37,7 @@ PBS = {
 TOP = "StyleAtlas"  # the folder inside the zip and the tar.gz
 APP_FILES = ("requirements.txt", "requirements-torch.txt", "constraints.txt")
 SKIP_PARTS = {"__pycache__"}
+RELEASE_PREFIXES = ("StyleAtlas-", "style-atlas-app-")  # the files a release carries
 
 
 def sha256(path: Path) -> str:
@@ -189,7 +190,11 @@ def main() -> None:
     python = ".".join(PYTHON_VERSION.split(".")[:2])
     info.write_text(json.dumps({"version": version, "python": python}), "utf-8")
     made.append(info)
-    present = sorted(p for p in out.iterdir() if p.is_file() and p.name != "SHA256SUMS.txt")
+    present = sorted(  # the release's own files only
+        p
+        for p in out.iterdir()
+        if p.is_file() and (p.name.startswith(RELEASE_PREFIXES) or p.name == "update.json")
+    )
     sums = "".join(f"{sha256(p)}  {p.name}\n" for p in present)
     (out / "SHA256SUMS.txt").write_text(sums, "utf-8")
     for path in made:

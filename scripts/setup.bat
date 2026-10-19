@@ -58,7 +58,7 @@ echo 完成。双击桌面上的“Style Atlas”就会打开程序，在里面�
 echo Done. Double-click "Style Atlas" on the desktop to open the program, then pick a folder.
 echo 也可以照旧把图片文件夹拖到 scripts\StyleAtlas.bat 上，在浏览器打开。
 echo Or drag an image folder onto scripts\StyleAtlas.bat to open it in the browser, as before.
-echo 要用 audit、cluster 等指令，请开 scripts\StyleAtlas-console.bat。
+echo 要用 audit、cluster 等命令，请开 scripts\StyleAtlas-console.bat。
 echo For commands such as audit or cluster, open scripts\StyleAtlas-console.bat.
 echo 第一次分析会下载一次 CSD 模型（2.4 GB）/ The first run downloads the CSD model ^(2.4 GB^) once.
 pause

@@ -22,8 +22,8 @@ artwork.)
 3. In the unzipped `StyleAtlas` folder, double-click **`Style Atlas.bat`**.
    - The first time, a console window installs what the program needs into this folder: torch
      (about 2.5 GB with an NVIDIA graphics card, about 200 MB without) and about 100 MB of other
-     packages. You do not need to install Python; nothing outside the folder is changed except
-     the shortcut. If the download breaks off, double-click again and it carries on.
+     packages. You do not need to install Python. The style model and caches go to
+     `%USERPROFILE%\.cache\style-atlas` (set `STYLE_ATLAS_CACHE` to move them); everything else stays in this folder. If the download breaks off, double-click again and it carries on.
    - Then it puts a **Style Atlas** shortcut on the desktop and opens the program. The console
      closes by itself.
 4. From then on, open it with the desktop shortcut.
@@ -55,7 +55,7 @@ The window is drawn with Qt. Most desktop Linux systems already have the system 
    listed on the start page.
 2. The first folder downloads the style model once (2.4 GB; a 1.2 GB copy is kept). Then each
    picture's style is computed: about 2.5–4 pictures a second on 8 CPU threads (measured); an
-   NVIDIA card is usually much faster. Results are cached, so opening the folder again is quick.
+   NVIDIA card is usually faster (not measured). Results are cached, so opening the folder again is quick.
 3. The map shows the pictures grouped by style. Click a group on the right to see all of its
    pictures, double-click a picture to see it large, press → to go through every picture one by
    one.
@@ -88,8 +88,8 @@ newer bundled Python, the program says so and you download the full package agai
 
 Nothing else: your pictures, results, ratings and names stay on your computer. There is no
 account and no usage statistics. The program's local server only answers this computer
-(127.0.0.1). A map saved with **Save shareable map** contains the pictures you chose; whoever
-you send it to can see them.
+(127.0.0.1). A map saved with **Save shareable map** contains thumbnails of every picture on the map
+(sharper copies if you choose them); whoever you send it to can see them.
 
 ## Requirements
 

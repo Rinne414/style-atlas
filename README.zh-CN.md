@@ -18,8 +18,7 @@
    Windows 对路径长度有限制，路径太长时启动程序会提示并停下。
 3. 打开解压出来的 `StyleAtlas` 文件夹，双击 **`Style Atlas.bat`**。
    - 第一次会弹出一个命令窗口，把需要的组件装进这个文件夹：torch（有 NVIDIA 显卡约 2.5 GB，
-     没有约 200 MB）和约 100 MB 的其他组件。不需要另外安装 Python；除了快捷方式，不会改动这个
-     文件夹以外的东西。下载中断的话，再双击一次就会接着装。
+     没有约 200 MB）和约 100 MB 的其他组件。不需要另外安装 Python。画风模型和缓存放在 `%USERPROFILE%\.cache\style-atlas`（可用环境变量 `STYLE_ATLAS_CACHE` 改到别处），其余都装在这个文件夹里。下载中断的话，再双击一次就会接着装。
    - 装好后会在桌面创建 **Style Atlas** 快捷方式并打开程序，命令窗口会自己关闭。
 4. 之后直接双击桌面快捷方式打开。
 
@@ -47,7 +46,7 @@
 
 1. 按 **打开图片文件夹…**，或把文件夹直接拖进窗口。开过的文件夹会列在开始页面。
 2. 第一次打开文件夹时会下载一次画风模型（2.4 GB，之后保留 1.2 GB 的精简版），然后计算每张图的画风：
-   用 8 个 CPU 线程约每秒 2.5～4 张（实测）；有 NVIDIA 显卡通常快很多。结果会缓存，再次打开同一个
+   用 8 个 CPU 线程约每秒 2.5~4 张（实测）；有 NVIDIA 显卡通常更快（这点没有实测）。结果会缓存，再次打开同一个
    文件夹很快。
 3. 地图上的图按画风分组。点右边的一组看它的全部图；双击图片看大图；按 → 可以一张一张看完全部的图。
 4. 要训练 LoRA：打开 **LoRA 数据集** 标签页，按“检查 → 整理画风组 → 导出”做。导出会写出 kohya
@@ -64,7 +63,7 @@
 用发布页面上的 SHA256 校验值核对（对不上就丢弃），再按 **立即重启** 换上新版。你的图片、结果、分组、
 名称和设置都不会改动。如果新版本需要更新内置的 Python，程序会提示你重新下载完整安装包。
 
-## 会连网的地方
+## 会联网的地方
 
 | 什么时候 | 做什么 | 连到哪里 |
 |---|---|---|
@@ -74,8 +73,7 @@
 | 按“更新”时 | 下载新的程序代码 | github.com |
 
 除此之外没有任何联网：图片、结果、评分和名称都只留在你的电脑上，没有账号，也不收集使用数据。
-程序的本地服务器只接受这台电脑（127.0.0.1）的连接。用 **保存为分享用地图** 存出的文件里含有你选的图片，
-收到文件的人都看得到。
+程序的本地服务器只接受这台电脑（127.0.0.1）的连接。用 **保存为分享用地图** 存出的文件里含有地图上全部图片的缩略图（保存前可以选更清楚的版本），收到文件的人都看得到。
 
 ## 系统要求
 
@@ -90,17 +88,17 @@
   组件可设置 `PIP_INDEX_URL`（例如 `https://pypi.tuna.tsinghua.edu.cn/simple`），再重新启动。
   torch 本身始终从 download.pytorch.org 下载。
 - **搬动了文件夹**：再双击一次 `Style Atlas.bat`，快捷方式就会指向新位置。
-- **画面上出现错误**：程序的信息记录在程序文件夹里的 `style-atlas.log`，回报问题时请附上这个文件。
+- **界面上出现错误**：程序的信息记录在程序文件夹里的 `style-atlas.log`，反馈问题时请附上这个文件。
 - **想指定 CPU 版或显卡版的 torch**：设置环境变量 `STYLE_ATLAS_TORCH=cpu`（或 `cuda`），再双击
   `Style Atlas.bat`。
 
 ## 能做什么
 
-style-atlas 会看每张图“怎么画”（不是画了什么），自动把画风相近的图分在一起。它用 CSD 这个画风辨识模型，把每张图转成一组“画风特征”，再拿这些特征做下面几件事：
+style-atlas 会看每张图“怎么画”（不是画了什么），自动把画风相近的图分在一起。它用 CSD 这个画风识别模型，把每张图转成一组“画风特征”，再拿这些特征做下面几件事：
 
 | 你想做的事 | 怎么做 |
 |---|---|
-| **训练 LoRA 前整理数据集**：分出不同画风，或把同一位画师分成几个时期（文件名有时间时用 `--granularity timeline --time name`：按时间切成连续的时期，并告诉你画风是有转折、只是渐变，还是没找到和时间的关系（作品少时只是提示）；时期是初步整理，请在网页上确认），排除重复图与离群图，导出成 kohya 文件夹 | `cluster --layout kohya --dedupe`（分时期加 `--granularity period`），或网页界面的“导出文件夹” |
+| **训练 LoRA 前整理数据集**：分出不同画风，或把同一位画师分成几个时期（文件名有时间时用 `--granularity timeline --time name`：按时间切成连续的时期，并告诉你画风是有转折、只是渐变，还是没找到和时间的关系（作品少时只是提示）；时期是初步整理，请在网页上确认），排除重复图与离群图，导出成 kohya 文件夹 | `cluster --layout kohya --dedupe`（分时期加 `--granularity period`），或网页界面的“导出训练数据集…” |
 | **找画风相近的图**：一张或同画风的几张图当范例，也能把结果直接复制成文件夹（实测：同一位画师的其他作品，第一名猜中约 47%，前 10 名内约 71%） | 网页界面拖图进去，或用 `search`（`--combine`、`--copy-to`） |
 | **整理很多位画师的图库**：按画师分组（20 位以上的图库比默认的自动分组更贴近画师） | `cluster --granularity artists`，或网页分组菜单的“按画师” |
 | **这张图像哪位画师？**：图库按画师（或画风）分文件夹时，列出最像的文件夹，并说第一名有多可信（依第一名领先多少，实测正确率 35%~99%；同一位画师早期或后期的作品可能更像别人） | `search --by-folder` |
@@ -118,7 +116,7 @@ style-atlas 会看每张图“怎么画”（不是画了什么），自动把�
 
 ### 训练 LoRA 前的建议流程
 
-以下的 `style-atlas ...` 指令都在 `scripts\StyleAtlas-console.bat` 开的窗口里输入（一次贴一行）。
+以下的 `style-atlas ...` 命令都在命令窗口里输入（见上面的“命令行”）（一次粘贴一行）。
 
 **1. 检查**：太小的图、极端长宽比、动图、缺标注或标注是空的、混在彩色图里的黑白图、黑白标签和图不一致的标注，以及只靠 EXIF 标记转正的照片（kohya 会把它横着训练）。
 
@@ -136,7 +134,7 @@ style-atlas serve "D:\lora\artistX" --time name
 
 **3. 导出成 kohya 文件夹**。程序会先排除重复图（每组留分辨率最高、有标注的那张），再分组，另外放出最不合群的 5 张，最后依每组张数自动算 repeats。
 
-> **在网页上移动、合并、拆过组或取过名的话，请直接在网页按“导出训练数据集…”，不要用下面的指令**：指令会重新分组，只沿用你按 X 排除的图。
+> **在网页上移动、合并、拆过组或取过名的话，请直接在网页按“导出训练数据集…”，不要用下面的命令**：命令会重新分组，只沿用你按 X 排除的图。
 
 ```bat
 style-atlas cluster "D:\lora\artistX" --layout kohya --name artistX --dedupe --drop-outliers 5 --export copy
@@ -156,7 +154,7 @@ _excluded\            ← 在网页界面按 X 排除的图
 _trimmed\             ← 超过每组上限的图（有用 --max-per-group 时）
 dataset_config.toml   ← kohya sd-scripts 的数据集设置（`--dataset_config`），列出每组的文件夹与 repeats
 diffusion_pipe_dataset.toml ← diffusion-pipe 的数据集设置（训练设置里的 `dataset`）
-onetrainer_concepts.json    ← OneTrainer 的 concepts 档（复制到 OneTrainer 的 training_concepts 文件夹再选）
+onetrainer_concepts.json    ← OneTrainer 的 concepts 文件（复制到 OneTrainer 的 training_concepts 文件夹再选）
 ai_toolkit_datasets.yaml    ← ai-toolkit 的 datasets 段落（贴进训练设置的 datasets:）
 ```
 
@@ -172,8 +170,8 @@ ai_toolkit_datasets.yaml    ← ai-toolkit 的 datasets 段落（贴进训练设
   style-atlas cluster "D:\lora\artistX" --layout kohya --name artistX --dedupe --drop-outliers 5 --export copy --trigger-captions
   ```
 - `clusters.json` 会列出每组最常见的标注 tag，以及 tag 在这组里比整体多出几倍。例如某组特别多 `monochrome`、`sketch`，大概就是草稿那一组。
-- 源文件案永远不会被移动或删除。每次导出都写到新的文件夹（`folders`、`folders_2` …），不会和上一次混在一起。
-- `--export link` 改用硬链接，不占额外空间，但链接档和原文件是**同一个文件**，在导出文件夹里改标注，原本的也会一起改。不确定的话就用 `copy`。
+- 源文件永远不会被移动或删除。每次导出都写到新的文件夹（`folders`、`folders_2` …），不会和上一次混在一起。
+- `--export link` 改用硬链接，不占额外空间，但链接文件和原文件是**同一个文件**，在导出文件夹里改标注，原本的也会一起改。不确定的话就用 `copy`。
 
 **要把同一位画师的作品分成不同时期**：
 - 用 `--granularity period`，并加上 `--time name` 看时间分布。网页界面则选“时期（单一画师）”并填段数。
@@ -223,7 +221,7 @@ style-atlas search mystery.png --in "D:\artists" --by-folder --top 5
 style-atlas search "D:\examples" --combine --in "D:\gallery" --top 100 --copy-to "D:\lora\more"
 ```
 
-**单一 HTML 的 3D 地图**（脱机也能开，可以传给朋友）、**近重复图分组**、**最不合群的 20 张**：
+**单一 HTML 的 3D 地图**（离线也能打开，可以传给朋友）、**近重复图分组**、**最不合群的 20 张**：
 
 ```bat
 style-atlas map "D:\gallery" -o gallery_map.html
@@ -266,11 +264,11 @@ style-atlas taste score "D:\new_batch" --model "D:\my_taste.npz" --copy-to "D:\�
 
 `--time name` 会从文件名推出先后顺序：Pixiv、Danbooru 作品编号和推文编号（都会随上传时间递增），或文件名里的日期（`20230512`、`2023-05-12`）；`--time mtime` 则用文件修改时间（复制或解压后常会变掉）。同一个文件夹里的文件名格式要一致，顺序才有意义。开了之后，每个画风组旁都会画出时间分布，可以看出哪种画风是早期、哪种是近期。
 
-支持 png、jpg、jfif、webp、bmp、gif；avif 需要 Pillow 本身支持。动图只看第一格。CPU 默认最多用 8 个线程并降低优先权，不会拖垮整台电脑；`--threads 0` 可取消限制。
+支持 png、jpg、jfif、webp、bmp、gif；avif 需要 Pillow 本身支持。动图只看第一帧。CPU 默认最多用 8 个线程并降低优先级，不会拖垮整台电脑；`--threads 0` 可取消限制。
 
-**指令一览**（方括号是可省略的部分；每个指令加 `-h` 会列出全部选项）：
+**命令一览**（方括号是可省略的部分；每个命令加 `-h` 会列出全部选项）：
 
-| 指令 | 做什么 |
+| 命令 | 做什么 |
 |---|---|
 | `style-atlas serve 文件夹` | 打开网页界面（`StyleAtlas.bat` 做的就是这个） |
 | `style-atlas cluster 文件夹 [--layout kohya --name X] [--dedupe] [--export copy]` | 分画风组，写出 CSV/JSON 和地图，可导出成文件夹 |
@@ -282,12 +280,12 @@ style-atlas taste score "D:\new_batch" --model "D:\my_taste.npz" --copy-to "D:\�
 | `style-atlas duplicates 文件夹` | 近重复的图 |
 | `style-atlas outliers 文件夹` | 最不像其他图的几张 |
 | `style-atlas compare 文件夹A 文件夹B` | 两组图的画风差多少、差在哪里 |
-| `style-atlas taste train/score` | 个人喜好模型 |
-| `style-atlas embed 文件夹` | 只先算好向量（之后的指令就不用等） |
+| `style-atlas taste train/score` | 个人偏好模型 |
+| `style-atlas embed 文件夹` | 只先算好向量（之后的命令就不用等） |
 | `style-atlas doctor` | 检查 Python、torch、显卡、模型下载和磁盘空间 |
 | `style-atlas calibrate`、`bench` | 高级：校准噪声、用子文件夹当标准答案评分 |
 
-中文 Windows 上，指令的消息和 `--help` 说明会自动用中文（繁体；`set STYLE_ATLAS_LANG=en` 改回英文）。`-o` 在 `cluster`、`sort` 是输出文件夹，在 `report`、`map` 是 HTML 文件（没给 `-o` 时都写到图片文件夹旁边的 `<文件夹>_style_atlas`）；`search` 用 `--copy-to` 复制结果；`doctor` 不需要其他参数。
+中文 Windows 上，命令的消息和 `--help` 说明会自动用中文（简体；`set STYLE_ATLAS_LANG=en` 改回英文）。`-o` 在 `cluster`、`sort` 是输出文件夹，在 `report`、`map` 是 HTML 文件（没给 `-o` 时都写到图片文件夹旁边的 `<文件夹>_style_atlas`）；`search` 用 `--copy-to` 复制结果；`doctor` 不需要其他参数。
 
 ### 网页界面与 3D 地图
 
@@ -296,17 +294,17 @@ style-atlas taste score "D:\new_batch" --model "D:\my_taste.npz" --copy-to "D:\�
 - 上方可以切换**分组排列**（每组排成一个岛，看得清哪张属于哪组；岛和岛的距离不代表相似度）和**真实分布**（远近照画风，压成 3D 只是大概）。
 - “查看”菜单：界面大小（也可以按 Ctrl + / Ctrl −；宽屏幕会默认大一点）、圆点或缩略图、自动旋转、保存为图片、“录一圈”（把地图转一圈录成 8 秒的视频，Chrome/Edge 是 MP4，Firefox 是 WebM）、深浅色、语言。
 - 点右侧的画风组，镜头会飞过去并列出成员。点地图上任一张图，会列出最接近的 12 张。
-- “检查”标签页：按“开始检查”会列出太小的图、小图放大或很模糊的图、压缩很重的 JPEG、标注提到水印或签名的图、极端长宽比、混在彩色图里的黑白图、黑白标签和图不一致的标注、同一标签有下划线和空格两种写法的标注、没有标注或标注是空的图、动图、只靠 EXIF 标记转正的照片（和 `audit` 指令相同，不用打指令）；下面是最不合群的图。“重复”标签页列出近重复图组。
-- “查看”菜单里的“指标轴版面”：切换后，三个轴可以各自选一种指针，缩略图会移动到对应位置。可选的指针有：
+- “检查”标签页：按“开始检查”会列出太小的图、小图放大或很模糊的图、压缩很重的 JPEG、标注提到水印或签名的图、极端长宽比、混在彩色图里的黑白图、黑白标签和图不一致的标注、同一标签有下划线和空格两种写法的标注、没有标注或标注是空的图、动图、只靠 EXIF 标记转正的照片（和 `audit` 命令相同，不用输入命令）；下面是最不合群的图。“重复”标签页列出近重复图组。
+- “查看”菜单里的“指标轴版面”：切换后，三个轴可以各自选一种指标，缩略图会移动到对应位置。可选的指针有：
   - 偏好分数：用网页界面评过分之后才有。
   - 离参考集距离（原创度）：要先指定已知画风的文件夹（例如画师作品或论坛配方）。在网页的“高级…”填路径、按“加载参考”即可（第一次会嵌入里面的图），或启动时加 `--reference 文件夹`。
   - 时间。
   - 离群度。
-  - 外观测量：亮度、对比、鲜艳度、冷暖、线条量、平涂度（见下一节）。例如 X 选冷暖、Y 选线条量、Z 选鲜艳度，就能看到整个文件夹在这三个面向上怎么分布。
+  - 外观测量：亮度、对比、鲜艳度、冷暖、线条量、平涂度（见下一节）。例如 X 选冷暖、Y 选线条量、Z 选鲜艳度，就能看到整个文件夹在这三个方面上怎么分布。
 - 右侧每个画风组的卡片下方，会用一句话说明这组和整个文件夹相比的外观差异，例如“偏冷、线条多、色彩鲜艳”。文件夹底下有子文件夹（例如每位画师一个）时，还会列出这组主要“来自”哪些子文件夹；同一个子文件夹被分成两组时（同一位画师的不同画风或时期）也会提醒。
-- 上方的筛选框可以打文件名，或打 `#` 加标注里的标签（例如 `#monochrome`、`#sketch`），只亮出那些图；配合 Shift 拖框可以一次排除。
+- 上方的筛选框可以输入文件名，或打 `#` 加标注里的标签（例如 `#monochrome`、`#sketch`），只亮出那些图；配合 Shift 拖框可以一次排除。
 - 每组的卡片会列出“最接近”的 3 组（括号里是画风距离），点一下就跳过去；想合并相近的组时很方便。
-- 打开一组后，用“和…比较”选另一组，会列出两组的画风距离、差异是否明显，以及外观差在哪里（和 `compare` 指令相同）。
+- 打开一组后，用“和…比较”选另一组，会列出两组的画风距离、差异是否明显，以及外观差在哪里（和 `compare` 命令相同）。
 - 只有网页界面才有的功能：
   - 拖一张图进画面就能以图搜索。一次拖多张同一种画风的图，会当成同一种画风一起搜索（用它们的平均画风；10 张以上时改用它们训练的小模型排序）。
   - 一次拖多张时，还会告诉你这批图有几张“和这个文件夹里某一组的画风够接近”，例如拿 LoRA 算出来的图检查像不像训练集，或新找到的图该不该加进来。请看整批的比例：实测同一画师没用到的作品约 61% 落在范围内，其他画师约 1%。
@@ -325,11 +323,11 @@ style-atlas taste score "D:\new_batch" --model "D:\my_taste.npz" --copy-to "D:\�
     - 按错了可以按“撤销”或 Ctrl+Z，最多可退回 30 步。“重新分组”会清除手动修正，但同样可以撤销。
   - 图片有标注 `.txt` 时，每个画风组下面会列出这组特别常见的标签（例如“sketch, white background”），方便一眼看出这组是什么。
   - 用“喜欢/不喜欢”（键盘 L / D）评图。各评满 5 张后，“偏好”标签页会用你的评分训练模型，替还没评的图排序，并显示交叉验证的 AUC。
-  - 按“评下一张最有用的图”可进入评分模式：只要一直按 L/D，系统会自动挑下一张和已评过的最不像的图。用一位用户的 140 笔真实投票模拟，这样评 10 张就能达到随机挑约 25 张的水准。
+  - 按“评下一张最有用的图”可进入评分模式：只要一直按 L/D，系统会自动挑下一张和已评过的最不像的图。用一位用户的 140 条真实投票模拟，这样评 10 张就能达到随机挑约 25 张的水准。
   - 点地图上的图，详情会显示这张图标注文件里的标签；在“替这张图加备注”打一句话按 Enter，地图上那张图旁边就会显示（例如“金发贵族系列”），方便把探索到的东西指给别人看。
-- 网页界面的“保存为分享用地图”会把目前的分组、手动调整、名称和备注保存为同一种单个 HTML 文件（在 `<文件夹>_style_atlas\map.html`），完成后会显示文件大小；超过 10 MB 时，有些聊天软件（例如 Discord 免费账号）传不了，用 `style-atlas map --thumb 64` 可以存出较小的档。
-- `map` 生成的是单个 HTML 文件，three.js 和缩略图都已内嵌，脱机也能开。**分享地图等于分享这些缩略图。**
-- `serve` 只监听本机 127.0.0.1，会检查 Host 标头，也只提供扫描过的文件，不会把你的文件夹开放到网络上。
+- 网页界面的“保存为分享用地图”会把目前的分组、手动调整、名称和备注保存为同一种单个 HTML 文件（在 `<文件夹>_style_atlas\map.html`），完成后会显示文件大小；超过 10 MB 时，有些聊天软件（例如 Discord 免费账号）传不了，用 `style-atlas map --thumb 64` 可以存出较小的文件。
+- `map` 生成的是单个 HTML 文件，three.js 和缩略图都已内嵌，离线也能打开。**分享地图等于分享这些缩略图。**
+- `serve` 只监听本机 127.0.0.1，会检查 Host 请求头，也只提供扫描过的文件，不会把你的文件夹开放到网络上。
 
 ### 外观测量：画风“哪里不同”
 
@@ -346,8 +344,8 @@ style-atlas taste score "D:\new_batch" --model "D:\my_taste.npz" --copy-to "D:\�
 | 线条量 | 线条多寡：线稿、排线、细纹理越多越高 |
 | 平涂度 | 平涂面积多寡：赛璐璐平涂、素色背景越多越高 |
 
-- 用在哪里：网页的组卡片文字和“指标轴”、`clusters.csv`（每张图一栏一个测量）、`clusters.json`（每组和整个文件夹相比的差异与文字）、`compare`（B 减 A，单位是两组合并的标准差）。
-- 每张图只算一次，结果存在缓存里；之后新嵌入的图在嵌入时顺便算，不必再读一次档。旧版就嵌入过的图，第一次会补算（实测约每秒 70 张 832×1216 的 PNG，1 万张约 2~3 分钟）。
+- 用在哪里：网页的组卡片文字和“指标轴”、`clusters.csv`（每张图一行、每项测量一列）、`clusters.json`（每组和整个文件夹相比的差异与文字）、`compare`（B 减 A，单位是两组合并的标准差）。
+- 每张图只算一次，结果存在缓存里；之后新嵌入的图在嵌入时顺便算，不必再读一次文件。旧版就嵌入过的图，第一次会补算（实测约每秒 70 张 832×1216 的 PNG，1 万张约 2~3 分钟）。
 - 单张图的数值噪声大，请比较**组的平均**。在 306 位画师、3,259 张 Danbooru 作品上，各测量有 13~40% 的差异来自“画师不同”（线条量 0.40、平涂度 0.37、鲜艳度 0.32、亮度 0.32、对比 0.26、冷暖 0.13），其余来自同一画师的不同作品（场景、构图）。冷暖最受场景影响。
 - 这些是图像统计，不是美感分数：“线条多”不代表比较好。
 - 长边小于 256 px 的小图会被误判成“线条多、平涂少”，比较时请用尺寸差不多的图。大图之间的尺寸差异则几乎没有影响。
@@ -361,7 +359,7 @@ style-atlas taste score "D:\new_batch" --model "D:\my_taste.npz" --copy-to "D:\�
 - **Style Gate**：只让够原创的图通过（keep original），或只让够像的图通过（keep matching）。
 
 安装步骤（两步都要做）：
-1. 在 ComfyUI 自己的 Python 里安装本工具，例如 `python_embeded\python.exe -m pip install -e <repo 路径>`。节点的代码在这个套件里。
+1. 在 ComfyUI 自己的 Python 里安装本工具，例如 `python_embeded\python.exe -m pip install -e <repo 路径>`。节点的代码在这个包里。
 2. 把 `comfyui` 文件夹复制或链接到 `ComfyUI\custom_nodes\style-atlas`。这个文件夹只是让 ComfyUI 找到节点的入口。
 
 Style Gate 的默认阈值是 0.5。在 Danbooru 上，单张图之间的距离，同画师的中位数约 0.40，不同画师约 0.56。
@@ -381,13 +379,13 @@ Style Gate 的默认阈值是 0.5。在 Danbooru 上，单张图之间的距离�
 3. 双击桌面上的 **Style Atlas**（`setup.bat` 最后会创建这个快捷方式），在程序里按“打开图片文件夹…”，或直接把文件夹拖进窗口。程序会先显示准备进度（第一次会先下载 2.4 GB 的模型，接着计算每张图的画风），算好后自动变成地图。开过的文件夹会列在开始页面，下次点一下就好。地图左上角的“← 开始页面”关掉这个文件夹、回到开始页面；“新窗口”在另一个窗口开别的文件夹，两个可以同时开着。程序开着时再按一次桌面快捷方式，也会开一个新窗口。关掉窗口就是关掉那个文件夹，最后一个窗口关掉时程序就结束。
    想用浏览器开也可以：照旧把图片文件夹拖到 `scripts\StyleAtlas.bat` 上（或双击它再选文件夹）。
 
-Windows 跳出“Windows 已保护你的电脑”时，按“更多信息”→“仍要运行”。
+Windows 弹出“Windows 已保护你的电脑”时，按“更多信息”→“仍要运行”。
 
 **更新到新版**：下载新的 ZIP，解压后**直接覆盖**到原本的文件夹（保留里面的 `.venv`），再双击一次 `scripts\setup.bat`。torch 已经装过，不会重新下载，几十秒就好。用 git 的话是 `git pull` 再跑一次 `setup.bat`。分析结果（每个图片文件夹旁边的 `_style_atlas` 文件夹）和向量缓存都不会受影响。新版做了什么见 [CHANGELOG.md](CHANGELOG.md)。
 
 想先试试看：双击 `scripts\StyleAtlas-demo.bat`（或运行 `style-atlas demo`），会生成 72 张四种风格的范例图并直接打开网页。
 
-**要打指令时**（下面的 `audit`、`cluster`、`search` 等），请双击 `scripts\StyleAtlas-console.bat`，它会开一个已经设置好的命令窗口，在里面输入指令即可。直接开一般的命令提示符打 `style-atlas` 会出现“不是内部或外部命令”，因为工具装在 `.venv` 里。
+**要输入命令时**（下面的 `audit`、`cluster`、`search` 等），请双击 `scripts\StyleAtlas-console.bat`，它会开一个已经设置好的命令窗口，在里面输入命令即可。直接在一般的命令提示符里输入 `style-atlas` 会出现“不是内部或外部命令”，因为工具装在 `.venv` 里。
 
 不确定环境有没有装好时，可以在这个窗口运行 `style-atlas doctor`，它会检查 Python、torch、有没有抓到显卡、模型是否已下载、磁盘空间。
 
@@ -401,7 +399,7 @@ Windows 跳出“Windows 已保护你的电脑”时，按“更多信息”→�
 - **repeats**：每个 epoch 里这个文件夹的图要重复几次。张数少的组 repeats 高一点，各组的份量就会接近。
 - **触发词（trigger word）**：写在标注最前面的词，训练后在提示词里写它就能叫出这种画风。
 
-**第一次分析前**，程序会从 Hugging Face 下载 CSD 模型，只会下载一次。下载的 2.4 GB 源文件放在 `%USERPROFILE%\.cache\style-atlas`，另保存为 1.2 GB 的精简文件后就删掉；所以第一次需要约 3.9 GB 的空间，之后只占 1.2 GB。空间不够时，程序会在下载前就说明。C 槽空间不够时，可以先设置环境变量 `STYLE_ATLAS_CACHE`（例如 `D:\style-atlas-cache`），源文件和精简文件都会改存到那里。如果你自己设置了 `HF_HOME` 或 `HF_HUB_CACHE`，源文件会放在那里，不会自动删除；`style-atlas doctor` 会提示它已经用不到了。连不上 Hugging Face 时（例如在中国大陆），先设置环境变量 `HF_ENDPOINT=https://hf-mirror.com` 改从镜像站下载。同一个文件夹也存放向量与缩略图缓存（每张图约几 KB），删掉不影响源文件案，之后会重新生成。网页界面会在准备页上显示下载和计算的进度；其他指令的进度印在黑色窗口里，下载时可能停很久，这是正常的。
+**第一次分析前**，程序会从 Hugging Face 下载 CSD 模型，只会下载一次。下载的 2.4 GB 源文件放在 `%USERPROFILE%\.cache\style-atlas`，另保存为 1.2 GB 的精简文件后就删掉；所以第一次需要约 3.9 GB 的空间，之后只占 1.2 GB。空间不够时，程序会在下载前就说明。C 盘空间不够时，可以先设置环境变量 `STYLE_ATLAS_CACHE`（例如 `D:\style-atlas-cache`），源文件和精简文件都会改存到那里。如果你自己设置了 `HF_HOME` 或 `HF_HUB_CACHE`，源文件会放在那里，不会自动删除；`style-atlas doctor` 会提示它已经用不到了。连不上 Hugging Face 时（例如在中国大陆），先设置环境变量 `HF_ENDPOINT=https://hf-mirror.com` 改从镜像站下载。同一个文件夹也存放向量与缩略图缓存（每张图约几 KB），删掉不影响源文件，之后会重新生成。网页界面会在准备页上显示下载和计算的进度；其他命令的进度印在黑色窗口里，下载时可能停很久，这是正常的。
 
 速度参考：只用 CPU 时，8 线程约每秒 2.5–4 张，1,000 张约 4–7 分钟（实测，大图较慢）。有 NVIDIA 显卡通常会快很多，但这点没有实测过。每张图的向量都会缓存，第二次开同一个文件夹就不用重算向量。
 
@@ -418,12 +416,12 @@ pip install -e .
 pip install -e ".[umap]"
 ```
 
-装在 `.venv` 里，所以 `StyleAtlas.bat`、`StyleAtlas-console.bat` 都能直接用；自己开命令窗口时，先运行 `.venv\Scripts\activate`。找不到 `style-atlas` 指令时（Python 的 Scripts 文件夹不在 PATH），改打 `python -m styleatlas`，后面接一样的参数。
+装在 `.venv` 里，所以 `StyleAtlas.bat`、`StyleAtlas-console.bat` 都能直接用；自己开命令窗口时，先运行 `.venv\Scripts\activate`。找不到 `style-atlas` 命令时（Python 的 Scripts 文件夹不在 PATH），改用 `python -m styleatlas`，后面接一样的参数。
 
 ## 授权与致谢
 
-- 风格嵌入使用 CSD（Somepalli et al., *Measuring Style Similarity in Diffusion Models*, 2024）。代码 [learn2phoenix/CSD](https://github.com/learn2phoenix/CSD) 采 MIT 授权，权重 [tomg-group-umd/CSD-ViT-L](https://huggingface.co/tomg-group-umd/CSD-ViT-L) 采 CC-BY-4.0，在运行时才下载，本 repo 不重新散布。
-- 3D 地图使用 [three.js](https://threejs.org) r160（MIT），已内嵌在 `src/styleatlas/templates/vendor/`，授权档在同一个文件夹。
-- 本项目目前为私有，授权尚未决定。
+- 风格嵌入使用 CSD（Somepalli et al., *Measuring Style Similarity in Diffusion Models*, 2024）。代码 [learn2phoenix/CSD](https://github.com/learn2phoenix/CSD) 使用 MIT 许可证，权重 [tomg-group-umd/CSD-ViT-L](https://huggingface.co/tomg-group-umd/CSD-ViT-L) 使用 CC-BY-4.0，在运行时才下载，本仓库不再分发。
+- 3D 地图使用 [three.js](https://threejs.org) r160（MIT），已内嵌在 `src/styleatlas/templates/vendor/`，许可证文件在同一个文件夹。
+- style-atlas 本身使用 MIT 许可证，见 [LICENSE](LICENSE)。
 
 ---

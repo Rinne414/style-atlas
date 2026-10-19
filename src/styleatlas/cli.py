@@ -1049,7 +1049,7 @@ def build_parser() -> argparse.ArgumentParser:
         prog="style-atlas",
         description=tr(
             "style-atlas <command> ...  (each command's options: style-atlas <command> -h)",
-            "style-atlas <指令> ...（各指令的选项：style-atlas <指令> -h）",
+            "style-atlas <命令> ...（各命令的选项：style-atlas <命令> -h）",
         ),
         epilog=START_HERE(),
         formatter_class=HelpFormatter,

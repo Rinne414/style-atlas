@@ -9,7 +9,7 @@ if not exist "%VENV%\style-atlas.exe" (
 )
 set "PATH=%VENV%;%PATH%"
 cd /d "%~dp0.."
-echo 这个窗口可以直接用 style-atlas 指令，例如 / style-atlas is ready in this window. Examples:
+echo 这个窗口可以直接用 style-atlas 命令，例如 / style-atlas is ready in this window. Examples:
 echo   style-atlas audit "D:\lora\artistX"
 echo   style-atlas cluster "D:\lora\artistX" --layout kohya --name artistX --dedupe --export copy
 echo   style-atlas --help
