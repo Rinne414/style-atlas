@@ -5,7 +5,7 @@ chcp 65001 >nul
 set "FOLDER=%~1"
 if not defined FOLDER call :pick
 if not defined FOLDER (
-  echo 沒有選資料夾。如果沒有跳出選擇視窗，請把圖片資料夾拖到這個檔案上。
+  echo 没有选文件夹。如果没有跳出选择窗口，请把图片文件夹拖到这个文件上。
   echo No folder chosen. If no window opened, drag the image folder onto this file instead,
   echo or run:  style-atlas serve "D:\your\folder"
   pause
@@ -17,7 +17,7 @@ if not exist "%SA%" set "SA=style-atlas"
 if "%SA%"=="style-atlas" (
   where style-atlas >nul 2>nul
   if errorlevel 1 (
-    echo 還沒安裝：請先執行 scripts\setup.bat / style-atlas is not installed yet. Run scripts\setup.bat first.
+    echo 还没安装：请先运行 scripts\setup.bat / style-atlas is not installed yet. Run scripts\setup.bat first.
     pause
     exit /b 1
   )

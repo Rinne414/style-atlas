@@ -23,19 +23,19 @@ def cmd_report(a: argparse.Namespace) -> int:
             tr(
                 "--renders compares plain style vectors: leave out --neutralize and "
                 "--ignore-characters",
-                "--renders 比的是原始畫風向量：請拿掉 --neutralize 和 --ignore-characters",
+                "--renders 比的是原始画风向量：请拿掉 --neutralize 和 --ignore-characters",
             )
         )
     atlas = _atlas(a, a.folder).with_looks(_opts(a), log)
     if len(atlas) == 0:
-        log(tr(f"no readable images in {a.folder}", f"{a.folder} 裡沒有讀得到的圖"))
+        log(tr(f"no readable images in {a.folder}", f"{a.folder} 里没有读得到的图"))
         return 1
     excluded = web_exclusions(atlas, Path(a.folder))
     if len(excluded) == len(atlas):
         log(
             tr(
                 "every image is excluded in the web app; nothing to report",
-                "所有圖都在網頁裡排除了；沒有東西可以做報告",
+                "所有图都在网页里排除了；没有东西可以做报告",
             )
         )
         return 1
@@ -43,7 +43,7 @@ def cmd_report(a: argparse.Namespace) -> int:
         log(
             tr(
                 f"{len(excluded)} image(s) you excluded in the web app are left out",
-                f"略過你在網頁裡排除的 {len(excluded)} 張圖",
+                f"略过你在网页里排除的 {len(excluded)} 张图",
             )
         )
     clustering, names = saved_groups(a, atlas, Path(a.folder))
@@ -58,7 +58,7 @@ def cmd_report(a: argparse.Namespace) -> int:
         log(
             tr(
                 f"checking {len(renders)} renders from {a.renders} against this training set",
-                f"用這個訓練集檢查 {len(renders)} 張算圖（{a.renders}）",
+                f"用这个训练集检查 {len(renders)} 张出图（{a.renders}）",
             )
         )
     title = a.title or Path(a.folder).resolve().name
@@ -75,7 +75,7 @@ def cmd_report(a: argparse.Namespace) -> int:
         time_source=a.time,
         folders=_space(a) == PLAIN,  # the families' cut was measured on plain CSD
     )
-    log(tr("report:", "報告："))
+    log(tr("report:", "报告："))
     print(path)
     return 0
 
@@ -90,7 +90,7 @@ def _closest_artists(a: argparse.Namespace, atlas: Atlas) -> list[tuple[str, flo
         log(
             tr(
                 f"{a.artists} has fewer than 2 sub-folders; no closest artists listed",
-                f"{a.artists} 的子資料夾少於 2 個；不列最接近的畫師",
+                f"{a.artists} 的子文件夹少于 2 个；不列最接近的画师",
             )
         )
         return None
@@ -105,23 +105,23 @@ def report_args(p: argparse.ArgumentParser) -> None:
         "--out",
         help=tr(
             "HTML file (default: <folder>_style_atlas/style_report.html)",
-            "HTML 檔（預設：<資料夾>_style_atlas/style_report.html）",
+            "HTML 文件（默认：<文件夹>_style_atlas/style_report.html）",
         ),
     )
     p.add_argument(
-        "--title", help=tr("page title (default: the folder name)", "頁面標題（預設：資料夾名稱）")
+        "--title", help=tr("page title (default: the folder name)", "页面标题（默认：文件夹名称）")
     )
     p.add_argument(
         "--lang",
         choices=["zh", "en"],
-        help=tr("the page's language (default: as the messages)", "頁面的語言（預設：和訊息相同）"),
+        help=tr("the page's language (default: as the messages)", "页面的语言（默认：和消息相同）"),
     )
     p.add_argument(
         "--fresh",
         action="store_true",
         help=tr(
             "group afresh instead of using the groups the web app saved",
-            "重新分群，不沿用網頁介面存的分群",
+            "重新分组，不沿用网页界面存的分组",
         ),
     )
     p.add_argument(
@@ -129,7 +129,7 @@ def report_args(p: argparse.ArgumentParser) -> None:
         metavar="DIR",
         help=tr(
             "a LoRA's test images: check them against this folder as its training set",
-            "某個 LoRA 的算圖：拿這個資料夾當它的訓練集來檢查",
+            "某个 LoRA 的出图：拿这个文件夹当它的训练集来检查",
         ),
     )
     p.add_argument(
@@ -137,6 +137,6 @@ def report_args(p: argparse.ArgumentParser) -> None:
         metavar="DIR",
         help=tr(
             "a library with one sub-folder per artist: list the closest ones",
-            "每位畫師一個子資料夾的圖庫：列出最接近的幾位",
+            "每位画师一个子文件夹的图库：列出最接近的几位",
         ),
     )

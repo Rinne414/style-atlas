@@ -137,7 +137,7 @@ def local_folder(text: str) -> Path:
         raise ValueError(
             tr(
                 "network folders are not accepted here; start with --reference instead",
-                "這裡不接受網路資料夾；請在啟動時用 --reference 指定",
+                "这里不接受网络文件夹；请在启动时用 --reference 指定",
             )
         )
     if os.name == "nt" and path.drive:
@@ -147,11 +147,11 @@ def local_folder(text: str) -> Path:
             raise ValueError(
                 tr(
                     "network drives are not accepted here; start with --reference instead",
-                    "這裡不接受網路磁碟機；請在啟動時用 --reference 指定",
+                    "这里不接受网络驱动器；请在启动时用 --reference 指定",
                 )
             )
     if not path.is_dir():
-        raise ValueError(tr(f"not a folder: {text}", f"不是資料夾：{text}"))
+        raise ValueError(tr(f"not a folder: {text}", f"不是文件夹：{text}"))
     return path
 
 
@@ -246,7 +246,7 @@ class StyleAtlasApp(GroupEdits, DatasetExport):
             )
         except ValueError as e:  # e.g. saved as periods along the timeline, reopened without --time
             self.progress(
-                tr(f"{e}; the grouping menu is back to automatic", f"{e}；分群方式改回自動")
+                tr(f"{e}; the grouping menu is back to automatic", f"{e}；分组方式改回自动")
             )
             s = {"method": "agglomerative", "threshold": None}
             self.clustering = self._grouped("agglomerative", None, None)
@@ -267,7 +267,8 @@ class StyleAtlasApp(GroupEdits, DatasetExport):
                     tr(
                         "periods along the timeline need a time: open the folder with --time name "
                         "(ids or dates in the file names) or --time mtime",
-                        "依時間分時期需要時間資訊：開啟資料夾時加 --time name（檔名裡的編號或日期）"
+                        "按时间分时期需要时间信息："
+                        "打开文件夹时加 --time name（文件名里的编号或日期）"
                         "或 --time mtime",
                     )
                 )
@@ -361,7 +362,7 @@ class StyleAtlasApp(GroupEdits, DatasetExport):
         with self._lock:
             group = next((g for g in self.layout.duplicates if i in g), None)
             if group is None:
-                raise ValueError(tr("this image has no near-duplicates", "這張圖沒有近重複的圖"))
+                raise ValueError(tr("this image has no near-duplicates", "这张图没有近重复的图"))
             self.kept_copies = (self.kept_copies - set(group)) | {i}
             self._kept.values = {j: True for j in self.kept_copies}
             self._kept.save()
@@ -378,7 +379,7 @@ class StyleAtlasApp(GroupEdits, DatasetExport):
         text = body.get("text", "")
         if not isinstance(text, str) or len(text) > MAX_NOTE:
             raise ValueError(
-                tr(f"a note is text of up to {MAX_NOTE} characters", f"註記最多 {MAX_NOTE} 個字")
+                tr(f"a note is text of up to {MAX_NOTE} characters", f"备注最多 {MAX_NOTE} 个字")
             )
         text = " ".join(text.split())
         with self._lock:
@@ -406,10 +407,10 @@ class StyleAtlasApp(GroupEdits, DatasetExport):
         ignored): "#mono" finds monochrome and greyscale-monochrome alike."""
         text = body.get("tag")
         if not isinstance(text, str) or not text.strip() or len(text) > MAX_TAG_TEXT:
-            raise ValueError(tr("tag must be some text", "請輸入標籤"))
+            raise ValueError(tr("tag must be some text", "请输入标签"))
         want = norm_tag(text)
         if not want:
-            raise ValueError(tr("tag must have a letter or a digit", "標籤至少要有一個字母或數字"))
+            raise ValueError(tr("tag must have a letter or a digit", "标签至少要有一个字母或数字"))
         if self._tag_sets is None:
             self._read_tags()
         with self._lock:
@@ -512,14 +513,14 @@ class StyleAtlasApp(GroupEdits, DatasetExport):
                 tr(
                     f"the artist map needs {MIN_FOLDERS} or more sub-folders (e.g. one per "
                     f"artist); this folder has {len(folders)}",
-                    f"畫師地圖需要 {MIN_FOLDERS} 個以上的子資料夾（例如每位畫師一個）；"
-                    f"這個資料夾有 {len(folders)} 個",
+                    f"画师地图需要 {MIN_FOLDERS} 个以上的子文件夹（例如每位画师一个）；"
+                    f"这个文件夹有 {len(folders)} 个",
                 )
             )
         families = folder_families(folders.style)
         title = tr(
             f"{self.title or self.raw.root.name}: artists",
-            f"{self.title or self.raw.root.name}：畫師地圖",
+            f"{self.title or self.raw.root.name}：画师地图",
         )
         path = self.out_dir / ARTIST_MAP
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -558,7 +559,7 @@ class StyleAtlasApp(GroupEdits, DatasetExport):
             items = [i for i in self._indices(body) if i not in self.excluded]
             subset = self.raw.subset(items)
         if not items:
-            raise ValueError(tr("all of these images are excluded", "這些圖都已經排除了"))
+            raise ValueError(tr("all of these images are excluded", "这些图都已经排除了"))
         result = copy_ranked(
             subset, folder / (clean_group_name(name) if name else "search_matches")
         )
@@ -582,7 +583,7 @@ class StyleAtlasApp(GroupEdits, DatasetExport):
         path = self.atlas.paths[self._index(body)]
         if not path.is_file():
             raise ValueError(
-                tr("the file is gone (moved or deleted)", "找不到這個檔案（被移走或刪掉了）")
+                tr("the file is gone (moved or deleted)", "找不到这个文件（被移走或删掉了）")
             )
         reveal = body.get("reveal") is True
         if sys.platform == "win32":
@@ -647,7 +648,7 @@ class StyleAtlasApp(GroupEdits, DatasetExport):
             self.progress(
                 tr(
                     f"the style model will load at the first search ({e})",
-                    f"畫風模型會在第一次搜尋時再載入（{e}）",
+                    f"画风模型会在第一次搜索时再加载（{e}）",
                 )
             )
 
@@ -667,7 +668,7 @@ class StyleAtlasApp(GroupEdits, DatasetExport):
         with self._lock:
             if self.atlas is not atlas:
                 raise ValueError(
-                    tr("the space changed meanwhile; try again", "向量空間剛剛換過，請再試一次")
+                    tr("the space changed meanwhile; try again", "向量空间刚刚换过，请再试一次")
                 )
             self._remember()
             self._swap(clustering)
@@ -774,7 +775,7 @@ class StyleAtlasApp(GroupEdits, DatasetExport):
             try:
                 image = load_rgb(io.BytesIO(d))
             except LOAD_ERRORS as e:
-                raise ValueError(tr(f"not a readable image: {e}", f"讀不了這張圖：{e}")) from e
+                raise ValueError(tr(f"not a readable image: {e}", f"读不了这张图：{e}")) from e
             with self._model_lock:
                 emb = get_encoder(self.opts).encode([image])
             styles.append(emb.style[0])
@@ -798,7 +799,7 @@ class StyleAtlasApp(GroupEdits, DatasetExport):
             elif body.get("excluded") is True:
                 members = sorted(self.excluded)
                 if not members:
-                    raise ValueError(tr("no image is excluded yet", "還沒有排除任何圖"))
+                    raise ValueError(tr("no image is excluded yet", "还没有排除任何图"))
             else:
                 group = self._group(body.get("group"), allow_unassigned=False)
                 members = list(self.clustering.clusters[group].members)
@@ -915,14 +916,14 @@ class StyleAtlasApp(GroupEdits, DatasetExport):
             a = self._group(body.get("a"), allow_unassigned=False)
             b = self._group(body.get("b"), allow_unassigned=False)
             if a == b:
-                raise ValueError(tr("pick two different groups", "請選兩個不同的群"))
+                raise ValueError(tr("pick two different groups", "请选两个不同的组"))
             ma = list(self.clustering.clusters[a].members)
             mb = list(self.clustering.clusters[b].members)
         if len(ma) < 2 or len(mb) < 2:
             raise ValueError(
                 tr(
                     "each side needs at least 2 images that the other does not have",
-                    "兩邊都至少要有 2 張對方沒有的圖",
+                    "两边都至少要有 2 张对方没有的图",
                 )
             )
         return ma, mb

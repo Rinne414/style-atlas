@@ -61,7 +61,7 @@ def cluster_timeline(
             tr(
                 f"{k} periods need at least {k * min_size} images with a time "
                 f"({len(order)} have one)",
-                f"分成 {k} 個時期至少要 {k * min_size} 張有時間資訊的圖（目前 {len(order)} 張）",
+                f"分成 {k} 个时期至少要 {k * min_size} 张有时间信息的图（目前 {len(order)} 张）",
             )
         )
     style_t = np.asarray(style)[order]
@@ -136,30 +136,30 @@ def verdict_text(params: dict) -> str:
         "few": tr(
             f"too few distinct works to test the periods ({n} once near-duplicates and runs of "
             "alike consecutive works count once): judge them by eye in the map",
-            f"去掉近重複、連續的相似作品只算一次後，只有 {n} 張，太少，無法檢定各時期："
-            "請在地圖上直接看圖判斷",
+            f"去掉近重复、连续的相似作品只算一次后，只有 {n} 张，太少，无法检验各时期："
+            "请在地图上直接看图判断",
         ),
         "none": tr(
             f"no clear link between style and time found (p {p}; with few works only large "
             "changes show): the cuts may be arbitrary, so one LoRA for all is the safe choice",
-            f"沒有找到畫風和時間的明顯關係（p {p}；作品少時只看得出大的變化）："
-            "這些切點可能只是任意的，合在一起訓練比較穩妥",
+            f"没有找到画风和时间的明显关系（p {p}；作品少时只看得出大的变化）："
+            "这些切点可能只是任意的，合在一起训练比较稳妥",
         ),
         "drift": tr(
             f"the style changes with time (p {p}) but no clear turning point was found (turns "
             f"p {q}): the cuts may split a gradual change (a single modest turn can look like "
             "this too, below about 100 works). One LoRA for all usually works; for one period's "
             "look, keep only that period",
-            f"畫風隨時間改變（p {p}），但沒有找到明確的轉折點（轉折 p {q}）："
-            "切點可能只是把漸進的變化切開（作品不到約 100 張時，幅度不大的單一轉折也會這樣）。"
-            "通常合在一起訓練即可；想要某個時期的畫風，就只留那一段",
+            f"画风随时间改变（p {p}），但没有找到明确的转折点（转折 p {q}）："
+            "切点可能只是把渐进的变化切开（作品不到约 100 张时，幅度不大的单一转折也会这样）。"
+            "通常合在一起训练即可；想要某个时期的画风，就只留那一段",
         ),
         "turns": tr(
             f"the style changes more abruptly than a smooth curve over time explains (turns p "
             f"{q}, separation {sep:+.3f}): likely distinct periods; training them separately "
             "can make sense",
-            f"畫風的變化比隨時間平滑變化的曲線更突然（轉折 p {q}，分離度 {sep:+.3f}）："
-            "很可能是不同的時期，分開訓練有道理",
+            f"画风的变化比随时间平滑变化的曲线更突然（转折 p {q}，分离度 {sep:+.3f}）："
+            "很可能是不同的时期，分开训练有道理",
         ),
     }[verdict(params)]
     edge = on_edge(params)
@@ -168,8 +168,8 @@ def verdict_text(params: dict) -> str:
             f"the style changes more abruptly than a smooth curve explains (turns p {q}), but "
             "the evidence is at the edge: it may be only gradual change; when unsure, one LoRA "
             "is the safer choice",
-            f"畫風的變化比平滑變化的曲線更突然（轉折 p {q}），但證據在邊緣：也可能只是漸變；"
-            "不確定時，合在一起訓練比較穩妥",
+            f"画风的变化比平滑变化的曲线更突然（转折 p {q}），但证据在边缘：也可能只是渐变；"
+            "不确定时，合在一起训练比较稳妥",
         )
     elif edge:
         text += EDGE_NOTES[edge]()
@@ -177,7 +177,7 @@ def verdict_text(params: dict) -> str:
         text += tr(
             f" ({params['tied']:.0%} of the images share a time with another; their order "
             "within it is arbitrary)",
-            f"（{params['tied']:.0%} 的圖和別張時間相同，同一時間內的先後是任意的）",
+            f"（{params['tied']:.0%} 的图和别张时间相同，同一时间内的先后是任意的）",
         )
     return text + tr(SIZES_NOTE_EN, SIZES_NOTE_ZH)
 
@@ -185,7 +185,7 @@ def verdict_text(params: dict) -> str:
 SIZES_NOTE_EN = (
     ". Periods are cut where the style changes most, so they hold different numbers of works"
 )
-SIZES_NOTE_ZH = "。時期切在畫風變化最大的地方，所以每個時期的張數不一樣"
+SIZES_NOTE_ZH = "。时期切在画风变化最大的地方，所以每个时期的张数不一样"
 
 
 TIED_NOTE = 0.2  # share of tied times from which the verdict mentions them
@@ -200,19 +200,19 @@ def _edge_note(en: str, zh: str):
 EDGE_NOTES = {  # what an edge verdict leans towards, and what to do (map_i18n.js has a copy)
     "weak_link": _edge_note(
         "p is right at the line: perhaps a faint link, not enough to train the periods apart",
-        "p 剛好在門檻附近：可能有一點關係，但不足以分開訓練",
+        "p 刚好在阈值附近：可能有一点关系，但不足以分开训练",
     ),
     "barely_time": _edge_note(
         "the link to time is itself faint: not enough to train the periods apart",
-        "和時間的關係本身也很弱：不足以分開訓練",
+        "和时间的关系本身也很弱：不足以分开训练",
     ),
     "maybe_turn": _edge_note(
         "there may also be a faint turn; more works would tell",
-        "也可能有一個不明顯的轉折；作品多一些才分得清",
+        "也可能有一个不明显的转折；作品多一些才分得清",
     ),
     "maybe_drift": _edge_note(
         "it may also be only gradual change; when unsure, one LoRA is the safer choice",
-        "也可能只是漸變；不確定時，合在一起訓練比較穩妥",
+        "也可能只是渐变；不确定时，合在一起训练比较稳妥",
     ),
 }
 

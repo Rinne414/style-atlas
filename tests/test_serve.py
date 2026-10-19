@@ -439,7 +439,7 @@ def test_the_style_report_can_be_saved_from_the_web_app(tmp_path):
     app, _ = _app(tmp_path, (8, 7))
     app.rename({"group": 0, "name": "early", "rev": app.revision})
     page = Path(app.save_report({"lang": "zh"})["file"]).read_text(encoding="utf-8")
-    assert "畫風一致性" in page and "early" in page
+    assert "画风一致性" in page and "early" in page
     with pytest.raises(ValueError):
         app.save_report({"lang": "fr"})
 
@@ -708,7 +708,7 @@ def test_one_group_per_folder_named_after_it(tmp_path):
 
 def test_a_group_copy_goes_to_a_folder_named_after_the_group(tmp_path):
     app, _ = _library(tmp_path)
-    done = app.copy_hits({"items": [0, 1, 2], "name": "畫風 1 · 水彩"})
+    done = app.copy_hits({"items": [0, 1, 2], "name": "画风 1 · 水彩"})
     folder = Path(done["folder"])
     assert done["placed"] == 3 and folder.parent.name == "copies" and "水彩" in folder.name
     assert Path(app.copy_hits({"items": [3]})["folder"]).name.startswith("search_matches")
@@ -777,16 +777,16 @@ def test_a_kohya_export_with_chinese_names_writes_a_valid_dataset_config(tmp_pat
     from pathlib import Path
 
     tomllib = pytest.importorskip("tomllib")  # Python 3.11+
-    folder = tmp_path / "資料夾"
+    folder = tmp_path / "文件夹"
     folder.mkdir()
     app, _ = _app(folder, (8, 7))
     app.regroup({"threshold": 0.5})
-    app.rename({"group": 0, "name": "早期 線稿", "rev": app.revision})
-    out = app.export({"mode": "copy", "layout": "kohya", "name": "畫師", "trigger": True})
+    app.rename({"group": 0, "name": "早期 线稿", "rev": app.revision})
+    out = app.export({"mode": "copy", "layout": "kohya", "name": "画师", "trigger": True})
     root = Path(out["folder"])
     config = tomllib.loads((root / "dataset_config.toml").read_text(encoding="utf-8"))
     dirs = [Path(s["image_dir"]) for s in config["datasets"][0]["subsets"]]
-    assert all(d.is_dir() for d in dirs) and any("早期 線稿" in d.name for d in dirs)
+    assert all(d.is_dir() for d in dirs) and any("早期 线稿" in d.name for d in dirs)
     assert config["general"]["keep_tokens"] == 1
     repeats = {Path(s["image_dir"]): s["num_repeats"] for s in config["datasets"][0]["subsets"]}
     pipe = tomllib.loads((root / "diffusion_pipe_dataset.toml").read_text(encoding="utf-8"))

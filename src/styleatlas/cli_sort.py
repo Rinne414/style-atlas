@@ -51,10 +51,10 @@ ALREADY = "_already_in_dataset"  # a near-copy of an image the dataset already h
 RESERVED = {UNSURE.casefold(), ALREADY.casefold()}
 SHOWN = 10  # near-copies and _unsure images named in the summary (the rest: sorted.csv)
 VERDICTS_ZH = {
-    "few": f"張數太少，不判斷整批（不到 {BATCH_MIN} 張）",
-    "in": "大多是資料集的畫風",
-    "some": "部分像資料集的畫風",
-    "out": "大多不像資料集的畫風",
+    "few": f"张数太少，不判断整批（不到 {BATCH_MIN} 张）",
+    "in": "大多是数据集的画风",
+    "some": "部分像数据集的画风",
+    "out": "大多不像数据集的画风",
 }
 VERDICTS = {
     "few": f"too few images to judge the batch (under {BATCH_MIN})",
@@ -69,7 +69,7 @@ def cmd_sort(a: argparse.Namespace) -> int:
     out = Path(a.out) if a.out else _default_out(Path(a.folder), Path(a.into))
     dataset, new = _both_sides(a, out)
     if len(new) == 0:
-        log(tr(f"no readable images in {a.folder}", f"{a.folder} 裡沒有讀得到的圖"))
+        log(tr(f"no readable images in {a.folder}", f"{a.folder} 里没有读得到的图"))
         return 1
     clustering, labels = _dataset_groups(a, dataset)
     skip = set(web_exclusions(dataset, Path(a.into)))
@@ -79,7 +79,7 @@ def cmd_sort(a: argparse.Namespace) -> int:
         log(
             tr(
                 f"{a.into} has no style group of {FIT_MIN} or more images to sort into",
-                f"{a.into} 沒有 {FIT_MIN} 張以上的畫風群可以放新圖",
+                f"{a.into} 没有 {FIT_MIN} 张以上的画风组可以放新图",
             )
         )
         return 1
@@ -98,7 +98,7 @@ def cmd_sort(a: argparse.Namespace) -> int:
         placed, options = _place(a, new, folders, labels, out, dataset)
         if a.merged:
             merged = _merge(dataset, new, folders, clustering, labels, skip, out, options)
-    log(tr("table of every new image:", "每張新圖的結果表："))
+    log(tr("table of every new image:", "每张新图的结果表："))
     print(table, flush=True)  # before the next step, also when the output is piped
     _next_step(a, placed, merged, UNSURE in folders)
     return 0
@@ -119,7 +119,7 @@ def _both_sides(a: argparse.Namespace, out: Path) -> tuple[Atlas, Atlas]:
         raise ValueError(
             tr(
                 "the new images and the dataset are the same folder",
-                "新圖和資料集是同一個資料夾",
+                "新图和数据集是同一个文件夹",
             )
         )
     if a.merged and not (a.export and a.by_folder):
@@ -127,7 +127,7 @@ def _both_sides(a: argparse.Namespace, out: Path) -> tuple[Atlas, Atlas]:
             tr(
                 "--merged needs --export copy|link and --by-folder (the dataset's sub-folders are "
                 "the groups)",
-                "--merged 需要搭配 --export copy|link 和 --by-folder（資料集的子資料夾就是各群）",
+                "--merged 需要搭配 --export copy|link 和 --by-folder（数据集的子文件夹就是各组）",
             )
         )
     if (a.trigger_captions or a.strip_tags or a.fix_tag_spelling) and not a.export:
@@ -136,14 +136,14 @@ def _both_sides(a: argparse.Namespace, out: Path) -> tuple[Atlas, Atlas]:
                 "--trigger-captions, --strip-tags and --fix-tag-spelling only apply with "
                 "--export copy|link",
                 "--trigger-captions、--strip-tags 和 --fix-tag-spelling 只在 --export copy|link "
-                "時有用",
+                "时有用",
             )
         )
     if any(root.is_relative_to(out.resolve()) for root in (new_root, data_root)):
         raise ValueError(
             tr(
                 "the output folder must not hold the new images or the dataset",
-                "輸出資料夾不能包含新圖或資料集",
+                "输出文件夹不能包含新图或数据集",
             )
         )
     if any(out.resolve().is_relative_to(root) for root in (new_root, data_root)):
@@ -151,12 +151,12 @@ def _both_sides(a: argparse.Namespace, out: Path) -> tuple[Atlas, Atlas]:
             tr(
                 "the output folder must not be inside the new images or the dataset (a trainer "
                 "would read the copies in it)",
-                "輸出資料夾不能放在新圖或資料集裡面（訓練程式會把裡面的複本也讀進去）",
+                "输出文件夹不能放在新图或数据集里面（训练程序会把里面的副本也读进去）",
             )
         )
-    log(tr(f"dataset: {a.into}", f"資料集：{a.into}"))
+    log(tr(f"dataset: {a.into}", f"数据集：{a.into}"))
     dataset = _atlas(a, a.into, exclude=[out, *_nested(new_root, data_root)])
-    log(tr(f"new images: {a.folder}", f"新圖：{a.folder}"))
+    log(tr(f"new images: {a.folder}", f"新图：{a.folder}"))
     return dataset, _atlas(a, a.folder, exclude=[out, *_nested(data_root, new_root)])
 
 
@@ -173,7 +173,7 @@ def _place(
                 "note: only some folders are named <repeats>_<name>; the triggers keep each "
                 "folder's "
                 "full name",
-                "注意：只有部分資料夾是 <repeats>_<名稱> 的格式；觸發詞會用各資料夾的完整名稱",
+                "注意：只有部分文件夹是 <repeats>_<名称> 的格式；触发词会用各文件夹的完整名称",
             )
         )
     # the new captions follow the spelling the dataset and the new images use more
@@ -190,7 +190,7 @@ def _place(
     log(_placed_line(done, new.paths, folders))
     export_notes(done, folders, options["layout"], a.trigger_captions, respell)
     for p, why in done.failed:
-        log(tr(f"not placed {p}: {why}", f"沒有放入 {p}：{why}"))
+        log(tr(f"not placed {p}: {why}", f"没有放入 {p}：{why}"))
     return done.folder, options
 
 
@@ -204,8 +204,8 @@ def _placed_line(done: ExportResult, paths: list[Path], folders: list[str]) -> s
     return tr(
         f"{done.placed} images placed in {done.folder}: {kinds['']} in style folders, "
         f"{kinds[UNSURE]} in {UNSURE}, {kinds[ALREADY]} in {ALREADY}",
-        f"已放 {done.placed} 張到 {done.folder}：{kinds['']} 張進畫風資料夾、"
-        f"{kinds[UNSURE]} 張進 {UNSURE}、{kinds[ALREADY]} 張進 {ALREADY}",
+        f"已放 {done.placed} 张到 {done.folder}：{kinds['']} 张进画风文件夹、"
+        f"{kinds[UNSURE]} 张进 {UNSURE}、{kinds[ALREADY]} 张进 {ALREADY}",
     )
 
 
@@ -239,8 +239,8 @@ def _merge(
         tr(
             f"merged dataset, ready to train: {done.folder} ({len(dataset)} dataset images + "
             f"{len(added)} new ones that fit; the dataset itself is unchanged)",
-            f"合併好的資料集，可以直接訓練：{done.folder}（資料集 {len(dataset)} 張 + 符合的新圖 "
-            f"{len(added)} 張；原本的資料集沒有改動）",
+            f"合并好的数据集，可以直接训练：{done.folder}（数据集 {len(dataset)} 张 + 符合的新图 "
+            f"{len(added)} 张；原本的数据集没有改动）",
         )
     )
     _merge_notes(dataset, skip, options["mode"])
@@ -251,9 +251,9 @@ def _merge(
                 f"renamed {old} -> {name}: {count[old]} images there now ({sizes[old]} in the "
                 "dataset's folder), so images x repeats stays near 100; the trainer configs in it "
                 "list the new repeats",
-                f"已改名 {old} -> {name}：現在有 {count[old]} 張"
-                f"（資料集的資料夾是 {sizes[old]} 張），讓張數 × repeats 維持在約 100；"
-                "裡面的訓練設定檔用的是新的 repeats",
+                f"已改名 {old} -> {name}：现在有 {count[old]} 张"
+                f"（数据集的文件夹是 {sizes[old]} 张），让张数 × repeats 维持在约 100；"
+                "里面的训练配置文件用的是新的 repeats",
             )
         )
     for old, name in blocked:
@@ -261,12 +261,12 @@ def _merge(
             tr(
                 f"kept the name {old}: {name} is already a folder; set its repeats by hand "
                 f"({count[old]} images there now)",
-                f"保留 {old} 的名稱：已經有 {name} 這個資料夾；請自己調整它的 repeats"
-                f"（現在有 {count[old]} 張）",
+                f"保留 {old} 的名称：已经有 {name} 这个文件夹；请自己调整它的 repeats"
+                f"（现在有 {count[old]} 张）",
             )
         )
     for p, why in done.failed:
-        log(tr(f"not placed {p}: {why}", f"沒有放入 {p}：{why}"))
+        log(tr(f"not placed {p}: {why}", f"没有放入 {p}：{why}"))
     return done.folder
 
 
@@ -276,14 +276,14 @@ def _merge_notes(dataset: Atlas, skip: set[int], mode: str) -> None:
         log(
             tr(
                 f"{len(skip)} images excluded in the web app are in {excluded}",
-                f"網頁介面排除的 {len(skip)} 張放在 {excluded}",
+                f"网页界面排除的 {len(skip)} 张放在 {excluded}",
             )
         )
     if dataset.failed:
         log(
             tr(
                 f"{len(dataset.failed)} files in the dataset could not be read and are not in it",
-                f"資料集裡有 {len(dataset.failed)} 個檔案讀不到，沒有放進去",
+                f"数据集里有 {len(dataset.failed)} 个文件读不到，没有放进去",
             )
         )
     if mode == "link":
@@ -291,8 +291,8 @@ def _merge_notes(dataset: Atlas, skip: set[int], mode: str) -> None:
             tr(
                 "the dataset's images there are hard links: editing one of them in place edits "
                 "the dataset's file too (rewritten captions are separate files)",
-                "裡面資料集的圖是硬連結：直接修改其中一張，資料集裡的原檔也會一起改"
-                "（重寫過的標註檔是另外的檔案）",
+                "里面数据集的图是硬链接：直接修改其中一张，数据集里的原文件也会一起改"
+                "（重写过的标注文件是另外的文件）",
             )
         )
 
@@ -333,8 +333,8 @@ def _next_step(
                     if a.by_folder
                     else ""
                 ),
-                "下一步：加上 --export copy 把新圖放進資料夾"
-                + ("（再加 --merged 會連同資料集合併好，可以直接訓練）" if a.by_folder else ""),
+                "下一步：加上 --export copy 把新图放进文件夹"
+                + ("（再加 --merged 会连同数据集合并好，可以直接训练）" if a.by_folder else ""),
             )
         )
         return
@@ -352,8 +352,8 @@ def _next_step(
                 )
                 + f'then check it: style-atlas audit "{merged}"',
                 f"下一步：{look}"
-                + (f"屬於資料集的就移到 {merged} 裡對應的資料夾；" if has_unsure else "")
-                + f'然後檢查一遍：style-atlas audit "{merged}"',
+                + (f"属于数据集的就移到 {merged} 里对应的文件夹；" if has_unsure else "")
+                + f'然后检查一遍：style-atlas audit "{merged}"',
             )
         )
         return
@@ -362,9 +362,9 @@ def _next_step(
             f"next: {look}move the images that belong into the dataset's folders"
             + (" (or rerun with --merged for a copy ready to train)" if a.by_folder else "")
             + f'; then check it: style-atlas audit "{a.into}"',
-            f"下一步：{look}把屬於資料集的圖移進資料集對應的資料夾"
-            + ("（或加 --merged 重跑，直接得到可以訓練的合併版）" if a.by_folder else "")
-            + f'；然後檢查一遍：style-atlas audit "{a.into}"',
+            f"下一步：{look}把属于数据集的图移进数据集对应的文件夹"
+            + ("（或加 --merged 重跑，直接得到可以训练的合并版）" if a.by_folder else "")
+            + f'；然后检查一遍：style-atlas audit "{a.into}"',
         )
     )
 
@@ -386,7 +386,7 @@ def _dataset_groups(a: argparse.Namespace, dataset: Atlas) -> tuple[Clustering, 
         raise ValueError(
             tr(
                 f"{a.into} has no sub-folders to sort into",
-                f"{a.into} 沒有可以分進去的子資料夾",
+                f"{a.into} 没有可以分进去的子文件夹",
             )
         )
     index = {n: k for k, n in enumerate(kept)}
@@ -409,7 +409,7 @@ def _note_small_groups(clustering: Clustering, labels: dict[int, str], skip: set
         log(
             tr(
                 f"too few images (under {FIT_MIN}) to sort into: {names}",
-                f"這些群的圖太少（不到 {FIT_MIN} 張），不會放新圖進去：{names}",
+                f"这些组的图太少（不到 {FIT_MIN} 张），不会放新图进去：{names}",
             )
         )
 
@@ -458,7 +458,7 @@ def _summary(
             tr(
                 f"{k} of {len(fits)} new images are near-copies of images the dataset already holds"
                 f" ({ALREADY}):",
-                f"{len(fits)} 張新圖裡有 {k} 張和資料集裡的圖幾乎一樣（{ALREADY}）：",
+                f"{len(fits)} 张新图里有 {k} 张和数据集里的图几乎一样（{ALREADY}）：",
             )
         )
         pairs = sorted(copy_of.items())
@@ -470,19 +470,19 @@ def _summary(
     placed = Counter(labels[f.group] for f, _ in rest)
     fitting = Counter(labels[f.group] for f, d in rest if d != UNSURE)
     log(
-        tr(f"{len(rest)} new images, closest group of each:", f"{len(rest)} 張新圖，各自最像的群：")
+        tr(f"{len(rest)} new images, closest group of each:", f"{len(rest)} 张新图，各自最像的组：")
     )
     for name, n in sorted(placed.items(), key=lambda t: -t[1]):
         k = fitting[name]
-        log(f"  {pad(name, 30)}{n:5d}  " + tr(f"({k} fit)", f"（{k} 張符合）"))
+        log(f"  {pad(name, 30)}{n:5d}  " + tr(f"({k} fit)", f"（{k} 张符合）"))
     k, n = sum(fitting.values()), len(rest)
     reading = batch_verdict(k / n, n)
     log(
         tr(
             f"{k} of {n} ({k / n:.0%}) fit their group: {VERDICTS[reading]}; the rest go to "
             f"{UNSURE} for a look",
-            f"{n} 張裡有 {k} 張（{k / n:.0%}）符合所屬的群：{VERDICTS_ZH[reading]}；"
-            f"其餘放進 {UNSURE}，請看一下",
+            f"{n} 张里有 {k} 张（{k / n:.0%}）符合所属的组：{VERDICTS_ZH[reading]}；"
+            f"其余放进 {UNSURE}，请看一下",
         )
     )
     _list_unsure(fits, labels, folders, names)
@@ -499,7 +499,7 @@ def _list_unsure(
     log(
         tr(
             f"{UNSURE}, the closest to a group first (that group in brackets):",
-            f"{UNSURE} 裡越前面的越接近某一群（括號裡是那一群）：",
+            f"{UNSURE} 里越前面的越接近某一组（括号里是那一组）：",
         )
     )
     for _, i in unsure[:SHOWN]:
@@ -510,8 +510,8 @@ def _list_unsure(
             "  the order is a hint, not a test: in benchmarks an image by a dataset artist came "
             "before another artist's about 2 times in 3, and for 1 in 3 of them the group in "
             "brackets was not their own",
-            "  順序只是參考：實測資料集畫師的圖排在其他畫師前面的機率約 2/3，"
-            "而且其中約 1/3 括號裡的群不是它真正的群",
+            "  顺序只是参考：实测数据集画师的图排在其他画师前面的概率约 2/3，"
+            "而且其中约 1/3 括号里的组不是它真正的组",
         )
     )
 
@@ -521,7 +521,7 @@ def _more(total: int, column: str) -> None:
         log(
             tr(
                 f"  ... and {total - SHOWN} more (sorted.csv: {column})",
-                f"  ……還有 {total - SHOWN} 張（見 sorted.csv：{column}）",
+                f"  ……还有 {total - SHOWN} 张（见 sorted.csv：{column}）",
             )
         )
 
@@ -538,9 +538,9 @@ def _repeats_notes(clustering: Clustering, labels: dict[int, str], folders: list
                 tr(
                     f"{name}: {c.size} + {added[name]} images; rename it {new} to keep "
                     "images x repeats near 100 (the trainer config files list the old repeats)",
-                    f"{name}：{c.size} + {added[name]} 張；建議改名成 {new}，"
-                    "讓張數 × repeats "
-                    "維持在約 100（訓練設定檔裡的 repeats 也要跟著改）",
+                    f"{name}：{c.size} + {added[name]} 张；建议改名成 {new}，"
+                    "让张数 × repeats "
+                    "维持在约 100（训练配置文件里的 repeats 也要跟着改）",
                 )
             )
 
@@ -557,19 +557,19 @@ def _repeats_for(name: str, size: int, total: int) -> str | None:
 
 
 def sort_args(p: argparse.ArgumentParser) -> None:
-    p.add_argument("folder", help=tr("the new images", "新圖"))
+    p.add_argument("folder", help=tr("the new images", "新图"))
     p.add_argument(
         "--into",
         required=True,
         metavar="DATASET",
-        help=tr("the dataset already sorted", "已經分好的資料集"),
+        help=tr("the dataset already sorted", "已经分好的数据集"),
     )
     p.add_argument(
         "-o",
         "--out",
         help=tr(
             "output folder (default: <folder>_style_atlas)",
-            "輸出資料夾（預設：<資料夾>_style_atlas）",
+            "输出文件夹（默认：<文件夹>_style_atlas）",
         ),
     )
     p.add_argument(
@@ -577,7 +577,7 @@ def sort_args(p: argparse.ArgumentParser) -> None:
         action="store_true",
         help=tr(
             "group afresh instead of using the groups the web app saved",
-            "重新分群，不沿用網頁介面存的分群",
+            "重新分组，不沿用网页界面存的分组",
         ),
     )
     p.add_argument(
@@ -585,7 +585,7 @@ def sort_args(p: argparse.ArgumentParser) -> None:
         action="store_true",
         help=tr(
             "the dataset's sub-folders are the groups (e.g. an exported kohya dataset)",
-            "資料集的子資料夾就是各群（例如匯出的 kohya 資料集）",
+            "数据集的子文件夹就是各组（例如导出的 kohya 数据集）",
         ),
     )
     p.add_argument(
@@ -593,7 +593,7 @@ def sort_args(p: argparse.ArgumentParser) -> None:
         choices=["copy", "link"],
         help=tr(
             "also place the new images (with captions) into <out>/sorted/<group>",
-            "也把新圖（連同標註檔）放進 <out>/sorted/<群>",
+            "也把新图（连同标注文件）放进 <out>/sorted/<组>",
         ),
     )
     p.add_argument(
@@ -604,9 +604,9 @@ def sort_args(p: argparse.ArgumentParser) -> None:
             "images that fit, ready to train (kohya repeats and trainer configs updated; the "
             "caption options apply to the dataset's copies too; the dataset itself is not "
             "changed)",
-            "搭配 --export 和 --by-folder：另外寫出 <out>/merged，即資料集加上符合的新圖，"
-            "可以直接訓練（kohya 的 repeats 和訓練設定檔會跟著更新；標註的選項也會套用到資料集的"
-            "複本；原本的資料集不會改動）",
+            "搭配 --export 和 --by-folder：另外写出 <out>/merged，即数据集加上符合的新图，"
+            "可以直接训练（kohya 的 repeats 和训练配置文件会跟着更新；标注的选项也会套用到数据集的"
+            "副本；原本的数据集不会改动）",
         ),
     )
     p.add_argument(
@@ -615,8 +615,8 @@ def sort_args(p: argparse.ArgumentParser) -> None:
         help=tr(
             "start each placed caption with its group's trigger, as `cluster --trigger-captions` "
             "does (kohya folders: the name without the repeats)",
-            "每個放進去的標註開頭加上該群的觸發詞，做法同 `cluster --trigger-captions`"
-            "（kohya 資料夾：去掉重複次數的名稱）",
+            "每个放进去的标注开头加上该组的触发词，做法同 `cluster --trigger-captions`"
+            "（kohya 文件夹：去掉重复次数的名称）",
         ),
     )
     p.add_argument(
@@ -624,7 +624,7 @@ def sort_args(p: argparse.ArgumentParser) -> None:
         metavar="TAGS",
         help=tr(
             "remove these comma-separated tags from the placed captions, as `cluster` does",
-            "從放進去的標註中移除這些以逗號分隔的標籤，做法同 `cluster`",
+            "从放进去的标注中移除这些以逗号分隔的标签，做法同 `cluster`",
         ),
     )
     p.add_argument(
@@ -634,6 +634,6 @@ def sort_args(p: argparse.ArgumentParser) -> None:
             "in the exported copies, write each tag the dataset spells two ways "
             "(long_hair / long hair) "
             "the way most captions do",
-            "匯出的複本中，資料集有兩種寫法的標籤（long_hair／long hair）統一成多數標註的寫法",
+            "导出的副本中，数据集有两种写法的标签（long_hair/long hair）统一成多数标注的写法",
         ),
     )

@@ -10,7 +10,7 @@
   * { box-sizing: border-box; }
   html { font-size: calc(15px * var(--ui)); }
   html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink);
-    font-family: system-ui, "Segoe UI", "Microsoft JhengHei UI", "Noto Sans TC", "PingFang TC", sans-serif;
+    font-family: system-ui, "Segoe UI", "Microsoft YaHei UI", "Noto Sans SC", "PingFang SC", sans-serif;
     line-height: 1.5; }
   body { font-size: 1rem; }
   #app { display: grid; grid-template-columns: minmax(0, 1fr) 26rem; height: 100%; }

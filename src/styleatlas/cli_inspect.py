@@ -47,12 +47,12 @@ def cmd_audit(a: argparse.Namespace) -> int:
             tr(
                 f"tags in half or more of the captions: {shares} (content in nearly every "
                 "image is learned along with the style)",
-                f"出現在一半以上標註的標籤：{shares}（幾乎每張都有的內容會和畫風一起被學進去）",
+                f"出现在一半以上标注的标签：{shares}（几乎每张都有的内容会和画风一起被学进去）",
             )
         )
     if report["tags_spelt_two_ways"]:
         log(
-            tr("tags written both with _ and with spaces: ", "同時有底線和空格兩種寫法的標籤：")
+            tr("tags written both with _ and with spaces: ", "同时有下划线和空格两种写法的标签：")
             + ", ".join(report["tags_spelt_two_ways"])
         )
     for key, files in report["files"].items():
@@ -64,32 +64,32 @@ def cmd_audit(a: argparse.Namespace) -> int:
                 f"  [{key}] "
                 + tr(
                     f"... and {more} more (--show N, or --json for all)",
-                    f"……還有 {more} 張（--show N 列更多，或 --json 列全部）",
+                    f"……还有 {more} 张（--show N 列更多，或 --json 列全部）",
                 )
             )
     return 0
 
 
 AUDIT_ZH = {
-    "unreadable": "讀不到",
-    "truncated": "檔案不完整",
-    "smaller_than_min_side": "短邊太小",
-    "extreme_aspect_ratio": "長寬比太極端",
-    "soft_or_enlarged": "模糊或放大過",
-    "low_jpeg_quality": "JPEG 壓縮太重",
-    "animated": "動圖",
-    "exif_rotated": "只靠 EXIF 轉正",
-    "no_caption": "沒有標註檔",
-    "empty_caption": "標註是空的",
-    "watermark_or_signature": "標註提到浮水印或簽名",
-    "tag_spelling_mixed": "同一標籤有底線也有空格",
-    "greyscale_in_colour_set": "彩色資料夾裡的灰階圖",
-    "greyscale_untagged": "灰階圖的標註沒有 monochrome",
-    "greyscale_tag_on_colour": "標了 greyscale 卻是彩色",
-    "images": "圖片數",
+    "unreadable": "读不到",
+    "truncated": "文件不完整",
+    "smaller_than_min_side": "短边太小",
+    "extreme_aspect_ratio": "长宽比太极端",
+    "soft_or_enlarged": "模糊或放大过",
+    "low_jpeg_quality": "JPEG 压缩太重",
+    "animated": "动图",
+    "exif_rotated": "只靠 EXIF 转正",
+    "no_caption": "没有标注文件",
+    "empty_caption": "标注是空的",
+    "watermark_or_signature": "标注提到水印或签名",
+    "tag_spelling_mixed": "同一标签有下划线也有空格",
+    "greyscale_in_colour_set": "彩色文件夹里的灰阶图",
+    "greyscale_untagged": "灰阶图的标注没有 monochrome",
+    "greyscale_tag_on_colour": "标了 greyscale 却是彩色",
+    "images": "图片数",
     "buckets": "kohya 的 1024 bucket",
-    "short_side_median": "短邊中位數",
-    "short_side_p10": "短邊第 10 百分位",
+    "short_side_median": "短边中位数",
+    "short_side_p10": "短边第 10 百分位",
 }
 
 
@@ -102,8 +102,9 @@ def _audit_advice(summary: dict, min_side: int) -> None:
                 "no image has a caption: a style LoRA can be trained without them (kohya then "
                 "uses the trigger word in the folder name); for captions, run a tagger such as "
                 "WD14 first (style-atlas does not write captions)",
-                "全部都沒有標註檔：不加標註也能訓畫風 LoRA（kohya 會改用資料夾名稱裡的觸發詞）；"
-                "要標註的話，先用 WD14 tagger 之類的工具產生（style-atlas 不會產生標註）",
+                "全部都没有标注文件：不加标注也能训练画风 LoRA"
+                "（kohya 会改用文件夹名称里的触发词）；"
+                "要标注的话，先用 WD14 tagger 之类的工具生成（style-atlas 不会生成标注）",
             )
         )
     if n and summary.get("smaller_than_min_side", 0) * 2 >= n:
@@ -112,9 +113,9 @@ def _audit_advice(summary: dict, min_side: int) -> None:
                 f"half or more of the images are under {min_side} px on the short side: "
                 "downloads from Danbooru or Pixiv are often the reduced 'sample' size, so get the "
                 "originals where you can; training enlarges small images, which blurs them",
-                f"一半以上的圖短邊小於 {min_side} px："
-                "從 Danbooru、Pixiv 下載時常拿到縮小的 sample 版，能的話請改用原圖；"
-                "訓練時小圖會被放大，會變模糊",
+                f"一半以上的图短边小于 {min_side} px："
+                "从 Danbooru、Pixiv 下载时常拿到缩小的 sample 版，能的话请改用原图；"
+                "训练时小图会被放大，会变模糊",
             )
         )
 
@@ -141,7 +142,7 @@ def cmd_outliers(a: argparse.Namespace) -> int:
         tr(
             "score = how unlike its nearest neighbours each image is (0 = like the rest; "
             "highest first)",
-            "分數 = 每張圖和最像它的幾張差多少（0 = 和其他圖一樣；由高到低）",
+            "分数 = 每张图和最像它的几张差多少（0 = 和其他图一样；由高到低）",
         )
     )
     for i in np.argsort(-scores)[: a.top]:
@@ -161,14 +162,14 @@ def cmd_duplicates(a: argparse.Namespace) -> int:
     log(
         tr(
             f"{len(groups)} near-duplicate groups ({extra} images beyond the first of each group)",
-            f"{len(groups)} 組近重複的圖（每組留一張的話，多出 {extra} 張）",
+            f"{len(groups)} 组近重复的图（每组留一张的话，多出 {extra} 张）",
         )
     )
     for n, g in enumerate(groups, 1):
         style, content = atlas.style[g], atlas.content[g]
         least = float(np.minimum(style @ style.T, content @ content.T).min())
         print(
-            tr(f"group {n} (similarity {least:.3f}+):", f"第 {n} 組（相似度 {least:.3f} 以上）：")
+            tr(f"group {n} (similarity {least:.3f}+):", f"第 {n} 组（相似度 {least:.3f} 以上）：")
         )
         for i in g:
             print(f"  {atlas.rel(i)}")
@@ -179,7 +180,7 @@ def cmd_compare(a: argparse.Namespace) -> int:
     from styleatlas.duplicates import copies_of
 
     if Path(a.a).resolve() == Path(a.b).resolve():
-        raise ValueError(tr("A and B are the same folder", "A 和 B 是同一個資料夾"))
+        raise ValueError(tr("A and B are the same folder", "A 和 B 是同一个文件夹"))
     opts = _opts(a)
     groups, contents, files, looks = [], [], [], []
     for folder in (a.a, a.b):
@@ -188,7 +189,7 @@ def cmd_compare(a: argparse.Namespace) -> int:
             log(
                 tr(
                     f"{folder}: need at least 2 readable images, found {len(kept)}",
-                    f"{folder}：至少要 2 張讀得到的圖，只找到 {len(kept)} 張",
+                    f"{folder}：至少要 2 张读得到的图，只找到 {len(kept)} 张",
                 )
             )
             return 1
@@ -239,7 +240,7 @@ def cmd_compare(a: argparse.Namespace) -> int:
     return 0
 
 
-VERDICT_ZH = {"same style": "同一畫風", "related": "相關", "clearly different": "明顯不同"}
+VERDICT_ZH = {"same style": "同一画风", "related": "相关", "clearly different": "明显不同"}
 
 
 COPIES_SHOWN = 10  # near-copy pairs listed; --json has them all
@@ -255,7 +256,7 @@ def _print_compare(a, groups, dist, p, scale, look, copies, files, reading=None)
     print(
         tr(
             f"A: {na} ({sizes[0]} images)   B: {nb} ({sizes[1]} images)",
-            f"A：{na}（{sizes[0]} 張）  B：{nb}（{sizes[1]} 張）",
+            f"A：{na}（{sizes[0]} 张）  B：{nb}（{sizes[1]} 张）",
         )
     )
     if reading is None:  # few images, or a calibrated scale: the z scale
@@ -263,7 +264,7 @@ def _print_compare(a, groups, dist, p, scale, look, copies, files, reading=None)
         print(
             tr(
                 f"style distance {dist:.3f} (z {z:.2f}, {verdict}; p {pv})",
-                f"畫風距離 {dist:.3f}（z {z:.2f}，{VERDICT_ZH.get(verdict, verdict)}；p {pv}）",
+                f"画风距离 {dist:.3f}（z {z:.2f}，{VERDICT_ZH.get(verdict, verdict)}；p {pv}）",
             )
         )
         if a.noise_floor:
@@ -271,7 +272,7 @@ def _print_compare(a, groups, dist, p, scale, look, copies, files, reading=None)
                 tr(
                     "z on the scale from --noise-floor; the comparison with real artists is left "
                     "out",
-                    "z 用的是 --noise-floor 的尺度；不和真實畫師比",
+                    "z 用的是 --noise-floor 的尺度；不和真实画师比",
                 )
             )
     else:
@@ -281,7 +282,7 @@ def _print_compare(a, groups, dist, p, scale, look, copies, files, reading=None)
     print(
         tr(
             f"look: B is {words}" if words else "look: no clear difference",
-            f"外觀：B 比 A {words}" if words else "外觀：沒有明顯差異",
+            f"外观：B 比 A {words}" if words else "外观：没有明显差异",
         )
     )
     for side, name, other in ((0, "A", "B"), (1, "B", "A")):
@@ -292,14 +293,14 @@ def _print_compare(a, groups, dist, p, scale, look, copies, files, reading=None)
             tr(
                 f"most typical of {name} and least like {other} (open them to see the "
                 f"difference): {shown}",
-                f"最能代表 {name}、又最不像 {other} 的圖（打開來看最能看出差別）：{shown}",
+                f"最能代表 {name}、又最不像 {other} 的图（打开来看最能看出差别）：{shown}",
             )
         )
     if copies or reading is None:  # with renders (few images), none repeating is news too
         print(
             tr(
                 f"{len(copies)} images of B nearly repeat an image of A",
-                f"B 裡有 {len(copies)} 張和 A 的某張幾乎一樣",
+                f"B 里有 {len(copies)} 张和 A 的某张几乎一样",
             )
         )
     for i, j, s in copies[:COPIES_SHOWN]:
@@ -309,7 +310,7 @@ def _print_compare(a, groups, dist, p, scale, look, copies, files, reading=None)
         print(
             tr(
                 f"  ... and {more} more (--json lists all)",
-                f"  ……還有 {more} 組（--json 會全部列出）",
+                f"  ……还有 {more} 组（--json 会全部列出）",
             )
         )
     if reading is not None:
@@ -320,9 +321,9 @@ def _print_compare(a, groups, dist, p, scale, look, copies, files, reading=None)
             "z: in units of the difference between two halves of one style (the default scale "
             "was measured on AI renders; `calibrate` measures it on your own folders, then pass "
             "--noise-floor); --json for every number",
-            "z：以「同一畫風的兩半」之間的差距為單位（預設尺度是在 AI 算圖上量的；"
-            "`calibrate` 可以用你自己的資料夾重新量，再用 --noise-floor 帶入）；"
-            "--json 會列出全部數字",
+            "z：以“同一画风的两半”之间的差距为单位（默认尺度是在 AI 出图上量的；"
+            "`calibrate` 可以用你自己的文件夹重新量，再用 --noise-floor 带入）；"
+            "--json 会列出全部数字",
         )
     )
 
@@ -332,12 +333,12 @@ def _separable_line(dist: float, pv: str, separable: bool) -> str:
         return tr(
             f"style distance {dist:.3f}; p {pv}: the two sides likely differ (random splits of "
             "these images seldom come out this far apart)",
-            f"畫風距離 {dist:.3f}；p {pv}：兩邊很可能不同（把這些圖隨機分成兩半，很少差這麼多）",
+            f"画风距离 {dist:.3f}；p {pv}：两边很可能不同（把这些图随机分成两半，很少差这么多）",
         )
     return tr(
         f"style distance {dist:.3f}; p {pv}: no clear difference (random splits of these images "
         "often come out this far apart)",
-        f"畫風距離 {dist:.3f}；p {pv}：看不出明顯差異（把這些圖隨機分成兩半，常常也差這麼多）",
+        f"画风距离 {dist:.3f}；p {pv}：看不出明显差异（把这些图随机分成两半，常常也差这么多）",
     )
 
 
@@ -347,9 +348,9 @@ POSITION_EN = {
     "above_median": "farther apart than half of pairs of different artists",
 }
 POSITION_ZH = {
-    "below_p5": "比 95% 的「兩位不同畫師」都接近",
-    "p5_to_median": "和比較接近的那一半「兩位不同畫師」差不多",
-    "above_median": "比一半的「兩位不同畫師」還遠",
+    "below_p5": "比 95% 的“两位不同画师”都接近",
+    "p5_to_median": "和比较接近的那一半“两位不同画师”差不多",
+    "above_median": "比一半的“两位不同画师”还远",
 }
 FEW_A_SIDE = 10  # below this many works a side (effective), a real difference may not show
 
@@ -361,9 +362,9 @@ def _reading_line(r: ArtistReading) -> str:
         f"reference, 95% of pairs of different artists are {r.others_p5:.3f} or more apart, half "
         f"{r.others_median:.3f} or more; one artist's oldest and newest works "
         f"{r.one_artist_change:.3f} (median; {artists} artists)",
-        f"和 Danbooru 畫師比（每邊約 {n} 張）：{POSITION_ZH[r.position]}。參考：兩位不同畫師有 "
-        f"95% 相差 {r.others_p5:.3f} 以上，一半相差 {r.others_median:.3f} 以上；同一位畫師最早和"
-        f"最新的作品，中位數相差 {r.one_artist_change:.3f}（{artists} 位畫師）",
+        f"和 Danbooru 画师比（每边约 {n} 张）：{POSITION_ZH[r.position]}。参考：两位不同画师有 "
+        f"95% 相差 {r.others_p5:.3f} 以上，一半相差 {r.others_median:.3f} 以上；同一位画师最早和"
+        f"最新的作品，中位数相差 {r.one_artist_change:.3f}（{artists} 位画师）",
     )
 
 
@@ -375,26 +376,26 @@ def _training_line(r: ArtistReading, separable: bool) -> str:
         return tr(
             "training: no sign that the two sides need splitting"
             + (" (with this few images a real difference may not show)" if few else ""),
-            "訓練：看不出需要分開的跡象"
-            + ("（圖這麼少時，真的差異也可能看不出來）" if few else ""),
+            "训练：看不出需要分开的迹象"
+            + ("（图这么少时，真的差异也可能看不出来）" if few else ""),
         )
     if r.position == "above_median":
         return tr(
             "training: together, a LoRA would mix two looks as far apart as many pairs of "
             "artists; train one side alone if you want its look",
-            "訓練：合在一起訓練，LoRA 會混合兩種差得像兩位畫師的畫風；想要其中一種就只用那一邊",
+            "训练：合在一起训练，LoRA 会混合两种差得像两位画师的画风；想要其中一种就只用那一边",
         )
     mix = tr(
         "training: together, a LoRA learns both looks mixed (often fine for an artist LoRA); for "
         "one side's look only, train that side alone (the images above show the difference)",
-        "訓練：合在一起訓練，LoRA 會學到兩邊混合的畫風（訓練一位畫師的 LoRA 時常常沒關係）；"
-        "只想要其中一邊的畫風，就只用那一邊（上面的圖看得出差別）",
+        "训练：合在一起训练，LoRA 会学到两边混合的画风（训练一位画师的 LoRA 时常常没关系）；"
+        "只想要其中一边的画风，就只用那一边（上面的图看得出差别）",
     )
     if r.position != "below_p5":
         return mix
     return mix + tr(
         ". To see whether a style changed gradually or at a point, put all the works in one "
         "folder and run cluster --granularity timeline",
-        "。想看畫風是慢慢變還是在某個時間點轉變：把作品放進同一個資料夾，用 cluster "
+        "。想看画风是慢慢变还是在某个时间点转变：把作品放进同一个文件夹，用 cluster "
         "--granularity timeline",
     )

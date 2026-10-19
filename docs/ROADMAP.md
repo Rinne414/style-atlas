@@ -4,7 +4,7 @@
 
 ## Decisions waiting for the owner
 
-1. **"3D 圖"**: which 3D views did friends mean? Both are now in the tool.
+1. **"3D 图"**: which 3D views did friends mean? Both are now in the tool.
    - The style-similarity map: a t-SNE/UMAP layout with floating thumbnails.
    - The research catalog's metric view: taste x originality x distance. This is the map's
      "measures" layout, which uses `--reference` for originality.

@@ -159,7 +159,7 @@ def embed_paths(
                 tr(
                     f"{cached} already computed (read from the cache), {len(todo)} to compute "
                     f"({signature})",
-                    f"{cached} 張已經算過（從快取讀取），{len(todo)} 張要計算（{signature}）",
+                    f"{cached} 张已经算过（从缓存读取），{len(todo)} 张要计算（{signature}）",
                 )
             )
             failed += _embed_missing(todo, keys, have, store, opts, progress)
@@ -167,7 +167,7 @@ def embed_paths(
             progress(
                 tr(
                     f"all {len(keys)} images already computed, read from the cache ({signature})",
-                    f"{len(keys)} 張都已經算過，直接從快取讀取（{signature}）",
+                    f"{len(keys)} 张都已经算过，直接从缓存读取（{signature}）",
                 )
             )
     kept = [p for p in paths if p in keys and keys[p] in have]
@@ -185,7 +185,7 @@ def _embed_missing(
     progress: Progress,
 ) -> list[tuple[Path, str]]:
     encoder = get_encoder(opts)
-    progress(tr(f"model ready on {encoder.device}", f"模型已載入（{encoder.device}）"))
+    progress(tr(f"model ready on {encoder.device}", f"模型已加载（{encoder.device}）"))
     failed: list[tuple[Path, str]] = []
     pending: dict[str, tuple[np.ndarray, np.ndarray]] = {}
     looks: dict[str, np.ndarray] = {}  # measured while each image is open anyway
@@ -208,7 +208,7 @@ def _embed_missing(
                 looks = {}
                 have.update(pending)
                 pending = {}
-                progress(tr(f"embedded {done}/{len(todo)}", f"已計算 {done}/{len(todo)}"))
+                progress(tr(f"embedded {done}/{len(todo)}", f"已计算 {done}/{len(todo)}"))
     return failed
 
 
@@ -265,7 +265,7 @@ def measure_looks(
             progress(
                 tr(
                     f"measuring the look of {len(todo)} images (once)",
-                    f"計算 {len(todo)} 張圖的外觀（只算一次）",
+                    f"计算 {len(todo)} 张图的外观（只算一次）",
                 )
             )
             workers = max(1, min(8, os.cpu_count() or 1))
@@ -279,7 +279,7 @@ def measure_looks(
                     have.update(found)
                     if len(todo) > LOOK_CHUNK:
                         done_looks = f"{start + len(part)}/{len(todo)}"
-                        progress(tr(f"measured {done_looks}", f"外觀 {done_looks}"))
+                        progress(tr(f"measured {done_looks}", f"外观 {done_looks}"))
     if not paths:
         return np.zeros((0, len(LOOK_NAMES)), np.float32)
     x = np.stack([have[keys[p]] if p in keys else nan for p in paths]).astype(np.float32)
@@ -302,7 +302,7 @@ def build_atlas(
         raise FileNotFoundError(
             tr(
                 f"no images found under {root}",
-                f"{root} 裡找不到圖片（png、jpg、jfif、webp、bmp、gif、avif）",
+                f"{root} 里找不到图片（png、jpg、jfif、webp、bmp、gif、avif）",
             )
         )
     kept, style, content, failed = embed_paths(paths, opts, progress)

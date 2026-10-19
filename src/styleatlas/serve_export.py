@@ -142,7 +142,7 @@ class DatasetExport:
                 raise ValueError(
                     tr(
                         f"{word} names the folder of pictures in no group.",
-                        f"{word} 是未歸類資料夾的名字，請換一個。",
+                        f"{word} 是未归类文件夹的名字，请换一个。",
                     )
                 )
             out[int(key)] = word
@@ -160,7 +160,7 @@ class DatasetExport:
             raise ValueError(
                 tr(
                     "Give the whole folder path (for example D:\\LoRA).",
-                    "請填完整的資料夾路徑（例如 D:\\LoRA）。",
+                    "请填完整的文件夹路径（例如 D:\\LoRA）。",
                 )
             )
         path, root = path.resolve(), self.atlas.root.resolve()
@@ -169,11 +169,11 @@ class DatasetExport:
                 tr(
                     "Choose a folder outside the one shown: trainers reading it would also "
                     "pick up the copies.",
-                    "請選這個資料夾以外的地方：放在裡面的話，訓練程式讀這個資料夾時會連複本一起讀。",
+                    "请选这个文件夹以外的地方：放在里面的话，训练程序读这个文件夹时会连副本一起读。",
                 )
             )
         if path.exists() and not path.is_dir():
-            raise ValueError(tr("That is a file, not a folder.", "這是檔案，不是資料夾。"))
+            raise ValueError(tr("That is a file, not a folder.", "这是文件，不是文件夹。"))
         return path
 
     def _plan(
@@ -362,7 +362,7 @@ class DatasetExport:
         layout, trigger, name, strip, cap, repeats = self._export_options(body)
         groups, separate = self._export_groups(body)
         if groups == []:
-            raise ValueError(tr("Tick at least one group to export.", "請至少勾一群再匯出。"))
+            raise ValueError(tr("Tick at least one group to export.", "请至少勾一组再导出。"))
         words = self._export_words(body, groups)
         dest = self._export_dest(body)
         fix = body.get("fix_spelling", False)
@@ -412,7 +412,7 @@ class DatasetExport:
         """Show the last export in the file manager: only that folder, nothing from the page."""
         folder = self._last_export
         if folder is None or not folder.is_dir():
-            raise ValueError(tr("Nothing was exported yet.", "還沒有匯出過。"))
+            raise ValueError(tr("Nothing was exported yet.", "还没有导出过。"))
         show_folder(folder)
         return {"folder": str(folder)}
 
@@ -434,7 +434,7 @@ def _with_word(folder: str, word: str | None, layout: str) -> str:
 def _same_word(word: str) -> str:
     return tr(
         f"Two groups have the trigger word {word}: give each its own, or they train as one.",
-        f"有兩群的觸發詞都是 {word}：請各取不同的名字，不然會被當成同一群訓練。",
+        f"有两组的触发词都是 {word}：请各取不同的名字，不然会被当成同一组训练。",
     )
 
 

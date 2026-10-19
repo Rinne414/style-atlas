@@ -109,7 +109,7 @@ class TasteModel:
                     raise ValueError(
                         tr(
                             f"{path} is damaged: its rated pictures do not match; train again",
-                            f"{path} 已損壞：裡面評過的圖對不上；請重新訓練",
+                            f"{path} 已损坏：里面评过的图对不上；请重新训练",
                         )
                     )
             return cls(
@@ -221,7 +221,7 @@ def train_taste(
         raise ValueError(
             tr(
                 f"need at least {MIN_PER_CLASS} liked and {MIN_PER_CLASS} disliked images",
-                f"至少要 {MIN_PER_CLASS} 張喜歡和 {MIN_PER_CLASS} 張不喜歡的圖",
+                f"至少要 {MIN_PER_CLASS} 张喜欢和 {MIN_PER_CLASS} 张不喜欢的图",
             )
         )
     x = np.vstack([like, dislike]).astype(np.float64)

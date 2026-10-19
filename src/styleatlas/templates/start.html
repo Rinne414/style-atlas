@@ -23,7 +23,7 @@
   * { box-sizing: border-box; }
   html { font-size: calc(15px * var(--ui)); }
   body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--ink); line-height: 1.5;
-    font-family: system-ui, "Segoe UI", "Microsoft JhengHei UI", "Noto Sans TC", "PingFang TC", sans-serif;
+    font-family: system-ui, "Segoe UI", "Microsoft YaHei UI", "Noto Sans SC", "PingFang SC", sans-serif;
     display: grid; place-items: start center; }
   main { width: min(48rem, calc(100% - 2rem)); padding: 9vh 0 3rem; }
   h1 { font-size: 2.2rem; margin: 0; letter-spacing: .01em; font-weight: 650; }
@@ -72,7 +72,7 @@
   let lang = null;
   try { lang = localStorage.getItem("styleAtlasLang"); } catch (e) { /* storage off */ }
   if (lang !== "zh" && lang !== "en") lang = (navigator.language || "en").toLowerCase().startsWith("zh") ? "zh" : "en";
-  document.documentElement.lang = lang === "zh" ? "zh-Hant" : "en";
+  document.documentElement.lang = lang === "zh" ? "zh-Hans" : "en";
   const t = (k) => D.texts[lang][k];
   const api = () => window.pywebview && window.pywebview.api;
   const say = (msg) => { $("status").textContent = msg; };

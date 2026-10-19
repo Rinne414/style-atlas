@@ -70,14 +70,14 @@ def compute_layout(
         progress(
             tr(
                 f"placing {len(atlas)} images on the 3D map (this can take a minute or two)",
-                f"正在計算 {len(atlas)} 張在 3D 地圖上的位置（可能要一兩分鐘）",
+                f"正在计算 {len(atlas)} 张在 3D 地图上的位置（可能要一两分钟）",
             )
         )
     coords, used = project_3d(atlas.style, projection)
     progress(
         tr(
             f"projected {len(atlas)} images with {used}",
-            f"已算好 {len(atlas)} 張在 3D 地圖上的位置（{used}）",
+            f"已算好 {len(atlas)} 张在 3D 地图上的位置（{used}）",
         )
     )
     dups = near_duplicate_groups(atlas.style, atlas.content)
@@ -225,7 +225,7 @@ def map_payload(
 
     def thumb_of(i: int) -> str:
         if (i + 1) % 500 == 0:
-            progress(tr(f"thumbnails {i + 1}/{len(atlas)}", f"縮圖 {i + 1}/{len(atlas)}"))
+            progress(tr(f"thumbnails {i + 1}/{len(atlas)}", f"缩略图 {i + 1}/{len(atlas)}"))
         try:
             return thumbnail_data_url(atlas.paths[i], size=px)
         except LOAD_ERRORS:

@@ -109,7 +109,7 @@ unassigned images count as single-image groups; permutation p < 0.05.
   images unassigned for 4 of the 13 artists; k-means assigns every image.
 - With about 50 works the k-means split depends on the seed (agreement between seeds ARI
   0.33-0.98, mean 0.66). The tool fixes the seed, so results repeat, but the boundaries are soft.
-- `--granularity period` and the web app's "時期" now mean k-means into 3 groups (`--k` sets
+- `--granularity period` and the web app's "时期" now mean k-means into 3 groups (`--k` sets
   the number). The old cut is still available as `--threshold 0.35`.
 
 Caveats (from a Sonnet review):
@@ -117,7 +117,7 @@ Caveats (from a Sonnet review):
   as single-image groups, which penalizes the cut. The safe reading is a tie on time alignment.
   The practical difference is coverage.
 - **Coverage is not always good.** k-means also puts sketches and off-style images into a
-  period. Pair it with `--drop-outliers N` (or the 離群 tab and X in the web app) to set those
+  period. Pair it with `--drop-outliers N` (or the 离群 tab and X in the web app) to set those
   aside. Trimming could not be scored fairly with this metric.
 - **Three periods is a convention.** Choosing k by silhouette (2-6) did worse (mean AMI 0.086)
   and picked k = 2 for 9 of 13 artists. Centering the vectors per artist changed nothing (0.120).
@@ -800,7 +800,7 @@ of recipes.
 - On mixed Danbooru artists centring is as harmful as neutralizing: the "characters" it finds are
   mostly the artists. k-means ARI fell from 0.42 to 0.00 with 2 artists and from 0.50 to 0.07
   with 5; with 20 it was unchanged. So it is opt-in too.
-- The web app's 「忽略角色軸」 switch uses it since 0.14.0.
+- The web app's “忽略角色轴” switch uses it since 0.14.0.
 - A new image (a search query or a `--reference` image) is moved by the offset of its nearest
   character. A character the collection never showed gets a wrong offset; `--neutralize`, which
   learns no characters, is the safer choice there.

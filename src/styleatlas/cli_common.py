@@ -38,8 +38,8 @@ def neutralize_help() -> str:
         "ignore the N strongest directions of variation (try 1) when the same characters appear "
         "in many styles (--ignore-characters usually does better); not for a mix of different "
         "artists",
-        "忽略變化最大的 N 個方向（可試 1）；同樣的角色出現在很多畫風裡時用"
-        "（--ignore-characters 通常更好）；混了不同畫師時不要用",
+        "忽略变化最大的 N 个方向（可试 1）；同样的角色出现在很多画风里时用"
+        "（--ignore-characters 通常更好）；混了不同画师时不要用",
     )
 
 
@@ -48,8 +48,8 @@ def characters_help() -> str:
         "when the same characters appear in many styles: find the characters from the picture "
         "content and compare styles as if all were drawn on the same character; not for a mix of "
         "different artists",
-        "同樣的角色出現在很多畫風裡時用：從畫面內容找出角色，再把畫風當成都畫同一個角色來比；"
-        "混了不同畫師時不要用",
+        "同样的角色出现在很多画风里时用：从画面内容找出角色，再把画风当成都画同一个角色来比；"
+        "混了不同画师时不要用",
     )
 
 
@@ -57,7 +57,7 @@ def reference_help() -> str:
     return tr(
         "folder of styles you already know (artists, forum recipes); adds an originality axis: "
         "distance from each image to its closest reference",
-        "已知畫風的資料夾（畫師、論壇配方）；多一條原創軸：每張圖到最近參考圖的距離",
+        "已知画风的文件夹（画师、论坛配方）；多一条原创轴：每张图到最近参考图的距离",
     )
 
 
@@ -84,7 +84,7 @@ def _atlas(
     recursive = not a.no_recursive
     atlas = build_atlas(Path(folder), _opts(a), progress, recursive=recursive, exclude=exclude)
     for p, why in atlas.failed:
-        progress(tr(f"skipped {p}: {why}", f"略過 {p}：{why}"))
+        progress(tr(f"skipped {p}: {why}", f"略过 {p}：{why}"))
     space = _space(a)
     if space != PLAIN:
         atlas, a.fitted_space = atlas.in_space(space)  # reused for --reference
@@ -121,14 +121,14 @@ def _log_space(transform: object) -> None:
             log(
                 tr(
                     "too few images to find characters: styles are compared as they are",
-                    "圖太少，找不出角色：照原樣比較畫風",
+                    "图太少，找不出角色：照原样比较画风",
                 )
             )
         else:
             log(
                 tr(
                     f"comparing styles per character: {n} subjects found in the picture content",
-                    f"依角色比較畫風：從畫面內容找到 {n} 個主體",
+                    f"按角色比较画风：从画面内容找到 {n} 个主体",
                 )
             )
     else:
@@ -136,7 +136,7 @@ def _log_space(transform: object) -> None:
         log(
             tr(
                 f"ignoring the {k} strongest direction(s) of variation (subject axis)",
-                f"忽略變化最大的 {k} 個方向（主體軸）",
+                f"忽略变化最大的 {k} 个方向（主体轴）",
             )
         )
 
@@ -147,14 +147,14 @@ def _reference(a: argparse.Namespace, progress=log) -> Atlas | None:
         return None
     ref = build_atlas(Path(a.reference), _opts(a), progress, recursive=True)
     for p, why in ref.failed:
-        progress(tr(f"reference skipped {p}: {why}", f"參考圖略過 {p}：{why}"))
+        progress(tr(f"reference skipped {p}: {why}", f"参考图略过 {p}：{why}"))
     space = getattr(a, "fitted_space", None)  # same space as the folder
     if space is not None:
         ref = replace(ref, style=space.apply(ref.style, ref.content))
     progress(
         tr(
             f"reference: {len(ref)} images from {a.reference}",
-            f"參考圖：{a.reference} 的 {len(ref)} 張",
+            f"参考图：{a.reference} 的 {len(ref)} 张",
         )
     )
     return ref
@@ -171,7 +171,7 @@ def _cluster(a: argparse.Namespace, atlas: Atlas):
             raise ValueError(
                 tr(
                     "--granularity period uses k-means; leave out --method",
-                    "--granularity period 用的是 k-means；請拿掉 --method",
+                    "--granularity period 用的是 k-means；请拿掉 --method",
                 )
             )
         method, k = "kmeans", a.k or PERIODS
@@ -180,7 +180,7 @@ def _cluster(a: argparse.Namespace, atlas: Atlas):
                 tr(
                     f"note: with fewer than {SOFT_PERIODS} images the period boundaries are soft; "
                     "check them in the web app (serve)",
-                    f"注意：少於 {SOFT_PERIODS} 張時，時期的分界不太穩定，請在網頁介面確認",
+                    f"注意：少于 {SOFT_PERIODS} 张时，时期的分界不太稳定，请在网页界面确认",
                 )
             )
     elif threshold is None:
@@ -191,7 +191,7 @@ def _cluster(a: argparse.Namespace, atlas: Atlas):
     cut = result.params.get("threshold")
     auto = result.params.get("auto")
     how = f", cut {cut} ({'auto' if auto else 'set'})" if cut else ""
-    how_zh = f"，切分距離 {cut}，{'自動選的' if auto else '指定的'}" if cut else ""
+    how_zh = f"，切分距离 {cut}，{'自动选的' if auto else '指定的'}" if cut else ""
     method_zh = METHOD_ZH.get(result.method, result.method)
     if getattr(a, "families", False):
         log(_families_line(result, a.min_size))
@@ -219,8 +219,8 @@ def _library_hint(atlas: Atlas, result: Clustering) -> None:
         tr(
             f"{result.n_clusters} small groups in a folder of {folders} sub-folders: for a library "
             "of many artists, --granularity artists follows them better",
-            f"{folders} 個子資料夾分出 {result.n_clusters} 個小群：如果是很多位畫師的圖庫，"
-            "改用 --granularity artists（依畫師）會更貼近畫師",
+            f"{folders} 个子文件夹分出 {result.n_clusters} 个小组：如果是很多位画师的图库，"
+            "改用 --granularity artists（按画师）会更贴近画师",
         )
     )
 
@@ -242,7 +242,7 @@ def saved_groups(
     log(
         tr(
             f"using the groups and names the web app saved in {path} ({when}); --fresh to regroup",
-            f"沿用網頁介面在 {when} 存的分群和名稱（{path}）；要重新分群請加 --fresh",
+            f"沿用网页界面在 {when} 存的分组和名称（{path}）；要重新分组请加 --fresh",
         )
     )
     edited = edit_groups(atlas.style, clustering, dict(enumerate(saved.labels.tolist())))
@@ -255,31 +255,31 @@ def _cluster_by_artist(a: argparse.Namespace, atlas: Atlas) -> Clustering:
             tr(
                 "--granularity artists takes plain style vectors and its own cut: leave out "
                 "--neutralize, --ignore-characters, --threshold, --k and --method",
-                "--granularity artists 用原始畫風向量和自己的切分：請拿掉 "
+                "--granularity artists 用原始画风向量和自己的切分：请拿掉 "
                 "--neutralize、--ignore-characters、--threshold、--k 和 --method",
             )
         )
     result = cluster_by_artist(atlas.style, min_size=a.min_size)
     how = f"by artist: whitened, cut {ARTISTS_CUT}"
-    log(_groups_line(result, how, f"依畫師分群，切分距離 {ARTISTS_CUT}"))
+    log(_groups_line(result, how, f"按画师分组，切分距离 {ARTISTS_CUT}"))
     if result.n_clusters < ARTISTS_FEW:
         log(
             tr(
                 f"note: grouping by artist is meant for galleries of 20 or more artists; with "
                 f"{result.n_clusters} groups the default (auto) may suit this folder better",
-                f"注意：依畫師分群是給 20 位以上畫師的圖庫用的；這裡只分出 {result.n_clusters} 群，"
-                "預設的自動分群可能更合適",
+                f"注意：按画师分组是给 20 位以上画师的图库用的；这里只分出 {result.n_clusters} 组，"
+                "默认的自动分组可能更合适",
             )
         )
     return result
 
 
-METHOD_ZH = {"agglomerative": "階層式分群", "kmeans": "k-means 分段", "hdbscan": "HDBSCAN"}
+METHOD_ZH = {"agglomerative": "阶层式分组", "kmeans": "k-means 分段", "hdbscan": "HDBSCAN"}
 
 
 def _groups_line(result: Clustering, how: str, how_zh: str) -> str:
     n, u = result.n_clusters, result.n_unassigned
-    return tr(f"{n} styles, {u} unassigned ({how})", f"分成 {n} 群，{u} 張未分群（{how_zh}）")
+    return tr(f"{n} styles, {u} unassigned ({how})", f"分成 {n} 组，{u} 张未分组（{how_zh}）")
 
 
 def _cluster_timeline(a: argparse.Namespace, atlas: Atlas):
@@ -293,7 +293,7 @@ def _cluster_timeline(a: argparse.Namespace, atlas: Atlas):
             tr(
                 "--granularity timeline needs a time: add --time name (ids or dates in the file "
                 "names) or --time mtime",
-                "--granularity timeline 需要時間：加 --time name（檔名裡的編號或日期）"
+                "--granularity timeline 需要时间：加 --time name（文件名里的编号或日期）"
                 "或 --time mtime",
             )
         )
@@ -307,7 +307,7 @@ def _cluster_timeline(a: argparse.Namespace, atlas: Atlas):
         tr(
             f"{k} periods along the timeline ({sizes} images, earliest first; "
             f"{result.n_unassigned} without a time)",
-            f"依時間分成 {k} 個時期（由早到晚各 {sizes} 張；{result.n_unassigned} 張沒有時間資訊）",
+            f"按时间分成 {k} 个时期（由早到晚各 {sizes} 张；{result.n_unassigned} 张没有时间信息）",
         )
     )
     log(verdict_text(result.params))
@@ -320,8 +320,8 @@ def _families_line(result: Clustering, min_size: int) -> str:
     return tr(
         f"{n} families of similar sub-folders, {u} folders in none (cut {cut}; a family needs "
         f"{min_size} folders or more)",
-        f"分成 {n} 個畫風相近的家族，{u} 個資料夾不屬於任何家族（切分距離 {cut}；"
-        f"一個家族至少要 {min_size} 個資料夾）",
+        f"分成 {n} 个画风相近的家族，{u} 个文件夹不属于任何家族（切分距离 {cut}；"
+        f"一个家族至少要 {min_size} 个文件夹）",
     )
 
 
@@ -338,8 +338,8 @@ def export_notes(
                 f"{done.small_training} of the images placed in style folders have a short "
                 f"side under {SMALL_FOR_TRAINING} px: a 1024 training size enlarges them (blurry); "
                 "`style-atlas audit` lists them",
-                f"放進畫風資料夾的圖裡有 {done.small_training} 張短邊小於 {SMALL_FOR_TRAINING} px："
-                "用 1024 訓練時會被放大（會模糊）；`style-atlas audit` 會列出它們",
+                f"放进画风文件夹的图里有 {done.small_training} 张短边小于 {SMALL_FOR_TRAINING} px："
+                "用 1024 训练时会被放大（会模糊）；`style-atlas audit` 会列出它们",
             )
         )
     if done.upright:
@@ -347,20 +347,20 @@ def export_notes(
             tr(
                 f"{done.upright} photo(s) turned only by EXIF were written upright "
                 "(kohya would train them sideways); the originals are unchanged",
-                f"{done.upright} 張只靠 EXIF 轉正的照片已轉正後存出（kohya 會把它們橫著訓練）；"
-                "原檔沒有改動",
+                f"{done.upright} 张只靠 EXIF 转正的照片已转正后存出（kohya 会把它们横着训练）；"
+                "原文件没有改动",
             )
         )
     if respell:
         log(
-            tr("tags respelt in the copies: ", "複本中統一寫法的標籤：")
+            tr("tags respelt in the copies: ", "副本中统一写法的标签：")
             + ", ".join(f"{tag} -> {spelt}" for tag, spelt in sorted(respell.items()))
         )
     if not trigger:
         return
     words = sorted({w for f in folders if (w := trigger_of(f, layout)) is not None})
     if words:
-        log(tr("trigger words: ", "觸發詞：") + ", ".join(words))
+        log(tr("trigger words: ", "触发词：") + ", ".join(words))
     if any(not w.isascii() for w in words):
         log(tr(NON_ASCII_TRIGGER_EN, NON_ASCII_TRIGGER_ZH))
 
@@ -370,8 +370,8 @@ NON_ASCII_TRIGGER_EN = (
     "them into many byte pieces; name the groups in English for those models"
 )
 NON_ASCII_TRIGGER_ZH = (
-    "注意：有些觸發詞不是英文：SD 1.5、SDXL 的文字編碼器會把中文拆成很多碎片；"
-    "訓練這些模型時，群名建議用英文"
+    "注意：有些触发词不是英文：SD 1.5、SDXL 的文字编码器会把中文拆成很多碎片；"
+    "训练这些模型时，组名建议用英文"
 )
 
 
@@ -385,7 +385,7 @@ def web_exclusions(atlas: Atlas, folder: Path) -> list[int]:
         log(
             tr(
                 f"warning: could not read {marks.path}; the web app's exclusions are NOT applied",
-                f"警告：讀不到 {marks.path}，網頁介面的排除不會套用",
+                f"警告：读不到 {marks.path}，网页界面的排除不会套用",
             )
         )
     return sorted(i for i, v in marks.values.items() if v is True)

@@ -370,7 +370,7 @@ def test_results_go_next_to_the_folder_never_inside_it(tmp_path):
 
 
 @pytest.mark.parametrize(
-    "name", ["畫師 #1: x", "a\x7fb", "a\x85b", "a\u2028b", "emoji 😀", 'q"t', "t\tx"]
+    "name", ["画师 #1: x", "a\x7fb", "a\x85b", "a\u2028b", "emoji 😀", 'q"t', "t\tx"]
 )
 def test_folder_names_survive_toml_and_yaml(name):
     from styleatlas.export import _quoted
@@ -461,14 +461,14 @@ def test_mac_zip_leftovers_are_not_images(tmp_path):
 def test_pad_counts_chinese_characters_as_two_columns():
     from styleatlas.lang import pad
 
-    assert pad("style_01", 12) == "style_01    " and pad("早期畫風", 12) == "早期畫風    "
+    assert pad("style_01", 12) == "style_01    " and pad("早期画风", 12) == "早期画风    "
     assert pad("a_very_long_group_name", 4).endswith(" ")  # always one space after
 
 
 def test_wrap_fits_chinese_help_by_display_width():
     from styleatlas.lang import columns, wrap
 
-    text = "同樣的角色出現在很多畫風裡時用（--ignore-characters 通常更好）；混了不同畫師時不要用"
+    text = "同样的角色出现在很多画风里时用（--ignore-characters 通常更好）；混了不同画师时不要用"
     for width in (12, 20, 31, 40):
         lines = wrap(text, width)
         for line in lines:  # only kept punctuation, or a word wider than the line, overhangs

@@ -236,8 +236,8 @@ def mixed_names_error() -> ValueError:
         tr(
             "the numbers in these file names come from different sources (e.g. tweet ids next to "
             "Pixiv ids), so they give no time order: use --time mtime, or rename the files",
-            "這些檔名裡的編號來自不同來源（例如推文編號和 Pixiv 編號混在一起），排不出時間順序："
-            "請改用 --time mtime，或統一檔名",
+            "这些文件名里的编号来自不同来源（例如推文编号和 Pixiv 编号混在一起），排不出时间顺序："
+            "请改用 --time mtime，或统一文件名",
         )
     )
 

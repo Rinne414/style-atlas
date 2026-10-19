@@ -44,44 +44,44 @@ PLACEHOLDER = re.compile(r"\{(title|lang|body)\}")
 
 TEXT = {
     "zh": {
-        "images": "張圖",
-        "made": "製作日期",
-        "intro": "這頁依序是：畫風有多一致、外觀和 Danbooru 畫師比起來如何、"
-        "（有子資料夾時）哪些子資料夾畫風相近、自動分出的畫風群。數字只描述畫風怎麼不同，不評好壞。",
-        "intro_renders": "這頁先檢查 LoRA 算圖（和訓練集差多少、哪幾張可能背下訓練圖、"
-        "哪幾張不在訓練集的畫風範圍內），後面再整理訓練集本身。數字只描述畫風怎麼不同，不評好壞。",
+        "images": "张图",
+        "made": "制作日期",
+        "intro": "这页依次是：画风有多一致、外观和 Danbooru 画师比起来如何、"
+        "（有子文件夹时）哪些子文件夹画风相近、自动分出的画风组。数字只描述画风怎么不同，不评好坏。",
+        "intro_renders": "这页先检查 LoRA 出图（和训练集差多少、哪几张可能背下训练图、"
+        "哪几张不在训练集的画风范围内），后面再整理训练集本身。数字只描述画风怎么不同，不评好坏。",
         "ends_consistency": ("很一致", "很分散"),
-        "consist_folders": "這個資料夾有 {n} 個子資料夾：一致性是把全部當成同一位畫師來比的，"
-        "收藏了多位畫師的圖庫本來就會顯得很分散。",
-        "folders": "子資料夾：哪些畫風相近",
-        "folders_sub": "把每個子資料夾（例如每位畫師）的平均畫風拿來互相比較。",
+        "consist_folders": "这个文件夹有 {n} 个子文件夹：一致性是把全部当成同一位画师来比的，"
+        "收藏了多位画师的图库本来就会显得很分散。",
+        "folders": "子文件夹：哪些画风相近",
+        "folders_sub": "把每个子文件夹（例如每位画师）的平均画风拿来互相比较。",
         "closest_to": "最像：",
-        "folders_many": "這個資料夾有 {n} 個子資料夾，太多了，不在這裡列出：請用畫師地圖"
-        "（style-atlas map --by-folder，或網頁介面的「畫師地圖」）。",
+        "folders_many": "这个文件夹有 {n} 个子文件夹，太多了，不在这里列出：请用画师地图"
+        "（style-atlas map --by-folder，或网页界面的“画师地图”）。",
         "family": "家族 {k}",
         "alone": "自成一格",
-        "folders_note": "家族分得很鬆（每位畫師換一半作品重算，結果只部分相同），請以「最像」為主。"
-        "立體的畫師地圖：style-atlas map --by-folder，或網頁介面的「畫師地圖」。",
-        "groups_sub": "自動分出的畫風群，張數多的在前；每群顯示最有代表性的幾張，"
-        "幾乎相同的圖只放一張。",
-        "copies": "其中 {n} 張屬於 {k} 組幾乎相同的圖（同一張圖、裁切或同場景的連續畫面），"
-        "每組只放一張縮圖",
-        "excluded": "另有 {n} 張已排除，不算在內",
-        "consistency": "畫風一致性",
+        "folders_note": "家族分得很松（每位画师换一半作品重算，结果只部分相同），请以“最像”为主。"
+        "立体的画师地图：style-atlas map --by-folder，或网页界面的“画师地图”。",
+        "groups_sub": "自动分出的画风组，张数多的在前；每组显示最有代表性的几张，"
+        "几乎相同的图只放一张。",
+        "copies": "其中 {n} 张属于 {k} 组几乎相同的图（同一张图、裁切或同场景的连续画面），"
+        "每组只放一张缩略图",
+        "excluded": "另有 {n} 张已排除，不算在内",
+        "consistency": "画风一致性",
         "tight": "很一致",
-        "like one artist": "在一位畫師的正常範圍內（兩三位畫師混在一起也常落在這裡）",
-        "mixed": "可能混了不同畫風或時期（約 1 成的單一畫師也會落在這裡）",
-        "spread": "比 {p}% 的單一畫師分散（和 114 位 Danbooru 畫師比較，每位抽 10 張）",
-        "few": "圖太少（少於 10 張），不判斷一致性。",
-        "looks": "外觀（和 278 位 Danbooru 畫師各自的平均外觀比較）",
-        "than": "比 {p}% 的畫師{w}",
-        "artists": "最像的畫師（參考圖庫）",
-        "groups": "畫風群",
-        "group": "畫風",
-        "from": "來自：",
-        "when": "時間位置：中位數在作品時間軸的 {m}%（中間一半 {a}%–{b}%；0% 最早）",
-        "note": "畫風向量：CSD ViT-L（Somepalli 等，2024，CC-BY-4.0）。外觀數字是 256 px "
-        "縮圖上的影像統計。",
+        "like one artist": "在一位画师的正常范围内（两三位画师混在一起也常落在这里）",
+        "mixed": "可能混了不同画风或时期（约 1 成的单一画师也会落在这里）",
+        "spread": "比 {p}% 的单一画师分散（和 114 位 Danbooru 画师比较，每位抽 10 张）",
+        "few": "图太少（少于 10 张），不判断一致性。",
+        "looks": "外观（和 278 位 Danbooru 画师各自的平均外观比较）",
+        "than": "比 {p}% 的画师{w}",
+        "artists": "最像的画师（参考图库）",
+        "groups": "画风组",
+        "group": "画风",
+        "from": "来自：",
+        "when": "时间位置：中位数在作品时间轴的 {m}%（中间一半 {a}%–{b}%；0% 最早）",
+        "note": "画风向量：CSD ViT-L（Somepalli 等，2024，CC-BY-4.0）。外观数字是 256 px "
+        "缩略图上的图像统计。",
     },
     "en": {
         "images": "images",
@@ -131,42 +131,42 @@ TEXT = {
 }
 RENDER_TEXT = {
     "zh": {
-        "title": "LoRA 算圖檢查（{n} 張算圖，和這個訓練集比）",
-        "separable": "畫風距離 {d:.3f}；p {p}：算圖和訓練集很可能不同"
-        "（把這些圖隨機分成兩半，很少差這麼多）",
-        "not_separable": "畫風距離 {d:.3f}；p {p}：算圖和訓練集看不出明顯差異",
-        "position": "和 Danbooru 畫師比：{w}（兩位不同畫師有 95% 相差 {p5:.3f} 以上；"
-        "同一位畫師最早和最新的作品，中位數相差 {c:.3f}）",
+        "title": "LoRA 出图检查（{n} 张出图，和这个训练集比）",
+        "separable": "画风距离 {d:.3f}；p {p}：出图和训练集很可能不同"
+        "（把这些图随机分成两半，很少差这么多）",
+        "not_separable": "画风距离 {d:.3f}；p {p}：出图和训练集看不出明显差异",
+        "position": "和 Danbooru 画师比：{w}（两位不同画师有 95% 相差 {p5:.3f} 以上；"
+        "同一位画师最早和最新的作品，中位数相差 {c:.3f}）",
         "positions": {
-            "below_p5": "比 95% 的「兩位不同畫師」都接近",
-            "p5_to_median": "和比較接近的那一半「兩位不同畫師」差不多",
-            "above_median": "比一半的「兩位不同畫師」還遠",
+            "below_p5": "比 95% 的“两位不同画师”都接近",
+            "p5_to_median": "和比较接近的那一半“两位不同画师”差不多",
+            "above_median": "比一半的“两位不同画师”还远",
         },
-        "each": "每張算圖",
-        "each_sub": "先列可能背下訓練圖的（最像的在前），再列不在訓練集畫風範圍內的，"
-        "最後是在範圍內的（各自最遠的在前）。右邊是最像的訓練圖。相似度 1.000 是同一張，"
-        "0.95 以上多半是同一張的裁切、差分或連續畫面。",
-        "is_copy": "可能背下訓練圖（相似度 {s:.3f}）",
-        "outside": "不在訓練集的畫風範圍內",
-        "inside": "在訓練集的畫風範圍內",
-        "closest": "最像的訓練圖（{c:.2f}）",
-        "more_rows": "另有 {n} 張沒有列出",
-        "distance": "畫風距離 {d:.3f}（z {z:.1f}，{v}；p {p}）",
-        "verdict": {"same style": "同一畫風", "related": "相關", "clearly different": "明顯不同"},
-        "fit": "{k} / {n} 張落在訓練集某一群的範圍內：{v}",
+        "each": "每张出图",
+        "each_sub": "先列可能背下训练图的（最像的在前），再列不在训练集画风范围内的，"
+        "最后是在范围内的（各自最远的在前）。右边是最像的训练图。相似度 1.000 是同一张，"
+        "0.95 以上多半是同一张的裁切、差分或连续画面。",
+        "is_copy": "可能背下训练图（相似度 {s:.3f}）",
+        "outside": "不在训练集的画风范围内",
+        "inside": "在训练集的画风范围内",
+        "closest": "最像的训练图（{c:.2f}）",
+        "more_rows": "另有 {n} 张没有列出",
+        "distance": "画风距离 {d:.3f}（z {z:.1f}，{v}；p {p}）",
+        "verdict": {"same style": "同一画风", "related": "相关", "clearly different": "明显不同"},
+        "fit": "{k} / {n} 张落在训练集某一组的范围内：{v}",
         "batch": {
-            "few": "張數太少，不判斷整批（請用 8 張以上）",
-            "in": "大致是訓練集的畫風",
-            "some": "部分像訓練集",
-            "out": "大多不像訓練集",
+            "few": "张数太少，不判断整批（请用 8 张以上）",
+            "in": "大致是训练集的画风",
+            "some": "部分像训练集",
+            "out": "大多不像训练集",
         },
-        "fit_note": "實測：同一畫師沒用到的作品約 61% 落在範圍內，其他畫師約 1%。",
-        "no_groups": "訓練集沒有 3 張以上的畫風群，不判斷算圖落在範圍內的比例。",
-        "look": "外觀（算圖和訓練集比）：{w}",
-        "look_same": "沒有明顯差異",
-        "copies": "可能背下的訓練圖：{n} 張算圖和某張訓練圖幾乎一樣（列在下面最前面）",
-        "no_copies": "沒有算圖和訓練圖幾乎一樣。",
-        "z_note": "z 的尺度來自一位使用者在 NovelAI 算圖上的校準；同一畫風的兩半約為 1。",
+        "fit_note": "实测：同一画师没用到的作品约 61% 落在范围内，其他画师约 1%。",
+        "no_groups": "训练集没有 3 张以上的画风组，不判断出图落在范围内的比例。",
+        "look": "外观（出图和训练集比）：{w}",
+        "look_same": "没有明显差异",
+        "copies": "可能背下的训练图：{n} 张出图和某张训练图几乎一样（列在下面最前面）",
+        "no_copies": "没有出图和训练图几乎一样。",
+        "z_note": "z 的尺度来自一位用户在 NovelAI 出图上的校准；同一画风的两半约为 1。",
     },
     "en": {
         "title": "LoRA renders ({n}, against this training set)",
@@ -217,7 +217,7 @@ RENDER_TEXT = {
     },
 }
 LOOK_WORDS = {  # next to the reference artists: (above the middle, below it)
-    "zh": THAN_ZH,  # "比 67% 的畫師色彩更淡"
+    "zh": THAN_ZH,  # "比 67% 的画师色彩更淡"
     "en": {
         "brightness": ("brighter", "darker"),
         "contrast": ("more contrast", "less contrast"),
@@ -481,7 +481,7 @@ def _render_rows(check: RenderCheck, train: Atlas, r: dict) -> str:
 
 
 def _look_change(z: np.ndarray, lang: str) -> str:
-    """The renders next to the training set: "更亮、線條更少" (a comparison, so the 更 form)."""
+    """The renders next to the training set: "更亮、线条更少" (a comparison, so the 更 form)."""
     picked = [j for j in np.argsort(-np.abs(z)) if abs(z[j]) >= NOTABLE]
     sep = "、" if lang == "zh" else ", "
     return sep.join(LOOK_WORDS[lang][LOOK_NAMES[j]][0 if z[j] > 0 else 1] for j in picked)
@@ -536,7 +536,7 @@ def render(
     if skip:
         kept = [i for i in range(len(atlas)) if i not in skip]
         if not kept:
-            raise ValueError(tr("all images are excluded", "所有圖都被排除了"))
+            raise ValueError(tr("all images are excluded", "所有图都被排除了"))
         clustering = keep_rows(atlas.style, clustering, kept)
         atlas = atlas.subset(kept)
     sub = f"{len(atlas)} {t['images']} · {t['made']} {date.today()}"
@@ -561,7 +561,7 @@ def render(
     parts.append(_group_section(group_cards(atlas, clustering, names or {}, lang, pos), t))
     parts.append(f'<p class="sub note">{e(t["note"])}</p>')
     body = "\n".join(parts)
-    fill = {"title": e(title), "lang": "zh-Hant" if lang == "zh" else "en", "body": body}
+    fill = {"title": e(title), "lang": "zh-Hans" if lang == "zh" else "en", "body": body}
     # one pass, so a title such as "{body}" stays text
     return PLACEHOLDER.sub(lambda m: fill[m.group(1)], PAGE)
 
@@ -585,7 +585,7 @@ PAGE = """<!doctype html>
       --accent: #f2c38b; --panel: #181b20; }
   }
   body { background: var(--bg); color: var(--ink); margin: 0;
-    font: 15px/1.6 system-ui, "Noto Sans TC", sans-serif; }
+    font: 15px/1.6 system-ui, "Microsoft YaHei", "Noto Sans SC", "PingFang SC", sans-serif; }
   main { max-width: 960px; margin: 0 auto; padding: 28px 16px 48px; }
   h1 { font-size: 26px; margin: 0; } h2 { font-size: 17px; margin: 28px 0 8px; }
   h3 { font-size: 15px; margin: 0 0 4px; }

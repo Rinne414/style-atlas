@@ -95,7 +95,7 @@ class Preparing(StandIn):
             if known
             else tr(
                 f"internal error ({type(e).__name__}); see the console",
-                f"內部錯誤（{type(e).__name__}）；詳情見主控台",
+                f"内部错误（{type(e).__name__}）；详情见控制台",
             )
         )
         print(message, file=sys.stderr, flush=True)
@@ -107,19 +107,19 @@ class Preparing(StandIn):
 
     def page(self) -> str:
         text = {
-            "elapsed": tr("({m}:{s} so far)", "（已經過 {m}:{s}）"),
-            "failed": tr("Could not prepare the map:", "無法準備地圖："),
+            "elapsed": tr("({m}:{s} so far)", "（已经过 {m}:{s}）"),
+            "failed": tr("Could not prepare the map:", "无法准备地图："),
         }
-        heading = tr(f"Preparing {self.title}", f"正在準備 {self.title}")
+        heading = tr(f"Preparing {self.title}", f"正在准备 {self.title}")
         note = tr(
             "The map opens here by itself when the styles are ready. The first run downloads the "
             "style model once (about 2.4 GB); after that only new images are computed.",
-            "畫風算好後，地圖會自動在這裡打開。第一次使用會先下載一次畫風模型（約 2.4 GB）；"
-            "之後只會計算新加入的圖。",
+            "画风算好后，地图会自动在这里打开。第一次使用会先下载一次画风模型（约 2.4 GB）；"
+            "之后只会计算新加入的图。",
         )
         page = resources.files("styleatlas").joinpath("templates/preparing.html").read_text("utf-8")
         values = {
-            "__LANG__": tr("en", "zh-Hant"),
+            "__LANG__": tr("en", "zh-Hans"),
             "__TITLE__": html.escape(self.title),
             "__HEADING__": html.escape(heading),
             "__NOTE__": html.escape(note),
@@ -268,7 +268,7 @@ class StyleAtlasHandler(BaseHTTPRequestHandler):
             return
         route = "/".join(parts)
         if isinstance(self.app, StandIn):
-            self._json(503, {"error": tr("still preparing", "還在準備中")})
+            self._json(503, {"error": tr("still preparing", "还在准备中")})
             return
         try:
             if route == "api/search":
@@ -375,7 +375,7 @@ def serve_when_ready(
                 server.shutdown()
             return
         handler.app = app
-        print(tr("ready", "準備好了"), flush=True)
+        print(tr("ready", "准备好了"), flush=True)
 
     builder = threading.Thread(target=work, name="style-atlas-build", daemon=True)
     builder.start()
@@ -384,7 +384,7 @@ def serve_when_ready(
         print(
             tr(
                 "stopped while preparing; the images computed so far are kept for next time",
-                "準備到一半就停止了；已經算好的圖會保留，下次會接著算",
+                "准备到一半就停止了；已经算好的图会保留，下次会接着算",
             ),
             flush=True,
         )
@@ -399,7 +399,7 @@ def _run(server: ThreadingHTTPServer, open_browser: bool) -> bool:
     print(
         tr(
             f"style-atlas is running at {url}  (Ctrl+C to stop)",
-            f"style-atlas 已開啟：{url}（關掉這個視窗或按 Ctrl+C 結束）",
+            f"style-atlas 已打开：{url}（关掉这个窗口或按 Ctrl+C 结束）",
         ),
         flush=True,
     )

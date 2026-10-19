@@ -208,13 +208,13 @@ def test_automatic_trigger_words_are_plain_ascii(tmp_path):
     app = _app(tmp_path)
     a, b, c = (g.id for g in app.clustering.clusters)
     app.rename({"group": a, "name": "manga lines", "rev": app.revision})
-    app.rename({"group": b, "name": "城市風景", "rev": app.revision})
+    app.rename({"group": b, "name": "城市风景", "rev": app.revision})
     plan = app.export_plan({"groups": [a, b, c], "separate": True, "name": "art"})
     words = {r["id"]: r["word"] for r in plan["groups"]}
     assert (
         words[a] == "art_manga_lines" and words[b] == "art_style_02" and words[c] == "art_style_03"
     )
-    alone = app.export_plan({"groups": [a], "layout": "kohya", "name": "畫師"})
+    alone = app.export_plan({"groups": [a], "layout": "kohya", "name": "画师"})
     assert (
         alone["groups"][0]["word"] == "lora"
     )  # a name in another script: a plain word to start from

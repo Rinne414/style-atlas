@@ -62,20 +62,20 @@ START_TEXTS = {
         "only new pictures are computed. Pictures and results stay on this computer.",
     },
     "zh": {
-        "lead": "看一個圖片資料夾裡有哪些畫風、找畫風相近的圖、整理 LoRA 訓練資料。",
-        "pick": "開啟圖片資料夾…",
-        "dropHint": "或把資料夾直接拖進這個視窗",
-        "recentTitle": "開過的資料夾",
-        "none": "還沒有開過任何資料夾。",
-        "gone": "找不到（被移走或刪掉了？）",
-        "remove": "從清單移除（資料夾本身不會動）",
-        "opening": "正在開啟 {f}…",
-        "dropping": "正在讀取拖進來的資料夾…",
-        "dropFailed": "這裡拖放沒有成功，請改按「開啟圖片資料夾」。",
-        "notReady": "程式還在啟動，請稍等一下再按。",
-        "elsewhere": "{f} 已經在另一個視窗開著，已經把那個視窗叫到前面。",
-        "note": "第一次使用會先下載一次畫風模型（約 2.4 GB），之後只會計算新加入的圖。"
-        "圖片和結果都只留在這台電腦。",
+        "lead": "看一个图片文件夹里有哪些画风、找画风相近的图、整理 LoRA 训练数据。",
+        "pick": "打开图片文件夹…",
+        "dropHint": "或把文件夹直接拖进这个窗口",
+        "recentTitle": "开过的文件夹",
+        "none": "还没有开过任何文件夹。",
+        "gone": "找不到（被移走或删掉了？）",
+        "remove": "从清单移除（文件夹本身不会动）",
+        "opening": "正在打开 {f}…",
+        "dropping": "正在读取拖进来的文件夹…",
+        "dropFailed": "这里拖放没有成功，请改按“打开图片文件夹”。",
+        "notReady": "程序还在启动，请稍等一下再按。",
+        "elsewhere": "{f} 已经在另一个窗口打开，已切换到那个窗口。",
+        "note": "第一次使用会先下载一次画风模型（约 2.4 GB），之后只会计算新加入的图。"
+        "图片和结果都只留在这台电脑。",
     },
 }
 
@@ -152,12 +152,12 @@ class StartPage(StandIn):
 def folder_from(text: object) -> Path:
     """The folder a page asked to open: an existing folder, or the folder of a dropped file."""
     if not isinstance(text, str) or not text.strip():
-        raise ValueError(tr("no folder given", "沒有指定資料夾"))
+        raise ValueError(tr("no folder given", "没有指定文件夹"))
     path = Path(text.strip()).expanduser()
     if path.is_file():
         path = path.parent
     if not path.is_dir():
-        raise ValueError(tr(f"not a folder: {text}", f"不是資料夾：{text}"))
+        raise ValueError(tr(f"not a folder: {text}", f"不是文件夹：{text}"))
     return path.resolve()
 
 
@@ -265,7 +265,7 @@ class Desktop:
             preparing.progress(
                 tr(
                     "waiting for the folder in another window to be ready",
-                    "等另一個視窗的資料夾準備好…",
+                    "等另一个窗口的文件夹准备好…",
                 )
             )
             self._model.acquire()
@@ -659,7 +659,7 @@ def run(folder: str | None, serve_args: list[str], port: int) -> int:
             tr(
                 "The desktop window needs pywebview. Run scripts\\setup.bat again "
                 "(or: pip install pywebview).",
-                "桌面視窗需要 pywebview。請重新執行 scripts\\setup.bat"
+                "桌面窗口需要 pywebview。请重新运行 scripts\\setup.bat"
                 "（或 pip install pywebview）。",
             )
         )
@@ -739,19 +739,19 @@ def _desktop_folder() -> Path:
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="style-atlas-app", description="Style Atlas in a window")
     p.add_argument(
-        "folder", nargs="?", help=tr("a folder to open at once", "啟動時直接開啟的資料夾")
+        "folder", nargs="?", help=tr("a folder to open at once", "启动时直接打开的文件夹")
     )
     p.add_argument("--device", default="auto", help=tr("auto, cpu or cuda", "auto、cpu 或 cuda"))
-    p.add_argument("--port", type=int, default=8770, help=tr("first port to try", "先試的連接埠"))
+    p.add_argument("--port", type=int, default=8770, help=tr("first port to try", "先试的连接端口"))
     p.add_argument(
         "--shortcut",
         action="store_true",
-        help=tr("make a desktop shortcut and stop", "在桌面建立捷徑後結束"),
+        help=tr("make a desktop shortcut and stop", "在桌面创建快捷方式后结束"),
     )
     a = p.parse_args(argv)
     if a.shortcut:
         link = make_shortcut()
-        print(tr(f"shortcut made: {link}", f"已建立捷徑：{link}"))
+        print(tr(f"shortcut made: {link}", f"已创建快捷方式：{link}"))
         return 0
     if _hand_over(a.folder):
         return 0

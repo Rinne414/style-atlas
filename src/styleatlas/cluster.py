@@ -101,8 +101,8 @@ def cluster_styles(
             params["note"] = tr(
                 f"{n} images is above {MAX_DENSE}: average linkage joined {MAX_DENSE} k-means "
                 "micro-groups instead of single images",
-                f"{n} 張超過 {MAX_DENSE}：平均連結改成合併 {MAX_DENSE} 個 k-means 小群，"
-                "而不是逐張合併",
+                f"{n} 张超过 {MAX_DENSE}：平均链接改成合并 {MAX_DENSE} 个 k-means 小组，"
+                "而不是逐张合并",
             )
         if n_clusters:
             raw = _cut(tree, part, n_clusters=n_clusters)
@@ -403,10 +403,10 @@ def split_group(x: np.ndarray, clustering: Clustering, group: int) -> Clustering
     """Hand edit: cut one group in two (2-way clustering of its members only)."""
     members = np.array(clustering.clusters[group].members)
     if len(members) < 2:
-        raise ValueError(tr("a group needs at least 2 images to be split", "至少要 2 張圖才能拆群"))
+        raise ValueError(tr("a group needs at least 2 images to be split", "至少要 2 张图才能拆组"))
     halves = cluster_styles(x[members], n_clusters=2, min_size=1).labels
     if len(set(halves.tolist())) < 2:
-        raise ValueError(tr("these images are too alike to split", "這些圖太像了，拆不開"))
+        raise ValueError(tr("these images are too alike to split", "这些图太像了，拆不开"))
     new_id = clustering.n_clusters  # renumbered by size afterwards
     moves = {int(m): new_id for m, h in zip(members, halves, strict=True) if h == 1}
     return edit_groups(x, clustering, moves)

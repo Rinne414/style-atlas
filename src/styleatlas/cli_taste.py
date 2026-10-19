@@ -38,7 +38,7 @@ def _train(a: argparse.Namespace) -> int:
     log(
         tr(
             f"saved {saved}: {model.n_like} liked / {model.n_dislike} disliked",
-            f"已存 {saved}：喜歡 {model.n_like} 張 / 不喜歡 {model.n_dislike} 張",
+            f"已存 {saved}：喜欢 {model.n_like} 张 / 不喜欢 {model.n_dislike} 张",
         )
     )
     log(_trust_line(model.cv_auc, model.cv_auc_groups))
@@ -50,12 +50,12 @@ def _trust_line(auc: float, auc_groups: float) -> str:
     grouped = (
         tr(
             f"with whole look-alike groups held out {auc_groups:.2f}",
-            f"整組相似畫風留出來驗證 {auc_groups:.2f}",
+            f"整组相似画风留出来验证 {auc_groups:.2f}",
         )
         if not np.isnan(auc_groups)
         else tr(
             "too few look-alike groups to hold out (4 a side are needed)",
-            "相似畫風的群太少，無法整組留出來驗證（喜歡和不喜歡各需要 4 群）",
+            "相似画风的组太少，无法整组留出来验证（喜欢和不喜欢各需要 4 组）",
         )
     )
     return tr(
@@ -63,9 +63,9 @@ def _trust_line(auc: float, auc_groups: float) -> str:
         f"artists' other works {auc:.2f}; {grouped}. On artists you never rated, expect clearly "
         "less than the latter, near guessing when your taste is not one coherent look: a rough "
         "filter, not a score of beauty",
-        f"分得多開（AUC，0.5 = 亂猜，1 = 全對）：同一批畫師的其他圖 {auc:.2f}；{grouped}。"
-        "遇到沒評過的畫師，會明顯比後者低；口味不是同一種畫風時，接近亂猜。口味模型適合粗篩，"
-        "不是美的分數",
+        f"分得多开（AUC，0.5 = 乱猜，1 = 全对）：同一批画师的其他图 {auc:.2f}；{grouped}。"
+        "遇到没评过的画师，会明显比后者低；偏好不是同一种画风时，接近乱猜。偏好模型适合粗筛，"
+        "不是美的分数",
     )
 
 
@@ -81,12 +81,12 @@ def _look_line(liked: Atlas, disliked: Atlas) -> str:
         return tr(
             "the pictures you like look about the same as those you dislike in brightness, "
             "colour, lines and contrast: the model goes by style beyond those",
-            "你喜歡和不喜歡的圖，在亮度、色彩、線條和對比上差不多：模型看的是這些以外的畫風",
+            "你喜欢和不喜欢的图，在亮度、色彩、线条和对比上差不多：模型看的是这些以外的画风",
         )
     return tr(
         f"the pictures you like, next to those you dislike: {words} (look measures of your two "
         "folders; the model itself goes by style vectors)",
-        f"你喜歡的圖和不喜歡的比：{words}（兩個資料夾的外觀量測；模型本身看的是畫風向量）",
+        f"你喜欢的图和不喜欢的比：{words}（两个文件夹的外观量测；模型本身看的是画风向量）",
     )
 
 
@@ -100,8 +100,8 @@ def _score(a: argparse.Namespace) -> int:
             tr(
                 f"model was trained on {model.signature}, images embedded as {atlas.signature}; "
                 "embed with the same settings or train again",
-                f"模型是用 {model.signature} 訓練的，這些圖卻是用 {atlas.signature} 算的；"
-                "請用相同設定，或重新訓練",
+                f"模型是用 {model.signature} 训练的，这些图却是用 {atlas.signature} 算的；"
+                "请用相同设置，或重新训练",
             )
         )
         return 1
@@ -112,7 +112,7 @@ def _score(a: argparse.Namespace) -> int:
         tr(
             "score: the higher, the more like the pictures you like (0-1, for ranking; not an "
             "exact probability)",
-            "分數：越高越像你喜歡的那一堆（0～1，用來排序，不是精確的機率）",
+            "分数：越高越像你喜欢的那一堆（0~1，用来排序，不是精确的概率）",
         )
     )
     for i in order:
@@ -128,14 +128,14 @@ def _closest(model, near, i: int, unfamiliar: float) -> str:
     if near is None:
         return ""
     j, cos = int(near[0][i]), float(near[1][i])
-    side = tr("liked", "喜歡") if model.example_liked[j] else tr("disliked", "不喜歡")
+    side = tr("liked", "喜欢") if model.example_liked[j] else tr("disliked", "不喜欢")
     name = _printable(model.example_names[j])
     text = tr(
         f"   closest rated: {side} {name} ({cos:.2f})",
-        f"   最像評過的：{side} {name}（{cos:.2f}）",
+        f"   最像评过的：{side} {name}（{cos:.2f}）",
     )
     if cos < unfamiliar:
-        text += tr("   <- unlike every rated picture", "   ← 和評過的圖都不太像")
+        text += tr("   <- unlike every rated picture", "   ← 和评过的图都不太像")
     return text
 
 
@@ -150,7 +150,8 @@ def _score_notes(model, near, unfamiliar: float) -> None:
             tr(
                 "this model file is from an older version and keeps no rated pictures: train "
                 "again to see each image's closest rated picture",
-                "這個模型檔是舊版的，沒有存評過的圖：重新 train 一次，就會列出每張最像哪張評過的圖",
+                "这个模型文件是旧版的，没有存评过的图："
+                "重新 train 一次，就会列出每张最像哪张评过的图",
             )
         )
         return
@@ -162,9 +163,9 @@ def _score_notes(model, near, unfamiliar: float) -> None:
                 f"{unfamiliar}): their scores are close to guessing; rate a few of them to teach "
                 "the model. Measured with about 50 rated pictures; images not flagged can be "
                 "unfamiliar too",
-                f"{far} 張和評過的圖都不太像（最高相似度低於 {unfamiliar}）：它們的分數接近亂猜；"
-                "挑幾張評分後重新訓練，模型就學得到。這是用約 50 張評分量的；沒被標出的圖也可能是"
-                "模型沒看過的畫風",
+                f"{far} 张和评过的图都不太像（最高相似度低于 {unfamiliar}）：它们的分数接近乱猜；"
+                "挑几张评分后重新训练，模型就学得到。这是用约 50 张评分量的；没被标出的图也可能是"
+                "模型没看过的画风",
             )
         )
 
@@ -177,11 +178,12 @@ def _copy_top(atlas: Atlas, rows: np.ndarray, dest: Path) -> None:
         tr(
             f"copied the best {done.placed} to {done.folder} (file names start with the rank: "
             "01_ scored highest)",
-            f"已把分數最高的 {done.placed} 張複製到 {done.folder}（檔名開頭是名次：01_ 分數最高）",
+            f"已把分数最高的 {done.placed} 张复制到 {done.folder}"
+            "（文件名开头是名次：01_ 分数最高）",
         )
     )
     for p, why in done.failed:
-        log(tr(f"not copied {p}: {why}", f"沒有複製 {p}：{why}"))
+        log(tr(f"not copied {p}: {why}", f"没有复制 {p}：{why}"))
 
 
 def taste_args(
@@ -193,25 +195,25 @@ def taste_args(
     t1 = tsub.add_parser(
         "train",
         formatter_class=formatter,
-        help=tr("learn from a liked and a disliked folder", "從一個喜歡、一個不喜歡的資料夾學習"),
+        help=tr("learn from a liked and a disliked folder", "从一个喜欢、一个不喜欢的文件夹学习"),
     )
     t1.add_argument(
-        "--like", required=True, help=tr("folder of pictures you like", "你喜歡的圖的資料夾")
+        "--like", required=True, help=tr("folder of pictures you like", "你喜欢的图的文件夹")
     )
     t1.add_argument(
         "--dislike",
         required=True,
-        help=tr("folder of pictures you dislike", "你不喜歡的圖的資料夾"),
+        help=tr("folder of pictures you dislike", "你不喜欢的图的文件夹"),
     )
     t1.add_argument(
-        "--model", default="taste_model.npz", help=tr("model file to write", "要存的模型檔")
+        "--model", default="taste_model.npz", help=tr("model file to write", "要存的模型文件")
     )
     t2 = tsub.add_parser(
         "score",
         formatter_class=formatter,
-        help=tr("rank a folder with a trained model", "用訓練好的模型替資料夾排序"),
+        help=tr("rank a folder with a trained model", "用训练好的模型给文件夹排序"),
     )
-    t2.add_argument("folder", help=tr("the pictures to rank", "要排序的圖"))
+    t2.add_argument("folder", help=tr("the pictures to rank", "要排序的图"))
     t2.add_argument(
         "--model",
         default="taste_model.npz",
@@ -219,9 +221,9 @@ def taste_args(
             "trained model file (default taste_model.npz here; the web app saves one as "
             "<folder>_style_atlas/taste_model.npz). It holds the rated pictures' file names and "
             "style vectors: whoever gets the file sees what you rated",
-            "訓練好的模型檔（預設是這裡的 taste_model.npz；網頁介面存的在 "
-            "<資料夾>_style_atlas/taste_model.npz）。檔案裡有評過的圖的檔名和畫風向量："
-            "拿到檔案的人看得到你評過哪些圖",
+            "训练好的模型文件（默认是这里的 taste_model.npz；网页界面存的在 "
+            "<文件夹>_style_atlas/taste_model.npz）。文件里有评过的图的文件名和画风向量："
+            "拿到文件的人看得到你评过哪些图",
         ),
     )
     t2.add_argument(
@@ -229,7 +231,7 @@ def taste_args(
         metavar="DIR",
         help=tr(
             "copy the best-scored images into this new folder, led by their rank",
-            "把分數最高的圖複製到這個新資料夾，檔名開頭是名次",
+            "把分数最高的图复制到这个新文件夹，文件名开头是名次",
         ),
     )
     t2.add_argument(
@@ -238,7 +240,7 @@ def taste_args(
         default=TOP_COPIED,
         help=tr(
             f"how many --copy-to copies (default {TOP_COPIED})",
-            f"--copy-to 要複製幾張（預設 {TOP_COPIED}）",
+            f"--copy-to 要复制几张（默认 {TOP_COPIED}）",
         ),
     )
     for t in (t1, t2):

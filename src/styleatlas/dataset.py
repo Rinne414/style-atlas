@@ -252,7 +252,7 @@ def parse_repeats(repeats: str | int) -> int | None:
         raise ValueError(
             tr(
                 f"repeats must be 'auto' or a whole number >= 1, got {repeats!r}",
-                f"repeats 必須是 'auto' 或 >= 1 的整數，收到 {repeats!r}",
+                f"repeats 必须是 'auto' 或 >= 1 的整数，收到 {repeats!r}",
             )
         )
     return n
@@ -274,7 +274,7 @@ def clean_group_name(name: str) -> str:
         raise ValueError(
             tr(
                 "group name is empty after removing characters folders cannot use",
-                "拿掉資料夾不能用的字元後，群名稱是空的",
+                "拿掉文件夹不能用的字符后，组名称是空的",
             )
         )
     stem, dot, rest = out.partition(".")

@@ -264,7 +264,7 @@ def test_folders_take_turns_on_the_model_and_a_closed_window_stops_its_turn(tmp_
         desk._switch(two, waiting, tmp_path / "b", lambda g: desk._build(two, quick, waiting, g))
         _wait_for(lambda: waiting.lines)
         assert order == ["one"]  # the second folder waits for the first
-        assert any(word in waiting.lines[0] for word in ("another window", "另一個視窗"))
+        assert any(word in waiting.lines[0] for word in ("another window", "另一个窗口"))
         release.set()
         _wait_for(lambda: isinstance(two.app, _Ready))
         assert order == ["one", "two"] and isinstance(one.app, _Ready)

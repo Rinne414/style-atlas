@@ -285,11 +285,11 @@ def test_report_sums_up_a_folder(lib, tmp_path, capsys):
     args = ["report", str(lib), "-o", str(out), "--artists", str(lib), "--lang", "zh"]
     assert main([*args, "--device", "cpu"]) == 0
     page = out.read_text(encoding="utf-8")
-    assert "畫風一致性" in page and "最像的畫師" in page and page.count('<div class="card">') >= 3
+    assert "画风一致性" in page and "最像的画师" in page and page.count('<div class="card">') >= 3
     assert "data:image/webp;base64," in page  # thumbnails inside, so the file can be sent alone
-    assert "來自：red 6" in page or "來自：green 6" in page  # each group's sub-folders
-    assert "子資料夾：哪些畫風相近" in page and page.count("最像：") == 3  # red, green, blue
-    assert "這個資料夾有 3 個子資料夾" in page  # a collection reads as spread by design
+    assert "来自：red 6" in page or "来自：green 6" in page  # each group's sub-folders
+    assert "子文件夹：哪些画风相近" in page and page.count("最像：") == 3  # red, green, blue
+    assert "这个文件夹有 3 个子文件夹" in page  # a collection reads as spread by design
     assert page.count('<div class="ends">') == 7  # consistency and the 6 look measures
     assert main(["report", str(lib), "-o", str(out), "--lang", "en", "--device", "cpu"]) == 0
     page = out.read_text(encoding="utf-8")
@@ -563,7 +563,7 @@ def test_report_checks_lora_renders_against_the_training_set(lib, tmp_path, caps
     assert "closest training image" in rows[-1]
     assert "Next to Danbooru artists" in page and "z_note" not in page  # 5+ a side: no z
     assert main([*base, "--lang", "zh"]) == 0
-    assert "LoRA 算圖檢查" in out.read_text(encoding="utf-8")
+    assert "LoRA 出图检查" in out.read_text(encoding="utf-8")
     assert main([*base, "--neutralize", "1"]) == 1
     assert "--renders compares plain style vectors" in capsys.readouterr().err
 
@@ -590,9 +590,9 @@ def test_messages_are_in_chinese_when_asked(lib, tmp_path, monkeypatch, capsys):
     base = ["cluster", str(lib), "--device", "cpu", "--no-map", "-o", str(tmp_path / "o")]
     assert main(base) == 0
     err = capsys.readouterr().err
-    assert "群，" in err and "張未分群" in err and "上面的資料夾名稱只是規劃" in err
+    assert "组，" in err and "张未分组" in err and "上面的文件夹名称只是规划" in err
     assert main(["audit", str(lib), "--device", "cpu"]) == 0
-    assert "images（圖片數）" in capsys.readouterr().out
+    assert "images（图片数）" in capsys.readouterr().out
     monkeypatch.setenv("STYLE_ATLAS_LANG", "en")
     assert not chinese()
 
@@ -672,11 +672,11 @@ def test_help_formats_in_both_languages(monkeypatch):
     en = [p.format_help() for p in _all_parsers(cli.build_parser())]
 
     assert len(zh) == len(en) > 15  # top, every command, the taste sub-commands
-    assert any("畫風" in text for text in zh)
-    assert any("資料夾" in text for text in zh)
-    assert any("kohya" in text and "重複次數" in text for text in zh)
+    assert any("画风" in text for text in zh)
+    assert any("文件夹" in text for text in zh)
+    assert any("kohya" in text and "重复次数" in text for text in zh)
     assert "group a folder by style" in "\n".join(en)
-    assert not any("畫風" in text for text in en)
+    assert not any("画风" in text for text in en)
 
 
 def test_search_looks_further_down_when_near_copies_fold():

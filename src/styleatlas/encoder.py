@@ -74,7 +74,7 @@ MIRROR_HINT = (
     "HF_ENDPOINT=https://hf-mirror.com and try again (Windows: set HF_ENDPOINT=https://hf-mirror.com)."
 )
 MIRROR_HINT_ZH = (
-    "如果這裡連不上 huggingface.co，請先設定環境變數 HF_ENDPOINT=https://hf-mirror.com 再試一次"
+    "如果这里连不上 huggingface.co，请先设置环境变量 HF_ENDPOINT=https://hf-mirror.com 再试一次"
     "（Windows：set HF_ENDPOINT=https://hf-mirror.com）。"
 )
 
@@ -109,10 +109,10 @@ def check_space() -> None:
                     f"{probe.anchor or probe} has {free:.1f} GB. Free some space, or set the "
                     "environment variable STYLE_ATLAS_CACHE to a folder on another drive "
                     "(Windows: set STYLE_ATLAS_CACHE=D:\\style-atlas-cache) and try again",
-                    f"第一次使用需要約 {need} GB 的空間放畫風模型，"
-                    f"但 {probe.anchor or probe} 只剩 {free:.1f} GB。請清出空間，"
-                    "或把環境變數 STYLE_ATLAS_CACHE 設到別的磁碟上的資料夾"
-                    "（Windows：set STYLE_ATLAS_CACHE=D:\\style-atlas-cache）再試一次",
+                    f"第一次使用需要约 {need} GB 的空间放画风模型，"
+                    f"但 {probe.anchor or probe} 只剩 {free:.1f} GB。请清出空间，"
+                    "或把环境变量 STYLE_ATLAS_CACHE 设到别的磁盘上的文件夹"
+                    "（Windows：set STYLE_ATLAS_CACHE=D:\\style-atlas-cache）再试一次",
                 )
             )
 
@@ -128,7 +128,7 @@ def _extract_weights() -> dict[str, torch.Tensor]:
         raise ModelDownloadError(
             tr(
                 f"could not download the style model ({CSD_REPO}): {e}. {MIRROR_HINT}",
-                f"無法下載畫風模型（{CSD_REPO}）：{e}。{MIRROR_HINT_ZH}",
+                f"无法下载画风模型（{CSD_REPO}）：{e}。{MIRROR_HINT_ZH}",
             )
         ) from e
     with torch.serialization.safe_globals(_numpy_pickle_globals()):
@@ -158,7 +158,7 @@ def load_weights() -> dict[str, torch.Tensor]:
     print(
         tr(
             "first run: downloading the style model once (about 2.4 GB; a 1.2 GB copy is kept)",
-            "第一次使用：下載畫風模型（約 2.4 GB，只會下載一次；之後保留 1.2 GB 的精簡版）",
+            "第一次使用：下载画风模型（约 2.4 GB，只会下载一次；之后保留 1.2 GB 的精简版）",
         ),
         file=sys.stderr,
         flush=True,

@@ -28,11 +28,11 @@ FEW_FOR_LORA = 8  # style-LoRA guides suggest starting at 8-15 images (docs/LORA
 
 
 def _lora_args(p: argparse.ArgumentParser) -> None:
-    g = p.add_argument_group(tr("training dataset", "訓練資料集"))
+    g = p.add_argument_group(tr("training dataset", "训练数据集"))
     g.add_argument(
         "--export",
         choices=["copy", "link"],
-        help=tr("also place images into style folders", "也把圖放進各畫風群的資料夾"),
+        help=tr("also place images into style folders", "也把图放进各画风组的文件夹"),
     )
     g.add_argument(
         "--layout",
@@ -40,14 +40,14 @@ def _lora_args(p: argparse.ArgumentParser) -> None:
         default="plain",
         help=tr(
             "kohya: <repeats>_<name>_styleNN folders; set-aside folders are skipped",
-            "kohya：<重複次數>_<名稱>_styleNN 資料夾；另外放的資料夾會被略過",
+            "kohya：<重复次数>_<名称>_styleNN 文件夹；另外放的文件夹会被略过",
         ),
     )
     g.add_argument(
         "--name",
         help=tr(
             "concept name for kohya folders (default: the folder name)",
-            "kohya 資料夾用的概念名稱（預設：資料夾名稱）",
+            "kohya 文件夹用的概念名称（默认：文件夹名称）",
         ),
     )
     g.add_argument(
@@ -55,7 +55,7 @@ def _lora_args(p: argparse.ArgumentParser) -> None:
         default="auto",
         help=tr(
             "kohya repeats per style folder, or auto (images x repeats about 100 per epoch)",
-            "kohya 每個畫風資料夾的重複次數，或 auto（每個 epoch 張數 × 重複次數約 100）",
+            "kohya 每个画风文件夹的重复次数，或 auto（每个 epoch 张数 × 重复次数约 100）",
         ),
     )
     g.add_argument(
@@ -63,7 +63,7 @@ def _lora_args(p: argparse.ArgumentParser) -> None:
         action="store_true",
         help=tr(
             "start every exported caption with its group's trigger word (artistX_style01)",
-            "每個匯出的標註開頭加上該群的觸發詞（artistX_style01）",
+            "每个导出的标注开头加上该组的触发词（artistX_style01）",
         ),
     )
     g.add_argument(
@@ -71,7 +71,7 @@ def _lora_args(p: argparse.ArgumentParser) -> None:
         action="store_true",
         help=tr(
             "keep the best copy of each near-duplicate group; others go to _duplicates",
-            "每組近重複圖只留最好的一張，其餘放進 _duplicates",
+            "每组近重复图只留最好的一张，其余放进 _duplicates",
         ),
     )
     g.add_argument(
@@ -79,14 +79,14 @@ def _lora_args(p: argparse.ArgumentParser) -> None:
         type=int,
         default=0,
         metavar="N",
-        help=tr("move the N least typical images to _outliers", "把最不典型的 N 張移到 _outliers"),
+        help=tr("move the N least typical images to _outliers", "把最不典型的 N 张移到 _outliers"),
     )
     g.add_argument(
         "--strip-tags",
         metavar="TAGS",
         help=tr(
             'remove these caption tags in the exported copies, e.g. "sketch, monochrome"',
-            '從匯出的複本標註中移除這些標籤，例如 "sketch, monochrome"',
+            '从导出的副本标注中移除这些标签，例如 "sketch, monochrome"',
         ),
     )
     g.add_argument(
@@ -96,7 +96,7 @@ def _lora_args(p: argparse.ArgumentParser) -> None:
             "in the exported copies, write each tag the dataset spells two ways "
             "(long_hair / long hair) "
             "the way most captions do",
-            "匯出的複本中，資料集有兩種寫法的標籤（long_hair／long hair）統一成多數標註的寫法",
+            "导出的副本中，数据集有两种写法的标签（long_hair/long hair）统一成多数标注的写法",
         ),
     )
     g.add_argument(
@@ -105,7 +105,7 @@ def _lora_args(p: argparse.ArgumentParser) -> None:
         metavar="N",
         help=tr(
             "keep at most N images per style, chosen to cover it; the rest go to _trimmed",
-            "每個畫風群最多留 N 張（挑能涵蓋整群的），其餘放進 _trimmed",
+            "每个画风组最多留 N 张（挑能涵盖整组的），其余放进 _trimmed",
         ),
     )
 
@@ -118,7 +118,7 @@ def cmd_cluster(a: argparse.Namespace) -> int:
         raise ValueError(
             tr(
                 "--trigger-captions and --fix-tag-spelling only apply with --export copy|link",
-                "--trigger-captions 和 --fix-tag-spelling 只在 --export copy|link 時有用",
+                "--trigger-captions 和 --fix-tag-spelling 只在 --export copy|link 时有用",
             )
         )
     from styleatlas.export import output_dir, write_table
@@ -129,7 +129,7 @@ def cmd_cluster(a: argparse.Namespace) -> int:
     result, dups = _group(a, atlas)
     folders, tags = _plan(a, atlas, result, dups)
     csv_path, json_path = write_table(atlas, result, out, folders, tags)
-    log(tr(f"wrote {csv_path} and {json_path}", f"已寫出 {csv_path} 和 {json_path}"))
+    log(tr(f"wrote {csv_path} and {json_path}", f"已写出 {csv_path} 和 {json_path}"))
     spread = None
     if getattr(a, "fitted_space", None) is None:  # the reference was measured on plain CSD
         spread = _log_consistency(atlas)
@@ -143,7 +143,7 @@ def cmd_cluster(a: argparse.Namespace) -> int:
             tr(
                 "the folder names above are the plan; add --export copy (or link) to write the "
                 "folders",
-                "上面的資料夾名稱只是規劃；加 --export copy（或 link）才會真的建立資料夾",
+                "上面的文件夹名称只是规划；加 --export copy（或 link）才会真的创建文件夹",
             )
         )
     if not a.no_map:
@@ -157,7 +157,7 @@ def cmd_cluster(a: argparse.Namespace) -> int:
             time_source=a.time,
             reference=_reference(a),
         )
-        log(tr(f"map: {path}", f"地圖：{path}"))
+        log(tr(f"map: {path}", f"地图：{path}"))
     return 0
 
 
@@ -176,7 +176,7 @@ def _group(a: argparse.Namespace, atlas: Atlas):
         log(
             tr(
                 f"{aside} near-duplicates set aside before grouping",
-                f"{aside} 張近重複圖先放到一邊，不參與分群",
+                f"{aside} 张近重复图先放到一边，不参与分组",
             )
         )
         result = expand_clustering(_cluster(a, atlas.subset(kept)), kept, len(atlas))
@@ -200,11 +200,11 @@ def _export(a: argparse.Namespace, atlas: Atlas, folders: list[str], out: Path) 
         strip_tags=parse_tags(a.strip_tags or ""),
         respell=respell,
     )
-    verb = "已複製" if a.export == "copy" else "已連結"
+    verb = "已复制" if a.export == "copy" else "已链接"
     log(
         tr(
             f"{a.export}: {done.placed} images into {done.folder}",
-            f"{verb} {done.placed} 張到 {done.folder}",
+            f"{verb} {done.placed} 张到 {done.folder}",
         )
     )
     export_notes(done, folders, a.layout, a.trigger_captions, respell)
@@ -215,7 +215,7 @@ def _export(a: argparse.Namespace, atlas: Atlas, folders: list[str], out: Path) 
         log(
             tr(
                 f"one epoch = {steps} steps at batch size 1 (images x repeats)",
-                f"batch size 1 時，每個 epoch 約 {steps} 步（張數 × repeats）",
+                f"batch size 1 时，每个 epoch 约 {steps} 步（张数 × repeats）",
             )
         )
         if a.repeats == "auto":
@@ -224,12 +224,12 @@ def _export(a: argparse.Namespace, atlas: Atlas, folders: list[str], out: Path) 
                     "repeats (the number before each folder name) were set so that each folder "
                     "gives about 100 images per epoch: small folders repeat more, so every style "
                     "weighs about the same",
-                    "repeats（資料夾名稱前面的數字）是自動算的：讓每個資料夾每個 epoch 約 100 張，"
-                    "張數少的資料夾重複較多次，各畫風的份量就差不多",
+                    "repeats（文件夹名称前面的数字）是自动算的：让每个文件夹每个 epoch 约 100 张，"
+                    "张数少的文件夹重复较多次，各画风的份量就差不多",
                 )
             )
     for p, why in done.failed:
-        log(tr(f"not exported {p}: {why}", f"沒有匯出 {p}：{why}"))
+        log(tr(f"not exported {p}: {why}", f"没有导出 {p}：{why}"))
 
 
 def _note_lost_groups(result, folders: list[str]) -> None:
@@ -249,7 +249,7 @@ def _note_lost_groups(result, folders: list[str]) -> None:
                 f"note: style {names} kept too few images after duplicates, outliers and "
                 "exclusions;"
                 " it has no folder (its number is skipped)",
-                f"注意：第 {names} 群拿掉重複、離群和排除的圖之後太少，沒有資料夾（編號跳過）",
+                f"注意：第 {names} 组拿掉重复、离群和排除的图之后太少，没有文件夹（编号跳过）",
             )
         )
 
@@ -264,7 +264,7 @@ def _plan(
         log(
             tr(
                 f"{len(excluded)} image(s) you excluded in the web app go to _excluded",
-                f"{len(excluded)} 張你在網頁介面排除的圖會放到 _excluded",
+                f"{len(excluded)} 张你在网页界面排除的图会放到 _excluded",
             )
         )
     outliers = None
@@ -292,7 +292,7 @@ def _plan(
         log(
             tr(
                 f"{trimmed} image(s) beyond {a.max_per_group} per group go to _trimmed",
-                f"每群超過 {a.max_per_group} 張的 {trimmed} 張放到 _trimmed",
+                f"每组超过 {a.max_per_group} 张的 {trimmed} 张放到 _trimmed",
             )
         )
     _note_lost_groups(result, folders)
@@ -305,14 +305,14 @@ def _when(pos: np.ndarray | None, members: list[int]) -> str:
         return ""
     q1, med, q3 = span
     return tr(
-        f"  when {med:4.0%} [{q1:.0%}-{q3:.0%}]", f"  時間位置 {med:4.0%} [{q1:.0%}-{q3:.0%}]"
+        f"  when {med:4.0%} [{q1:.0%}-{q3:.0%}]", f"  时间位置 {med:4.0%} [{q1:.0%}-{q3:.0%}]"
     )
 
 
 CONSISTENCY_WORDS_ZH = {
     "tight": "很一致",
-    "like one artist": "在一位畫師的正常範圍內；兩三位畫師混在一起也常落在這裡",
-    "mixed": "可能混了不同畫風或時期（約 1 成的單一畫師也會落在這裡）；下面的分群把它分開",
+    "like one artist": "在一位画师的正常范围内；两三位画师混在一起也常落在这里",
+    "mixed": "可能混了不同画风或时期（约 1 成的单一画师也会落在这里）；下面的分组把它分开",
 }
 CONSISTENCY_WORDS = {
     "tight": "very consistent",
@@ -341,7 +341,7 @@ def _log_where_they_went(folders: list[str]) -> None:
         tr(
             f"{len(folders)} images: {kept} in {groups} style folders"
             + (f"; set aside: {rest}" if rest else ""),
-            f"共 {len(folders)} 張：{kept} 張在 {groups} 個畫風資料夾"
+            f"共 {len(folders)} 张：{kept} 张在 {groups} 个画风文件夹"
             + (f"；另外放：{rest}" if rest else ""),
         )
     )
@@ -357,8 +357,8 @@ def _one_lora_hint(a: argparse.Namespace, result, spread) -> None:
             tr(
                 "to train one LoRA on all of it: run the same command with --k 1 instead of "
                 "--granularity timeline (one folder)",
-                "要用全部作品訓一個 LoRA：把 --granularity timeline 換成 --k 1 再執行一次"
-                "（全部放進同一個資料夾）",
+                "要用全部作品训练一个 LoRA：把 --granularity timeline 换成 --k 1 再运行一次"
+                "（全部放进同一个文件夹）",
             )
         )
         return
@@ -368,8 +368,8 @@ def _one_lora_hint(a: argparse.Namespace, result, spread) -> None:
             tr(
                 f"if these are all one artist's works, the {result.n_clusters} groups are most "
                 "likely small differences within one style; for one LoRA add --k 1 (one folder)",
-                f"如果這些都是同一位畫師的作品，分出的 {result.n_clusters} 群多半只是同一畫風裡的"
-                "細部差異；要訓一個 LoRA，加 --k 1（全部放進同一個資料夾）",
+                f"如果这些都是同一位画师的作品，分出的 {result.n_clusters} 组多半只是同一画风里的"
+                "细部差异；要训练一个 LoRA，加 --k 1（全部放进同一个文件夹）",
             )
         )
 
@@ -385,8 +385,8 @@ def _log_consistency(atlas: Atlas):
                 f"style consistency: spread {c.spread:.3f}, more spread than {c.percentile:.0f}% "
                 "of "
                 f"single artists ({CONSISTENCY_WORDS[c.verdict]})",
-                f"畫風一致性：{CONSISTENCY_WORDS_ZH[c.verdict]}"
-                f"（比 {c.percentile:.0f}% 的單一畫師分散；分散度 {c.spread:.3f}，越大越雜）",
+                f"画风一致性：{CONSISTENCY_WORDS_ZH[c.verdict]}"
+                f"（比 {c.percentile:.0f}% 的单一画师分散；分散度 {c.spread:.3f}，越大越杂）",
             )
         )
     return c
@@ -402,7 +402,7 @@ def _print_groups(
         log(
             tr(
                 "when = position in the folder's timeline (0% oldest): median [middle half]",
-                "時間位置 = 在作品時間軸上的位置（0% 最早）：中位數 [中間一半]",
+                "时间位置 = 在作品时间轴上的位置（0% 最早）：中位数 [中间一半]",
             )
         )
 
@@ -417,11 +417,11 @@ def _print_groups(
             continue
         cid = int(result.labels[members[0]])
         top = ", ".join(r["tag"] for r in tags.get(cid, [])[:5]) if cid >= 0 else ""
-        few = tr("  (few images)", "  （張數少）") if n < FEW_FOR_LORA else ""
+        few = tr("  (few images)", "  （张数少）") if n < FEW_FOR_LORA else ""
         look = ""
         if atlas.looks is not None:
             words = describe(profile(atlas.looks, members), "zh" if chinese() else "en")
-            look = f"  [{words or tr('average look', '外觀平均')}]"
+            look = f"  [{words or tr('average look', '外观平均')}]"
         log(f"  {pad(folder, 28)}{n:5d}{few}{_when(pos, members)}{look}  {top}")
     small = [f for f, n in Counter(folders).items() if not f.startswith("_") and n < FEW_FOR_LORA]
     if small:
@@ -433,9 +433,9 @@ def _print_groups(
                 "advice is 8-15+ per style LoRA, and automatic repeats repeat a small group more, "
                 "which can overfit it: merge them (web app), use a coarser --granularity, or set "
                 "--repeats",
-                f"注意：{len(small)} 群少於 {FEW_FOR_LORA} 張（{names}）；一般建議每個畫風 LoRA "
-                "至少 8～15 張，而且自動 repeats 會讓小群重複很多次，容易過擬合："
-                "可以在網頁介面合併、"
-                "用較粗的 --granularity，或用 --repeats 指定",
+                f"注意：{len(small)} 组少于 {FEW_FOR_LORA} 张（{names}）；一般建议每个画风 LoRA "
+                "至少 8~15 张，而且自动 repeats 会让小组重复很多次，容易过拟合："
+                "可以在网页界面合并、"
+                "用较粗的 --granularity，或用 --repeats 指定",
             )
         )

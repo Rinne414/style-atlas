@@ -912,7 +912,7 @@ function methodText() {
 
 let shownHint = "";  // the start-up hint on the status line, as last drawn
 function applyText() {
-  document.documentElement.lang = lang === "zh" ? "zh-Hant" : "en";
+  document.documentElement.lang = lang === "zh" ? "zh-Hans" : "en";
   $("title").querySelector("h1").textContent = DATA.title;
   $("title").querySelector(".sub").textContent = (DATA.families  // the artist map: artists and families
     ? `${N} ${t("folderUnit")} · ${DATA.clusters.length} ${t("familiesWord")}`

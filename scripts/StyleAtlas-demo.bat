@@ -8,7 +8,7 @@ if not exist "%SA%" set "SA=style-atlas"
 if "%SA%"=="style-atlas" (
   where style-atlas >nul 2>nul
   if errorlevel 1 (
-    echo 還沒安裝：請先執行 scripts\setup.bat / style-atlas is not installed yet. Run scripts\setup.bat first.
+    echo 还没安装：请先运行 scripts\setup.bat / style-atlas is not installed yet. Run scripts\setup.bat first.
     pause
     exit /b 1
   )

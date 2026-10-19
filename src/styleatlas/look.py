@@ -78,28 +78,28 @@ GREYSCALE = 0.02
 
 WORDS_ZH = {  # as on the web page
     "brightness": ("偏亮", "偏暗"),
-    "contrast": ("對比強", "對比弱"),
-    "colourfulness": ("色彩鮮豔", "色彩淡"),
+    "contrast": ("对比强", "对比弱"),
+    "colourfulness": ("色彩鲜艳", "色彩淡"),
     "warmth": ("偏暖", "偏冷"),
-    "lines": ("線條多", "線條少"),
-    "flatness": ("色塊平", "質感多"),
+    "lines": ("线条多", "线条少"),
+    "flatness": ("色块平", "质感多"),
 }
 
 
-# after 比 ("B 比 A ...", "than"): the comparative form, which 偏亮 or 線條多 is not
+# after 比 ("B 比 A ...", "than"): the comparative form, which 偏亮 or 线条多 is not
 THAN_ZH = {
     "brightness": ("更亮", "更暗"),
-    "contrast": ("對比更強", "對比更弱"),
-    "colourfulness": ("色彩更鮮豔", "色彩更淡"),
+    "contrast": ("对比更强", "对比更弱"),
+    "colourfulness": ("色彩更鲜艳", "色彩更淡"),
     "warmth": ("更暖", "更冷"),
-    "lines": ("線條更多", "線條更少"),
-    "flatness": ("色塊更平", "質感更多"),
+    "lines": ("线条更多", "线条更少"),
+    "flatness": ("色块更平", "质感更多"),
 }
 
 
 def describe(z: np.ndarray, lang: str = "en", than: bool = False) -> str:
     """Words for a profile (see `profile`), strongest first: "more line work, cooler" (or
-    "線條多、偏冷" with lang "zh", "線條更多、更冷" with `than` for a sentence with 比); empty
+    "线条多、偏冷" with lang "zh", "线条更多、更冷" with `than` for a sentence with 比); empty
     when no measure differs by NOTABLE or more."""
     zh = THAN_ZH if than else WORDS_ZH
     words_of, sep = (zh, "、") if lang == "zh" else (WORDS, ", ")
