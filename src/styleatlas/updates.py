@@ -214,9 +214,9 @@ SETTINGS_FILE = "settings.json"
 
 
 def _settings_path() -> Path:
-    from styleatlas.cachedir import cache_dir
+    from styleatlas.cachedir import state_dir
 
-    return cache_dir() / SETTINGS_FILE
+    return state_dir() / SETTINGS_FILE
 
 
 def check_enabled() -> bool:

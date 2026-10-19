@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.45.0 - 2026-10-20
+
+From a user in mainland China who waited a long time for downloads and could not tell where they
+went, and a user who did not want the model on drive C:.
+
+- **Faster downloads from where you are**: before downloading, the program measures the original
+  sites and mirrors and uses the fastest (packages: pypi.org, Tsinghua, Aliyun; torch:
+  download.pytorch.org, NJU, SJTU; style model: huggingface.co, hf-mirror.com). If the style
+  model's download stalls or crawls, it carries on from another source at the same byte; a broken
+  download continues where it stopped. Every package is installed with `pip --require-hashes` from
+  lock files (`packaging/locks/`, made by `scripts/lock_packages.py`; the release build refuses
+  stale ones) and the model is checked against its SHA256, so a mirror can only hand over the
+  original files. The waiting page shows the speed test, then one progress line with speed and
+  source.
+- **The model and caches stay in the program's folder** (`data/`) instead of
+  `%USERPROFILE%\.cache\style-atlas`, so they land on the drive you unpacked to. An older
+  version's downloaded model is used where it is, not downloaded again. **Move…** at the bottom of
+  the start page shows where they are and how big, and moves them to another folder (copied, then
+  switched, then the old copy deleted; a failure leaves everything as it was). A style model already
+  in your own Hugging Face cache is read from there. pip no longer leaves a 2.7 GB copy of torch in
+  your profile on C:.
+- **First computation about 30% faster with an NVIDIA card** (RTX 3090, 720 pictures: 41 -> 53 per
+  second): pictures are opened in worker processes instead of threads, which waited on each other,
+  and a GPU batch holds 16 pictures. The workers stay within the program's 8 CPUs at low priority;
+  the vectors are the same as before (identical to the last bit for the workers, within 1e-6 for
+  the batch size). The CPU path is unchanged: 8 threads on the first CPUs was the fastest safe
+  setting measured (2.3 pictures/s vs 1.8 when the threads may wander onto slower cores).
+- `python -m styleatlas` no longer runs the command again in worker processes.
+
 ## 0.44.0 - 2026-10-19
 
 The first release for people who do not program. In short:

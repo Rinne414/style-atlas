@@ -35,11 +35,31 @@ PREVIOUS = UPDATES / "previous"  # the version before the last update, kept once
 LOG = ROOT / "style-atlas.log"  # the program's messages when no console shows them
 LOG_MAX = 5 * 1024 * 1024  # bytes; a bigger log is kept once as style-atlas.old.log
 LOG_ENV = "STYLE_ATLAS_LOG"  # tells the program where its messages go
-TORCH_INDEX = {
-    "cuda": "https://download.pytorch.org/whl/cu128",
-    "cpu": "https://download.pytorch.org/whl/cpu",
+# where pip may download from: the original first, then mirrors with the same files (the
+# fastest one answering is used; the lock files' SHA256 make every one of them as safe)
+TORCH_SOURCES = {
+    "cuda": (
+        "https://download.pytorch.org/whl/cu128",
+        "https://mirrors.nju.edu.cn/pytorch/whl/cu128",
+        "https://mirror.sjtu.edu.cn/pytorch-wheels/cu128",
+    ),
+    "cpu": (
+        "https://download.pytorch.org/whl/cpu",
+        "https://mirrors.nju.edu.cn/pytorch/whl/cpu",
+        "https://mirror.sjtu.edu.cn/pytorch-wheels/cpu",
+    ),
 }
+PYPI_SOURCES = (
+    "https://pypi.org/simple",
+    "https://pypi.tuna.tsinghua.edu.cn/simple",
+    "https://mirrors.aliyun.com/pypi/simple",
+)
+LOCKS = APP / "locks"  # <platform>-torch-<variant>.txt, <platform>-packages.txt (pinned, hashed)
+PLATFORM = "windows" if WINDOWS else "linux"
 TORCH_ENV = "STYLE_ATLAS_TORCH"  # "cpu" or "cuda": overrides the automatic choice
+# pip's downloads (torch alone 2.5 GB) wait here instead of in the user's profile on C:, so a
+# second try after a broken connection reuses them; removed once everything is installed
+PIP_CACHE = ROOT / "pip-cache"
 EXIT_WAIT = 60  # seconds to wait for the program being restarted to close
 MAX_ROOT = 110  # torch's longest file (119) + python\Lib\site-packages\ must fit in 260 characters
 # a library Qt WebEngine or its window plugins load -> the Debian/Ubuntu package with it
@@ -139,18 +159,22 @@ def _digest(*paths: Path) -> str:
 def torch_variant(have: dict) -> str:
     """The torch build to have: the one asked for, else the one installed, else by the GPU."""
     forced = os.environ.get(TORCH_ENV, "").strip().lower()
-    if forced in TORCH_INDEX:
+    if forced in TORCH_SOURCES:
         return forced
-    if have.get("torch") in TORCH_INDEX:
+    if have.get("torch") in TORCH_SOURCES:
         return have["torch"]
     return "cuda" if shutil.which("nvidia-smi") else "cpu"
+
+
+def lock(step: str) -> Path:
+    return LOCKS / f"{PLATFORM}-{step}.txt"
 
 
 def wanted(have: dict) -> dict:
     return {
         "torch": torch_variant(have),
         "torch_pins": _digest(APP / "requirements-torch.txt"),
-        "packages": _digest(APP / "requirements.txt", APP / "constraints.txt"),
+        "packages": _digest(lock("packages")),
     }
 
 
@@ -183,7 +207,59 @@ def path_fits() -> bool:
 
 def pip(*args: str) -> bool:
     command = [str(PYTHON), "-m", "pip", "install", "--disable-pip-version-check"]
+    if not (os.environ.get("PIP_CACHE_DIR") or os.environ.get("PIP_NO_CACHE_DIR")):
+        command += ["--cache-dir", str(PIP_CACHE)]
     return subprocess.run([*command, "--no-warn-script-location", *args]).returncode == 0
+
+
+def _fetch_module():
+    """styleatlas/fetch.py loaded by its path: importing the package would need numpy, which
+    may not be installed yet."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "styleatlas_fetch", APP / "styleatlas" / "fetch.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _wheel_for_here(name: str) -> bool:
+    """Whether a file on a pip index is a wheel this Python and system install."""
+    abi = f"cp{sys.version_info.major}{sys.version_info.minor}"
+    if not name.endswith(".whl") or f"-{abi}-{abi}-" not in name:
+        return False
+    return "win_amd64" in name if WINDOWS else "manylinux" in name and "x86_64" in name
+
+
+def sources(indexes: tuple[str, ...], package: str) -> list[str]:
+    """`indexes` fastest first, timed on the start of one of `package`'s wheels."""
+    fetch = _fetch_module()
+    ranking = fetch.ranked(
+        list(indexes), lambda index: fetch.index_speed(index, package, _wheel_for_here)
+    )
+    say(
+        f"下载来源测速：{fetch.describe(ranking, '无回应')}",
+        f"Download sources: {fetch.describe(ranking)}",
+    )
+    return [index for index, _ in ranking]
+
+
+def package_indexes() -> list[str]:
+    chosen = os.environ.get("PIP_INDEX_URL", "").strip()  # the user's own choice wins
+    return [chosen] if chosen else sources(PYPI_SOURCES, "scipy")
+
+
+def install(lock_file: Path, indexes: list[str]) -> bool:
+    """pip-install `lock_file` from the first index that works, in the order given."""
+    for n, index in enumerate(indexes):
+        if n:
+            where = index.split("/")[2]
+            say(f"换用 {where} 再试…", f"Trying {where} instead…")
+        if pip("--require-hashes", "-r", str(lock_file), "--index-url", index):
+            return True
+    return False
 
 
 def prepare() -> bool:
@@ -198,14 +274,14 @@ def prepare() -> bool:
             f"正在下载并安装 torch（{kind}，{size}），只有第一次需要，请稍候…",
             f"Downloading and installing torch ({want['torch']}, {size_en}); only the first time…",
         )
-        pins = ["-r", str(APP / "requirements-torch.txt")]
-        if not pip(*pins, "--index-url", TORCH_INDEX[want["torch"]]):
+        variant = want["torch"]
+        if not install(lock(f"torch-{variant}"), sources(TORCH_SOURCES[variant], "torch")):
             return False
     say("正在安装其余需要的套件…", "Installing the other packages…")
-    reqs = ["-r", str(APP / "requirements.txt"), "-c", str(APP / "constraints.txt")]
-    if not pip(*reqs):
+    if not install(lock("packages"), package_indexes()):
         return False
     MARK.write_text(json.dumps(want), "utf-8")
+    shutil.rmtree(PIP_CACHE, ignore_errors=True)
     say("环境准备好了。", "Ready.")
     return True
 

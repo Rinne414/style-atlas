@@ -22,8 +22,12 @@ artwork.)
 3. In the unzipped `StyleAtlas` folder, double-click **`Style Atlas.bat`**.
    - The first time, a console window installs what the program needs into this folder: torch
      (about 2.5 GB with an NVIDIA graphics card, about 200 MB without) and about 100 MB of other
-     packages. You do not need to install Python. The style model and caches go to
-     `%USERPROFILE%\.cache\style-atlas` (set `STYLE_ATLAS_CACHE` to move them); everything else stays in this folder. If the download breaks off, double-click again and it carries on.
+     packages. You do not need to install Python. It first measures which source is fastest (the
+     original or a mirror) and uses that one. The style model and caches stay in this folder too
+     (`data`); to put them on another drive, press **Move…** at the bottom of the start page. If an
+     older version downloaded the model into `%USERPROFILE%\.cache\style-atlas`, it is used from
+     there instead of downloaded again. If the download breaks off, double-click again and it
+     carries on.
    - Then it puts a **Style Atlas** shortcut on the desktop and opens the program. The console
      closes by itself.
 4. From then on, open it with the desktop shortcut.
@@ -54,8 +58,8 @@ The window is drawn with Qt. Most desktop Linux systems already have the system 
 1. Press **Open an image folder…**, or drop a folder onto the window. Folders opened before are
    listed on the start page.
 2. The first folder downloads the style model once (2.4 GB; a 1.2 GB copy is kept). Then each
-   picture's style is computed: about 2.5–4 pictures a second on 8 CPU threads (measured); an
-   NVIDIA card is usually faster (not measured). Results are cached, so opening the folder again is quick.
+   picture's style is computed: about 2–4 pictures a second on 8 CPU threads, about 50 a second
+   with an RTX 3090 (both measured). Results are cached, so opening the folder again is quick.
 3. The map shows the pictures grouped by style. Click a group on the right to see all of its
    pictures, double-click a picture to see it large, press → to go through every picture one by
    one.
@@ -81,10 +85,13 @@ newer bundled Python, the program says so and you download the full package agai
 
 | When | What | From |
 |---|---|---|
-| First start | Python packages (torch, numpy …), into the program's folder | pypi.org, download.pytorch.org |
-| First folder | The CSD style model (2.4 GB) | huggingface.co |
+| First start | Python packages (torch, numpy …), into the program's folder | the fastest of pypi.org and the Tsinghua and Aliyun mirrors; torch from download.pytorch.org or the NJU and SJTU mirrors |
+| First folder | The CSD style model (2.4 GB; used from your Hugging Face cache if it is there) | huggingface.co or hf-mirror.com, whichever is faster |
 | Each start, unless turned off | The newest version number and its notes | api.github.com |
 | When you press Update | The new program code | github.com |
+
+Every downloaded file is checked against its SHA256 and thrown away if it differs from the
+original, so a mirror is as safe as the original site.
 
 Nothing else: your pictures, results, ratings and names stay on your computer. There is no
 account and no usage statistics. The program's local server only answers this computer
@@ -102,10 +109,13 @@ account and no usage statistics. The program's local server only answers this co
 
 - **The first start stopped halfway** (network): double-click `Style Atlas.bat` again; it
   continues where it stopped.
-- **Slow or blocked downloads** (for example in mainland China): set the environment variable
-  `HF_ENDPOINT=https://hf-mirror.com` for the style model and `PIP_INDEX_URL` (for example
-  `https://pypi.tuna.tsinghua.edu.cn/simple`) for the packages, then start again. torch itself
-  always comes from download.pytorch.org.
+- **Slow or blocked downloads**: the program measures the sources and picks the fastest; if the
+  style model's download stalls halfway it carries on from another source. If it still fails,
+  choose a source yourself with the environment variables `HF_ENDPOINT` (style model) and
+  `PIP_INDEX_URL` (packages), then start again.
+- **Drive C: is full**: the bottom of the start page shows where the style model and caches are
+  and how much space they take; press **Move…** and pick another drive. They are moved there,
+  nothing is downloaded again.
 - **You moved the folder**: double-click `Style Atlas.bat` once more; the shortcut then points
   to the new place.
 - **An error on the screen**: the program's messages are in `style-atlas.log` in the program's
@@ -367,13 +377,18 @@ Terms: the **kohya** layout is the folder structure kohya_ss / sd-scripts train 
 **trigger word** is the tag at the start of each caption that calls up the style after
 training.
 
-The first analysis downloads the CSD model once from Hugging Face (2.4 GB). It is kept as a slim
-1.2 GB file in `~/.cache/style-atlas`; set `STYLE_ATLAS_CACHE` to move it.
+The first analysis downloads the CSD model once (2.4 GB) from the faster of huggingface.co and
+hf-mirror.com, switching to the other one if the download stalls, and checks its SHA256. It is
+kept as a slim 1.2 GB file in the cache folder: `data` in the program's folder (a source install
+uses `~/.cache/style-atlas`); move it with **Move…** on the start page or set
+`STYLE_ATLAS_CACHE`. A copy already in your Hugging Face cache (`HF_HOME`) is read from there
+and left alone.
 
 Speed:
 
-- 8 CPU threads embed about 2.5-4 images per second (measured; large images are slower).
-- An NVIDIA GPU is usually much faster (not benchmarked here).
+- 8 CPU threads embed about 2-4 images per second (measured; large images are slower).
+- An RTX 3090 embeds about 50 images per second (measured on 3.5 MB PNGs); the program then
+  opens the images in worker processes, still within its 8 CPUs.
 - Vectors are cached by file content, so reopening a folder does not re-embed anything.
 
 Manual install:

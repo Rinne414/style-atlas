@@ -519,8 +519,10 @@ def _common(p: argparse.ArgumentParser) -> None:
     g.add_argument(
         "--batch",
         type=int,
-        default=8,
-        help=tr("images per model batch", "每批送进模型的张数"),
+        help=tr(
+            "images per model batch (default: 16 on a GPU, 8 on the CPU)",
+            "每批送进模型的张数（默认：显卡 16，CPU 8）",
+        ),
     )
     g.add_argument(
         "--threads",

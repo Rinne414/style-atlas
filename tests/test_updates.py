@@ -8,6 +8,8 @@ import importlib.util
 import io
 import json
 import shutil
+import subprocess
+import sys
 import threading
 import zipfile
 from functools import partial
@@ -155,19 +157,104 @@ def test_the_launcher_puts_a_ready_update_in_place_and_keeps_the_one_before(tmp_
     assert (tmp_path / "app").is_dir()
 
 
+def _launcher_with_lists(root: Path):
+    """The launcher with an app/ that has its package lists (the lock files)."""
+    launch = _launcher(root)
+    (root / "app" / "locks").mkdir(parents=True)
+    (root / "app" / "requirements-torch.txt").write_text("torch==1\n", "utf-8")
+    for step in ("torch-cpu", "torch-cuda", "packages"):
+        launch.lock(step).write_text(f"{step}==1 --hash=sha256:00\n", "utf-8")
+    (root / "python").mkdir()
+    return launch
+
+
 def test_the_launcher_reinstalls_only_when_the_package_lists_change(tmp_path, monkeypatch):
-    launch = _launcher(tmp_path)
-    app = tmp_path / "app"
-    app.mkdir()
-    for name in ("requirements.txt", "requirements-torch.txt", "constraints.txt"):
-        (app / name).write_text(f"{name}\n", "utf-8")
-    (tmp_path / "python").mkdir()
+    launch = _launcher_with_lists(tmp_path)
     monkeypatch.delenv(launch.TORCH_ENV, raising=False)
     assert not launch.ready()  # nothing installed yet
     launch.MARK.write_text(json.dumps(launch.wanted({"torch": "cpu"})), "utf-8")
     assert launch.ready() and launch.torch_variant(launch.installed()) == "cpu"
-    (app / "requirements.txt").write_text("numpy==9\n", "utf-8")  # an update added a package
+    launch.lock("packages").write_text("numpy==9 --hash=sha256:11\n", "utf-8")  # an update
     assert not launch.ready()
     launch.MARK.write_text(json.dumps(launch.wanted({"torch": "cpu"})), "utf-8")
     monkeypatch.setenv(launch.TORCH_ENV, "cuda")  # asked for the other torch build
     assert not launch.ready()
+
+
+def test_the_launcher_keeps_pip_downloads_in_its_folder_until_installed(tmp_path, monkeypatch):
+    launch = _launcher_with_lists(tmp_path)
+    monkeypatch.delenv("PIP_CACHE_DIR", raising=False)
+    monkeypatch.delenv("PIP_NO_CACHE_DIR", raising=False)
+    monkeypatch.delenv("PIP_INDEX_URL", raising=False)
+    monkeypatch.setenv(launch.TORCH_ENV, "cpu")
+    monkeypatch.setattr(launch, "sources", lambda indexes, package: list(indexes))
+    calls = []
+
+    def fake_run(command, **kwargs):
+        calls.append(command)
+        launch.PIP_CACHE.mkdir(exist_ok=True)  # what pip leaves behind
+        return subprocess.CompletedProcess(command, returncode=0 if len(calls) < 2 else 1)
+
+    monkeypatch.setattr(launch.subprocess, "run", fake_run)
+    assert not launch.prepare()  # the packages failed from every source: downloads stay
+    assert all(c[c.index("--cache-dir") + 1] == str(launch.PIP_CACHE) for c in calls)
+    assert launch.PIP_CACHE.is_dir()
+    monkeypatch.setattr(
+        launch.subprocess, "run", lambda command, **kw: subprocess.CompletedProcess(command, 0)
+    )
+    assert launch.prepare()
+    assert not launch.PIP_CACHE.exists()
+
+
+def test_the_launcher_installs_the_locked_files_and_falls_back_to_the_next_source(
+    tmp_path, monkeypatch
+):
+    launch = _launcher_with_lists(tmp_path)
+    monkeypatch.delenv("PIP_INDEX_URL", raising=False)
+    monkeypatch.setenv(launch.TORCH_ENV, "cuda")
+    ranked = []
+
+    def fastest_mirror_first(indexes, package):
+        ranked.append(package)
+        return [indexes[1], indexes[0], *indexes[2:]]
+
+    monkeypatch.setattr(launch, "sources", fastest_mirror_first)
+    calls = []
+
+    def fake_run(command, **kwargs):
+        calls.append(command)
+        index = command[command.index("--index-url") + 1]
+        fails = index == launch.PYPI_SOURCES[1]  # the fastest PyPI mirror breaks off
+        return subprocess.CompletedProcess(command, returncode=1 if fails else 0)
+
+    monkeypatch.setattr(launch.subprocess, "run", fake_run)
+    assert launch.prepare()
+    used = [(c[c.index("-r") + 1], c[c.index("--index-url") + 1]) for c in calls]
+    assert used == [
+        (str(launch.lock("torch-cuda")), launch.TORCH_SOURCES["cuda"][1]),
+        (str(launch.lock("packages")), launch.PYPI_SOURCES[1]),
+        (str(launch.lock("packages")), launch.PYPI_SOURCES[0]),
+    ]
+    assert all("--require-hashes" in c for c in calls)
+    assert ranked == ["torch", "scipy"]
+
+
+def test_the_users_own_package_index_is_used_as_it_is(tmp_path, monkeypatch):
+    launch = _launcher_with_lists(tmp_path)
+    monkeypatch.setenv("PIP_INDEX_URL", "https://pypi.example/simple")
+
+    def no_probe(indexes, package):
+        raise AssertionError("measured although the user chose an index")
+
+    monkeypatch.setattr(launch, "sources", no_probe)
+    assert launch.package_indexes() == ["https://pypi.example/simple"]
+
+
+def test_wheels_for_this_python_and_system_are_recognised(tmp_path):
+    launch = _launcher(tmp_path)
+    abi = f"cp{sys.version_info.major}{sys.version_info.minor}"
+    here = "win_amd64" if launch.WINDOWS else "manylinux_2_28_x86_64"
+    assert launch._wheel_for_here(f"scipy-1.0-{abi}-{abi}-{here}.whl")
+    assert not launch._wheel_for_here(f"scipy-1.0-{abi}-{abi}-macosx_14_0_arm64.whl")
+    assert not launch._wheel_for_here(f"scipy-1.0-cp27-cp27-{here}.whl")
+    assert not launch._wheel_for_here("scipy-1.0.tar.gz")

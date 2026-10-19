@@ -20,7 +20,11 @@ COLOURS = {"red": (220, 40, 40), "green": (40, 200, 60), "blue": (40, 60, 220)}
 
 class FakeEncoder:
     device = "cpu"
+    crop, px, batch_size = "center", 224, 8
     signature = encoder_signature("center")
+
+    def tensors(self, squares: list[np.ndarray]) -> Image.Image:
+        return Image.fromarray(squares[0])  # the centre square stands in for the picture
 
     def encode(self, images: list[Image.Image]) -> Embeddings:
         rows = []
@@ -45,7 +49,7 @@ class FakeEncoder:
 def lib(tmp_path, monkeypatch):
     """lib/<colour>/<colour>__<id>.png, 6 per colour, with captions; a tmp cache."""
     monkeypatch.setenv("STYLE_ATLAS_CACHE", str(tmp_path / "cache"))
-    monkeypatch.setattr("styleatlas.atlas.get_encoder", lambda opts: FakeEncoder())
+    monkeypatch.setattr("styleatlas.atlas.get_encoder", lambda opts, progress=None: FakeEncoder())
     root = tmp_path / "lib"
     for name, rgb in COLOURS.items():
         (root / name).mkdir(parents=True)

@@ -1,8 +1,13 @@
 """`python -m styleatlas ...` runs the style-atlas command (for when Python's Scripts folder is
-not on PATH)."""
+not on PATH).
 
-import sys
+Worker processes (prepare.py) import this file again under another name; the guard keeps them
+from running the command a second time, and importing the command only inside it keeps torch
+out of them."""
 
-from styleatlas.cli import main
+if __name__ == "__main__":
+    import sys
 
-sys.exit(main())
+    from styleatlas.cli import main
+
+    sys.exit(main())

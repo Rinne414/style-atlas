@@ -2,35 +2,43 @@
 
 from __future__ import annotations
 
+import contextlib
 import os
+from collections import deque
 from collections.abc import Callable, Iterator
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import (
+    BrokenExecutor,
+    Executor,
+    ProcessPoolExecutor,
+    ThreadPoolExecutor,
+)
 from contextlib import closing
 from dataclasses import dataclass, field, replace
 from functools import partial
 from pathlib import Path
 
 import numpy as np
-from PIL import Image
 
 from styleatlas.encoder import CSDEncoder, cache_dir, encoder_signature
 from styleatlas.images import find_images, labels_from_folders, load_rgb
 from styleatlas.lang import tr
 from styleatlas.look import LOOK_NAMES, LOOK_VERSION, measure
 from styleatlas.metrics import StyleSpace, centroid
+from styleatlas.prepare import LOAD_ERRORS, prepare_file, worker_start
 from styleatlas.store import VectorStore
 
 Progress = Callable[[str], None]
-LOAD_ERRORS = (OSError, ValueError, Image.DecompressionBombError, SyntaxError)
 LOOK_CHUNK = 500  # images measured between cache saves
-LOADERS = 4  # threads that open and prepare the next images while the model runs
+LOADERS = 4  # threads that open and prepare the next images while the CPU runs the model
+PROCESS_LOADERS = 8  # at most this many worker processes do it for a GPU (prepare.py)
+PROCESS_MIN = 48  # fewer images than this are not worth starting worker processes for
 
 
 @dataclass
 class EncodeOptions:
     device: str = "auto"
     crop: str = "center"
-    batch_size: int = 8
+    batch_size: int | None = None  # None: encoder.GPU_BATCH or CPU_BATCH
     resolution: int = 224
     save_every: int = 64
     db_path: Path | None = None
@@ -127,11 +135,14 @@ def _silent(_: str) -> None:
 _ENCODERS: dict[tuple[str, str, int, int], CSDEncoder] = {}
 
 
-def get_encoder(opts: EncodeOptions) -> CSDEncoder:
-    """One loaded model per (device, crop, batch) for the life of the process."""
+def get_encoder(opts: EncodeOptions, progress: Progress | None = None) -> CSDEncoder:
+    """One loaded model per (device, crop, batch) for the life of the process. `progress` gets
+    the first run's download lines."""
     key = (opts.device, opts.crop, opts.batch_size, opts.resolution)
     if key not in _ENCODERS:
-        _ENCODERS[key] = CSDEncoder(opts.device, opts.crop, opts.batch_size, opts.resolution)
+        _ENCODERS[key] = CSDEncoder(
+            opts.device, opts.crop, opts.batch_size, opts.resolution, progress=progress
+        )
     return _ENCODERS[key]
 
 
@@ -184,19 +195,20 @@ def _embed_missing(
     opts: EncodeOptions,
     progress: Progress,
 ) -> list[tuple[Path, str]]:
-    encoder = get_encoder(opts)
+    encoder = get_encoder(opts, progress)
     progress(tr(f"model ready on {encoder.device}", f"模型已加载（{encoder.device}）"))
     failed: list[tuple[Path, str]] = []
     pending: dict[str, tuple[np.ndarray, np.ndarray]] = {}
     looks: dict[str, np.ndarray] = {}  # measured while each image is open anyway
     done = seen = 0
-    load = partial(_prepare, encoder)
-    with closing(_ahead(todo, opts.batch_size, load, LOADERS)) as batches:  # Ctrl+C stops loading
+    load = partial(prepare_file, crop=encoder.crop, px=encoder.px)
+    pool, depth = _loaders(encoder.device, len(todo))
+    with closing(_ahead(todo, encoder.batch_size, load, pool, depth)) as batches:  # Ctrl+C stops
         for batch, loaded in batches:
             ok = [(p, r) for p, r in zip(batch, loaded, strict=True) if not isinstance(r, str)]
             failed += [(p, r) for p, r in zip(batch, loaded, strict=True) if isinstance(r, str)]
             if ok:
-                emb = encoder.encode_prepared([inputs for _, (inputs, _) in ok])
+                emb = encoder.encode_prepared([encoder.tensors(sq) for _, (sq, _) in ok])
                 for i, (p, (_, look)) in enumerate(ok):
                     pending[keys[p]] = (emb.style[i], emb.content[i])
                     looks[keys[p]] = look
@@ -212,28 +224,59 @@ def _embed_missing(
     return failed
 
 
-def _prepare(encoder: CSDEncoder, path: Path) -> tuple[list, np.ndarray] | str:
-    """(model inputs, look measures) for one image, or why it cannot be opened."""
+def _allowed_cpus() -> list[int]:
+    import psutil
+
     try:
-        im = load_rgb(path)
-        return encoder.prepare(im), measure(im)
-    except LOAD_ERRORS as e:
-        return f"cannot open: {e}"
+        return psutil.Process().cpu_affinity()
+    except (AttributeError, psutil.Error, OSError):  # no affinity on macOS
+        return list(range(os.cpu_count() or 1))
 
 
-def _ahead(items: list, size: int, load: Callable, workers: int) -> Iterator[tuple[list, list]]:
-    """(batch, load(x) for x in batch) in order, in batches of `size`. The next batch is loaded
-    on `workers` threads while the caller works on this one. At most `workers` images are open
-    at full size at once (loading keeps only the small model inputs)."""
-    pool = ThreadPoolExecutor(workers)
+def _loaders(device: str, count: int) -> tuple[Executor, int]:
+    """Where the next images are opened, and how many batches ahead: worker processes when a GPU
+    runs the model (prepare.py says why), threads when the CPU does (it is busy with the model
+    then) or for a few images (not worth starting processes). The workers keep to the CPUs this
+    process may use, leaving one for it, at its lower priority."""
+    if device != "cpu" and count >= PROCESS_MIN:
+        cpus = _allowed_cpus()
+        workers = max(2, min(PROCESS_LOADERS, len(cpus) - 1))
+        with contextlib.suppress(OSError, ValueError):
+            return ProcessPoolExecutor(workers, initializer=worker_start, initargs=(cpus,)), 2
+    return ThreadPoolExecutor(LOADERS), 1
+
+
+def _ahead(
+    items: list, size: int, load: Callable, pool: Executor, depth: int = 1
+) -> Iterator[tuple[list, list]]:
+    """(batch, load(x) for x in batch) in order, in batches of `size`. The next `depth` batches
+    are loaded in `pool` while the caller works on this one; should the pool break (a worker
+    process died), the rest is loaded in threads. Shuts the pool down at the end."""
+    pools = [pool]
+    chunks = [items[s : s + size] for s in range(0, len(items), size)]
+
+    def submit(chunk: list) -> list:
+        try:
+            return [pools[-1].submit(load, x) for x in chunk]
+        except BrokenExecutor:
+            pools.append(ThreadPoolExecutor(LOADERS))
+            return [pools[-1].submit(load, x) for x in chunk]
+
+    def collect(futures: list, chunk: list) -> list:
+        try:
+            return [f.result() for f in futures]
+        except BrokenExecutor:
+            return [load(x) for x in chunk]
+
     try:
-        ahead = [pool.submit(load, x) for x in items[:size]]
-        for start in range(0, len(items), size):
-            current = ahead
-            ahead = [pool.submit(load, x) for x in items[start + size : start + 2 * size]]
-            yield items[start : start + size], [f.result() for f in current]
+        queue = deque([submit(chunk) for chunk in chunks[:depth]])
+        for n, chunk in enumerate(chunks):
+            if n + depth < len(chunks):
+                queue.append(submit(chunks[n + depth]))
+            yield chunk, collect(queue.popleft(), chunk)
     finally:
-        pool.shutdown(cancel_futures=True)
+        for each in pools:
+            each.shutdown(cancel_futures=True)
 
 
 def _measure_file(path: Path) -> np.ndarray:

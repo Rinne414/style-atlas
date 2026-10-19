@@ -77,14 +77,20 @@ class Preparing(StandIn):
     def __init__(self, title: str):
         self.title = title
         self.lines: list[str] = []
+        self._updating = False  # the last line may be replaced (see progress)
         self.error: str | None = None
         self.started = time.monotonic()
         self._lock = threading.Lock()
 
     def progress(self, msg: str) -> None:
+        """A line starting with "\r" (a download's progress) replaces the one before it when
+        that one did too, as in a console."""
+        updating, msg = msg.startswith("\r"), msg.lstrip("\r")
         print(msg, file=sys.stderr, flush=True)
         with self._lock:
-            self.lines = [*self.lines, msg][-PREPARING_LINES:]
+            kept = self.lines[:-1] if updating and self._updating else self.lines
+            self.lines = [*kept, msg][-PREPARING_LINES:]
+            self._updating = updating
 
     def fail(self, e: BaseException) -> None:
         known = isinstance(e, (*REQUEST_ERRORS, RuntimeError))
@@ -111,11 +117,15 @@ class Preparing(StandIn):
             "failed": tr("Could not prepare the map:", "无法准备地图："),
         }
         heading = tr(f"Preparing {self.title}", f"正在准备 {self.title}")
+        from styleatlas.cachedir import cache_dir
+
+        where = cache_dir()
         note = tr(
             "The map opens here by itself when the styles are ready. The first run downloads the "
-            "style model once (about 2.4 GB); after that only new images are computed.",
-            "画风算好后，地图会自动在这里打开。第一次使用会先下载一次画风模型（约 2.4 GB）；"
-            "之后只会计算新加入的图。",
+            f"style model once (about 2.4 GB, into {where}); after that only new images are "
+            "computed.",
+            "画风算好后，地图会自动在这里打开。第一次使用会先下载一次画风模型（约 2.4 GB，"
+            f"存到 {where}）；之后只会计算新加入的图。",
         )
         page = resources.files("styleatlas").joinpath("templates/preparing.html").read_text("utf-8")
         values = {

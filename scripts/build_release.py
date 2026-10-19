@@ -91,8 +91,29 @@ def app_files(version: str | None) -> list[tuple[str, bytes, int]]:
         files.append((f"app/styleatlas/{path.relative_to(src).as_posix()}", data, 0o644))
     for name in APP_FILES:
         files.append((f"app/{name}", (PACKAGING / name).read_bytes(), 0o644))
+    for path in sorted((PACKAGING / "locks").glob("*.txt")):
+        data = path.read_bytes().replace(b"\r\n", b"\n")
+        files.append((f"app/locks/{path.name}", data, 0o644))
     files.append(("launch.py", (PACKAGING / "launch.py").read_bytes(), 0o755))
     return files
+
+
+def check_locks() -> None:
+    """Refuse to build with lock files made from other package lists or another Python."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "lock_packages", REPO / "scripts" / "lock_packages.py"
+    )
+    locks = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(locks)
+    python = ".".join(PYTHON_VERSION.split(".")[:2])
+    if python != locks.PYTHON:
+        raise SystemExit(
+            f"lock_packages.py locks for Python {locks.PYTHON}, the package has {python}"
+        )
+    if problems := locks.stale():
+        raise SystemExit(f"out of date: {', '.join(problems)}; run python scripts/lock_packages.py")
 
 
 def root_files(platform: str, version: str) -> list[tuple[str, bytes, int]]:
@@ -173,6 +194,7 @@ def main() -> None:
     p.add_argument("--as-version", help="build as this version (to test the update path)")
     p.add_argument("--only", choices=["windows", "linux", "app"], action="append")
     a = p.parse_args()
+    check_locks()
     init = (REPO / "src" / "styleatlas" / "__init__.py").read_text("utf-8")
     version = a.as_version or re.search(r'__version__ = "([^"]+)"', init).group(1)
     out = REPO / "dist" / version

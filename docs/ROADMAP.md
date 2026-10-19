@@ -28,9 +28,12 @@
    a cross-role protocol. It would be the strongest public test of "style, not character". Access
    needs a signed release agreement e-mailed to the authors, so only the owner can request it:
    https://github.com/nkjcqvcpi/ASR
-7. **GPU run.** The development machine has an RTX 3090 and `setup.bat` installs CUDA torch there,
-   but no embedding has run on the GPU: the machine has hard-reset under load before, so a short
-   GPU test (speed, fp16) waits for the owner's go-ahead.
+7. **GPU run.** Measured 2026-10-20 on the development machine's RTX 3090, 720 PNGs, the
+   program's 8 pinned CPUs: 41 images/s with threads and batch 8, 53 with worker processes and
+   batch 16 (0.45.0 default). The model itself (fp32, about 13 ms an image) is now the limit.
+   fp16 would add about 25% but moves 1% of the top-10 neighbours, so the cached vectors would no
+   longer match; not adopted. CPU threads above 8 crash that machine, so more-thread CPU settings
+   remain unmeasured.
 
 8. **GitHub Actions billing.** Since 2026-10-10 CI jobs do not start: GitHub reports failed
    payments or a spending limit that needs raising (private repositories have a monthly quota of

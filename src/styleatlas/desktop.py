@@ -27,9 +27,10 @@ from pathlib import Path
 from typing import Any
 
 from styleatlas import __version__
-from styleatlas.cachedir import cache_dir
+from styleatlas.cachedir import state_dir
 from styleatlas.lang import tr
 from styleatlas.shortcut import icon_path, make_shortcut
+from styleatlas.storage import Mover
 from styleatlas.updates import Updater, package_root
 from styleatlas.webbase import CONTROL_PATH, POST_HEADER, StandIn
 
@@ -76,6 +77,14 @@ START_TEXTS = {
         "updLatest": "up to date",
         "updOffline": "could not check for updates",
         "updCheck": "Check for updates at start",
+        "storeAt": "Style model and cache: {p}",
+        "storeFree": "{f} GB free there",
+        "storeEnv": "(set by STYLE_ATLAS_CACHE)",
+        "storeMove": "Move…",
+        "storeMissing": "{p} cannot be reached (drive not connected?), so the folder above is "
+        "used for now.",
+        "storeBusy": "Moving the cache… {p}",
+        "storeFailed": "The cache was not moved: {e}",
         "note": "The first time, the style model is downloaded once (about 2.4 GB); after that "
         "only new pictures are computed. Pictures and results stay on this computer.",
     },
@@ -106,6 +115,13 @@ START_TEXTS = {
         "updLatest": "已是最新版本",
         "updOffline": "无法检查更新",
         "updCheck": "启动时检查更新",
+        "storeAt": "画风模型和缓存放在：{p}",
+        "storeFree": "该磁盘剩 {f} GB",
+        "storeEnv": "（由环境变量 STYLE_ATLAS_CACHE 指定）",
+        "storeMove": "更改位置…",
+        "storeMissing": "找不到 {p}（磁盘没接上？），这次先用上面的文件夹。",
+        "storeBusy": "正在搬移缓存… {p}",
+        "storeFailed": "缓存没有搬移：{e}",
         "note": "第一次使用会先下载一次画风模型（约 2.4 GB），之后只会计算新加入的图。"
         "图片和结果都只留在这台电脑。",
     },
@@ -230,6 +246,7 @@ class Desktop:
         self._lock = threading.Lock()
         self._model = threading.Lock()  # held by the folder being prepared
         self._opening = threading.Lock()  # checking and opening a folder are one step (claim)
+        self.mover = Mover(self._model)  # moving the cache waits for no folder being computed
         threading.Thread(
             target=self.server.serve_forever, name="style-atlas-http", daemon=True
         ).start()
@@ -555,6 +572,16 @@ class Api:
             return {"cancelled": True}
         return {"path": str(chosen[0] if isinstance(chosen, (list, tuple)) else chosen)}
 
+    def storage_state(self) -> dict:
+        return self._desktop.mover.state()
+
+    def move_storage(self) -> dict:
+        """Pick a folder in the system's dialog and move the cache there (in the background)."""
+        picked = self.choose_folder(str(Path(self._desktop.mover.state()["path"]).parent))
+        if "path" not in picked:
+            return picked
+        return self._desktop.mover.start(Path(picked["path"]))
+
     def forget(self, path: str) -> dict:
         if not isinstance(path, str):
             return {"error": "path must be text"}
@@ -697,7 +724,7 @@ def _hand_over(folder: str | None) -> bool:
     instead of starting a second copy, which would load the model a second time. False when no
     copy answers: none is open, or one ended without tidying up."""
     try:
-        info = json.loads((cache_dir() / OPEN_FILE).read_text("utf-8"))
+        info = json.loads((state_dir() / OPEN_FILE).read_text("utf-8"))
         port, pid, key = int(info["port"]), int(info["pid"]), str(info["key"])
     except (OSError, ValueError, KeyError, TypeError):
         return False
@@ -732,7 +759,7 @@ def run(folder: str | None, serve_args: list[str], port: int) -> int:
             )
         )
         return 2
-    root = cache_dir()
+    root = state_dir()
     _quiet_streams(root / "desktop.log")
     desktop = Desktop(serve_args, port, RecentFolders(root / RECENT_FILE))
     try:

@@ -4,6 +4,7 @@ import csv
 import io
 import json
 import os
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import numpy as np
@@ -410,10 +411,11 @@ def test_docs_have_no_stray_control_characters():
 def test_images_are_loaded_ahead_in_batches_and_in_order():
     from styleatlas.atlas import _ahead
 
-    out = list(_ahead(list(range(10)), 4, lambda x: x * x, 3))
-    assert [batch for batch, _ in out] == [[0, 1, 2, 3], [4, 5, 6, 7], [8, 9]]
-    assert [loaded for _, loaded in out] == [[0, 1, 4, 9], [16, 25, 36, 49], [64, 81]]
-    assert list(_ahead([], 4, abs, 2)) == []
+    for depth in (1, 2):
+        out = list(_ahead(list(range(10)), 4, lambda x: x * x, ThreadPoolExecutor(3), depth))
+        assert [batch for batch, _ in out] == [[0, 1, 2, 3], [4, 5, 6, 7], [8, 9]]
+        assert [loaded for _, loaded in out] == [[0, 1, 4, 9], [16, 25, 36, 49], [64, 81]]
+    assert list(_ahead([], 4, abs, ThreadPoolExecutor(2))) == []
 
 
 def test_a_failed_load_stops_the_loop_ahead(tmp_path):
@@ -425,7 +427,52 @@ def test_a_failed_load_stops_the_loop_ahead(tmp_path):
         return x
 
     with pytest.raises(MemoryError):
-        list(_ahead(list(range(10)), 4, load, 2))
+        list(_ahead(list(range(10)), 4, load, ThreadPoolExecutor(2)))
+
+
+def test_a_broken_worker_pool_hands_the_rest_to_threads():
+    from concurrent.futures.process import BrokenProcessPool
+
+    from styleatlas.atlas import _ahead
+
+    class Broken(ThreadPoolExecutor):  # stands in for a pool whose worker process died
+        def submit(self, fn, *args):
+            raise BrokenProcessPool("a worker died")
+
+    out = list(_ahead(list(range(6)), 4, lambda x: -x, Broken(1), depth=2))
+    assert [loaded for _, loaded in out] == [[0, -1, -2, -3], [-4, -5]]
+
+
+def test_a_gpu_with_many_images_opens_them_in_worker_processes(monkeypatch):
+    from concurrent.futures import ProcessPoolExecutor
+
+    from styleatlas import atlas
+
+    monkeypatch.setattr(atlas, "_allowed_cpus", lambda: list(range(8)))
+    pool, depth = atlas._loaders("cuda", 500)
+    assert isinstance(pool, ProcessPoolExecutor) and pool._max_workers == 7 and depth == 2
+    pool.shutdown()
+    for device, count in (("cpu", 500), ("cuda", 10)):
+        pool, depth = atlas._loaders(device, count)
+        assert isinstance(pool, ThreadPoolExecutor) and depth == 1
+        pool.shutdown()
+
+
+def test_worker_processes_give_the_same_model_inputs_as_the_picture(tmp_path):
+    from concurrent.futures import ProcessPoolExecutor
+    from functools import partial
+
+    from styleatlas.prepare import prepare_file, square_crops
+
+    rng = np.random.default_rng(0)
+    path = tmp_path / "noise.png"
+    Image.fromarray(rng.integers(0, 255, (300, 700, 3), dtype=np.uint8)).save(path)
+    with ProcessPoolExecutor(1) as pool:
+        squares, look = pool.submit(partial(prepare_file, crop="tiles", px=224), path).result()
+    expected = [np.asarray(c) for c in square_crops(Image.open(path).convert("RGB"), "tiles")]
+    assert len(squares) == len(expected) == 3
+    assert all(np.array_equal(a, b) for a, b in zip(squares, expected, strict=True))
+    assert look.shape == (6,)
 
 
 def test_sixteen_bit_grey_images_are_scaled_not_clipped(tmp_path):
@@ -560,3 +607,15 @@ def test_export_paths_keeps_names_apart_and_stays_inside(tmp_path):
     assert export_paths([a], [""], tmp_path / "top").failed  # the top only when allowed
     assert not export_paths([a], [""], tmp_path / "top2", allow_top=True).failed
     assert (tmp_path / "top2" / "img.png").is_file()
+
+
+def test_worker_processes_neither_rerun_the_command_nor_load_torch():
+    import subprocess
+    import sys
+
+    code = (
+        "import runpy, sys; runpy.run_module('styleatlas.__main__', run_name='__mp_main__'); "
+        "print('torch' in sys.modules)"
+    )
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=60)
+    assert out.returncode == 0 and out.stdout.strip() == "False", out.stderr

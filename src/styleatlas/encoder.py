@@ -6,8 +6,9 @@ style and one for content. Outputs are L2-normalised 768-d vectors.
 
 The training checkpoint holds optimiser state (2.4 GB). On first load the needed tensors are copied
 to a small safetensors file in the cache folder so later loads are fast and pickle-free, and the
-checkpoint is removed again (it is downloaded into the cache folder too, unless HF_HOME or
-HF_HUB_CACHE names a Hugging Face cache of the user's own).
+checkpoint is removed again. It is downloaded into the cache folder from the faster of
+huggingface.co and hf-mirror.com (fetch.py; checked against its SHA256), unless the user's own
+Hugging Face cache has it already: then that copy is read and left where it is.
 """
 
 from __future__ import annotations
@@ -18,6 +19,8 @@ import math
 import os
 import shutil
 import sys
+import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -26,19 +29,27 @@ import torch
 from PIL import Image
 from torchvision import transforms as T
 
+from styleatlas import fetch
 from styleatlas.cachedir import cache_dir
 from styleatlas.lang import tr
+from styleatlas.prepare import INPUT_PX, square_crops
 
 CSD_REPO = "tomg-group-umd/CSD-ViT-L"
 CSD_REVISION = "5bc26a6fb0487f3f00a2a7313135103a005b1b67"
-INPUT_PX = 224
+CSD_FILE = "pytorch_model.bin"
+CSD_SHA256 = "40e92fad63a361b8136100cd234c42d401ef9b34ff1748234318929ebcc7e7a1"  # at CSD_REVISION
+CSD_BYTES = 2_438_228_893
+HF_HOSTS = ("https://huggingface.co", "https://hf-mirror.com")  # the original, then its mirror
+PROGRESS_EVERY = 1.0  # seconds between download progress lines
+# images per model batch when none is given; on an RTX 3090 a batch of 16 embedded 46 images/s
+# where 8 did 41 (2026-10-20, same vectors to 1e-6); the CPU was not measured, so it keeps 8
+GPU_BATCH = 16
+CPU_BATCH = 8
 RESOLUTIONS = (224, 336)  # 336 interpolates the position embeddings (arXiv 2605.09030)
 PATCH = 14
 CLIP_MEAN = (0.48145466, 0.4578275, 0.40821073)
 CLIP_STD = (0.26862954, 0.26130258, 0.27577711)
 CROP_MODES = ("center", "tiles")
-MAX_TILES = 3
-MAX_ASPECT = 4.0  # longer strips are centre-cropped first (keeps memory bounded)
 DOWNLOAD_DIR = "hf-download"  # the checkpoint while the slim copy is made; removed after
 MODEL_GB = 2.4  # the checkpoint
 SLIM_GB = 1.2  # the copy kept in the cache folder
@@ -71,68 +82,112 @@ class ModelDownloadError(RuntimeError):
     """The CSD weights could not be fetched (no network, blocked site, full disk)."""
 
 
-MIRROR_HINT = (
-    "If huggingface.co cannot be reached from here, set the environment variable "
-    "HF_ENDPOINT=https://hf-mirror.com and try again (Windows: set HF_ENDPOINT=https://hf-mirror.com)."
+NETWORK_HINT = (
+    "Check the network or proxy and try again; the environment variable HF_ENDPOINT can name "
+    "another mirror (Windows: set HF_ENDPOINT=https://...)."
 )
-MIRROR_HINT_ZH = (
-    "如果这里连不上 huggingface.co，请先设置环境变量 HF_ENDPOINT=https://hf-mirror.com 再试一次"
-    "（Windows：set HF_ENDPOINT=https://hf-mirror.com）。"
+NETWORK_HINT_ZH = (
+    "请检查网络或代理后再试；也可以用环境变量 HF_ENDPOINT 指定别的镜像站"
+    "（Windows：set HF_ENDPOINT=https://...）。"
 )
 
 
-def download_dir() -> Path | None:
-    """Where the checkpoint is downloaded: into the cache folder (so STYLE_ATLAS_CACHE moves it
-    too and it can be removed after), or None for the user's own Hugging Face cache."""
-    if os.environ.get("HF_HUB_CACHE") or os.environ.get("HF_HOME"):
-        return None
+def download_dir() -> Path:
+    """Where the checkpoint is downloaded while the slim copy is made (removed after)."""
     return cache_dir() / DOWNLOAD_DIR
 
 
-def check_space() -> None:
-    """Fail before a download that cannot fit, saying how to put the cache elsewhere."""
-    from huggingface_hub import constants
-
-    drives: dict[int, list] = {}  # device -> [a path on it, GB it must hold]
-    for path, gb in (
-        (cache_dir(), SLIM_GB),
-        (Path(download_dir() or constants.HF_HUB_CACHE), MODEL_GB),
-    ):
-        probe = next((p for p in (path, *path.parents) if p.exists()), path)
-        entry = drives.setdefault(probe.stat().st_dev, [probe, ROOM_GB])
-        entry[1] += gb  # the checkpoint and the copy on one drive add up
-    for probe, need in drives.values():
-        need = round(need, 1)
-        free = shutil.disk_usage(probe).free / 1e9
-        if free < need:
-            raise ModelDownloadError(
-                tr(
-                    f"the first run needs about {need} GB free for the style model, but "
-                    f"{probe.anchor or probe} has {free:.1f} GB. Free some space, or set the "
-                    "environment variable STYLE_ATLAS_CACHE to a folder on another drive "
-                    "(Windows: set STYLE_ATLAS_CACHE=D:\\style-atlas-cache) and try again",
-                    f"第一次使用需要约 {need} GB 的空间放画风模型，"
-                    f"但 {probe.anchor or probe} 只剩 {free:.1f} GB。请清出空间，"
-                    "或把环境变量 STYLE_ATLAS_CACHE 设到别的磁盘上的文件夹"
-                    "（Windows：set STYLE_ATLAS_CACHE=D:\\style-atlas-cache）再试一次",
-                )
-            )
+def model_urls() -> list[str]:
+    """The checkpoint on each host to try: HF_ENDPOINT alone when the user set it."""
+    chosen = os.environ.get("HF_ENDPOINT", "").strip()
+    hosts = [chosen] if chosen else list(HF_HOSTS)
+    return [f"{h.rstrip('/')}/{CSD_REPO}/resolve/{CSD_REVISION}/{CSD_FILE}" for h in hosts]
 
 
-def _extract_weights() -> dict[str, torch.Tensor]:
-    from huggingface_hub import hf_hub_download
-
+def hf_cached() -> Path | None:
+    """The checkpoint in the user's own Hugging Face cache, when another tool downloaded it."""
     try:
-        path = hf_hub_download(
-            CSD_REPO, "pytorch_model.bin", revision=CSD_REVISION, cache_dir=download_dir()
-        )
-    except OSError as e:  # connection, HTTP and missing-file errors of huggingface_hub
+        from huggingface_hub import try_to_load_from_cache
+
+        found = try_to_load_from_cache(CSD_REPO, CSD_FILE, revision=CSD_REVISION)
+    except (ImportError, OSError, ValueError):
+        return None
+    if not isinstance(found, str) or not Path(found).is_file():
+        return None
+    return Path(found) if Path(found).stat().st_size == CSD_BYTES else None  # not a broken copy
+
+
+def finished_download() -> Path | None:
+    """The checkpoint a stopped run downloaded but did not turn into the slim copy (checked
+    against its SHA256 first), so it is not downloaded again."""
+    path = download_dir() / CSD_FILE
+    if path.is_file() and path.stat().st_size == CSD_BYTES and fetch.sha256_of(path) == CSD_SHA256:
+        return path
+    return None
+
+
+def check_space(downloading: bool = True) -> None:
+    """Fail before a download that cannot fit, saying how to put the cache elsewhere."""
+    root = cache_dir()
+    need = round(SLIM_GB + ROOM_GB + (MODEL_GB if downloading else 0), 1)
+    free = shutil.disk_usage(root).free / 1e9
+    if free < need:
         raise ModelDownloadError(
             tr(
-                f"could not download the style model ({CSD_REPO}): {e}. {MIRROR_HINT}",
-                f"无法下载画风模型（{CSD_REPO}）：{e}。{MIRROR_HINT_ZH}",
+                f"the first run needs about {need} GB free for the style model, but "
+                f"{root.anchor or root} has {free:.1f} GB. Free some space, or move the cache to "
+                "another drive (start page: Move…; or the environment variable STYLE_ATLAS_CACHE)",
+                f"第一次使用需要约 {need} GB 的空间放画风模型，"
+                f"但 {root.anchor or root} 只剩 {free:.1f} GB。请清出空间，"
+                "或把缓存搬到别的磁盘（开始页面的“更改位置…”，或环境变量 STYLE_ATLAS_CACHE）",
+            )
+        )
+
+
+def fetch_checkpoint(progress: Callable[[str], None]) -> Path:
+    """Download the checkpoint into download_dir() from the fastest host and return it."""
+    urls = model_urls()
+    ranking = fetch.ranked(urls, fetch.file_speed) if len(urls) > 1 else [(urls[0], 0.0)]
+    if len(urls) > 1:
+        progress(
+            tr(
+                f"download sources: {fetch.describe(ranking)}",
+                f"下载来源测速：{fetch.describe(ranking, '无回应')}",
+            )
+        )
+    last = [0.0, 0]  # time and bytes of the last progress line
+
+    def tick(done: int, total: int, host: str) -> None:
+        now = time.monotonic()
+        if now - last[0] < PROGRESS_EVERY and done < total:
+            return
+        rate = (done - last[1]) / max(now - last[0], 1e-3) / 1e6 if last[0] else 0.0
+        last[:] = [now, done]
+        pct = 100 * done // total
+        progress(
+            "\r"  # replaces the line before on the waiting page
+            + tr(
+                f"downloading the style model: {pct}% of {total / 1e9:.1f} GB, {rate:.1f} MB/s "
+                f"from {host}",
+                f"正在下载画风模型：{pct}%（共 {total / 1e9:.1f} GB），{rate:.1f} MB/s，"
+                f"来源 {host}",
+            )
+        )
+
+    dest = download_dir() / CSD_FILE
+    try:
+        fetch.download(ranking, dest, CSD_SHA256, CSD_BYTES, tick)
+    except fetch.FetchError as e:
+        raise ModelDownloadError(
+            tr(
+                f"could not download the style model: {e}. {NETWORK_HINT}",
+                f"无法下载画风模型：{e}。{NETWORK_HINT_ZH}",
             )
         ) from e
+    return dest
+
+
+def _extract_weights(path: Path) -> dict[str, torch.Tensor]:
     with torch.serialization.safe_globals(_numpy_pickle_globals()):
         state = torch.load(path, map_location="cpu", weights_only=True)["model_state_dict"]
     state = {k.removeprefix("module."): v for k, v in state.items()}
@@ -147,55 +202,53 @@ def slim_path() -> Path:
     return cache_dir() / f"csd_vit_l_{CSD_REVISION[:8]}.safetensors"
 
 
-def load_weights() -> dict[str, torch.Tensor]:
+def _say(msg: str) -> None:
+    print(msg, file=sys.stderr, flush=True)
+
+
+def load_weights(progress: Callable[[str], None] | None = None) -> dict[str, torch.Tensor]:
+    """The slim weights, made on the first run from the checkpoint (downloaded unless the
+    user's Hugging Face cache has it). `progress` gets the lines the waiting page shows."""
     from safetensors.torch import load_file, save_file
 
+    progress = progress or _say
     slim = slim_path()
     ours = download_dir()
     if slim.exists():
-        if ours is not None and ours.exists():  # left by a run stopped before it removed it
+        if ours.exists():  # left by a run stopped before it removed it
             shutil.rmtree(ours, ignore_errors=True)
         return load_file(str(slim))
-    check_space()
-    print(
-        tr(
-            "first run: downloading the style model once (about 2.4 GB; a 1.2 GB copy is kept)",
-            "第一次使用：下载画风模型（约 2.4 GB，只会下载一次；之后保留 1.2 GB 的精简版）",
-        ),
-        file=sys.stderr,
-        flush=True,
-    )
-    weights = _extract_weights()
+    checkpoint = hf_cached() or finished_download()
+    check_space(downloading=checkpoint is None)
+    if checkpoint is None:
+        progress(
+            tr(
+                "first run: downloading the style model once (about 2.4 GB; a 1.2 GB copy is kept)",
+                "第一次使用：下载画风模型（约 2.4 GB，只会下载一次；之后保留 1.2 GB 的精简版）",
+            )
+        )
+        _clear_other_downloads(ours)
+        checkpoint = fetch_checkpoint(progress)
+    progress(tr("preparing the style model (once)", "正在整理画风模型（只需一次）"))
+    weights = _extract_weights(checkpoint)
     tmp = slim.with_suffix(".tmp")
     save_file(weights, str(tmp))
     os.replace(tmp, slim)
-    if ours is not None:  # the 2.4 GB checkpoint is not needed again
-        shutil.rmtree(ours, ignore_errors=True)
+    shutil.rmtree(ours, ignore_errors=True)  # the 2.4 GB checkpoint is not needed again
     return weights
 
 
-def square_crops(im: Image.Image, mode: str, px: int = INPUT_PX) -> list[Image.Image]:
-    """Resize the short side to `px`; take the centre square or tiles along the long side."""
-    w, h = im.size
-    if max(w, h) > MAX_ASPECT * min(w, h):
-        long_keep = int(MAX_ASPECT * min(w, h))
-        if w > h:
-            im = im.crop(((w - long_keep) // 2, 0, (w - long_keep) // 2 + long_keep, h))
-        else:
-            im = im.crop((0, (h - long_keep) // 2, w, (h - long_keep) // 2 + long_keep))
-        w, h = im.size
-    scale = px / min(w, h)
-    rw, rh = max(px, round(w * scale)), max(px, round(h * scale))
-    im = im.resize((rw, rh), Image.Resampling.BICUBIC)
-    long_side = max(rw, rh)
-    n = 1 if mode == "center" else min(MAX_TILES, math.ceil(long_side / px - 0.15))
-    if n <= 1:
-        offsets = [(long_side - px) // 2]
-    else:
-        offsets = [round(i * (long_side - px) / (n - 1)) for i in range(n)]
-    if rw >= rh:
-        return [im.crop((o, 0, o + px, px)) for o in offsets]
-    return [im.crop((0, o, px, o + px)) for o in offsets]
+def _clear_other_downloads(folder: Path) -> None:
+    """Everything in the download folder but our own unfinished download (older versions left
+    Hugging Face's layout there, which this download does not continue)."""
+    keep = f"{CSD_FILE}.part"
+    if folder.is_dir():
+        for path in folder.iterdir():
+            if path.name != keep:
+                if path.is_dir():
+                    shutil.rmtree(path, ignore_errors=True)
+                else:
+                    path.unlink(missing_ok=True)
 
 
 def encoder_signature(crop: str, px: int = INPUT_PX) -> str:
@@ -236,8 +289,9 @@ class CSDEncoder:
         self,
         device: str = "auto",
         crop: str = "center",
-        batch_size: int = 8,
+        batch_size: int | None = None,
         resolution: int = INPUT_PX,
+        progress: Callable[[str], None] | None = None,
     ):
         if crop not in CROP_MODES:
             raise ValueError(f"crop must be one of {CROP_MODES}, got {crop!r}")
@@ -248,8 +302,9 @@ class CSDEncoder:
         self.device = resolve_device(device)
         self.crop = crop
         self.px = resolution
-        self.batch_size = max(1, batch_size)
-        weights = load_weights()
+        default = GPU_BATCH if self.device == "cuda" else CPU_BATCH
+        self.batch_size = max(1, batch_size or default)
+        weights = load_weights(progress)
         quiet = _NoRandomInitWarning()  # open_clip says "initialized randomly"; CSD loads next
         logging.getLogger().addFilter(quiet)
         try:
@@ -284,6 +339,11 @@ class CSDEncoder:
         """The model inputs for one image (one per crop). Safe to call from several threads,
         so the next images can be prepared while the model runs."""
         return [self.to_tensor(c) for c in square_crops(image, self.crop, self.px)]
+
+    def tensors(self, squares: list[np.ndarray]) -> list[torch.Tensor]:
+        """The model inputs from prepare.prepare_file's uint8 squares: the same numbers prepare
+        gives for the image (ToTensor reads an array as it reads a picture)."""
+        return [self.to_tensor(square) for square in squares]
 
     def encode(self, images: list[Image.Image]) -> Embeddings:
         return self.encode_prepared([self.prepare(im) for im in images])

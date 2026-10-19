@@ -60,6 +60,11 @@
   .update .go { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 650; }
   #updText { white-space: pre-wrap; font: inherit; font-size: .92rem; color: var(--muted); max-height: 16rem; overflow: auto; margin: .8rem 0 0; }
   #updStatus { color: var(--muted); font-size: .92rem; margin-top: .55rem; }
+  .store { color: var(--muted); font-size: .9rem; margin: 0 0 .5rem; overflow-wrap: anywhere; }
+  .store button { font-size: .9rem; padding: .15em .75em; margin-left: .4rem; }
+  .store button[hidden] { display: none; }
+  #storeStatus { color: var(--accent); }
+  #storeStatus:empty { display: none; }
 </style>
 </head>
 <body>
@@ -79,6 +84,8 @@
   <p class="status" id="status" role="status"></p>
   <section id="recent"><h2 id="recentTitle"></h2><div id="rows"></div></section>
   <p class="note" id="note"></p>
+  <p class="store"><span id="storeLine"></span><button id="storeMove" hidden></button></p>
+  <p class="store" id="storeStatus" role="status"></p>
   <p class="ver"><span id="ver"></span><span id="verState"></span><label><input type="checkbox" id="updCheck"> <span id="updCheckLbl"></span></label></p>
 </main>
 <script id="start-data" type="application/json">/*__START_DATA__*/null</script>
@@ -97,7 +104,7 @@
   $("lead").textContent = t("lead"); $("pick").textContent = t("pick"); $("dropHint").textContent = t("dropHint");
   $("recentTitle").textContent = t("recentTitle"); $("note").textContent = t("note");
   $("ver").textContent = `Style Atlas ${D.version}`; $("updCheckLbl").textContent = t("updCheck");
-  $("updNotesBtn").textContent = t("updNotes");
+  $("updNotesBtn").textContent = t("updNotes"); $("storeMove").textContent = t("storeMove");
 
   async function call(name, ...args) {  // the program's side (desktop.py Api); null when it refused
     if (!api()) { say(t("notReady")); return null; }
@@ -184,7 +191,40 @@
     if (s) { updShow(s); updPoll(); }
   });
 
-  const ready = () => { $("pick").disabled = false; updPoll(); };
+  // ---------- where the model and cache are (desktop.py Api: storage_state, move_storage) ----------
+  let storeTimer = null;
+  const gb = (bytes) => (bytes / 1e9).toFixed(1);
+  function storeShow(s) {
+    const parts = [t("storeAt").replace("{p}", s.path)];
+    if (s.size != null) parts.push(`${gb(s.size)} GB`);
+    if (s.free != null) parts.push(t("storeFree").replace("{f}", gb(s.free)));
+    $("storeLine").textContent = parts.join(" · ") + (s.env ? ` ${t("storeEnv")}` : "");
+    $("storeMove").hidden = !!s.env;
+    $("storeMove").disabled = !!s.busy;
+    let status = s.missing ? t("storeMissing").replace("{p}", s.missing) : "";
+    if (s.busy) status = t("storeBusy").replace("{p}", s.total ? `${Math.round(100 * s.done / s.total)}%` : "");
+    else if (s.problem) status = t("storeFailed").replace("{e}", s.problem);
+    else if (s.result) status = s.result;
+    $("storeStatus").textContent = status;
+  }
+  async function storePoll() {
+    clearTimeout(storeTimer);
+    const s = await call("storage_state");
+    if (!s) return;
+    storeShow(s);
+    if (s.busy || s.size == null) storeTimer = setTimeout(storePoll, 500);
+  }
+  $("storeMove").addEventListener("click", async () => {
+    if (!api()) { say(t("notReady")); return; }
+    $("storeMove").disabled = true;
+    let r = null;
+    try { r = await api().move_storage(); } catch (e) { r = { error: String((e && e.message) || e) }; }
+    $("storeMove").disabled = false;
+    if (r && r.error) $("storeStatus").textContent = t("storeFailed").replace("{e}", r.error);
+    else if (r && r.ok) storePoll();
+  });
+
+  const ready = () => { $("pick").disabled = false; updPoll(); storePoll(); };
   if (api()) ready();
   window.addEventListener("pywebviewready", ready);
 
